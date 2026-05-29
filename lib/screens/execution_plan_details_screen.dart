@@ -1,23 +1,31 @@
-import 'dart:async';
 import 'package:ndu_project/screens/execution_enabling_work_plan_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Execution Plan Details',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_details_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanDetailsScreen extends StatelessWidget {
   const ExecutionPlanDetailsScreen({
@@ -60,75 +68,64 @@ class ExecutionPlanDetailsScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: activeItemLabel,
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: InitiationLikeSidebar(activeItemLabel: activeItemLabel),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
+            const SizedBox(height: 32),
+            if (showPlanDetails) ...[
+              const SectionIntro(title: 'Execution Plan Details'),
+              const SizedBox(height: 28),
+              ExecutionPlanForm(
+                title: 'Execution Plan Details',
+                hintText: 'Input your notes here...',
+                noteKey: 'execution_plan_details',
+              ),
+              const SizedBox(height: 40),
+            ],
+            if (showPlanDetails && !showEarlyWorks) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: Wrap(
+                  spacing: 16,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
                   children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    if (showPlanDetails) ...[
-                      const SectionIntro(title: 'Execution Plan Details'),
-                      const SizedBox(height: 28),
-                      ExecutionPlanForm(
-                        title: 'Execution Plan Details',
-                        hintText: 'Input your notes here...',
-                        noteKey: 'execution_plan_details',
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                    if (showPlanDetails && !showEarlyWorks) ...[
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Wrap(
-                          spacing: 16,
-                          runSpacing: 12,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            const InfoBadge(),
-                            const AiTipCard(),
-                            YellowActionButton(
-                              label: 'Next',
-                              onPressed: () =>
-                                  ExecutionPlanDetailsScreen.openEarlyWorks(
-                                      context),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 56),
-                    ],
-                    if (showEarlyWorks) ...[
-                      const SectionIntro(title: 'Execution Early Works'),
-                      const SizedBox(height: 24),
-                      const ExecutionPlanForm(
-                        title: 'Execution Early Works',
-                        hintText:
-                            'Outline early works scope, sequencing, and handoffs.',
-                        noteKey: 'execution_early_works',
-                      ),
-                      const SizedBox(height: 32),
-                      const _EarlyWorksSection(),
-                      const SizedBox(height: 56),
-                    ],
+                    const InfoBadge(),
+                    const AiTipCard(),
+                    YellowActionButton(
+                      label: 'Next',
+                      onPressed: () =>
+                          ExecutionPlanDetailsScreen.openEarlyWorks(
+                              context),
+                    ),
                   ],
                 ),
               ),
-            ),
+              const SizedBox(height: 56),
+            ],
+            if (showEarlyWorks) ...[
+              const SectionIntro(title: 'Execution Early Works'),
+              const SizedBox(height: 24),
+              const ExecutionPlanForm(
+                title: 'Execution Early Works',
+                hintText:
+                    'Outline early works scope, sequencing, and handoffs.',
+                noteKey: 'execution_early_works',
+              ),
+              const SizedBox(height: 32),
+              const _EarlyWorksSection(),
+              const SizedBox(height: 56),
+            ],
           ],
         ),
       ),
@@ -159,8 +156,52 @@ class _EarlyWorksSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddSolutionButton(
-              onPressed: () => _EarlyWorksTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Early Works',
+                columns: [
+                  CsvColumnSpec(key: 'tool', label: 'Execution Tool', required: true, sampleValue: 'Excavator'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Site preparation work'),
+                  CsvColumnSpec(key: 'cost', label: 'Cost', sampleValue: '5000'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Must complete before Phase 2'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _EarlyWorksTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createEarlyWork(
+                        projectId: projectId,
+                        tool: row['tool'] ?? '',
+                        description: row['description'] ?? '',
+                        source: '',
+                        cost: (row['cost'] ?? '').isEmpty ? null : row['cost'],
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported early work(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddSolutionButton(
+                  onPressed: () => _EarlyWorksTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)
@@ -286,25 +327,25 @@ class _EarlyWorksTable extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                   controller: toolController,
                   decoration: const InputDecoration(labelText: 'Tool *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: 'Description *'),
                   maxLines: 2),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: sourceController,
                   decoration: const InputDecoration(labelText: 'Source *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: costController,
                   decoration: const InputDecoration(
                       labelText: 'Cost', hintText: 'Optional')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: commentsController,
                   decoration: const InputDecoration(labelText: 'Comments *'),
                   maxLines: 3),

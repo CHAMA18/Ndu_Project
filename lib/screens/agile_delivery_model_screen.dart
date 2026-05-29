@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kMuted = Color(0xFF6B7280);
 const Color _kHeadline = Color(0xFF111827);
@@ -113,7 +115,7 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
       for (final f in _fields) {
         _controllers[f.key]?.text = data[f.key] as String? ?? '';
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
     if (mounted) setState(() => _isLoading = false);
   }
 
@@ -139,7 +141,7 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
           const SnackBar(content: Text('Saved'), duration: Duration(seconds: _savingIndicatorDuration)),
         );
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
     if (mounted) setState(() => _isSaving = false);
     if (_pendingSave) { _pendingSave = false; _performSave(); }
   }
@@ -201,7 +203,7 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
       final Map<String, dynamic> parsed =
           Map<String, dynamic>.from(jsonDecode(jsonStr) as Map);
       return parsed.map((k, v) => MapEntry(k, v.toString()));
-    } catch (_) {
+    } catch (e) {
       return {};
     }
   }
@@ -225,6 +227,11 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Delivery Model',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                     child: Column(
@@ -232,11 +239,12 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
                       children: [
                         PlanningPhaseHeader(
                           title: 'Agile Delivery Model',
+                          showImportButton: false,
+                          showContentButton: false,
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'agile_delivery_model'),
                           onForward: () => PlanningPhaseNavigation.goToNext(
-                              context, 'agile_delivery_model'),
-                        ),
+                              context, 'agile_delivery_model'), onExportPdf: _exportPdf),
                         const SizedBox(height: 32),
                         Row(
                           children: [
@@ -318,7 +326,7 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
                   fontWeight: FontWeight.w600,
                   color: _kHeadline)),
           const SizedBox(height: 8),
-          TextField(
+          VoiceTextField(
             controller: _controllers[f.key],
             decoration: InputDecoration(
               hintText: f.hint,
@@ -330,6 +338,21 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Delivery Model',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_delivery_model_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -348,3 +371,133 @@ class _FieldConfig {
 }
 
 
+  _Result _parseValue(String s, int i) {
+    i = _skipWhitespace(s, i);
+    if (i >= s.length) throw FormatException('Unexpected end');
+    final c = s[i];
+    if (c == '[') return _parseArray(s, i);
+    if (c == '{') return _parseObject(s, i);
+    if (c == '"') return _parseString(s, i);
+    if (c == 't' || c == 'f') return _parseBool(s, i);
+    if (c == 'n') return _parseNull(s, i);
+    return _parseNumber(s, i);
+  }
+
+  _Result _parseArray(String s, int i) {
+    i++;
+    final list = <dynamic>[];
+    i = _skipWhitespace(s, i);
+    if (i < s.length && s[i] == ']') return _Result(list, i + 1);
+    while (true) {
+      final r = _parseValue(s, i);
+      list.add(r.value);
+      i = _skipWhitespace(s, r.end);
+      if (i >= s.length) throw FormatException('Unexpected end of array');
+      if (s[i] == ']') return _Result(list, i + 1);
+      if (s[i] != ',') throw FormatException('Expected , or ]');
+      i++;
+    }
+  }
+
+  _Result _parseObject(String s, int i) {
+    i++;
+    final map = <String, dynamic>{};
+    i = _skipWhitespace(s, i);
+    if (i < s.length && s[i] == '}') return _Result(map, i + 1);
+    while (true) {
+      final keyR = _parseString(s, i);
+      i = _skipWhitespace(s, keyR.end);
+      if (i >= s.length || s[i] != ':') throw FormatException('Expected :');
+      i++;
+      final valR = _parseValue(s, i);
+      map[keyR.value as String] = valR.value;
+      i = _skipWhitespace(s, valR.end);
+      if (i >= s.length) throw FormatException('Unexpected end of object');
+      if (s[i] == '}') return _Result(map, i + 1);
+      if (s[i] != ',') throw FormatException('Expected , or }');
+      i++;
+    }
+  }
+
+  _Result _parseString(String s, int i) {
+    i++;
+    final buf = StringBuffer();
+    while (i < s.length) {
+      final c = s[i];
+      if (c == '"') return _Result(buf.toString(), i + 1);
+      if (c == '\\') {
+        i++;
+        if (i < s.length) {
+          final esc = s[i];
+          if (esc == '"') {
+            buf.write('"');
+          } else if (esc == '\\') buf.write('\\');
+          else if (esc == '/') buf.write('/');
+          else if (esc == 'n') buf.write('\n');
+          else if (esc == 'r') buf.write('\r');
+          else if (esc == 't') buf.write('\t');
+          else buf.write(esc);
+        }
+        i++;
+      } else {
+        buf.write(c);
+        i++;
+      }
+    }
+    throw FormatException('Unterminated string');
+  }
+
+  _Result _parseNumber(String s, int i) {
+    final start = i;
+    if (s[i] == '-') i++;
+    while (i < s.length && _isDigit(s[i])) {
+      i++;
+    }
+    if (i < s.length && s[i] == '.') {
+      i++;
+      while (i < s.length && _isDigit(s[i])) {
+        i++;
+      }
+    }
+    if (i < s.length && (s[i] == 'e' || s[i] == 'E')) {
+      i++;
+      if (i < s.length && (s[i] == '+' || s[i] == '-')) i++;
+      while (i < s.length && _isDigit(s[i])) {
+        i++;
+      }
+    }
+    final numStr = s.substring(start, i);
+    if (numStr.contains('.') || numStr.contains('e') || numStr.contains('E')) {
+      return _Result(double.parse(numStr), i);
+    }
+    return _Result(int.parse(numStr), i);
+  }
+
+  _Result _parseBool(String s, int i) {
+    if (s.startsWith('true', i)) return _Result(true, i + 4);
+    if (s.startsWith('false', i)) return _Result(false, i + 5);
+    throw FormatException('Expected boolean');
+  }
+
+  _Result _parseNull(String s, int i) {
+    if (s.startsWith('null', i)) return _Result(null, i + 4);
+    throw FormatException('Expected null');
+  }
+
+  bool _isDigit(String s, [int? i]) {
+    final c = i != null ? s.codeUnitAt(i) : s.codeUnitAt(0);
+    return c >= 48 && c <= 57;
+  }
+
+  int _skipWhitespace(String s, int i) {
+    while (i < s.length && s.codeUnitAt(i) <= 32) {
+      i++;
+    }
+    return i;
+  }
+
+class _Result {
+  final dynamic value;
+  final int end;
+  _Result(this.value, this.end);
+}

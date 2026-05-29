@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'dart:html' as html;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -13,8 +15,9 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
 
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 class DeliverProjectClosureScreen extends StatefulWidget {
   const DeliverProjectClosureScreen({super.key});
 
@@ -41,6 +44,7 @@ class _DeliverProjectClosureScreenState
 
   bool _isLoading = true;
   bool _isGenerating = false;
+  bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
 
@@ -69,15 +73,35 @@ class _DeliverProjectClosureScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Deliver Project',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
+              showNavigationButtons: false, onExportPdf: _exportPdf),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildScopeAcceptancePanel(),
@@ -87,8 +111,6 @@ class _DeliverProjectClosureScreenState
             _buildOutstandingPanel(),
             const SizedBox(height: 16),
             _buildRiskFollowUpsPanel(),
-            const SizedBox(height: 16),
-            _buildClosureNotesPanel(),
             const SizedBox(height: 24),
             LaunchPhaseNavigation(
               backLabel: 'Back: Salvage and/or Disposal Plan',
@@ -103,25 +125,7 @@ class _DeliverProjectClosureScreenState
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Deliver Project · Closure Summary',
-      description:
-          'Confirm scope is delivered and accepted. Review milestones, outstanding items, and post-delivery risks before transitioning.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMetricsRow() {
     final accepted = _scopeItems.where((s) => s.status == 'Accepted').length;
@@ -174,9 +178,33 @@ class _DeliverProjectClosureScreenState
       title: 'Scope Acceptance',
       subtitle:
           'Track acceptance status for each deliverable. Items are editable inline.',
-      columns: ['Deliverable', 'Criteria', 'Status', 'Date'],
+      columns: const [
+        LaunchColumn(label: 'Deliverable', flexible: true),
+        LaunchColumn(label: 'Criteria', flexible: true),
+        LaunchColumn(label: 'Status', width: 120),
+        LaunchColumn(label: 'Date', width: 130),
+      ],
       rowCount: _scopeItems.length,
       onAdd: () => _addScopeItem(),
+      csvColumns: const [
+        CsvColumnSpec(key: 'deliverable', label: 'Deliverable', sampleValue: 'User Portal'),
+        CsvColumnSpec(key: 'criteria', label: 'Criteria', sampleValue: 'All acceptance tests pass'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'Accepted', 'Partial', 'Rejected']),
+        CsvColumnSpec(key: 'date', label: 'Date', sampleValue: '2025-01-15'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _scopeItems.add(LaunchScopeItem(
+              deliverable: row['deliverable'] ?? '',
+              acceptanceCriteria: row['criteria'] ?? '',
+              status: row['status'] ?? 'Pending',
+              acceptanceDate: row['date'] ?? '',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       importLabel: 'Import Scope',
       onImport: _importScope,
       emptyMessage:
@@ -217,7 +245,7 @@ class _DeliverProjectClosureScreenState
           LaunchDateCell(
             value: _scopeItems[i].acceptanceDate,
             hint: 'Date',
-            width: 100,
+            width: 130,
             onChanged: (v) {
               _scopeItems[i] = _scopeItems[i].copyWith(acceptanceDate: v);
               _scheduleSave();
@@ -232,9 +260,33 @@ class _DeliverProjectClosureScreenState
     return LaunchDataTable(
       title: 'Delivery Milestones',
       subtitle: 'Track planned vs actual completion for key milestones.',
-      columns: ['Milestone', 'Planned', 'Actual', 'Status'],
+      columns: const [
+        LaunchColumn(label: 'Milestone', flexible: true),
+        LaunchColumn(label: 'Planned', width: 120),
+        LaunchColumn(label: 'Actual', width: 120),
+        LaunchColumn(label: 'Status', width: 120),
+      ],
       rowCount: _milestones.length,
       onAdd: () => _addMilestone(),
+      csvColumns: const [
+        CsvColumnSpec(key: 'milestone', label: 'Milestone', sampleValue: 'Go-live'),
+        CsvColumnSpec(key: 'planned', label: 'Planned', sampleValue: '2025-01-15'),
+        CsvColumnSpec(key: 'actual', label: 'Actual', sampleValue: '2025-01-18'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'In Progress', 'Complete', 'Delayed']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _milestones.add(LaunchMilestone(
+              title: row['milestone'] ?? '',
+              plannedDate: row['planned'] ?? '',
+              actualDate: row['actual'] ?? '',
+              status: row['status'] ?? 'Pending',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       emptyMessage:
           'No milestones yet. Add delivery milestones to track progress.',
       cellBuilder: (ctx, i) => LaunchDataRow(
@@ -286,9 +338,33 @@ class _DeliverProjectClosureScreenState
     return LaunchDataTable(
       title: 'Outstanding Items',
       subtitle: 'Items still pending closure before or shortly after handover.',
-      columns: ['Title', 'Details', 'Owner', 'Status'],
+      columns: const [
+        LaunchColumn(label: 'Title', flexible: true),
+        LaunchColumn(label: 'Details', flexible: true),
+        LaunchColumn(label: 'Owner', width: 120),
+        LaunchColumn(label: 'Status', width: 120),
+      ],
       rowCount: _outstandingItems.length,
       onAdd: () => _addFollowUp(_outstandingItems),
+      csvColumns: const [
+        CsvColumnSpec(key: 'title', label: 'Title', sampleValue: 'Pending bug fix'),
+        CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'Critical UI bug in production'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Tech Lead'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Open', 'In Progress', 'Complete', 'Deferred']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _outstandingItems.add(LaunchFollowUpItem(
+              title: row['title'] ?? '',
+              details: row['details'] ?? '',
+              owner: row['owner'] ?? '',
+              status: row['status'] ?? 'Open',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       emptyMessage:
           'No outstanding items. All clear, or add items that need resolution.',
       cellBuilder: (ctx, i) => LaunchDataRow(
@@ -342,9 +418,33 @@ class _DeliverProjectClosureScreenState
     return LaunchDataTable(
       title: 'Post-Delivery Risks',
       subtitle: 'Risks and gaps to monitor after project delivery.',
-      columns: ['Title', 'Details', 'Owner', 'Status'],
+      columns: const [
+        LaunchColumn(label: 'Title', flexible: true),
+        LaunchColumn(label: 'Details', flexible: true),
+        LaunchColumn(label: 'Owner', width: 120),
+        LaunchColumn(label: 'Status', width: 120),
+      ],
       rowCount: _riskFollowUps.length,
       onAdd: () => _addFollowUp(_riskFollowUps),
+      csvColumns: const [
+        CsvColumnSpec(key: 'title', label: 'Title', sampleValue: 'Performance degradation'),
+        CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'API latency above threshold'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Ops Lead'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Open', 'In Progress', 'Complete', 'Deferred']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _riskFollowUps.add(LaunchFollowUpItem(
+              title: row['title'] ?? '',
+              details: row['details'] ?? '',
+              owner: row['owner'] ?? '',
+              status: row['status'] ?? 'Open',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       emptyMessage:
           'No post-delivery risks. Document risks that need monitoring post-delivery.',
       cellBuilder: (ctx, i) => LaunchDataRow(
@@ -390,44 +490,6 @@ class _DeliverProjectClosureScreenState
             },
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildClosureNotesPanel() {
-    return ExecutionPanelShell(
-      title: 'Closure Notes',
-      subtitle: 'Any additional notes or context for the delivery record.',
-      collapsible: true,
-      initiallyExpanded: true,
-      headerIcon: Icons.note_alt_outlined,
-      headerIconColor: const Color(0xFF6366F1),
-      child: TextFormField(
-        initialValue: _closureNotes.notes,
-        maxLines: 5,
-        style: const TextStyle(fontSize: 13, height: 1.5),
-        decoration: InputDecoration(
-          hintText: 'Write delivery notes, observations, or context…',
-          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFFFFD700)),
-          ),
-        ),
-        onChanged: (v) {
-          _closureNotes = LaunchClosureNotes(notes: v);
-          _scheduleSave();
-        },
       ),
     );
   }
@@ -631,9 +693,9 @@ class _DeliverProjectClosureScreenState
 
     setState(() => _isGenerating = true);
 
-    Map<String, List<Map<String, dynamic>>> generated = {};
+    LaunchAiResult? result;
     try {
-      generated = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Deliver Project Closure',
         sections: const {
@@ -652,6 +714,18 @@ class _DeliverProjectClosureScreenState
 
     if (!mounted) return;
 
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasExistingData = _scopeItems.isNotEmpty ||
         _milestones.isNotEmpty ||
         _outstandingItems.isNotEmpty ||
@@ -669,6 +743,182 @@ class _DeliverProjectClosureScreenState
       _isGenerating = false;
     });
     await _persistData();
+  }
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName ?? 'Project';
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final filename =
+          'deliver_project_${projectName.replaceAll(' ', '_')}_$stamp.pdf';
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => [
+            pw.Text(
+              'Deliver Project — Closure Summary',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              '$projectName — Generated ${now.toLocal().toIso8601String()}',
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+            ),
+            pw.SizedBox(height: 16),
+            _pdfSectionTitle('Scope Acceptance'),
+            pw.SizedBox(height: 6),
+            if (_scopeItems.isEmpty)
+              pw.Text('No scope items recorded.',
+                  style: const pw.TextStyle(
+                      fontSize: 10, color: PdfColors.grey500))
+            else
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(
+                    decoration:
+                        const pw.BoxDecoration(color: PdfColors.grey100),
+                    children: [
+                      _pdfHeaderCell('Deliverable'),
+                      _pdfHeaderCell('Acceptance Criteria'),
+                      _pdfHeaderCell('Status'),
+                    ],
+                  ),
+                  ..._scopeItems.map((s) => pw.TableRow(children: [
+                        _pdfCell(s.deliverable),
+                        _pdfCell(s.acceptanceCriteria),
+                        _pdfCell(s.status),
+                      ])),
+                ],
+              ),
+            pw.SizedBox(height: 16),
+            _pdfSectionTitle('Delivery Milestones'),
+            pw.SizedBox(height: 6),
+            if (_milestones.isEmpty)
+              pw.Text('No milestones recorded.',
+                  style: const pw.TextStyle(
+                      fontSize: 10, color: PdfColors.grey500))
+            else
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(
+                    decoration:
+                        const pw.BoxDecoration(color: PdfColors.grey100),
+                    children: [
+                      _pdfHeaderCell('Milestone'),
+                      _pdfHeaderCell('Status'),
+                    ],
+                  ),
+                  ..._milestones.map((m) => pw.TableRow(children: [
+                        _pdfCell(m.title),
+                        _pdfCell(m.status),
+                      ])),
+                ],
+              ),
+            pw.SizedBox(height: 16),
+            _pdfSectionTitle('Outstanding Items'),
+            pw.SizedBox(height: 6),
+            if (_outstandingItems.isEmpty)
+              pw.Text('No outstanding items.',
+                  style: const pw.TextStyle(
+                      fontSize: 10, color: PdfColors.grey500))
+            else
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(
+                    decoration:
+                        const pw.BoxDecoration(color: PdfColors.grey100),
+                    children: [
+                      _pdfHeaderCell('Title'),
+                      _pdfHeaderCell('Details'),
+                      _pdfHeaderCell('Status'),
+                    ],
+                  ),
+                  ..._outstandingItems.map((o) => pw.TableRow(children: [
+                        _pdfCell(o.title),
+                        _pdfCell(o.details),
+                        _pdfCell(o.status),
+                      ])),
+                ],
+              ),
+            pw.SizedBox(height: 16),
+            _pdfSectionTitle('Post-Delivery Risks'),
+            pw.SizedBox(height: 6),
+            if (_riskFollowUps.isEmpty)
+              pw.Text('No post-delivery risks recorded.',
+                  style: const pw.TextStyle(
+                      fontSize: 10, color: PdfColors.grey500))
+            else
+              pw.Table(
+                border: pw.TableBorder.all(color: PdfColors.grey300),
+                children: [
+                  pw.TableRow(
+                    decoration:
+                        const pw.BoxDecoration(color: PdfColors.grey100),
+                    children: [
+                      _pdfHeaderCell('Title'),
+                      _pdfHeaderCell('Details'),
+                      _pdfHeaderCell('Status'),
+                    ],
+                  ),
+                  ..._riskFollowUps.map((r) => pw.TableRow(children: [
+                        _pdfCell(r.title),
+                        _pdfCell(r.details),
+                        _pdfCell(r.status),
+                      ])),
+                ],
+              ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (!mounted) return;
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)
+        ..setAttribute('download', filename)
+        ..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF export failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Text(title,
+        style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold));
+  }
+
+  pw.Widget _pdfHeaderCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text,
+          style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+    );
+  }
+
+  pw.Widget _pdfCell(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(6),
+      child: pw.Text(text, style: const pw.TextStyle(fontSize: 9)),
+    );
   }
 
   List<LaunchScopeItem> _mapToScopeItems(List<Map<String, dynamic>>? raw) {

@@ -7,6 +7,8 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/program_workspace_scaffold.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class FrontEndPlanningTechnologyPersonnelScreen extends StatefulWidget {
   const FrontEndPlanningTechnologyPersonnelScreen({super.key});
 
@@ -45,7 +47,22 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Technology Personnel',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notes.removeListener(_syncToProvider);
     _notes.dispose();
@@ -90,7 +107,7 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                       controller: technologyController,
                       decoration: const InputDecoration(
                         labelText: 'Technology Area',
@@ -98,7 +115,7 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: ownerController,
                       decoration: const InputDecoration(
                         labelText: 'Primary Owner',
@@ -106,7 +123,7 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: supportController,
                       decoration: const InputDecoration(
                         labelText: 'Backup / Support',
@@ -114,7 +131,7 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: notesController,
                       minLines: 3,
                       maxLines: 5,
@@ -186,7 +203,7 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
           const AdminEditToggle(),
           Column(
             children: [
-              const FrontEndPlanningHeader(),
+              FrontEndPlanningHeader(onExportPdf: _exportPdf),
               Expanded(
                 child: SingleChildScrollView(
                   padding:
@@ -194,7 +211,7 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      VoiceTextField(
                         controller: _notes,
                         minLines: 3,
                         maxLines: 5,

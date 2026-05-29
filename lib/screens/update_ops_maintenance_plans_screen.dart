@@ -15,6 +15,9 @@ import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class UpdateOpsMaintenancePlansScreen extends StatefulWidget {
   const UpdateOpsMaintenancePlansScreen({super.key});
 
@@ -60,7 +63,21 @@ class _UpdateOpsMaintenancePlansScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Update Ops & Maintenance Plans',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['update_ops_maintenance_plans_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -335,7 +352,12 @@ class _UpdateOpsMaintenancePlansScreenState
               _buildMobileLayout(hPad, projectId)
             else
               _buildDesktopLayout(hPad, projectId),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Update Ops and Maintenance Plans',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),
@@ -368,12 +390,11 @@ class _UpdateOpsMaintenancePlansScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Update Ops and Maintenance Plans',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 32),
           _buildSectionIntro(),
           const SizedBox(height: 28),
@@ -1207,12 +1228,12 @@ class _UpdateOpsMaintenancePlansScreenState
                     ],
                   ),
                   const SizedBox(height: 20),
-                  TextFormField(
+                  VoiceTextFormField(
                     controller: labelController,
                     decoration: _dialogDecoration('Coverage label'),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  VoiceTextFormField(
                     controller: progressController,
                     decoration: _dialogDecoration('Progress (%)',
                         hint: '0-100'),
@@ -1320,13 +1341,13 @@ class _UpdateOpsMaintenancePlansScreenState
                     ],
                   ),
                   const SizedBox(height: 20),
-                  TextFormField(
+                  VoiceTextFormField(
                     controller: titleController,
                     decoration: _dialogDecoration('Signal title',
                         hint: 'e.g. Database latency spike'),
                   ),
                   const SizedBox(height: 12),
-                  TextFormField(
+                  VoiceTextFormField(
                     controller: subtitleController,
                     decoration: _dialogDecoration('Signal detail',
                         hint: 'Additional context or notes'),
@@ -1498,7 +1519,7 @@ class _UpdateOpsMaintenancePlansScreenState
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: TextFormField(
+                            child: VoiceTextFormField(
                               controller: dueController,
                               readOnly: true,
                               decoration: _dialogDecoration('Due date',
@@ -1627,7 +1648,7 @@ class _UpdateOpsMaintenancePlansScreenState
 
   Widget _dialogField(String label,
       {required TextEditingController controller, String? hint}) {
-    return TextFormField(
+    return VoiceTextFormField(
       controller: controller,
       decoration: _dialogDecoration(label, hint: hint),
     );

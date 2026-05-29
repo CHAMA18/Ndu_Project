@@ -1,8 +1,11 @@
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
@@ -16,6 +19,9 @@ import 'package:ndu_project/screens/backend_design_screen.dart';
 import 'package:ndu_project/screens/development_set_up_screen.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
+import 'package:ndu_project/widgets/execution_phase_ui.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class UiUxDesignScreen extends StatefulWidget {
   const UiUxDesignScreen({super.key});
@@ -123,7 +129,21 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'UI/UX Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['ui_ux_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -530,12 +550,11 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'UI/UX Design',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -546,8 +565,6 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   if (_isLoading) const SizedBox(height: 16),
                   _buildHeader(isNarrow),
                   const SizedBox(height: 16),
-                  _buildStatsRow(isNarrow),
-                  const SizedBox(height: 20),
                   _buildUXFrameworkGuide(),
                   const SizedBox(height: 24),
                   _buildJourneyRegister(),
@@ -717,35 +734,20 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
   // ─── UX Framework Guide ────────────────────────────────────────────
 
   Widget _buildUXFrameworkGuide() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return ExecutionPanelShell(
+      title: 'Experience design framework',
+      subtitle:
+          'Grounded in ISO 9241-210 Human-Centred Design for Interactive Systems, '
+          'Nielsen Norman Group usability heuristics, WCAG 2.1 accessibility guidelines, '
+          'and Google Material Design 3 principles.',
+      collapsible: true,
+      initiallyExpanded: false,
+      headerIcon: Icons.auto_awesome_outlined,
+      headerIconColor: const Color(0xFF6366F1),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Experience design framework',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in ISO 9241-210 Human-Centred Design for Interactive Systems, '
-            'Nielsen Norman Group usability heuristics, WCAG 2.1 accessibility guidelines, '
-            'and Google Material Design 3 principles. Effective experience design ensures '
+            'Effective experience design ensures '
             'that user needs, task flows, and interaction patterns remain validated, consistent, '
             'and accessible across all touchpoints throughout the project lifecycle.',
             style: TextStyle(
@@ -756,44 +758,40 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildGuideCard(
-                Icons.route_outlined,
-                'User Journey Mapping',
-                'Define end-to-end user journeys from entry to task completion. Map touchpoints, '
-                    'decision points, and emotional arcs. Validate journeys against user research '
-                    'and business objectives before investing in interface design.',
-                const Color(0xFF2563EB),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.widgets_outlined,
-                'Interface Architecture',
-                'Structure screens, navigation patterns, and information hierarchy. Define '
-                    'fidelity levels from wireframe to final prototype. Ensure consistent '
-                    'interaction patterns across responsive breakpoints and platforms.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.palette_outlined,
-                'Design System & Tokens',
-                'Establish shared visual language through design tokens: colors, typography, '
-                    'spacing, elevation, and motion. Tokens ensure consistency, enable '
-                    'theme switching, and bridge the design-to-development handoff gap.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.accessibility_new_outlined,
-                'Usability & Accessibility',
-                'Validate interfaces against WCAG 2.1 AA, Section 508, and platform-specific '
-                    'accessibility guidelines. Conduct usability testing with representative users. '
-                    'Track compliance status and remediation actions systematically.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+          _buildGuideCard(
+            Icons.route_outlined,
+            'User Journey Mapping',
+            'Define end-to-end user journeys from entry to task completion. Map touchpoints, '
+                'decision points, and emotional arcs. Validate journeys against user research '
+                'and business objectives before investing in interface design.',
+            const Color(0xFF2563EB),
+          ),
+          const SizedBox(height: 12),
+          _buildGuideCard(
+            Icons.widgets_outlined,
+            'Interface Architecture',
+            'Structure screens, navigation patterns, and information hierarchy. Define '
+                'fidelity levels from wireframe to final prototype. Ensure consistent '
+                'interaction patterns across responsive breakpoints and platforms.',
+            const Color(0xFF10B981),
+          ),
+          const SizedBox(height: 12),
+          _buildGuideCard(
+            Icons.palette_outlined,
+            'Design System & Tokens',
+            'Establish shared visual language through design tokens: colors, typography, '
+                'spacing, elevation, and motion. Tokens ensure consistency, enable '
+                'theme switching, and bridge the design-to-development handoff gap.',
+            const Color(0xFFF59E0B),
+          ),
+          const SizedBox(height: 12),
+          _buildGuideCard(
+            Icons.accessibility_new_outlined,
+            'Usability & Accessibility',
+            'Validate interfaces against WCAG 2.1 AA, Section 508, and platform-specific '
+                'accessibility guidelines. Conduct usability testing with representative users. '
+                'Track compliance status and remediation actions systematically.',
+            const Color(0xFFEF4444),
           ),
         ],
       ),
@@ -925,16 +923,49 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'User journey register',
       subtitle: 'Track user journeys, touchpoints, owners, and validation status aligned with ISO 9241-210 human-centred design process.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showJourneyDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add journey', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'User Journeys',
+            columns: [
+              CsvColumnSpec(key: 'title', label: 'JOURNEY', required: true, hint: 'Journey name'),
+              CsvColumnSpec(key: 'touchpoints', label: 'TOUCHPOINTS', hint: 'Key touchpoints'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Journey owner'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Mapped', 'Draft', 'Planned', 'In progress', 'Validated', 'Deprecated'], defaultValue: 'Planned'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _journeys.add(_JourneyRow(
+                    id: _newId(),
+                    title: row['title'] ?? '',
+                    description: '',
+                    touchpoints: row['touchpoints'] ?? '',
+                    owner: row['owner'] ?? '',
+                    priority: row['priority'] ?? 'Medium',
+                    status: row['status'] ?? 'Planned',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showJourneyDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add journey', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _journeys.isEmpty
           ? const Padding(
@@ -967,9 +998,9 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                         ),
                       )),
                       _CellDef(SizedBox(width: 130, child: Text(row.touchpoints, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 110, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 90, child: _buildPriorityTag(row.priority))),
-                      _CellDef(SizedBox(width: 100, child: _buildStatusTag(row.status))),
+                      _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
+                      _CellDef(SizedBox(width: 120, child: _buildPriorityTag(row.priority))),
+                      _CellDef(SizedBox(width: 130, child: _buildStatusTag(row.status))),
                       _CellDef(SizedBox(
                         width: 60,
                         child: Row(
@@ -996,16 +1027,47 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Interface architecture register',
       subtitle: 'Track interface areas, fidelity levels, and design states aligned with progressive design maturity from wireframe to production.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showInterfaceDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add interface', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Interface Architecture',
+            columns: [
+              CsvColumnSpec(key: 'area', label: 'INTERFACE', required: true, hint: 'Interface area name'),
+              CsvColumnSpec(key: 'fidelity', label: 'FIDELITY', allowedValues: ['Low-fi', 'Mid-fi', 'High-fi', 'Prototype', 'Production'], defaultValue: 'Low-fi'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Interface owner'),
+              CsvColumnSpec(key: 'status', label: 'STATE', allowedValues: ['Low-fi', 'Mid-fi', 'High-fi', 'Prototype', 'Production'], defaultValue: 'To define'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _interfaces.add(_InterfaceRow(
+                    id: _newId(),
+                    area: row['area'] ?? '',
+                    purpose: '',
+                    fidelity: row['fidelity'] ?? 'Low',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'To define',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showInterfaceDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add interface', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _interfaces.isEmpty
           ? const Padding(
@@ -1036,9 +1098,9 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                           ],
                         ),
                       )),
-                      _CellDef(SizedBox(width: 90, child: _buildFidelityTag(row.fidelity))),
-                      _CellDef(SizedBox(width: 110, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 110, child: _buildInterfaceStateTag(row.status))),
+                      _CellDef(SizedBox(width: 120, child: _buildFidelityTag(row.fidelity))),
+                      _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
+                      _CellDef(SizedBox(width: 130, child: _buildInterfaceStateTag(row.status))),
                       _CellDef(SizedBox(
                         width: 60,
                         child: Row(
@@ -1065,16 +1127,47 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Design system tokens register',
       subtitle: 'Track design tokens, categories, and readiness status to maintain visual consistency and enable efficient design-to-development handoff.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showDesignTokenDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add token', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Design System Tokens',
+            columns: [
+              CsvColumnSpec(key: 'title', label: 'TOKEN', required: true, hint: 'Token name'),
+              CsvColumnSpec(key: 'category', label: 'CATEGORY', allowedValues: ['Color', 'Typography', 'Spacing', 'Elevation', 'Motion', 'Icon'], defaultValue: 'Color'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Ready', 'Draft', 'In review', 'Planned', 'Deprecated'], defaultValue: 'Draft'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Token owner'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _designTokens.add(_DesignTokenRow(
+                    id: _newId(),
+                    title: row['title'] ?? '',
+                    description: '',
+                    category: row['category'] ?? 'Colors',
+                    status: row['status'] ?? 'Draft',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showDesignTokenDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add token', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _designTokens.isEmpty
           ? const Padding(
@@ -1105,9 +1198,9 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                           ],
                         ),
                       )),
-                      _CellDef(SizedBox(width: 110, child: _buildCategoryTag(row.category))),
+                      _CellDef(SizedBox(width: 130, child: _buildCategoryTag(row.category))),
                       _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 90, child: _buildTokenStatusTag(row.status))),
+                      _CellDef(SizedBox(width: 120, child: _buildTokenStatusTag(row.status))),
                       _CellDef(SizedBox(
                         width: 60,
                         child: Row(
@@ -1134,16 +1227,49 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Usability & accessibility validation',
       subtitle: 'Track WCAG compliance, usability benchmarks, and accessibility testing status aligned with ISO 9241 and Section 508 requirements.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showUsabilityDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add criteria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Usability & Accessibility',
+            columns: [
+              CsvColumnSpec(key: 'criteria', label: 'CRITERIA', required: true, hint: 'Validation criteria'),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', hint: 'Detailed description'),
+              CsvColumnSpec(key: 'standard', label: 'STANDARD', hint: 'e.g. WCAG 2.1 AA'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Pass', 'Fail', 'In progress', 'Not tested', 'Conditional'], defaultValue: 'Not tested'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Criteria owner'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _usabilityEntries.add(_UsabilityRow(
+                    id: _newId(),
+                    criteria: row['criteria'] ?? '',
+                    description: row['description'] ?? '',
+                    standard: row['standard'] ?? '',
+                    status: row['status'] ?? 'Not tested',
+                    owner: row['owner'] ?? '',
+                    notes: '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showUsabilityDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add criteria', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _usabilityEntries.isEmpty
           ? const Padding(
@@ -1175,8 +1301,8 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                         ),
                       )),
                       _CellDef(SizedBox(width: 120, child: Text(row.standard, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 100, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 100, child: _buildUsabilityStatusTag(row.status))),
+                      _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
+                      _CellDef(SizedBox(width: 130, child: _buildUsabilityStatusTag(row.status))),
                       _CellDef(SizedBox(
                         width: 60,
                         child: Row(
@@ -1203,16 +1329,52 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
     return _buildPanelShell(
       title: 'Design review gates',
       subtitle: 'Approval checkpoints aligned with ISO 9241-210 design review cycles. Each gate must be cleared before proceeding to the next design maturity level.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showReviewGateDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Review Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true, hint: 'Gate name'),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', hint: 'Gate description'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER', hint: 'Gate approver'),
+              CsvColumnSpec(key: 'department', label: 'DEPT', hint: 'Department'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'High'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Pending', 'In Review', 'Approved', 'Rejected', 'Waived'], defaultValue: 'Pending'),
+              CsvColumnSpec(key: 'targetDate', label: 'TARGET DATE', hint: 'Target date', defaultValue: 'TBD'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _reviewGates.add(_ReviewGateRow(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    description: row['description'] ?? '',
+                    approver: row['approver'] ?? '',
+                    department: row['department'] ?? '',
+                    priority: row['priority'] ?? 'High',
+                    status: row['status'] ?? 'Pending',
+                    targetDate: row['targetDate'] ?? 'TBD',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showReviewGateDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: _reviewGates.isEmpty
           ? const Padding(
@@ -1244,8 +1406,8 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                         ),
                       )),
                       _CellDef(SizedBox(width: 120, child: Text(row.approver, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
-                      _CellDef(SizedBox(width: 80, child: _buildPriorityTag(row.priority))),
-                      _CellDef(SizedBox(width: 100, child: _buildReviewGateStatusTag(row.status))),
+                      _CellDef(SizedBox(width: 110, child: _buildPriorityTag(row.priority))),
+                      _CellDef(SizedBox(width: 130, child: _buildReviewGateStatusTag(row.status))),
                       _CellDef(SizedBox(
                         width: 60,
                         child: Row(
@@ -1587,25 +1749,25 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Journey title', border: OutlineInputBorder())),
+                VoiceTextField(controller: titleController, decoration: const InputDecoration(labelText: 'Journey title', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: touchpointsController, decoration: const InputDecoration(labelText: 'Touchpoints', border: OutlineInputBorder())),
+                VoiceTextField(controller: touchpointsController, decoration: const InputDecoration(labelText: 'Touchpoints', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+                VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: priority,
+                      initialValue: priority,
                       items: ['Critical', 'High', 'Medium', 'Low'].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => priority = v); },
                       decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
                     )),
                     const SizedBox(width: 12),
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: _journeyStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => status = v); },
                       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -1660,23 +1822,23 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: areaController, decoration: const InputDecoration(labelText: 'Area / screen name', border: OutlineInputBorder())),
+                VoiceTextField(controller: areaController, decoration: const InputDecoration(labelText: 'Area / screen name', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: purposeController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder())),
+                VoiceTextField(controller: purposeController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+                VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: fidelity,
+                      initialValue: fidelity,
                       items: ['High', 'Medium', 'Low'].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => fidelity = v); },
                       decoration: const InputDecoration(labelText: 'Fidelity', border: OutlineInputBorder()),
                     )),
                     const SizedBox(width: 12),
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: _interfaceStateOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => status = v); },
                       decoration: const InputDecoration(labelText: 'State', border: OutlineInputBorder()),
@@ -1730,23 +1892,23 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Token name', border: OutlineInputBorder())),
+                VoiceTextField(controller: titleController, decoration: const InputDecoration(labelText: 'Token name', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description / value', border: OutlineInputBorder())),
+                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description / value', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+                VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: category,
+                      initialValue: category,
                       items: ['Colors', 'Typography', 'Layout', 'Effects', 'Motion', 'Iconography'].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => category = v); },
                       decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                     )),
                     const SizedBox(width: 12),
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: _tokenStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => status = v); },
                       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -1801,16 +1963,16 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: criteriaController, decoration: const InputDecoration(labelText: 'Criteria', border: OutlineInputBorder())),
+                VoiceTextField(controller: criteriaController, decoration: const InputDecoration(labelText: 'Criteria', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: TextField(controller: standardController, decoration: const InputDecoration(labelText: 'Standard', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: standardController, decoration: const InputDecoration(labelText: 'Standard', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: _usabilityStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => status = v); },
                       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -1820,11 +1982,11 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: TextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
                   ],
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: notesController, minLines: 2, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder())),
+                VoiceTextField(controller: notesController, minLines: 2, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder())),
               ],
             ),
           ),
@@ -1874,29 +2036,29 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: gateController, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
+                VoiceTextField(controller: gateController, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: TextField(controller: approverController, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: approverController, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
-                    Expanded(child: TextField(controller: deptController, decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: deptController, decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()))),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: priority,
+                      initialValue: priority,
                       items: ['Critical', 'High', 'Medium', 'Low'].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => priority = v); },
                       decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
                     )),
                     const SizedBox(width: 12),
                     Expanded(child: DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: _reviewGateStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
                       onChanged: (v) { if (v != null) setModalState(() => status = v); },
                       decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),

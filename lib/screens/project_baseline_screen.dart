@@ -13,6 +13,9 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ProjectBaselineScreen extends StatefulWidget {
   const ProjectBaselineScreen({super.key});
 
@@ -231,7 +234,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
             .map((v) => _BaselineVersion.fromJson(v as Map<String, dynamic>))
             .toList();
         _baselineVersions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      } catch (_) {}
+      } catch (e) { debugPrint('Error: $e'); }
     }
 
     _activeVersionId =
@@ -432,7 +435,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                   style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                 ),
                 const SizedBox(height: 16),
-                TextField(
+                VoiceTextField(
                   controller: approvedByController,
                   decoration: const InputDecoration(
                     labelText: 'Approved By',
@@ -441,7 +444,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descriptionController,
                   minLines: 3,
                   maxLines: 5,
@@ -497,7 +500,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
 
       await _persistBaselineVersion(version);
       setState(() {});
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -676,6 +679,16 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              PlanningPhaseHeader(
+                                title: 'Project Baseline',
+                                showImportButton: false,
+                                showContentButton: false,
+                                onBack: () =>
+                                    PlanningPhaseNavigation.goToPrevious(
+                                        context, 'project_baseline'),
+                                onForward: () => PlanningPhaseNavigation.goToNext(
+                                    context, 'project_baseline'), onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
                               _buildHeader(context),
                               const SizedBox(height: 24),
                               _buildComparisonToggle(),
@@ -708,7 +721,12 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Baseline',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),
@@ -761,24 +779,23 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              OutlinedButton.icon(
+              ElevatedButton.icon(
                 onPressed: _isGenerating ? null : _regenerateNotes,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4154F1),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
                 icon: _isGenerating
                     ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Icon(Icons.auto_awesome, size: 18),
-                label: const Text('AI Assist'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF8B5CF6),
-                  side: const BorderSide(color: Color(0xFF8B5CF6)),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
+                    : const Icon(Icons.auto_awesome, size: 16),
+                label: const Text('AI Assist', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
               ),
               const SizedBox(width: 12),
               FilledButton.icon(
@@ -2341,6 +2358,21 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
   int _calculateScheduleVarianceDays() {
     if (_baselineEndDate == null || _currentEndDate == null) return 0;
     return _currentEndDate!.difference(_baselineEndDate!).inDays;
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Baseline',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_baseline_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

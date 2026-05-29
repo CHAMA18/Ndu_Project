@@ -70,6 +70,43 @@ class OpenAiConfig {
     return Uri.parse('$base/chat/completions');
   }
 
+  /// Wraps a request body map with a workflow_id override that tells the
+  /// Firebase Cloud Function proxy to skip the default OpenAI Workflow and
+  /// forward the request directly to the Chat Completions / Responses API.
+  /// This prevents the workflow from injecting unsupported parameters (e.g.
+  /// 'reasoning') that cause 400 errors with models like gpt-4o.
+  ///
+  /// When the proxy receives `workflow_id: 'none'`, it evaluates to a truthy
+  /// string but does NOT start with 'wf_', so `getConfiguredOpenAiWorkflowId`
+  /// returns '' and the request goes directly to OpenAI.
+  ///
+  /// For reasoning models (o3, o4, o1), this also:
+  /// - Removes `temperature` parameter (reasoning models only support default value of 1)
+  /// - Removes any legacy token parameters that are not accepted by the API
+  /// The Chat Completions API now requires `max_completion_tokens` for o3/o4
+  /// models. The legacy `max_tokens` parameter causes a 400 error.
+  static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
+    final result = Map<String, dynamic>.from(body);
+
+    // Strip unsupported params for reasoning models
+    if (SecureAPIConfig.isReasoningModel) {
+      // The Chat Completions API now requires `max_completion_tokens` for
+      // reasoning models (o3, o4). The legacy `max_tokens` parameter causes:
+      //   - max_tokens → 400 "Unsupported parameter: 'max_tokens' is not supported with this model"
+      //   - max_output_tokens → 400 "Unknown parameter"
+      // So we remove the legacy variants and keep max_completion_tokens.
+      result.remove('max_tokens');
+      result.remove('max_output_tokens');
+
+      // Reasoning models (o3, o4, o1) only support temperature=1 (default).
+      // Sending any other value causes a 400 error:
+      // "'temperature' does not support X with this model. Only the default (1) value is supported."
+      result.remove('temperature');
+    }
+
+    return result;
+  }
+
   /// Helpful diagnostic used by UI to provide actionable error messages
   static String? configurationWarning() {
     if (!kIsWeb) return null;
@@ -121,7 +158,7 @@ class OpenAiAutocompleteService {
       'model': OpenAiConfig.model,
       'temperature': _temperature,
       // Give the model more headroom for higher-quality continuations
-      'max_output_tokens': 300,
+      'max_completion_tokens': 300,
       'input': [
         {
           'role': 'system',
@@ -152,7 +189,7 @@ class OpenAiAutocompleteService {
         debugPrint('OpenAI configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
       }
       final response = await _client
-          .post(uri, headers: headers, body: jsonEncode(payload))
+          .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
           .timeout(_timeout);
 
       if (response.statusCode == 429) {
@@ -285,10 +322,10 @@ class OpenAiDiagramService {
     };
 
     final prompt = _diagramPrompt(section: section, context: contextText, refinementHint: refinementHint);
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -309,7 +346,7 @@ Always return ONLY a valid JSON object with nodes and edges arrays.'''
           'content': prompt,
         }
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 16));

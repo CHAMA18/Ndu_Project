@@ -7,6 +7,9 @@ import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class FrontEndPlanningScreen extends StatefulWidget {
   const FrontEndPlanningScreen({super.key});
@@ -30,7 +33,22 @@ class _FrontEndPlanningScreenState extends State<FrontEndPlanningScreen> {
     });
   }
 
-  // ignore: unused_element
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Project Summary',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+// ignore: unused_element
   static void open(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const FrontEndPlanningScreen()),
@@ -46,43 +64,49 @@ class _FrontEndPlanningScreenState extends State<FrontEndPlanningScreen> {
       activeItemLabel: 'Project Summary',
       backgroundColor: const Color(0xFFF9FAFC),
       floatingActionButton: const KazAiChatBubble(positioned: false),
-      body: Stack(
+      body: Column(
         children: [
-          const Positioned.fill(child: _StripedBackdrop()),
-          const AdminEditToggle(),
-          Center(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.symmetric(
-                  vertical: isMobile ? 32 : 64, horizontal: padding),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _TitleBlock(),
-                  SizedBox(height: 32),
-                  _ProjectCharterTable(),
-                ],
-              ),
-            ),
-          ),
-          Positioned(
-            right: padding,
-            bottom: padding,
-            child: ElevatedButton(
-              onPressed: () {
-                // Navigate to the workspace page shown in the mock
-                FrontEndPlanningWorkspaceScreen.open(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22)),
-                elevation: 0,
-              ),
-              child: const Text('Next',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          FrontEndPlanningHeader(title: 'Project Summary', onExportPdf: _exportPdf),
+          Expanded(
+            child: Stack(
+              children: [
+                const Positioned.fill(child: _StripedBackdrop()),
+                const AdminEditToggle(),
+                Center(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                        vertical: isMobile ? 32 : 64, horizontal: padding),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _TitleBlock(),
+                        SizedBox(height: 32),
+                        _ProjectCharterTable(),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: padding,
+                  bottom: padding,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      FrontEndPlanningWorkspaceScreen.open(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFD700),
+                      foregroundColor: Colors.black,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(22)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Next',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

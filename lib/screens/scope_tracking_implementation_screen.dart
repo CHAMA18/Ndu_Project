@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/scope_tracking_table_widget.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ScopeTrackingImplementationScreen extends StatefulWidget {
   const ScopeTrackingImplementationScreen({super.key});
 
@@ -279,12 +281,11 @@ class _ScopeTrackingImplementationScreenState
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
-                        const PlanningPhaseHeader(
+                        PlanningPhaseHeader(
             title: 'Scope Tracking Implementation',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
           _buildPageHeader(context),
                         const SizedBox(height: 20),
@@ -299,7 +300,12 @@ class _ScopeTrackingImplementationScreenState
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Scope Tracking Implementation',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -619,7 +625,7 @@ class _ScopeTrackingImplementationScreenState
                   ),
                   if (selectedScopeItem == null ||
                       selectedScopeItem == '__NEW__')
-                    TextField(
+                    VoiceTextField(
                       controller: scopeItemController,
                       decoration: const InputDecoration(
                         labelText: 'Scope Item/Deliverable',
@@ -673,7 +679,7 @@ class _ScopeTrackingImplementationScreenState
                       setDialogState(() => selectedVerificationMethod = value);
                     },
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: verificationStepsController,
                     decoration: const InputDecoration(
                       labelText: 'Verification Steps (use "." bullets)',
@@ -681,7 +687,7 @@ class _ScopeTrackingImplementationScreenState
                     ),
                     maxLines: 4,
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: trackingNotesController,
                     decoration: const InputDecoration(
                       labelText: 'Tracking Notes (prose, no bullets)',
@@ -755,6 +761,21 @@ class _ScopeTrackingImplementationScreenState
       nextLabel: 'Next: Stakeholder Alignment',
       onBack: () => AgileDevelopmentIterationsScreen.open(context),
       onNext: () => StakeholderAlignmentScreen.open(context),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Scope Tracking Implementation',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_scope_tracking_implementation_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

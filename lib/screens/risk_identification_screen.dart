@@ -16,11 +16,13 @@ import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
 import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // Removed AppLogo from header per request
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -35,6 +37,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class RiskIdentificationScreen extends StatefulWidget {
   final String notes;
@@ -65,7 +68,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
   bool _isGenerating = false;
   bool _isBootstrapping = false;
-  String? _error;
+  bool _bootstrapErrorNotified = false;
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
   bool _frontEndExpanded = true;
@@ -87,6 +90,38 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     final controller = RichAutoBulletTextController(text: text);
     controller.addListener(_onDataChanged);
     return controller;
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final riskRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length; i++) {
+      final title = i < _solutionTitleControllers.length
+          ? _solutionTitleControllers[i].text.trim()
+          : _solutions[i].title;
+      final displayTitle = title.isEmpty ? 'Solution ${i + 1}' : title;
+      for (int r = 0; r < 3; r++) {
+        final riskText = (i < _riskControllers.length &&
+                r < _riskControllers[i].length)
+            ? _riskControllers[i][r].text.trim()
+            : '';
+        if (riskText.isNotEmpty) {
+          riskRows.add([displayTitle, 'Risk ${r + 1}', riskText]);
+        }
+      }
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Risk Identification',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Risks by Solution',
+          headers: ['Solution', 'Risk #', 'Description'],
+          rows: riskRows,
+        ),
+      ],
+    );
   }
 
   @override
@@ -226,7 +261,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     if (_isBootstrapping) return;
     setState(() {
       _isBootstrapping = true;
-      _error = null;
     });
     try {
       final generated = await _openAi.generateSolutionsFromBusinessCase(
@@ -246,9 +280,10 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       await _generateRisks();
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-      });
+      if (!_bootstrapErrorNotified) {
+        _bootstrapErrorNotified = true;
+        showAiErrorDialog(context, error: e);
+      }
     } finally {
       if (mounted) setState(() => _isBootstrapping = false);
     }
@@ -273,7 +308,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     if (_isGenerating) return;
     setState(() {
       _isGenerating = true;
-      _error = null;
     });
     try {
       if (_solutions.isEmpty) {
@@ -314,11 +348,8 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         );
       }
     } catch (e) {
-      _error = e.toString();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to regenerate risks: $e')),
-        );
+        showAiErrorDialog(context, error: e, onRetry: _generateRisks);
       }
     } finally {
       if (mounted) setState(() => _isGenerating = false);
@@ -340,28 +371,36 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                child: Row(
-                  children: [
-                    DraggableSidebar(
-                      openWidth: sidebarWidth,
-                      child: const InitiationLikeSidebar(
-                          activeItemLabel: 'Risk Identification'),
-                    ),
-                    Expanded(child: _buildMainContent()),
-                  ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                Expanded(
+                  child: Row(
+                    children: [
+                      DraggableSidebar(
+                        openWidth: sidebarWidth,
+                        child: const InitiationLikeSidebar(
+                            activeItemLabel: 'Risk Identification'),
+                      ),
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            MobileSidebarHamburger(
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Risk Identification',
               ),
-            ],
-          ),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+            ),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -621,7 +660,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                 color: const Color(0xFFF3F4F6),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: TextField(
+              child: VoiceTextField(
                 controller: _riskControllers[index][r],
                 minLines: 1,
                 maxLines: 2,
@@ -843,8 +882,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -882,8 +920,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -921,8 +958,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -961,8 +997,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1155,7 +1190,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               children: [
                 TextFormattingToolbar(controller: _notesController),
                 const SizedBox(height: 8),
-                TextField(
+                VoiceTextField(
                   controller: _notesController,
                   style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   decoration: InputDecoration(
@@ -1212,80 +1247,72 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           ),
           const SizedBox(height: 16),
 
-          if (_error != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.red.withOpacity(0.3))),
-              child: Row(children: [
-                const Icon(Icons.error_outline, color: Colors.red, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(_error!,
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis)),
-                TextButton(
-                    onPressed: _isGenerating ? null : _generateRisks,
-                    child: const Text('Retry')),
-              ]),
-            ),
-
           if (!isMobile) ...[
             // Table header
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(6),
-                  border:
-                      Border.all(color: Colors.grey.withOpacity(0.35))),
+                  color: const Color(0xFFF5F7FB),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(8)),
+                  border: Border.all(color: const Color(0xFFE4E7EC))),
               child: const Row(children: [
                 Expanded(
+                    flex: 2,
                     child: Center(
                         child: EditableContentText(
                             contentKey: 'risk_table_header_solution',
                             fallback: 'Potential Solution',
                             category: 'business_case',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
+                SizedBox(width: 8),
                 Expanded(
+                    flex: 3,
                     child: Center(
                         child: EditableContentText(
                             contentKey: 'risk_table_header_risk1',
                             fallback: 'Risk 1',
                             category: 'business_case',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
+                SizedBox(width: 8),
                 Expanded(
+                    flex: 3,
                     child: Center(
                         child: EditableContentText(
                             contentKey: 'risk_table_header_risk2',
                             fallback: 'Risk 2',
                             category: 'business_case',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
+                SizedBox(width: 8),
                 Expanded(
+                    flex: 3,
                     child: Center(
                         child: EditableContentText(
                             contentKey: 'risk_table_header_risk3',
                             fallback: 'Risk 3',
                             category: 'business_case',
                             style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600)))),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
               ]),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(6),
-                  border:
-                      Border.all(color: Colors.grey.withOpacity(0.35))),
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(8)),
+                  border: Border.all(color: const Color(0xFFE4E7EC))),
               child: Column(
                   children: List.generate(
                       _isAdmin
@@ -1356,11 +1383,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   Widget _riskRow(int index) {
     final solution = _solutions[index];
     final isMobile = AppBreakpoints.isMobile(context);
+    final isStriped = index.isOdd;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
+          color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
+          border: Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
       child: isMobile
           ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1394,13 +1422,14 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Solution title cell
               Expanded(
+                flex: 2,
                 child: Align(
-                  alignment: Alignment.topCenter,
+                  alignment: Alignment.topLeft,
                   child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.start,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _numberBadge(index + 1),
@@ -1410,18 +1439,18 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                                       solution.title.isEmpty
                                           ? 'Potential Solution'
                                           : solution.title,
-                                      textAlign: TextAlign.center,
+                                      textAlign: TextAlign.left,
                                       style: const TextStyle(
                                           fontSize: 13,
-                                          color: Colors.black87,
+                                          color: Color(0xFF1F2937),
                                           fontWeight: FontWeight.w600))),
                             ]),
                         if (solution.description.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(solution.description,
-                              textAlign: TextAlign.center,
+                              textAlign: TextAlign.left,
                               style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
+                                  fontSize: 12, color: Color(0xFF6B7280)),
                               maxLines: 5,
                               softWrap: true,
                               overflow: TextOverflow.ellipsis),
@@ -1429,19 +1458,22 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                       ]),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               // Risk 1
               Expanded(
+                  flex: 3,
                   child: _riskTextAreaWithAI(
                       _riskControllers[index][0], index, 0, solution.title)),
               const SizedBox(width: 8),
               // Risk 2
               Expanded(
+                  flex: 3,
                   child: _riskTextAreaWithAI(
                       _riskControllers[index][1], index, 1, solution.title)),
               const SizedBox(width: 8),
               // Risk 3
               Expanded(
+                  flex: 3,
                   child: _riskTextAreaWithAI(
                       _riskControllers[index][2], index, 2, solution.title)),
             ]),
@@ -1514,7 +1546,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                 children: [
                   TextFormattingToolbar(controller: controller),
                   const SizedBox(height: 8),
-                  TextField(
+                  VoiceTextField(
                     controller: controller,
                     minLines: 2,
                     maxLines: null,
@@ -1583,8 +1615,16 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to regenerate: $e')));
+      showAiErrorDialog(
+        context,
+        error: e,
+        onRetry: () => _regenerateSingleRisk(
+          controller,
+          solutionIndex,
+          riskIndex,
+          solutionTitle,
+        ),
+      );
     }
   }
 
@@ -1733,8 +1773,8 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                           decoration: BoxDecoration(
                             color: Colors.grey[50],
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color: Colors.grey.withOpacity(0.2)),
+                            border:
+                                Border.all(color: Colors.grey.withOpacity(0.2)),
                           ),
                           child: Row(
                             children: [
@@ -1767,10 +1807,15 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       if (!mounted) return;
       Navigator.of(context).pop(); // Close loading dialog
       debugPrint('Error generating risk suggestions: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to generate suggestions: ${e.toString()}'),
-            backgroundColor: Colors.red[600]),
+      showAiErrorDialog(
+        context,
+        error: e,
+        onRetry: () => _showKazAiSuggestions(
+          controller,
+          solutionIndex,
+          riskIndex,
+          solutionTitle,
+        ),
       );
     }
   }

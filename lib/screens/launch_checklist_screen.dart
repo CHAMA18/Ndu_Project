@@ -1,18 +1,22 @@
-import 'dart:async';
+import 'dart:html' as html;
 
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ndu_project/screens/risk_tracking_workspace_screen.dart';
+import 'package:flutter/material.dart';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+
+import 'package:ndu_project/screens/deliver_project_closure_screen.dart';
 import 'package:ndu_project/screens/update_ops_maintenance_plans_screen.dart';
+import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
-import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
-import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 class LaunchChecklistScreen extends StatefulWidget {
   const LaunchChecklistScreen({super.key});
@@ -28,53 +32,44 @@ class LaunchChecklistScreen extends StatefulWidget {
 }
 
 class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
-  final _Debouncer _saveDebouncer = _Debouncer();
-  bool _isLoading = false;
-  bool _suspendSave = false;
-  bool _autoGenerationTriggered = false;
-  bool _isAutoGenerating = false;
-
   List<_ChecklistItemData> _checklistItems = [];
   List<_ApprovalData> _approvals = [];
   List<_MilestoneData> _milestones = [];
   List<_TimelineStage> _timelineStages = [];
 
-  String _coordinatorName = '';
-  String _coordinatorRole = '';
-  String _coordinatorEmail = '';
-  String _coordinatorPhone = '';
+  bool _isLoading = true;
+  bool _isGenerating = false;
+  bool _isExporting = false;
+  bool _hasLoaded = false;
+  bool _suspendSave = false;
+  String _selectedView = 'full'; // 'full' or 'summary'
+
+  String? get _projectId => ProjectDataHelper.getData(context).projectId;
 
   @override
   void initState() {
     super.initState();
-    _checklistItems = _defaultChecklistItems();
-    _approvals = _defaultApprovals();
-    _milestones = _defaultMilestones();
-    _timelineStages = _defaultTimelineStages();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  @override
-  void dispose() {
-    _saveDebouncer.dispose();
-    super.dispose();
+  // ── Save ────────────────────────────────────────────────────────
+
+  void _save() {
+    if (_suspendSave || !_hasLoaded) return;
+    Future.microtask(() {
+      if (mounted) _persistData();
+    });
   }
 
-  void _scheduleSave() {
-    if (_suspendSave) return;
-    _saveDebouncer.run(_saveToFirestore);
-  }
+  // ── Load ────────────────────────────────────────────────────────
 
-  Future<void> _loadFromFirestore() async {
-    final provider = ProjectDataInherited.maybeOf(context);
-    final projectId = provider?.projectData.projectId;
-    if (projectId == null || projectId.isEmpty) return;
-    if (!mounted) return;
-    setState(() => _isLoading = true);
+  Future<void> _loadData() async {
+    if (_hasLoaded || _projectId == null) return;
+    _suspendSave = true;
     try {
       final doc = await FirebaseFirestore.instance
           .collection('projects')
-          .doc(projectId)
+          .doc(_projectId!)
           .collection('execution_phase_sections')
           .doc('launch_checklist')
           .get();
@@ -90,134 +85,42 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
           milestones.isNotEmpty ||
           stages.isNotEmpty;
 
-      _suspendSave = true;
       if (!mounted) return;
       setState(() {
-        _checklistItems = checklist.isEmpty ? _defaultChecklistItems() : checklist;
+        _checklistItems =
+            checklist.isEmpty ? _defaultChecklistItems() : checklist;
         _approvals = approvals.isEmpty ? _defaultApprovals() : approvals;
         _milestones = milestones.isEmpty ? _defaultMilestones() : milestones;
-        _timelineStages = stages.isEmpty ? _defaultTimelineStages() : stages;
-
-        final coordinator = Map<String, dynamic>.from(data['coordinator'] as Map? ?? {});
-        _coordinatorName = coordinator['name']?.toString() ?? '';
-        _coordinatorRole = coordinator['role']?.toString() ?? '';
-        _coordinatorEmail = coordinator['email']?.toString() ?? '';
-        _coordinatorPhone = coordinator['phone']?.toString() ?? '';
+        _timelineStages =
+            stages.isEmpty ? _defaultTimelineStages() : stages;
+        _isLoading = false;
+        _hasLoaded = true;
       });
-      _suspendSave = false;
 
       if (!hasContent) {
-        await _autoGenerateIfNeeded();
+        await _autoPopulateFromPriorPhases();
       }
-    } catch (error) {
-      debugPrint('Launch checklist load error: $error');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  Future<void> _autoGenerateIfNeeded() async {
-    if (!mounted || _autoGenerationTriggered || _isAutoGenerating) return;
-    _autoGenerationTriggered = true;
-    _isAutoGenerating = true;
-    try {
-      final generated = await ExecutionPhaseAiSeed.generateEntries(
-        context: context,
-        section: 'Launch Checklist',
-        sections: const {
-          'checklist_items': 'Launch checklist action items with owners and due',
-          'approvals': 'Approvals and sign-offs required',
-          'milestones': 'Key launch milestones with due dates',
-          'timeline_stages': 'Timeline stages toward go-live',
-        },
-        itemsPerSection: 3,
-      );
-
-      final checklist = generated['checklist_items'] ?? const [];
-      final approvals = generated['approvals'] ?? const [];
-      final milestones = generated['milestones'] ?? const [];
-      final stages = generated['timeline_stages'] ?? const [];
-
-      if (checklist.isNotEmpty) {
-        _checklistItems = _mapChecklistItems(checklist);
-      }
-      if (approvals.isNotEmpty) {
-        _approvals = _mapApprovals(approvals);
-      }
-      if (milestones.isNotEmpty) {
-        _milestones = _mapMilestones(milestones);
-      }
-      if (stages.isNotEmpty) {
-        _timelineStages = _mapTimelineStages(stages);
-      }
-
-      if (mounted) {
-        setState(() {});
-        await _saveToFirestore();
+      if (_checklistItems.isEmpty &&
+          _approvals.isEmpty &&
+          _milestones.isEmpty &&
+          _timelineStages.isEmpty) {
+        await _populateFromAi();
       }
     } catch (e) {
-      debugPrint('Error auto-generating launch checklist data: $e');
-    } finally {
-      _isAutoGenerating = false;
+      debugPrint('Launch checklist load error: $e');
+      if (mounted) setState(() => _isLoading = false);
     }
+    _suspendSave = false;
   }
 
-  List<_ChecklistItemData> _mapChecklistItems(List<LaunchEntry> entries) {
-    return entries.map((entry) => _ChecklistItemData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: entry.title,
-      detail: entry.details,
-      owner: _extractField(entry.details, 'Owner'),
-      due: _extractField(entry.details, 'Due'),
-      status: entry.status ?? 'Pending',
-    )).toList();
-  }
+  // ── Persist ─────────────────────────────────────────────────────
 
-  List<_ApprovalData> _mapApprovals(List<LaunchEntry> entries) {
-    return entries.map((entry) => _ApprovalData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: entry.title,
-      detail: entry.details,
-      status: entry.status ?? 'Pending',
-      approver: _extractField(entry.details, 'Approver'),
-    )).toList();
-  }
-
-  List<_MilestoneData> _mapMilestones(List<LaunchEntry> entries) {
-    return entries.map((entry) => _MilestoneData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: entry.title,
-      detail: entry.details,
-      due: _extractField(entry.details, 'Due'),
-      status: entry.status ?? 'Upcoming',
-    )).toList();
-  }
-
-  List<_TimelineStage> _mapTimelineStages(List<LaunchEntry> entries) {
-    return entries.map((entry) => _TimelineStage(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: entry.title,
-      detail: entry.details,
-      date: _extractField(entry.details, 'Date'),
-      status: entry.status ?? 'Upcoming',
-    )).toList();
-  }
-
-  String _extractField(String text, String key) {
-    final match = RegExp('$key\\s*[:=-]\\s*([^|;\\n]+)', caseSensitive: false).firstMatch(text);
-    return match?.group(1)?.trim() ?? '';
-  }
-
-  Future<void> _saveToFirestore() async {
-    final provider = ProjectDataInherited.maybeOf(context);
-    final projectId = provider?.projectData.projectId;
-    if (projectId == null || projectId.isEmpty) return;
+  Future<void> _persistData() async {
+    if (_projectId == null) return;
     try {
       await FirebaseFirestore.instance
           .collection('projects')
-          .doc(projectId)
+          .doc(_projectId!)
           .collection('execution_phase_sections')
           .doc('launch_checklist')
           .set({
@@ -225,1566 +128,960 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
         'approvals': _approvals.map((e) => e.toMap()).toList(),
         'milestones': _milestones.map((e) => e.toMap()).toList(),
         'timelineStages': _timelineStages.map((e) => e.toMap()).toList(),
-        'coordinator': {
-          'name': _coordinatorName,
-          'role': _coordinatorRole,
-          'email': _coordinatorEmail,
-          'phone': _coordinatorPhone,
-        },
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (error) {
-      debugPrint('Launch checklist save error: $error');
+    } catch (e) {
+      debugPrint('Launch checklist save error: $e');
     }
   }
 
-  // Defaults
+  // ── Auto-populate from prior phases ─────────────────────────────
+
+  Future<void> _autoPopulateFromPriorPhases() async {
+    if (_projectId == null) return;
+    try {
+      final cp = await LaunchPhaseAiSeed.loadCrossPhaseData(_projectId!);
+      if (!mounted) return;
+
+      final checklistExisting = _checklistItems.map((c) => c.title).toSet();
+      final newItems = <_ChecklistItemData>[];
+      for (final d in cp.scopeTracking) {
+        if (d.deliverable.isNotEmpty &&
+            !checklistExisting.contains(d.deliverable)) {
+          newItems.add(_ChecklistItemData(
+            title: d.deliverable,
+            detail: d.notes,
+            owner: '',
+            due: '',
+            status: d.status == 'Verified' ? 'Complete' : 'On track',
+          ));
+        }
+      }
+      if (newItems.isNotEmpty) {
+        setState(() => _checklistItems.addAll(newItems));
+      }
+
+      final approvalExisting = _approvals.map((a) => a.label).toSet();
+      final newApprovals = <_ApprovalData>[];
+      for (final c in cp.contracts) {
+        if (c.contractName.isNotEmpty &&
+            !approvalExisting.contains(c.contractName)) {
+          newApprovals.add(_ApprovalData(
+            label: '${c.contractName} sign-off',
+            detail: 'Vendor: ${c.vendor}',
+            status: c.closeOutStatus == 'Closed' ? 'Complete' : 'Pending',
+            approver: '',
+          ));
+        }
+      }
+      if (newApprovals.isNotEmpty) {
+        setState(() => _approvals.addAll(newApprovals));
+      }
+
+      final milestoneExisting = _milestones.map((m) => m.title).toSet();
+      final newMilestones = <_MilestoneData>[];
+      for (final d in cp.deliverableRows) {
+        final title = d['title']?.toString() ?? '';
+        if (title.isNotEmpty && !milestoneExisting.contains(title)) {
+          newMilestones.add(_MilestoneData(
+            title: title,
+            detail: '',
+            due: '',
+            status: (d['status']?.toString() ?? '').toLowerCase() == 'completed'
+                ? 'Complete'
+                : 'Upcoming',
+          ));
+        }
+      }
+      if (newMilestones.isNotEmpty) {
+        setState(() => _milestones.addAll(newMilestones));
+      }
+
+      final timelineExisting = _timelineStages.map((t) => t.label).toSet();
+      final newStages = <_TimelineStage>[];
+      for (final s in cp.planningSprints) {
+        final goal =
+            s['goal']?.toString() ?? s['title']?.toString() ?? '';
+        if (goal.isNotEmpty && !timelineExisting.contains(goal)) {
+          newStages.add(_TimelineStage(
+            label: goal,
+            detail: '',
+            date: '',
+            status: (s['status']?.toString() ?? '').toLowerCase() == 'completed'
+                ? 'Complete'
+                : 'Upcoming',
+          ));
+        }
+      }
+      if (newStages.isNotEmpty) {
+        setState(() => _timelineStages.addAll(newStages));
+      }
+
+      if (newItems.isNotEmpty ||
+          newApprovals.isNotEmpty ||
+          newMilestones.isNotEmpty ||
+          newStages.isNotEmpty) {
+        await _persistData();
+      }
+    } catch (e) {
+      debugPrint('Launch checklist auto-populate error: $e');
+    }
+  }
+
+  // ── AI generation ───────────────────────────────────────────────
+
+  Future<void> _populateFromAi() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+    LaunchAiResult? result;
+    try {
+      result = await LaunchPhaseAiSeed.generateEntries(
+        context: context,
+        sectionLabel: 'Launch Checklist',
+        sections: const {
+          'checklist_items':
+              'Launch checklist action items with "title", "details", "status"',
+          'approvals':
+              'Approvals and sign-offs with "title", "details", "status"',
+          'milestones':
+              'Key launch milestones with "title", "details", "status"',
+          'timeline_stages':
+              'Timeline stages toward go-live with "title", "details", "status"',
+        },
+        itemsPerSection: 3,
+      );
+    } catch (e) {
+      debugPrint('Launch checklist AI error: $e');
+    }
+    if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
+    final hasData = _checklistItems.isNotEmpty ||
+        _approvals.isNotEmpty ||
+        _milestones.isNotEmpty ||
+        _timelineStages.isNotEmpty;
+    if (hasData) {
+      setState(() => _isGenerating = false);
+      return;
+    }
+    setState(() {
+      _checklistItems = (generated['checklist_items'] ?? [])
+          .map((m) => _ChecklistItemData(
+                title: _s(m['title']),
+                detail: _s(m['details']),
+                owner: _extractField(_s(m['details']), 'Owner'),
+                due: _extractField(_s(m['details']), 'Due'),
+                status: _ns(m['status'], 'Pending'),
+              ))
+          .where((i) => i.title.isNotEmpty)
+          .toList();
+      _approvals = (generated['approvals'] ?? [])
+          .map((m) => _ApprovalData(
+                label: _s(m['title']),
+                detail: _s(m['details']),
+                status: _ns(m['status'], 'Pending'),
+                approver: _extractField(_s(m['details']), 'Approver'),
+              ))
+          .where((i) => i.label.isNotEmpty)
+          .toList();
+      _milestones = (generated['milestones'] ?? [])
+          .map((m) => _MilestoneData(
+                title: _s(m['title']),
+                detail: _s(m['details']),
+                due: _extractField(_s(m['details']), 'Due'),
+                status: _ns(m['status'], 'Upcoming'),
+              ))
+          .where((i) => i.title.isNotEmpty)
+          .toList();
+      _timelineStages = (generated['timeline_stages'] ?? [])
+          .map((m) => _TimelineStage(
+                label: _s(m['title']),
+                detail: _s(m['details']),
+                date: _extractField(_s(m['details']), 'Date'),
+                status: _ns(m['status'], 'Upcoming'),
+              ))
+          .where((i) => i.label.isNotEmpty)
+          .toList();
+      _isGenerating = false;
+    });
+    await _persistData();
+  }
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName ?? 'Project';
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final filename = 'launch_checklist_${projectName.replaceAll(' ', '_')}_$stamp.pdf';
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => [
+            pw.Text('Launch Checklist', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('$projectName — Generated ${now.toLocal().toIso8601String()}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+            pw.SizedBox(height: 16),
+
+            // Checklist Items
+            _pdfSectionTitle('Launch Checklist'),
+            pw.SizedBox(height: 6),
+            if (_checklistItems.isEmpty)
+              _pdfCell('No checklist items recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Task', 'Detail', 'Owner', 'Due', 'Status'],
+                data: _checklistItems.map((c) => [c.title, c.detail, c.owner, c.due, c.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Approvals
+            _pdfSectionTitle('Approvals & Sign-offs'),
+            pw.SizedBox(height: 6),
+            if (_approvals.isEmpty)
+              _pdfCell('No approvals recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Approval', 'Detail', 'Approver', 'Status'],
+                data: _approvals.map((a) => [a.label, a.detail, a.approver, a.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Milestones
+            _pdfSectionTitle('Launch Milestones'),
+            pw.SizedBox(height: 6),
+            if (_milestones.isEmpty)
+              _pdfCell('No milestones recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Milestone', 'Detail', 'Due', 'Status'],
+                data: _milestones.map((m) => [m.title, m.detail, m.due, m.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Timeline Stages
+            _pdfSectionTitle('Launch Timeline'),
+            pw.SizedBox(height: 6),
+            if (_timelineStages.isEmpty)
+              _pdfCell('No timeline stages recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Stage', 'Detail', 'Date', 'Status'],
+                data: _timelineStages.map((t) => [t.label, t.detail, t.date, t.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (!mounted) return;
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PDF export failed: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold));
+  }
+
+  pw.Widget _pdfHeaderCell(String text) {
+    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)));
+  }
+
+  pw.Widget _pdfCell(String text) {
+    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: const pw.TextStyle(fontSize: 9)));
+  }
+
+  String _s(dynamic v) => (v ?? '').toString().trim();
+  String _ns(dynamic v, String fb) => _s(v).isEmpty ? fb : _s(v);
+
+  String _extractField(String text, String key) {
+    final match = RegExp('$key\\s*[:=-]\\s*([^|;\\n]+)', caseSensitive: false)
+        .firstMatch(text);
+    return match?.group(1)?.trim() ?? '';
+  }
+
+  // ── Defaults ────────────────────────────────────────────────────
+
   List<_ChecklistItemData> _defaultChecklistItems() => [
-    _ChecklistItemData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Cutover rehearsals signed off',
-      detail: 'Dry run #2 captured follow-up items',
-      owner: 'Operations lead',
-      due: 'Aug 12',
-      status: 'Complete',
-    ),
-    _ChecklistItemData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Rollback playbook distributed',
-      detail: 'Share final rollback guide with war room',
-      owner: 'Program manager',
-      due: 'Aug 09',
-      status: 'At risk',
-    ),
-    _ChecklistItemData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Hypercare squad roster confirmed',
-      detail: 'Roster, shifts, and bridge details communicated',
-      owner: 'Launch director',
-      due: 'Aug 15',
-      status: 'On track',
-    ),
-    _ChecklistItemData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Customer comms final approval',
-      detail: 'Exec sign-off on launch narratives',
-      owner: 'Comms lead',
-      due: 'Aug 14',
-      status: 'In review',
-    ),
-  ];
+        _ChecklistItemData(
+          title: 'Cutover rehearsals signed off',
+          detail: 'Dry run #2 captured follow-up items',
+          owner: 'Operations lead',
+          due: 'Aug 12',
+          status: 'Complete',
+        ),
+        _ChecklistItemData(
+          title: 'Rollback playbook distributed',
+          detail: 'Share final rollback guide with war room',
+          owner: 'Program manager',
+          due: 'Aug 09',
+          status: 'At risk',
+        ),
+        _ChecklistItemData(
+          title: 'Hypercare squad roster confirmed',
+          detail: 'Roster, shifts, and bridge details communicated',
+          owner: 'Launch director',
+          due: 'Aug 15',
+          status: 'On track',
+        ),
+        _ChecklistItemData(
+          title: 'Customer comms final approval',
+          detail: 'Exec sign-off on launch narratives',
+          owner: 'Comms lead',
+          due: 'Aug 14',
+          status: 'In review',
+        ),
+      ];
 
   List<_ApprovalData> _defaultApprovals() => [
-    _ApprovalData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: 'Cutover rehearsal sign-off',
-      detail: 'Delivery, platform, and ops leads approved',
-      status: 'Complete',
-      approver: 'Ops Director',
-    ),
-    _ApprovalData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: 'Business readiness validation',
-      detail: 'Support staffing matrix ready',
-      status: 'Complete',
-      approver: 'Business Owner',
-    ),
-    _ApprovalData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: 'Comms go-live bundle',
-      detail: 'Legal + comms reviewing final messaging',
-      status: 'In review',
-      approver: 'Legal Counsel',
-    ),
-  ];
+        _ApprovalData(
+          label: 'Cutover rehearsal sign-off',
+          detail: 'Delivery, platform, and ops leads approved',
+          status: 'Complete',
+          approver: 'Ops Director',
+        ),
+        _ApprovalData(
+          label: 'Business readiness validation',
+          detail: 'Support staffing matrix ready',
+          status: 'Complete',
+          approver: 'Business Owner',
+        ),
+        _ApprovalData(
+          label: 'Comms go-live bundle',
+          detail: 'Legal + comms reviewing final messaging',
+          status: 'In review',
+          approver: 'Legal Counsel',
+        ),
+      ];
 
   List<_MilestoneData> _defaultMilestones() => [
-    _MilestoneData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Cutover rehearsal playback',
-      detail: 'Ops + Engineering walk-through',
-      due: 'Aug 09',
-      status: 'Complete',
-    ),
-    _MilestoneData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Go / no-go rehearsal',
-      detail: 'Dry run with scenario walk-through',
-      due: 'Aug 11',
-      status: 'Upcoming',
-    ),
-    _MilestoneData(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: 'Launch day',
-      detail: 'Go-live execution',
-      due: 'Aug 18',
-      status: 'Upcoming',
-    ),
-  ];
+        _MilestoneData(
+          title: 'Cutover rehearsal playback',
+          detail: 'Ops + Engineering walk-through',
+          due: 'Aug 09',
+          status: 'Complete',
+        ),
+        _MilestoneData(
+          title: 'Go / no-go rehearsal',
+          detail: 'Dry run with scenario walk-through',
+          due: 'Aug 11',
+          status: 'Upcoming',
+        ),
+        _MilestoneData(
+          title: 'Launch day',
+          detail: 'Go-live execution',
+          due: 'Aug 18',
+          status: 'Upcoming',
+        ),
+      ];
 
   List<_TimelineStage> _defaultTimelineStages() => [
-    _TimelineStage(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: 'Final readiness review',
-      detail: 'All cutover artefacts verified',
-      date: 'Aug 10',
-      status: 'Complete',
-    ),
-    _TimelineStage(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: 'Go / no-go rehearsal',
-      detail: 'Dry run with escalation practices',
-      date: 'Aug 11',
-      status: 'In progress',
-    ),
-    _TimelineStage(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
-      label: 'Launch day execution',
-      detail: 'Go-live cutover',
-      date: 'Aug 18',
-      status: 'Upcoming',
-    ),
-  ];
+        _TimelineStage(
+          label: 'Final readiness review',
+          detail: 'All cutover artefacts verified',
+          date: 'Aug 10',
+          status: 'Complete',
+        ),
+        _TimelineStage(
+          label: 'Go / no-go rehearsal',
+          detail: 'Dry run with escalation practices',
+          date: 'Aug 11',
+          status: 'In progress',
+        ),
+        _TimelineStage(
+          label: 'Launch day execution',
+          detail: 'Go-live cutover',
+          date: 'Aug 18',
+          status: 'Upcoming',
+        ),
+      ];
+
+  // ── Build ───────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = AppBreakpoints.isMobile(context);
-    final double hPad = isMobile ? 20 : 40;
-    final provider = ProjectDataInherited.maybeOf(context);
-    final projectId = provider?.projectData.projectId;
+    final bool isMobile = MediaQuery.sizeOf(context).width < 980;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Stack(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Launch Checklist',
+      backgroundColor: const Color(0xFFF5F7FB),
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+          horizontal: isMobile ? 16 : 32,
+          vertical: isMobile ? 16 : 28,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (isMobile)
-              _buildMobileLayout(hPad, projectId)
-            else
-              _buildDesktopLayout(hPad, projectId),
-            const KazAiChatBubble(),
+            if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+            PlanningPhaseHeader(
+              title: 'Launch Checklist',
+              showImportButton: false,
+              showContentButton: false,
+              showNavigationButtons: false, onExportPdf: _exportPdf),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _selectedView == 'full' ? 'Summary View' : 'Full View',
+                      icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
+                      tone: ExecutionActionTone.secondary,
+                      onPressed: () => setState(() {
+                        _selectedView = _selectedView == 'full' ? 'summary' : 'full';
+                      }),
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            _buildMetricsRow(),
+            const SizedBox(height: 20),
+            _buildChecklistPanel(),
+            const SizedBox(height: 16),
+            _buildApprovalsPanel(),
+            const SizedBox(height: 16),
+            _buildMilestonesPanel(),
+            const SizedBox(height: 16),
+            _buildTimelinePanel(),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: 'Back: Update Ops & Maintenance Plans',
+              nextLabel: 'Next: Deliver Project',
+              onBack: () => UpdateOpsMaintenancePlansScreen.open(context),
+              onNext: () => DeliverProjectClosureScreen.open(context),
+            ),
+            const SizedBox(height: 48),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDesktopLayout(double hPad, String? projectId) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DraggableSidebar(
-          openWidth: AppBreakpoints.sidebarWidth(context),
-          child: const InitiationLikeSidebar(
-              activeItemLabel: 'Launch Checklist'),
+
+
+  // ── Metrics ─────────────────────────────────────────────────────
+
+  Widget _buildMetricsRow() {
+    final approvalsDone =
+        _approvals.where((a) => a.status == 'Complete').length;
+    final milestonesHit =
+        _milestones.where((m) => m.status == 'Complete').length;
+    return ExecutionMetricsGrid(
+      metrics: [
+        ExecutionMetricData(
+          label: 'Checklist Items',
+          value: '${_checklistItems.length}',
+          icon: Icons.checklist_rounded,
+          emphasisColor: const Color(0xFF2563EB),
         ),
-        Expanded(child: _buildScrollContent(hPad, projectId)),
-      ],
-    );
-  }
-
-  Widget _buildMobileLayout(double hPad, String? projectId) {
-    return _buildScrollContent(hPad, projectId);
-  }
-
-  Widget _buildScrollContent(double hPad, String? projectId) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const PlanningPhaseHeader(
-            title: 'Launch Checklist',
-            showImportButton: false,
-            showContentButton: false,
-            showNavigationButtons: false,
-          ),
-          const SizedBox(height: 32),
-          _buildSectionIntro(),
-          const SizedBox(height: 28),
-          if (_isLoading) ...[
-            const Center(
-                child: Padding(
-              padding: EdgeInsets.all(32),
-              child: CircularProgressIndicator(),
-            )),
-          ] else ...[
-            _buildChecklistSection(),
-            const SizedBox(height: 28),
-            _buildApprovalsSection(),
-            const SizedBox(height: 28),
-            _buildMilestonesSection(),
-            const SizedBox(height: 28),
-            _buildTimelineSection(),
-          ],
-          const SizedBox(height: 36),
-          _buildBottomActionBar(),
-          const SizedBox(height: 56),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionIntro() {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEEF2FF),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.checklist_rounded,
-              size: 22, color: Color(0xFF4338CA)),
+        ExecutionMetricData(
+          label: 'Approvals Done',
+          value: '$approvalsDone',
+          icon: Icons.approval_rounded,
+          emphasisColor: const Color(0xFF10B981),
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Launch Readiness Checklist',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Track cutover tasks, approvals, and milestones before go-live.',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF6B7280),
-                  height: 1.6,
-                ),
-              ),
-            ],
-          ),
+        ExecutionMetricData(
+          label: 'Milestones Hit',
+          value: '$milestonesHit',
+          icon: Icons.flag_outlined,
+          emphasisColor: const Color(0xFF8B5CF6),
+        ),
+        ExecutionMetricData(
+          label: 'Timeline Stages',
+          value: '${_timelineStages.length}',
+          icon: Icons.timeline_rounded,
+          emphasisColor: const Color(0xFFF59E0B),
         ),
       ],
     );
   }
 
-  Widget _buildBottomActionBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0A000000), blurRadius: 16, offset: Offset(0, 8)),
-        ],
-      ),
-      child: LaunchPhaseNavigation(
-        backLabel: 'Back: Update Ops & Maintenance Plans',
-        nextLabel: 'Next: Risk Tracking',
-        onBack: () => UpdateOpsMaintenancePlansScreen.open(context),
-        onNext: () => RiskTrackingWorkspaceScreen.open(context),
-      ),
-    );
-  }
+  // ── Checklist Panel ─────────────────────────────────────────────
 
-  Widget _buildChecklistSection() {
-    return _buildSectionCard(
-      icon: Icons.checklist_rounded,
-      iconColor: const Color(0xFF6366F1),
-      iconBg: const Color(0xFFEEF2FF),
+  Widget _buildChecklistPanel() {
+    return LaunchDataTable(
       title: 'Launch Checklist',
       subtitle: 'Critical action items with owners and due dates',
-      child: Column(
-        children: [
-          if (_checklistItems.isEmpty)
-            _buildEmptyState('No checklist items yet', Icons.checklist_outlined)
-          else
-            ..._checklistItems.map((item) => _buildChecklistItem(item)),
-          const SizedBox(height: 12),
-          _buildAddButton('Add checklist item', _addChecklistItem),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChecklistItem(_ChecklistItemData item) {
-    final statusColor = _getStatusColor(item.status);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0x04000000),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+      columns: const [
+        LaunchColumn(label: 'Task', flexible: true, fieldType: LaunchFieldType.text, hint: 'Task'),
+        LaunchColumn(label: 'Detail', flexible: true, fieldType: LaunchFieldType.text, hint: 'Detail'),
+        LaunchColumn(label: 'Owner', width: 120, fieldType: LaunchFieldType.text, hint: 'Owner'),
+        LaunchColumn(label: 'Due', width: 130, fieldType: LaunchFieldType.date, hint: 'Due'),
+        LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Complete', 'On track', 'At risk', 'In review', 'Pending'], hint: 'Status'),
+      ],
+      rowCount: _checklistItems.length,
+      onAddValues: (values) {
+        setState(() => _checklistItems.add(_ChecklistItemData(
+              title: values['Task'] ?? '',
+              detail: values['Detail'] ?? '',
+              owner: values['Owner'] ?? '',
+              due: values['Due'] ?? '',
+              status: values['Status'] ?? 'Pending',
+            )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'task', label: 'Task', sampleValue: 'Cutover rehearsals signed off'),
+        CsvColumnSpec(key: 'detail', label: 'Detail', sampleValue: 'Dry run #2 captured follow-up items'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Operations lead'),
+        CsvColumnSpec(key: 'due', label: 'Due', sampleValue: 'Aug 12'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Complete', 'On track', 'At risk', 'In review', 'Pending']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _checklistItems.add(_ChecklistItemData(
+              title: row['task'] ?? '',
+              detail: row['detail'] ?? '',
+              owner: row['owner'] ?? '',
+              due: row['due'] ?? '',
+              status: row['status'] ?? 'Pending',
+            ));
+          });
+        }
+        _save();
+      },
+      emptyMessage:
+          'No checklist items yet. Add critical action items before go-live.',
+      cellBuilder: (context, i) {
+        final item = _checklistItems[i];
+        return LaunchDataRow(
+          onDelete: () async {
+            final confirmed = await launchConfirmDelete(context,
+                itemName: 'checklist item');
+            if (!confirmed || !mounted) return;
+            setState(() => _checklistItems.removeAt(i));
+            _save();
+          },
+          cells: [
+            LaunchEditableCell(
+              value: item.title,
+              hint: 'Task',
+              bold: true,
+              expand: true,
+              onChanged: (v) {
+                _checklistItems[i] = item.copyWith(title: v);
+                _save();
+              },
             ),
-            child: Icon(
-              item.status.toLowerCase().contains('complete') ? Icons.check_circle : Icons.radio_button_unchecked,
-              size: 20,
-              color: statusColor,
+            LaunchEditableCell(
+              value: item.detail,
+              hint: 'Detail',
+              expand: true,
+              onChanged: (v) {
+                _checklistItems[i] = item.copyWith(detail: v);
+                _save();
+              },
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.detail,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.person_outline, size: 14, color: Color(0xFF9CA3AF)),
-                    const SizedBox(width: 4),
-                    Text(
-                      item.owner,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    const Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFF9CA3AF)),
-                    const SizedBox(width: 4),
-                    Text(
-                      item.due,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ],
-                ),
+            LaunchEditableCell(
+              value: item.owner,
+              hint: 'Owner',
+              width: 120,
+              onChanged: (v) {
+                _checklistItems[i] = item.copyWith(owner: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: item.due,
+              hint: 'Due',
+              width: 130,
+              onChanged: (v) {
+                _checklistItems[i] = item.copyWith(due: v);
+                _save();
+              },
+            ),
+            LaunchStatusDropdown(
+              value: item.status,
+              items: const [
+                'Complete',
+                'On track',
+                'At risk',
+                'In review',
+                'Pending'
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Text(
-              item.status,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: statusColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildEditButton(() => _editChecklistItem(item)),
-          const SizedBox(width: 8),
-          _buildDeleteButton(() => _deleteChecklistItem(item.id)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApprovalsSection() {
-    return _buildSectionCard(
-      icon: Icons.approval_rounded,
-      iconColor: const Color(0xFF10B981),
-      iconBg: const Color(0xFFECFDF5),
-      title: 'Approvals & Sign-offs',
-      subtitle: 'Required approvals before go-live',
-      child: Column(
-        children: [
-          if (_approvals.isEmpty)
-            _buildEmptyState('No approvals yet', Icons.approval_outlined)
-          else
-            ..._approvals.map((item) => _buildApprovalItem(item)),
-          const SizedBox(height: 12),
-          _buildAddButton('Add approval', _addApproval),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApprovalItem(_ApprovalData item) {
-    final statusColor = _getStatusColor(item.status);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0x04000000),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              item.status.toLowerCase().contains('complete') ? Icons.check_circle : Icons.pending,
-              size: 20,
-              color: statusColor,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.detail,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Text(
-              item.status,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: statusColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildEditButton(() => _editApproval(item)),
-          const SizedBox(width: 8),
-          _buildDeleteButton(() => _deleteApproval(item.id)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMilestonesSection() {
-    return _buildSectionCard(
-      icon: Icons.flag_rounded,
-      iconColor: const Color(0xFFF59E0B),
-      iconBg: const Color(0xFFFEF3C7),
-      title: 'Launch Milestones',
-      subtitle: 'Key milestones leading to go-live',
-      child: Column(
-        children: [
-          if (_milestones.isEmpty)
-            _buildEmptyState('No milestones yet', Icons.flag_outlined)
-          else
-            ..._milestones.map((item) => _buildMilestoneItem(item)),
-          const SizedBox(height: 12),
-          _buildAddButton('Add milestone', _addMilestone),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMilestoneItem(_MilestoneData item) {
-    final statusColor = _getStatusColor(item.status);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0x04000000),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF59E0B),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.detail,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.calendar_today_outlined, size: 12, color: Color(0xFF6B7280)),
-                const SizedBox(width: 4),
-                Text(
-                  item.due,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF6B7280),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
-            ),
-            child: Text(
-              item.status,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: statusColor,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _buildEditButton(() => _editMilestone(item)),
-          const SizedBox(width: 8),
-          _buildDeleteButton(() => _deleteMilestone(item.id)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineSection() {
-    return _buildSectionCard(
-      icon: Icons.timeline_rounded,
-      iconColor: const Color(0xFF0EA5E9),
-      iconBg: const Color(0xFFE0F2FE),
-      title: 'Launch Timeline',
-      subtitle: 'Timeline stages toward go-live',
-      child: Column(
-        children: [
-          if (_timelineStages.isEmpty)
-            _buildEmptyState('No timeline stages yet', Icons.timeline_outlined)
-          else
-            ..._timelineStages.asMap().entries.map((entry) {
-              final index = entry.key;
-              final stage = entry.value;
-              return _buildTimelineStage(stage, index, _timelineStages.length);
-            }),
-          const SizedBox(height: 12),
-          _buildAddButton('Add stage', _addTimelineStage),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimelineStage(_TimelineStage stage, int index, int total) {
-    final isLast = index == total - 1;
-    final statusColor = _getStatusColor(stage.status);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: statusColor,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    '${index + 1}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-              if (!isLast)
-                Container(
-                  width: 2,
-                  height: 60,
-                  color: const Color(0xFFE5E7EB),
-                  margin: const EdgeInsets.only(top: 8),
-                ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          stage.label,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF111827),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          stage.detail,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.calendar_today_outlined, size: 12, color: Color(0xFF6B7280)),
-                        const SizedBox(width: 4),
-                        Text(
-                          stage.date,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildEditButton(() => _editTimelineStage(stage)),
-                  const SizedBox(width: 8),
-                  _buildDeleteButton(() => _deleteTimelineStage(stage.id)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
-    required String title,
-    required String subtitle,
-    required Widget child,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: iconBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, size: 20, color: iconColor),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: child,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String message, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Center(
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: const Color(0xFF9CA3AF), size: 28),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF6B7280),
-              ),
+              width: 120,
+              onChanged: (v) {
+                if (v == null) return;
+                _checklistItems[i] = item.copyWith(status: v);
+                _save();
+                setState(() {});
+              },
             ),
           ],
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildAddButton(String label, VoidCallback onPressed) {
-    return FilledButton.icon(
-      onPressed: onPressed,
-      icon: const Icon(Icons.add, size: 16),
-      label: Text(label),
-      style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-      ),
+  // ── Approvals Panel ─────────────────────────────────────────────
+
+  Widget _buildApprovalsPanel() {
+    return LaunchDataTable(
+      title: 'Approvals & Sign-offs',
+      subtitle: 'Required approvals before go-live',
+      columns: const [
+        LaunchColumn(label: 'Approval', flexible: true, fieldType: LaunchFieldType.text, hint: 'Approval'),
+        LaunchColumn(label: 'Detail', flexible: true, fieldType: LaunchFieldType.text, hint: 'Detail'),
+        LaunchColumn(label: 'Approver', width: 120, fieldType: LaunchFieldType.text, hint: 'Approver'),
+        LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Complete', 'In review', 'Pending'], hint: 'Status'),
+      ],
+      rowCount: _approvals.length,
+      onAddValues: (values) {
+        setState(() => _approvals.add(_ApprovalData(
+              label: values['Approval'] ?? '',
+              detail: values['Detail'] ?? '',
+              status: values['Status'] ?? 'Pending',
+              approver: values['Approver'] ?? '',
+            )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'approval', label: 'Approval', sampleValue: 'Cutover sign-off'),
+        CsvColumnSpec(key: 'detail', label: 'Detail', sampleValue: 'Delivery and ops leads approved'),
+        CsvColumnSpec(key: 'approver', label: 'Approver', sampleValue: 'Ops Director'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Complete', 'In review', 'Pending']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _approvals.add(_ApprovalData(
+              label: row['approval'] ?? '',
+              detail: row['detail'] ?? '',
+              status: row['status'] ?? 'Pending',
+              approver: row['approver'] ?? '',
+            ));
+          });
+        }
+        _save();
+      },
+      emptyMessage:
+          'No approvals yet. Track required sign-offs before launch.',
+      cellBuilder: (context, i) {
+        final item = _approvals[i];
+        return LaunchDataRow(
+          onDelete: () async {
+            final confirmed = await launchConfirmDelete(context,
+                itemName: 'approval');
+            if (!confirmed || !mounted) return;
+            setState(() => _approvals.removeAt(i));
+            _save();
+          },
+          cells: [
+            LaunchEditableCell(
+              value: item.label,
+              hint: 'Approval',
+              bold: true,
+              expand: true,
+              onChanged: (v) {
+                _approvals[i] = item.copyWith(label: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: item.detail,
+              hint: 'Detail',
+              expand: true,
+              onChanged: (v) {
+                _approvals[i] = item.copyWith(detail: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: item.approver,
+              hint: 'Approver',
+              width: 120,
+              onChanged: (v) {
+                _approvals[i] = item.copyWith(approver: v);
+                _save();
+              },
+            ),
+            LaunchStatusDropdown(
+              value: item.status,
+              items: const ['Complete', 'In review', 'Pending'],
+              width: 120,
+              onChanged: (v) {
+                if (v == null) return;
+                _approvals[i] = item.copyWith(status: v);
+                _save();
+                setState(() {});
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildEditButton(VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEEF2FF),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFC7D2FE)),
-          ),
-          child: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6366F1)),
-        ),
-      ),
+  // ── Milestones Panel ────────────────────────────────────────────
+
+  Widget _buildMilestonesPanel() {
+    return LaunchDataTable(
+      title: 'Launch Milestones',
+      subtitle: 'Key milestones leading to go-live',
+      columns: const [
+        LaunchColumn(label: 'Milestone', flexible: true, fieldType: LaunchFieldType.text, hint: 'Milestone'),
+        LaunchColumn(label: 'Detail', flexible: true, fieldType: LaunchFieldType.text, hint: 'Detail'),
+        LaunchColumn(label: 'Due', width: 130, fieldType: LaunchFieldType.date, hint: 'Due'),
+        LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Complete', 'Upcoming', 'In progress', 'Delayed'], hint: 'Status'),
+      ],
+      rowCount: _milestones.length,
+      onAddValues: (values) {
+        setState(() => _milestones.add(_MilestoneData(
+              title: values['Milestone'] ?? '',
+              detail: values['Detail'] ?? '',
+              due: values['Due'] ?? '',
+              status: values['Status'] ?? 'Upcoming',
+            )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'milestone', label: 'Milestone', sampleValue: 'Go / no-go rehearsal'),
+        CsvColumnSpec(key: 'detail', label: 'Detail', sampleValue: 'Dry run with scenario walk-through'),
+        CsvColumnSpec(key: 'due', label: 'Due', sampleValue: 'Aug 11'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Upcoming', allowedValues: ['Complete', 'Upcoming', 'In progress', 'Delayed']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _milestones.add(_MilestoneData(
+              title: row['milestone'] ?? '',
+              detail: row['detail'] ?? '',
+              due: row['due'] ?? '',
+              status: row['status'] ?? 'Upcoming',
+            ));
+          });
+        }
+        _save();
+      },
+      emptyMessage:
+          'No milestones yet. Add key milestones leading to go-live.',
+      cellBuilder: (context, i) {
+        final item = _milestones[i];
+        return LaunchDataRow(
+          onDelete: () async {
+            final confirmed = await launchConfirmDelete(context,
+                itemName: 'milestone');
+            if (!confirmed || !mounted) return;
+            setState(() => _milestones.removeAt(i));
+            _save();
+          },
+          cells: [
+            LaunchEditableCell(
+              value: item.title,
+              hint: 'Milestone',
+              bold: true,
+              expand: true,
+              onChanged: (v) {
+                _milestones[i] = item.copyWith(title: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: item.detail,
+              hint: 'Detail',
+              expand: true,
+              onChanged: (v) {
+                _milestones[i] = item.copyWith(detail: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: item.due,
+              hint: 'Due',
+              width: 130,
+              onChanged: (v) {
+                _milestones[i] = item.copyWith(due: v);
+                _save();
+              },
+            ),
+            LaunchStatusDropdown(
+              value: item.status,
+              items: const ['Complete', 'Upcoming', 'In progress', 'Delayed'],
+              width: 120,
+              onChanged: (v) {
+                if (v == null) return;
+                _milestones[i] = item.copyWith(status: v);
+                _save();
+                setState(() {});
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildDeleteButton(VoidCallback onTap) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFEE2E2),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFFECACA)),
-          ),
-          child: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFDC2626)),
-        ),
-      ),
-    );
-  }
+  // ── Timeline Panel ──────────────────────────────────────────────
 
-  Color _getStatusColor(String status) {
-    final normalized = status.toLowerCase();
-    if (normalized.contains('complete') || normalized.contains('done')) return const Color(0xFF10B981);
-    if (normalized.contains('risk') || normalized.contains('block')) return const Color(0xFFEF4444);
-    if (normalized.contains('review') || normalized.contains('pending')) return const Color(0xFFF59E0B);
-    if (normalized.contains('progress')) return const Color(0xFF6366F1);
-    return const Color(0xFF6B7280);
-  }
-
-  // Edit Dialogs
-  Future<void> _editChecklistItem(_ChecklistItemData item) async {
-    final titleController = TextEditingController(text: item.title);
-    final detailController = TextEditingController(text: item.detail);
-    final ownerController = TextEditingController(text: item.owner);
-    final dueController = TextEditingController(text: item.due);
-    String status = item.status;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEEF2FF),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Icon(Icons.checklist_rounded,
-                          color: Color(0xFF6366F1), size: 22),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Edit checklist item',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.w700)),
-                          SizedBox(height: 4),
-                          Text('Update checklist item details.',
-                              style: TextStyle(
-                                  fontSize: 12, color: Color(0xFF64748B))),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                TextFormField(
-                  controller: titleController,
-                  decoration: _dialogDecoration('Title'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: detailController,
-                  decoration: _dialogDecoration('Details'),
-                  maxLines: 2,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: TextFormField(
-                      controller: ownerController,
-                      decoration: _dialogDecoration('Owner'),
-                    )),
-                    const SizedBox(width: 12),
-                    Expanded(child: TextFormField(
-                      controller: dueController,
-                      decoration: _dialogDecoration('Due date'),
-                    )),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: status,
-                  items: ['Complete', 'On track', 'At risk', 'In review', 'Pending']
-                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                      .toList(),
-                  decoration: _dialogDecoration('Status'),
-                  onChanged: (v) => status = v ?? status,
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF475569),
-                        side: const BorderSide(color: Color(0xFFE2E8F0)),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                      child: const Text('Cancel',
-                          style: TextStyle(fontWeight: FontWeight.w700)),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: () {
-                        setState(() => _checklistItems[_checklistItems.indexWhere((i) => i.id == item.id)] =
-                            item.copyWith(
-                              title: titleController.text.trim(),
-                              detail: detailController.text.trim(),
-                              owner: ownerController.text.trim(),
-                              due: dueController.text.trim(),
-                              status: status,
-                            ));
-                        _scheduleSave();
-                        Navigator.of(dialogContext).pop();
-                      },
-                      icon: const Icon(Icons.check, size: 18),
-                      label: const Text('Save'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF6366F1),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 18, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14)),
-                      ),
-                    ),
-                  ],
-                ),
+  Widget _buildTimelinePanel() {
+    return LaunchDataTable(
+      title: 'Launch Timeline',
+      subtitle: 'Timeline stages toward go-live',
+      columns: const [
+        LaunchColumn(label: 'Stage', flexible: true, fieldType: LaunchFieldType.text, hint: 'Stage'),
+        LaunchColumn(label: 'Detail', flexible: true, fieldType: LaunchFieldType.text, hint: 'Detail'),
+        LaunchColumn(label: 'Date', width: 130, fieldType: LaunchFieldType.date, hint: 'Date'),
+        LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Complete', 'In progress', 'Upcoming', 'Delayed'], hint: 'Status'),
+      ],
+      rowCount: _timelineStages.length,
+      onAddValues: (values) {
+        setState(() => _timelineStages.add(_TimelineStage(
+              label: values['Stage'] ?? '',
+              detail: values['Detail'] ?? '',
+              date: values['Date'] ?? '',
+              status: values['Status'] ?? 'Upcoming',
+            )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'stage', label: 'Stage', sampleValue: 'Final readiness review'),
+        CsvColumnSpec(key: 'detail', label: 'Detail', sampleValue: 'All cutover artefacts verified'),
+        CsvColumnSpec(key: 'date', label: 'Date', sampleValue: 'Aug 10'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Upcoming', allowedValues: ['Complete', 'In progress', 'Upcoming', 'Delayed']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _timelineStages.add(_TimelineStage(
+              label: row['stage'] ?? '',
+              detail: row['detail'] ?? '',
+              date: row['date'] ?? '',
+              status: row['status'] ?? 'Upcoming',
+            ));
+          });
+        }
+        _save();
+      },
+      emptyMessage:
+          'No timeline stages yet. Add stages leading to go-live.',
+      cellBuilder: (context, i) {
+        final stage = _timelineStages[i];
+        return LaunchDataRow(
+          onDelete: () async {
+            final confirmed = await launchConfirmDelete(context,
+                itemName: 'timeline stage');
+            if (!confirmed || !mounted) return;
+            setState(() => _timelineStages.removeAt(i));
+            _save();
+          },
+          cells: [
+            LaunchEditableCell(
+              value: stage.label,
+              hint: 'Stage',
+              bold: true,
+              expand: true,
+              onChanged: (v) {
+                _timelineStages[i] = stage.copyWith(label: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: stage.detail,
+              hint: 'Detail',
+              expand: true,
+              onChanged: (v) {
+                _timelineStages[i] = stage.copyWith(detail: v);
+                _save();
+              },
+            ),
+            LaunchEditableCell(
+              value: stage.date,
+              hint: 'Date',
+              width: 130,
+              onChanged: (v) {
+                _timelineStages[i] = stage.copyWith(date: v);
+                _save();
+              },
+            ),
+            LaunchStatusDropdown(
+              value: stage.status,
+              items: const [
+                'Complete',
+                'In progress',
+                'Upcoming',
+                'Delayed'
               ],
+              width: 120,
+              onChanged: (v) {
+                if (v == null) return;
+                _timelineStages[i] = stage.copyWith(status: v);
+                _save();
+                setState(() {});
+              },
             ),
-          ),
-        ),
-      ),
+          ],
+        );
+      },
     );
-  }
-
-  Future<void> _editApproval(_ApprovalData item) async {
-    final labelController = TextEditingController(text: item.label);
-    final detailController = TextEditingController(text: item.detail);
-    final approverController = TextEditingController(text: item.approver);
-    String status = item.status;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: StatefulBuilder(
-              builder: (context, setDialog) => Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFECFDF5),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.approval_rounded,
-                            color: Color(0xFF10B981), size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Edit approval',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w700)),
-                            SizedBox(height: 4),
-                            Text('Update approval details.',
-                                style: TextStyle(
-                                    fontSize: 12, color: Color(0xFF64748B))),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: labelController,
-                    decoration: _dialogDecoration('Approval name'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: detailController,
-                    decoration: _dialogDecoration('Details'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: approverController,
-                    decoration: _dialogDecoration('Approver'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: status,
-                    items: ['Complete', 'In review', 'Pending']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-                    decoration: _dialogDecoration('Status'),
-                    onChanged: (v) => setDialog(() => status = v ?? status),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF475569),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: const Text('Cancel',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: () {
-                          setState(() => _approvals[_approvals.indexWhere((i) => i.id == item.id)] =
-                              item.copyWith(
-                                label: labelController.text.trim(),
-                                detail: detailController.text.trim(),
-                                approver: approverController.text.trim(),
-                                status: status,
-                              ));
-                          _scheduleSave();
-                          Navigator.of(dialogContext).pop();
-                        },
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Save'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _editMilestone(_MilestoneData item) async {
-    final titleController = TextEditingController(text: item.title);
-    final detailController = TextEditingController(text: item.detail);
-    final dueController = TextEditingController(text: item.due);
-    String status = item.status;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: StatefulBuilder(
-              builder: (context, setDialog) => Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.flag_rounded,
-                            color: Color(0xFFF59E0B), size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Edit milestone',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w700)),
-                            SizedBox(height: 4),
-                            Text('Update milestone details.',
-                                style: TextStyle(
-                                    fontSize: 12, color: Color(0xFF64748B))),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: titleController,
-                    decoration: _dialogDecoration('Milestone title'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: detailController,
-                    decoration: _dialogDecoration('Details'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: dueController,
-                    decoration: _dialogDecoration('Due date'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: status,
-                    items: ['Complete', 'Upcoming', 'In progress', 'At risk']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-                    decoration: _dialogDecoration('Status'),
-                    onChanged: (v) => setDialog(() => status = v ?? status),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF475569),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: const Text('Cancel',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: () {
-                          setState(() => _milestones[_milestones.indexWhere((i) => i.id == item.id)] =
-                              item.copyWith(
-                                title: titleController.text.trim(),
-                                detail: detailController.text.trim(),
-                                due: dueController.text.trim(),
-                                status: status,
-                              ));
-                          _scheduleSave();
-                          Navigator.of(dialogContext).pop();
-                        },
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Save'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFF59E0B),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _editTimelineStage(_TimelineStage item) async {
-    final labelController = TextEditingController(text: item.label);
-    final detailController = TextEditingController(text: item.detail);
-    final dateController = TextEditingController(text: item.date);
-    String status = item.status;
-
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: StatefulBuilder(
-              builder: (context, setDialog) => Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.timeline_rounded,
-                            color: Color(0xFF0EA5E9), size: 22),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Edit timeline stage',
-                                style: TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w700)),
-                            SizedBox(height: 4),
-                            Text('Update stage details.',
-                                style: TextStyle(
-                                    fontSize: 12, color: Color(0xFF64748B))),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: 'Close',
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    controller: labelController,
-                    decoration: _dialogDecoration('Stage label'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: detailController,
-                    decoration: _dialogDecoration('Details'),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: dateController,
-                    decoration: _dialogDecoration('Date'),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: status,
-                    items: ['Complete', 'In progress', 'Upcoming']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
-                    decoration: _dialogDecoration('Status'),
-                    onChanged: (v) => setDialog(() => status = v ?? status),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      OutlinedButton(
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF475569),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: const Text('Cancel',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                      const SizedBox(width: 8),
-                      FilledButton.icon(
-                        onPressed: () {
-                          setState(() => _timelineStages[_timelineStages.indexWhere((i) => i.id == item.id)] =
-                              item.copyWith(
-                                label: labelController.text.trim(),
-                                detail: detailController.text.trim(),
-                                date: dateController.text.trim(),
-                                status: status,
-                              ));
-                          _scheduleSave();
-                          Navigator.of(dialogContext).pop();
-                        },
-                        icon: const Icon(Icons.check, size: 18),
-                        label: const Text('Save'),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF0EA5E9),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _dialogDecoration(String label, {String? hint}) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      filled: true,
-      fillColor: const Color(0xFFF8FAFC),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-      focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF6366F1), width: 1.5)),
-    );
-  }
-
-  // Add methods
-  void _addChecklistItem() {
-    setState(() {
-      _checklistItems.add(_ChecklistItemData(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: 'New checklist item',
-        detail: 'Add details...',
-        owner: 'Owner TBD',
-        due: 'TBD',
-        status: 'Pending',
-      ));
-    });
-    _scheduleSave();
-  }
-
-  void _deleteChecklistItem(String id) {
-    setState(() => _checklistItems.removeWhere((item) => item.id == id));
-    _scheduleSave();
-  }
-
-  void _addApproval() {
-    setState(() {
-      _approvals.add(_ApprovalData(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        label: 'New approval',
-        detail: 'Add details...',
-        status: 'Pending',
-        approver: 'Approver TBD',
-      ));
-    });
-    _scheduleSave();
-  }
-
-  void _deleteApproval(String id) {
-    setState(() => _approvals.removeWhere((item) => item.id == id));
-    _scheduleSave();
-  }
-
-  void _addMilestone() {
-    setState(() {
-      _milestones.add(_MilestoneData(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: 'New milestone',
-        detail: 'Add details...',
-        due: 'TBD',
-        status: 'Upcoming',
-      ));
-    });
-    _scheduleSave();
-  }
-
-  void _deleteMilestone(String id) {
-    setState(() => _milestones.removeWhere((item) => item.id == id));
-    _scheduleSave();
-  }
-
-  void _addTimelineStage() {
-    setState(() {
-      _timelineStages.add(_TimelineStage(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        label: 'New stage',
-        detail: 'Add details...',
-        date: 'TBD',
-        status: 'Upcoming',
-      ));
-    });
-    _scheduleSave();
-  }
-
-  void _deleteTimelineStage(String id) {
-    setState(() => _timelineStages.removeWhere((item) => item.id == id));
-    _scheduleSave();
   }
 }
 
-// Shared Widgets
+// ── Private Data Models (Firestore-compatible) ─────────────────────
 
-class _Debouncer {
-  _Debouncer({Duration? delay}) : delay = delay ?? const Duration(milliseconds: 600);
-  final Duration delay;
-  Timer? _timer;
-
-  void run(void Function() action) {
-    _timer?.cancel();
-    _timer = Timer(delay, action);
-  }
-
-  void dispose() {
-    _timer?.cancel();
-  }
-}
-
-// Data Models
 class _ChecklistItemData {
   const _ChecklistItemData({
-    required this.id,
     required this.title,
     required this.detail,
     required this.owner,
@@ -1792,7 +1089,6 @@ class _ChecklistItemData {
     required this.status,
   });
 
-  final String id;
   final String title;
   final String detail;
   final String owner;
@@ -1807,7 +1103,6 @@ class _ChecklistItemData {
     String? status,
   }) {
     return _ChecklistItemData(
-      id: id,
       title: title ?? this.title,
       detail: detail ?? this.detail,
       owner: owner ?? this.owner,
@@ -1817,7 +1112,6 @@ class _ChecklistItemData {
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
         'title': title,
         'detail': detail,
         'owner': owner,
@@ -1830,7 +1124,6 @@ class _ChecklistItemData {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _ChecklistItemData(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
         title: map['title']?.toString() ?? '',
         detail: map['detail']?.toString() ?? '',
         owner: map['owner']?.toString() ?? '',
@@ -1843,14 +1136,12 @@ class _ChecklistItemData {
 
 class _ApprovalData {
   const _ApprovalData({
-    required this.id,
     required this.label,
     required this.detail,
     required this.status,
     required this.approver,
   });
 
-  final String id;
   final String label;
   final String detail;
   final String status;
@@ -1863,7 +1154,6 @@ class _ApprovalData {
     String? approver,
   }) {
     return _ApprovalData(
-      id: id,
       label: label ?? this.label,
       detail: detail ?? this.detail,
       status: status ?? this.status,
@@ -1872,7 +1162,6 @@ class _ApprovalData {
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
         'label': label,
         'detail': detail,
         'status': status,
@@ -1884,7 +1173,6 @@ class _ApprovalData {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _ApprovalData(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
         label: map['label']?.toString() ?? '',
         detail: map['detail']?.toString() ?? '',
         status: map['status']?.toString() ?? 'Pending',
@@ -1896,14 +1184,12 @@ class _ApprovalData {
 
 class _MilestoneData {
   const _MilestoneData({
-    required this.id,
     required this.title,
     required this.detail,
     required this.due,
     required this.status,
   });
 
-  final String id;
   final String title;
   final String detail;
   final String due;
@@ -1916,7 +1202,6 @@ class _MilestoneData {
     String? status,
   }) {
     return _MilestoneData(
-      id: id,
       title: title ?? this.title,
       detail: detail ?? this.detail,
       due: due ?? this.due,
@@ -1925,7 +1210,6 @@ class _MilestoneData {
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
         'title': title,
         'detail': detail,
         'due': due,
@@ -1937,7 +1221,6 @@ class _MilestoneData {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _MilestoneData(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
         title: map['title']?.toString() ?? '',
         detail: map['detail']?.toString() ?? '',
         due: map['due']?.toString() ?? '',
@@ -1949,14 +1232,12 @@ class _MilestoneData {
 
 class _TimelineStage {
   const _TimelineStage({
-    required this.id,
     required this.label,
     required this.detail,
     required this.date,
     required this.status,
   });
 
-  final String id;
   final String label;
   final String detail;
   final String date;
@@ -1969,7 +1250,6 @@ class _TimelineStage {
     String? status,
   }) {
     return _TimelineStage(
-      id: id,
       label: label ?? this.label,
       detail: detail ?? this.detail,
       date: date ?? this.date,
@@ -1978,7 +1258,6 @@ class _TimelineStage {
   }
 
   Map<String, dynamic> toMap() => {
-        'id': id,
         'label': label,
         'detail': detail,
         'date': date,
@@ -1990,7 +1269,6 @@ class _TimelineStage {
     return data.map((item) {
       final map = Map<String, dynamic>.from(item as Map? ?? {});
       return _TimelineStage(
-        id: map['id']?.toString() ?? DateTime.now().microsecondsSinceEpoch.toString(),
         label: map['label']?.toString() ?? '',
         detail: map['detail']?.toString() ?? '',
         date: map['date']?.toString() ?? '',

@@ -17,9 +17,12 @@ import 'package:ndu_project/services/procurement_service.dart';
 import 'package:ndu_project/models/planning_contracting_models.dart';
 import 'package:ndu_project/models/procurement/procurement_models.dart'
     as procurement_models;
+import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/screens/planning_procurement_screen.dart';
-import 'package:ndu_project/screens/stakeholder_management_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 const Color _kBrandYellow = Color(0xFFFFC812);
 const Color _kFabYellow = Color(0xFFFBBF24);
@@ -148,6 +151,8 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              PlanningPhaseHeader(title: 'Contracting', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
                               _BuildHeader(
                                 onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'contracts'),
                                 onForward: () => PlanningPhaseNavigation.goToNext(context, 'contracts'),
@@ -161,6 +166,23 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
                                     setState(() => _selectedTab = i),
                               ),
                               SizedBox(height: isMobile ? 18 : 28),
+                              InnerPageNavigationHint(
+                                pageId: 'planning_contracting',
+                                pageTitle: 'Contract Planning',
+                                sections: List.generate(_tabLabels.length, (i) => InnerPageSection(
+                                  id: '$i',
+                                  label: _tabLabels[i],
+                                  status: i == _selectedTab
+                                      ? InnerPageSectionStatus.current
+                                      : InnerPageSectionStatus.available,
+                                  stepNumber: i + 1,
+                                )),
+                                currentSectionId: '$_selectedTab',
+                                onSectionTap: (sectionId) {
+                                  final index = int.parse(sectionId);
+                                  setState(() => _selectedTab = index);
+                                },
+                              ),
                               _buildTabContent(),
                               SizedBox(height: isMobile ? 60 : 100),
                             ],
@@ -169,7 +191,12 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract Planning',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -209,6 +236,21 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
       MaterialPageRoute(builder: (_) => const PlanningProcurementScreen()),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Contracting',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_contracting_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _BuildHeader extends StatelessWidget {
@@ -231,6 +273,7 @@ class _BuildHeader extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF111827))),
         const Spacer(),
+        const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: onProcurement,
           icon: const Icon(Icons.inventory_2_outlined, size: 16),
@@ -542,7 +585,7 @@ class _OverviewTabState extends State<_OverviewTab> {
           _contractType = (d['contractType'] ?? _contractType).toString();
         });
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   Future<void> _persistStrategy() async {
@@ -560,7 +603,7 @@ class _OverviewTabState extends State<_OverviewTab> {
         'contractType': _contractType,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   @override
@@ -1190,6 +1233,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
   final disciplineCtrl = TextEditingController();
   String contractType = 'Not Sure';
   String paymentType = 'TBD';
+  bool isSaving = false;
 
   showDialog(
     context: context,
@@ -1202,20 +1246,20 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Contract Name *',
                         border: OutlineInputBorder())),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                     controller: descCtrl,
                     maxLines: 2,
                     decoration: const InputDecoration(
                         labelText: 'Description',
                         border: OutlineInputBorder())),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                     controller: valueCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
@@ -1227,7 +1271,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: contractType,
+                        initialValue: contractType,
                         items: [
                           'Not Sure',
                           'Lump Sum (Fixed Price)',
@@ -1248,7 +1292,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: paymentType,
+                        initialValue: paymentType,
                         items: ['TBD', 'Monthly', 'Milestone-Based', 'Upfront']
                             .map((v) => DropdownMenuItem(
                                 value: v,
@@ -1268,7 +1312,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                           controller: scopeCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Scope',
@@ -1276,7 +1320,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                           controller: disciplineCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Discipline',
@@ -1294,28 +1338,55 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
               child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
+              if (isSaving) return;
               if (nameCtrl.text.trim().isEmpty) return;
-              final user = FirebaseAuth.instance.currentUser;
-              await ContractService.createContract(
-                projectId: projectId,
-                name: nameCtrl.text.trim(),
-                description: descCtrl.text.trim(),
-                contractType: contractType,
-                paymentType: paymentType,
-                status: 'Not Started',
-                estimatedValue: double.tryParse(valueCtrl.text) ?? 0.0,
-                scope: scopeCtrl.text.trim(),
-                discipline: disciplineCtrl.text.trim(),
-                createdById: user?.uid ?? '',
-                createdByEmail: user?.email ?? '',
-                createdByName: user?.displayName ?? '',
-              );
-              if (dCtx.mounted) Navigator.pop(dCtx);
+              setDialog(() => isSaving = true);
+              try {
+                final user = FirebaseAuth.instance.currentUser;
+                await ContractService.createContract(
+                  projectId: projectId,
+                  name: nameCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                  contractType: contractType,
+                  paymentType: paymentType,
+                  status: 'Not Started',
+                  estimatedValue: double.tryParse(valueCtrl.text) ?? 0.0,
+                  scope: scopeCtrl.text.trim(),
+                  discipline: disciplineCtrl.text.trim(),
+                  createdById: user?.uid ?? '',
+                  createdByEmail: user?.email ?? '',
+                  createdByName: user?.displayName ?? '',
+                );
+                if (dCtx.mounted) Navigator.pop(dCtx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Contract created successfully.'),
+                      backgroundColor: Color(0xFF16A34A),
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (dCtx.mounted) {
+                  setDialog(() => isSaving = false);
+                  ScaffoldMessenger.of(dCtx).showSnackBar(
+                    SnackBar(
+                      content: Text('Unable to create contract: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             style: ElevatedButton.styleFrom(
                 backgroundColor: _kFabYellow, foregroundColor: _kFabOnYellow),
-            child: const Text('Create',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            child: isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: _kFabOnYellow))
+                : const Text('Create',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1387,7 +1458,7 @@ Future<void> _showEditPackageDialog(
                   ),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: summaryCtrl,
                   maxLines: 3,
                   decoration: const InputDecoration(
@@ -1399,7 +1470,7 @@ Future<void> _showEditPackageDialog(
                 if (isNarrow)
                   Column(
                     children: [
-                      TextField(
+                      VoiceTextField(
                         controller: engineerEstimateCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
@@ -1409,7 +1480,7 @@ Future<void> _showEditPackageDialog(
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: plannedValueCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
@@ -1424,7 +1495,7 @@ Future<void> _showEditPackageDialog(
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: engineerEstimateCtrl,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
@@ -1436,7 +1507,7 @@ Future<void> _showEditPackageDialog(
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: plannedValueCtrl,
                           keyboardType: TextInputType.number,
                           decoration: const InputDecoration(
@@ -2424,10 +2495,12 @@ class _RfqRow extends StatelessWidget {
 
 Color _rfqStatusColor(String s) {
   final l = s.toLowerCase();
-  if (l.contains('award') || l.contains('complete'))
+  if (l.contains('award') || l.contains('complete')) {
     return const Color(0xFF22C55E);
-  if (l.contains('publish') || l.contains('active'))
-    return _kBrandYellow;
+  }
+  if (l.contains('publish') || l.contains('active')) {
+    return const Color(0xFF2563EB);
+  }
   if (l.contains('evaluat')) return const Color(0xFFF59E0B);
   return const Color(0xFF64748B);
 }
@@ -2455,6 +2528,8 @@ void _showRfpDialog(
           EvaluationCriteria(name: 'Commercial Offer', weight: 35, category: 'Commercial'),
           EvaluationCriteria(name: 'Delivery Plan', weight: 25, category: 'Commercial'),
         ];
+
+  bool isSaving = false;
 
   showDialog(
     context: context,
@@ -2487,12 +2562,12 @@ void _showRfpDialog(
                   },
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                     controller: titleCtrl,
                     decoration: const InputDecoration(
                         labelText: 'RFP Title *', border: OutlineInputBorder())),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                     controller: scopeCtrl,
                     maxLines: 4,
                     decoration: const InputDecoration(
@@ -2518,7 +2593,7 @@ void _showRfpDialog(
                   ),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                     controller: vendorsCtrl,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -2577,7 +2652,7 @@ void _showRfpDialog(
                   ],
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                     controller: notesCtrl,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -2608,6 +2683,8 @@ void _showRfpDialog(
                 );
                 return;
               }
+              if (isSaving) return;
+              setDialog(() => isSaving = true);
               try {
                 final now = DateTime.now();
                 final invited = vendorsCtrl.text
@@ -2702,6 +2779,7 @@ void _showRfpDialog(
                   ),
                 );
               } catch (e) {
+                if (dCtx.mounted) setDialog(() => isSaving = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('Unable to save RFP: $e'),
@@ -2713,8 +2791,13 @@ void _showRfpDialog(
             style: ElevatedButton.styleFrom(
                 backgroundColor: _kBrandYellow,
                 foregroundColor: Colors.white),
-            child: Text(existingRfq == null ? 'Create' : 'Save',
-                style: TextStyle(fontWeight: FontWeight.w600)),
+            child: isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : Text(existingRfq == null ? 'Create' : 'Save',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -3121,7 +3204,7 @@ Future<void> _showEvaluationDialog(
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: awardValueCtrl,
                         keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
@@ -3134,7 +3217,7 @@ Future<void> _showEvaluationDialog(
                   ],
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: criteriaCtrl,
                   maxLines: 4,
                   decoration: const InputDecoration(
@@ -3144,7 +3227,7 @@ Future<void> _showEvaluationDialog(
                   ),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: vendorListCtrl,
                   maxLines: 2,
                   decoration: const InputDecoration(
@@ -3178,7 +3261,7 @@ Future<void> _showEvaluationDialog(
                   },
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: vendorCtrl,
                   decoration: const InputDecoration(
                     labelText: 'Recommended Vendor',
@@ -3186,7 +3269,7 @@ Future<void> _showEvaluationDialog(
                   ),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: comparisonCtrl,
                   maxLines: 3,
                   decoration: const InputDecoration(
@@ -3195,7 +3278,7 @@ Future<void> _showEvaluationDialog(
                   ),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: technicalNotesCtrl,
                   maxLines: 2,
                   decoration: const InputDecoration(
@@ -3613,7 +3696,7 @@ class _EvaluationScoreEditor extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 10),
-                TextFormField(
+                VoiceTextFormField(
                   initialValue: screening.notes,
                   onChanged: (value) =>
                       onTechnicalChanged(vendor, screening.status, value),
@@ -3665,7 +3748,7 @@ class _EvaluationScoreEditor extends StatelessWidget {
                           const SizedBox(width: 12),
                           SizedBox(
                             width: 120,
-                            child: TextFormField(
+                            child: VoiceTextFormField(
                               initialValue: scoreMap[key] ?? '',
                               enabled: enabled &&
                                   technicalStatus.toLowerCase() == 'passed',
@@ -4295,7 +4378,7 @@ Future<void> _showNegotiationDialog(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: objectivesCtrl,
                   maxLines: 3,
                   decoration: const InputDecoration(
@@ -4351,7 +4434,7 @@ Future<void> _showNegotiationDialog(
                   ],
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                VoiceTextField(
                   controller: itemsCtrl,
                   maxLines: 8,
                   decoration: const InputDecoration(
@@ -4553,7 +4636,7 @@ class _SearchField extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: 280,
-      child: TextField(
+      child: VoiceTextField(
         onChanged: onChanged,
         decoration: InputDecoration(
           hintText: hintText,
@@ -4761,7 +4844,7 @@ class _NumberInputCellState extends State<_NumberInputCell> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return VoiceTextField(
       controller: _controller,
       keyboardType: TextInputType.number,
       style: const TextStyle(fontSize: 12),
@@ -5076,7 +5159,7 @@ class _CriteriaRowState extends State<_CriteriaRow> {
         children: [
           Expanded(
             flex: 3,
-            child: TextField(
+            child: VoiceTextField(
               controller: _nameController,
               decoration: const InputDecoration(
                 hintText: 'Criterion name',
@@ -5090,7 +5173,7 @@ class _CriteriaRowState extends State<_CriteriaRow> {
           const SizedBox(width: 8),
           SizedBox(
             width: 70,
-            child: TextField(
+            child: VoiceTextField(
               controller: _weightController,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
@@ -5111,7 +5194,7 @@ class _CriteriaRowState extends State<_CriteriaRow> {
           SizedBox(
             width: 120,
             child: DropdownButtonFormField<String>(
-              value: widget.criterion.category,
+              initialValue: widget.criterion.category,
               isExpanded: true,
               isDense: true,
               decoration: const InputDecoration(

@@ -11,7 +11,10 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ProjectDecisionSummaryScreen extends StatefulWidget {
   final String projectName;
   final AiSolutionItem selectedSolution;
@@ -587,7 +590,7 @@ class _ProjectDecisionSummaryScreenState
                   'Create a new project using "${solution.title.trim().isNotEmpty ? solution.title.trim() : 'Solution ${index + 1}'}" as the preferred solution.',
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: InputDecoration(
                     labelText: 'Project name',
@@ -773,8 +776,20 @@ class _ProjectDecisionSummaryScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return Scaffold(
       backgroundColor: Colors.white,
+      drawer: isMobile
+          ? Drawer(
+              width: AppBreakpoints.sidebarWidth(context),
+              child: SafeArea(
+                child: InitiationLikeSidebar(
+                  activeItemLabel: 'Preferred Solution',
+                  showHeader: true,
+                ),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -805,7 +820,12 @@ class _ProjectDecisionSummaryScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Preferred Solution',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -826,6 +846,8 @@ class _ProjectDecisionSummaryScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          PlanningPhaseHeader(title: 'Project Decision Summary', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 16),
           const Text(
             'Preferred Solution Selection',
             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
@@ -1315,6 +1337,21 @@ class _ProjectDecisionSummaryScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Decision Summary',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_decision_summary_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

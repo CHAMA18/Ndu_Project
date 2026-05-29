@@ -13,7 +13,12 @@ import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/detailed_design_table_widget.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 /// ────────────────────────────────────────────────────────────────
 /// Design Specifications Screen
 ///
@@ -141,14 +146,14 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
   ];
 
   // ── Architecture patterns (local) ──
-  final List<_ArchitecturePattern> _archPatterns = const [
+  final List<_ArchitecturePattern> _archPatterns = [
     _ArchitecturePattern(
       name: 'Event-Driven Microservices',
       description:
           'Asynchronous inter-service communication via message broker with event sourcing for audit-critical flows.',
       status: 'Baseline',
       icon: Icons.hub_outlined,
-      color: Color(0xFF7C3AED),
+      color: const Color(0xFF7C3AED),
     ),
     _ArchitecturePattern(
       name: 'API Gateway',
@@ -156,7 +161,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           'Centralized entry point for routing, rate-limiting, and authentication. Terminates TLS and enforces policies.',
       status: 'Defined',
       icon: Icons.router_outlined,
-      color: Color(0xFF2563EB),
+      color: const Color(0xFF2563EB),
     ),
     _ArchitecturePattern(
       name: 'CQRS + Read Replicas',
@@ -164,7 +169,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           'Separate command and query models for high-throughput reads. Read replicas scale independently from writes.',
       status: 'Proposed',
       icon: Icons.call_split_outlined,
-      color: Color(0xFF0891B2),
+      color: const Color(0xFF0891B2),
     ),
     _ArchitecturePattern(
       name: 'Observability Stack',
@@ -172,7 +177,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           'Distributed tracing (OpenTelemetry), structured logging, and metrics dashboards for end-to-end visibility.',
       status: 'Defined',
       icon: Icons.monitor_heart_outlined,
-      color: Color(0xFF059669),
+      color: const Color(0xFF059669),
     ),
   ];
 
@@ -225,7 +230,21 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadComponents());
   }
 
-  Future<void> _loadComponents() async {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Detailed Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['detailed_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+Future<void> _loadComponents() async {
     final projectId = _projectId;
     if (projectId == null) return;
 
@@ -372,15 +391,12 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Detailed Design',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
-          const SizedBox(height: 16),
-          _buildHeader(isNarrow),
-            const SizedBox(height: 20),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 20),
             _buildMethodologySelector(),
             const SizedBox(height: 20),
             _buildMetricsGrid(),
@@ -412,85 +428,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
     );
   }
 
-  // ── HEADER ────────────────────────────────────────────────────
 
-  Widget _buildHeader(bool isNarrow) {
-    return ExecutionPageHeader(
-      badge: 'DESIGN PHASE',
-      title: 'Design Specifications',
-      description: _getMethodologyDescription(),
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: 'Add Specification',
-            icon: Icons.add_rounded,
-            tone: ExecutionActionTone.primary,
-            onPressed: () => _showAddComponentDialog(context),
-          ),
-          ExecutionActionItem(
-            label: 'Export Bundle',
-            icon: Icons.file_download_outlined,
-            tone: ExecutionActionTone.secondary,
-            onPressed: () {},
-          ),
-        ],
-      ),
-      metadata: [
-        _buildHeaderMetaChip(
-          Icons.layers_outlined,
-          '${_components.length} specifications',
-          const Color(0xFF2563EB),
-        ),
-        _buildHeaderMetaChip(
-          Icons.shield_outlined,
-          '${_securityControls.where((s) => s.status == 'Defined').length}/${_securityControls.length} controls',
-          const Color(0xFFDC2626),
-        ),
-        _buildHeaderMetaChip(
-          Icons.speed_outlined,
-          '${_nfrItems.where((n) => n.status == 'Specified').length}/${_nfrItems.length} NFRs',
-          const Color(0xFFD97706),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderMetaChip(IconData icon, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.15)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getMethodologyDescription() {
-    return switch (_methodology) {
-      'Waterfall' =>
-          'Comprehensive upfront design specification aligned with sequential delivery. All design elements are fully specified before construction begins, following IEEE 1016 decomposition views and ISO 12207 design processes.',
-      'Agile' =>
-          'Iterative and evolutionary design specification. Architecture decisions and interface contracts are established as enablers; detailed specifications emerge sprint-by-sprint, guided by YAGNI and just-in-time design principles.',
-      _ =>
-          'Balanced design specification combining architecture baseline (waterfall rigor) with iterative detail (agile flexibility). Core interfaces and security controls are specified upfront; component details evolve through iterations.',
-    };
-  }
 
   // ── METHODOLOGY SELECTOR ──────────────────────────────────────
 
@@ -704,7 +642,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
       ),
     ];
 
-    return ExecutionMetricsGrid(metrics: metrics, minTileWidth: 200);
+    return ExecutionMetricsGrid(metrics: metrics, minTileWidth: 140);
   }
 
   // ── FILTER CHIPS ──────────────────────────────────────────────
@@ -765,9 +703,25 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
       subtitle:
           'Decomposition view per IEEE 1016 — architectural patterns, service boundaries, and integration topology',
       collapsible: true,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       headerIcon: Icons.account_tree_outlined,
       headerIconColor: const Color(0xFF7C3AED),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _showArchPatternEditor,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Pattern'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF7C3AED),
+              side: const BorderSide(color: Color(0xFF7C3AED)),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final crossCount = constraints.maxWidth >= 900
@@ -776,17 +730,183 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
           return Wrap(
             spacing: 14,
             runSpacing: 14,
-            children: _archPatterns.map((pattern) {
+            children: _archPatterns.asMap().entries.map((entry) {
+              final index = entry.key;
+              final pattern = entry.value;
               return SizedBox(
                 width: (constraints.maxWidth - (14 * (crossCount - 1))) /
                     crossCount,
-                child: _ArchitecturePatternCard(pattern: pattern),
+                child: _ArchitecturePatternCard(
+                  pattern: pattern,
+                  onEdit: () => _showArchPatternEditor(entry: pattern, index: index),
+                  onDelete: () {
+                    setState(() {
+                      _archPatterns.removeAt(index);
+                    });
+                  },
+                ),
               );
             }).toList(),
           );
         },
       ),
     );
+  }
+
+  // ── Architecture pattern editor dialog ──
+
+  static const List<String> _archStatusOptions = [
+    'Proposed', 'Defined', 'Baseline', 'Deprecated',
+  ];
+
+  static const List<MapEntry<IconData, Color>> _archIconOptions = [
+    MapEntry(Icons.hub_outlined, Color(0xFF7C3AED)),
+    MapEntry(Icons.router_outlined, Color(0xFF2563EB)),
+    MapEntry(Icons.call_split_outlined, Color(0xFF0891B2)),
+    MapEntry(Icons.monitor_heart_outlined, Color(0xFF059669)),
+    MapEntry(Icons.layers_outlined, Color(0xFFD97706)),
+    MapEntry(Icons.security_outlined, Color(0xFFDC2626)),
+    MapEntry(Icons.storage_outlined, Color(0xFF6366F1)),
+    MapEntry(Icons.cloud_outlined, Color(0xFF0EA5E9)),
+    MapEntry(Icons.dns_outlined, Color(0xFF8B5CF6)),
+    MapEntry(Icons.memory_outlined, Color(0xFFEC4899)),
+  ];
+
+  Future<void> _showArchPatternEditor({_ArchitecturePattern? entry, int? index}) async {
+    final nameController = TextEditingController(text: entry?.name ?? '');
+    final descController = TextEditingController(text: entry?.description ?? '');
+    var selectedStatus = _archStatusOptions.contains(entry?.status)
+        ? entry!.status
+        : _archStatusOptions.first;
+    var selectedIconIndex = 0;
+    if (entry != null) {
+      final match = _archIconOptions.indexWhere(
+        (opt) => opt.key == entry.icon && opt.value == entry.color,
+      );
+      if (match != -1) selectedIconIndex = match;
+    }
+
+    final saved = await showDialog<_ArchitecturePattern>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(entry != null ? 'Edit Architecture Pattern' : 'Add Architecture Pattern'),
+              content: SizedBox(
+                width: 520,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      VoiceTextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Pattern name *',
+                          hintText: 'e.g. Event-Driven Microservices',
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      VoiceTextField(
+                        controller: descController,
+                        decoration: const InputDecoration(
+                          labelText: 'Description',
+                          hintText: 'Describe the architectural pattern',
+                          isDense: true,
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: selectedStatus,
+                        decoration: const InputDecoration(
+                          labelText: 'Status',
+                          isDense: true,
+                        ),
+                        items: _archStatusOptions
+                            .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() => selectedStatus = value);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Text('Icon & Color', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey[600])),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _archIconOptions.asMap().entries.map((e) {
+                          final isSelected = e.key == selectedIconIndex;
+                          return GestureDetector(
+                            onTap: () => setDialogState(() => selectedIconIndex = e.key),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isSelected ? e.value.value.withOpacity(0.15) : const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? e.value.value : const Color(0xFFE5E7EB),
+                                  width: isSelected ? 2 : 1,
+                                ),
+                              ),
+                              child: Icon(e.value.key, size: 18, color: e.value.value),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Pattern name is required.')),
+                      );
+                      return;
+                    }
+                    final iconOpt = _archIconOptions[selectedIconIndex];
+                    Navigator.of(dialogContext).pop(
+                      _ArchitecturePattern(
+                        name: nameController.text.trim(),
+                        description: descController.text.trim(),
+                        status: selectedStatus,
+                        icon: iconOpt.key,
+                        color: iconOpt.value,
+                      ),
+                    );
+                  },
+                  child: Text(entry != null ? 'Save changes' : 'Add pattern'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    descController.dispose();
+
+    if (saved == null) return;
+    setState(() {
+      if (index != null && index < _archPatterns.length) {
+        _archPatterns[index] = saved;
+      } else {
+        _archPatterns.add(saved);
+      }
+    });
   }
 
   // ── DESIGN SPECIFICATION REGISTER (MAIN TABLE) ────────────────
@@ -798,7 +918,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
         subtitle:
             'Traceable specifications with MoSCoW prioritization, methodology phasing, and requirements traceability',
         collapsible: true,
-        initiallyExpanded: true,
+        initiallyExpanded: false,
         headerIcon: Icons.folder_special_outlined,
         headerIconColor: const Color(0xFF2563EB),
         child: const Center(
@@ -817,10 +937,57 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
       subtitle:
           'Traceable specifications with MoSCoW prioritization, methodology phasing, and requirements traceability',
       collapsible: true,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       headerIcon: Icons.folder_special_outlined,
       headerIconColor: const Color(0xFF2563EB),
-      trailing: _buildSpecTypeLegend(),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Design Specification Register',
+            columns: [
+              CsvColumnSpec(key: 'specId', label: 'Spec ID', hint: 'e.g. DS-001'),
+              CsvColumnSpec(key: 'componentName', label: 'Design Element', required: true, hint: 'Design element name'),
+              CsvColumnSpec(key: 'specificationType', label: 'Type', allowedValues: ['Functional', 'Non-Functional', 'Interface', 'Data', 'Security', 'Performance'], defaultValue: 'Functional'),
+              CsvColumnSpec(key: 'specificationDetails', label: 'Specification', hint: 'Specification details'),
+              CsvColumnSpec(key: 'priority', label: 'Priority', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'methodologyPhase', label: 'Phase', hint: 'Methodology phase'),
+              CsvColumnSpec(key: 'owner', label: 'Owner', hint: 'Specification owner'),
+              CsvColumnSpec(key: 'traceability', label: 'Traceability', hint: 'e.g. REQ-001'),
+              CsvColumnSpec(key: 'status', label: 'Status', allowedValues: ['Draft', 'In Review', 'Approved', 'Implemented', 'Verified'], defaultValue: 'Draft'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _components.add(DesignComponent(
+                    specId: row['specId'] ?? 'DS-${(_components.length + 1).toString().padLeft(3, '0')}',
+                    componentName: row['componentName'] ?? '',
+                    specificationType: row['specificationType'] ?? 'Component',
+                    category: row['specificationType'] ?? 'Backend',
+                    specificationDetails: row['specificationDetails'] ?? '',
+                    priority: row['priority'] ?? 'Should Have',
+                    methodologyPhase: row['methodologyPhase'] ?? _getDefaultPhase(),
+                    owner: row['owner'] ?? '',
+                    traceability: row['traceability'] ?? '',
+                    status: row['status'] ?? 'Draft',
+                    designNotes: '',
+                  ));
+                }
+              });
+              final projectId = _projectId;
+              if (projectId != null) {
+                ExecutionPhaseService.saveDesignComponents(
+                  projectId: projectId,
+                  components: _components,
+                );
+              }
+            },
+          ),
+          const SizedBox(width: 8),
+          _buildSpecTypeLegend(),
+        ],
+      ),
       child: DetailedDesignTableWidget(
         components: filteredComponents,
         methodology: _methodology,
@@ -1063,7 +1230,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: specIdController,
                           decoration: const InputDecoration(
                             labelText: 'Spec ID *',
@@ -1075,7 +1242,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPriority,
+                          value: selectedPriority,
                           decoration: const InputDecoration(
                               labelText: 'Priority *', isDense: true),
                           items: DesignComponent.priorities
@@ -1097,7 +1264,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                     children: [
                       Expanded(
                         flex: 2,
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: componentNameController,
                           decoration: const InputDecoration(
                             labelText: 'Design Element Name *',
@@ -1109,7 +1276,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedType,
+                          value: selectedType,
                           decoration: const InputDecoration(
                               labelText: 'Type *', isDense: true),
                           items: DesignComponent.specificationTypes
@@ -1131,7 +1298,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPhase,
+                          value: selectedPhase,
                           decoration: const InputDecoration(
                               labelText: 'Phase', isDense: true),
                           items: _getPhaseOptionsForDialog()
@@ -1148,7 +1315,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedOwner,
+                          value: selectedOwner,
                           decoration: const InputDecoration(
                               labelText: 'Owner', isDense: true),
                           items: DesignComponent.ownerRoles
@@ -1165,7 +1332,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           decoration: const InputDecoration(
                               labelText: 'Status *', isDense: true),
                           items: DesignComponent.statuses
@@ -1182,7 +1349,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: specificationController,
                     decoration: const InputDecoration(
                       labelText: 'Specification Details',
@@ -1195,7 +1362,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: traceabilityController,
                           decoration: const InputDecoration(
                             labelText: 'Traceability (Req ID)',
@@ -1207,7 +1374,7 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: notesController,
                     decoration: const InputDecoration(
                       labelText: 'Design Notes / Rationale',
@@ -1302,8 +1469,14 @@ class _DetailedDesignScreenState extends State<DetailedDesignScreen> {
 // ══════════════════════════════════════════════════════════════════
 
 class _ArchitecturePatternCard extends StatelessWidget {
-  const _ArchitecturePatternCard({required this.pattern});
+  const _ArchitecturePatternCard({
+    required this.pattern,
+    this.onEdit,
+    this.onDelete,
+  });
   final _ArchitecturePattern pattern;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -1339,6 +1512,32 @@ class _ArchitecturePatternCard extends StatelessWidget {
                 ),
               ),
               ExecutionStatusBadge(label: pattern.status),
+              if (onEdit != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined, size: 16),
+                  tooltip: 'Edit pattern',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+              if (onDelete != null) ...[
+                const SizedBox(width: 2),
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  tooltip: 'Delete pattern',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  style: IconButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
@@ -1615,13 +1814,29 @@ class _ArchitecturePattern {
   final String status;
   final IconData icon;
   final Color color;
-  const _ArchitecturePattern({
+  _ArchitecturePattern({
     required this.name,
     required this.description,
     required this.status,
     required this.icon,
     required this.color,
   });
+
+  _ArchitecturePattern copyWith({
+    String? name,
+    String? description,
+    String? status,
+    IconData? icon,
+    Color? color,
+  }) {
+    return _ArchitecturePattern(
+      name: name ?? this.name,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      icon: icon ?? this.icon,
+      color: color ?? this.color,
+    );
+  }
 }
 
 class _SecurityControl {

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -18,11 +19,19 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
-const Color _kSurfaceBackground = Color(0xFFF7F8FC);
-const Color _kAccentColor = Color(0xFFFFC812);
-const Color _kPrimaryText = Color(0xFF1A1D1F);
-const Color _kSecondaryText = Color(0xFF6B7280);
-const Color _kCardBorder = Color(0xFFE4E7EC);
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+const Color _kSurfaceBackground = Color(0xFFFCFCFC);
+const Color _kAccentColor = Color(0xFFFFC107);
+const Color _kPrimaryText = Color(0xFF212529);
+const Color _kSecondaryText = Color(0xFF495057);
+const Color _kCardBorder = Color(0xFFE9ECEF);
+const Color _kTextLight = Color(0xFF868E96);
+const Color _kGrayBg = Color(0xFFF8F9FA);
+const Color _kInfoBg = Color(0xFFE8F0FE);
+const Color _kInfoText = Color(0xFF1A73E8);
+const Color _kStatusBlue = Color(0xFF0D6EFD);
+const Color _kStatusRed = Color(0xFFDC3545);
 
 class WorkBreakdownStructureScreen extends StatelessWidget {
   const WorkBreakdownStructureScreen({super.key});
@@ -51,7 +60,12 @@ class WorkBreakdownStructureScreen extends StatelessWidget {
                 Expanded(child: _WorkBreakdownStructureBody()),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Work Breakdown Structure',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),
@@ -129,7 +143,7 @@ class _WorkBreakdownStructureBodyState
           .doc('initialization_flags')
           .get();
       return doc.data()?[flagKey] == true;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -144,7 +158,7 @@ class _WorkBreakdownStructureBodyState
           .collection('planning_meta')
           .doc('initialization_flags')
           .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   void _syncWbsToProvider() {
@@ -181,7 +195,22 @@ class _WorkBreakdownStructureBodyState
     });
   }
 
-  void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Work Breakdown Structure',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
     for (int i = 0; i < goalWorkItems.length; i++) {
       if (goalWorkItems[i].isNotEmpty) {
         final goalTitle =
@@ -260,7 +289,7 @@ class _WorkBreakdownStructureBodyState
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: titleController,
                           decoration: const InputDecoration(labelText: 'Title'),
                           textCapitalization: TextCapitalization.sentences,
@@ -270,7 +299,7 @@ class _WorkBreakdownStructureBodyState
                                   : null,
                         ),
                         const SizedBox(height: 16),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: descriptionController,
                           decoration:
                               const InputDecoration(labelText: 'Description'),
@@ -641,320 +670,382 @@ class _WorkBreakdownStructureBodyState
       required ValueChanged<String?> onChanged}) {
     final normalizedValue =
         _criteriaOptions.any((o) => o['value'] == value) ? value : null;
-    return SizedBox(
-      width: 280,
-      child: DropdownButtonFormField<String>(
-        initialValue: normalizedValue,
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _kCardBorder),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: _kCardBorder),
-          ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return DropdownButtonFormField<String>(
+      initialValue: normalizedValue,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kCardBorder),
         ),
-        icon: const Icon(Icons.keyboard_arrow_down_rounded,
-            color: _kSecondaryText),
-        items: _criteriaOptions
-            .map((option) => DropdownMenuItem<String>(
-                  value: option['value'],
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(option['value']!,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: _kPrimaryText)),
-                      Text(option['description']!,
-                          style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                              color: _kSecondaryText)),
-                    ],
-                  ),
-                ))
-            .toList(),
-        onChanged: onChanged,
-        hint: Text(hint,
-            style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: _kSecondaryText)),
-        selectedItemBuilder: (context) => _criteriaOptions
-            .map((option) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(option['value']!,
-                      style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _kPrimaryText)),
-                ))
-            .toList(),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kCardBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: const BorderSide(color: _kAccentColor),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      ),
+      icon: const Icon(Icons.keyboard_arrow_down_rounded,
+          color: _kTextLight, size: 18),
+      items: _criteriaOptions
+          .map((option) => DropdownMenuItem<String>(
+                value: option['value'],
+                child: Text(option['value']!,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _kPrimaryText)),
+              ))
+          .toList(),
+      onChanged: onChanged,
+      hint: Text(hint,
+          style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: _kSecondaryText)),
+      selectedItemBuilder: (context) => _criteriaOptions
+          .map((option) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(option['value']!,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _kPrimaryText)),
+              ))
+          .toList(),
+    );
+  }
+
+  Widget _buildControlsSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Breakdown Dimension:',
+            style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w600, color: _kPrimaryText),
+          ),
+          const SizedBox(height: 6),
+          _buildCriteriaDropdown(
+            hint: 'Select',
+            value: _selectedCriteriaA,
+            onChanged: _updateCriteriaSelection,
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: (_isAiLoading ||
+                      _selectedCriteriaA == null ||
+                      _selectedCriteriaA!.isEmpty)
+                  ? null
+                  : _handleGenerateWbsAi,
+              icon: _isAiLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: _kPrimaryText),
+                    )
+                  : const Icon(Icons.auto_fix_high, size: 18),
+              label: Text(_isAiLoading ? 'Generating...' : 'Suggest Structure'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kGrayBg,
+                foregroundColor: _kPrimaryText,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                side: const BorderSide(color: _kCardBorder),
+                elevation: 0,
+                shadowColor: Colors.black.withOpacity(0.1),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCriteriaRow() {
-    return Wrap(
-      alignment: WrapAlignment.start,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 24,
-      runSpacing: 16,
-      children: [
-        const Text(
-          'Breakdown Dimension:',
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w800, color: _kPrimaryText),
-        ),
-        _buildCriteriaDropdown(
-          hint: 'Select',
-          value: _selectedCriteriaA,
-          onChanged: _updateCriteriaSelection,
-        ),
-        if (_isAiLoading)
-          const SizedBox(
-            width: 24,
-            height: 24,
-            child:
-                CircularProgressIndicator(strokeWidth: 3, color: _kAccentColor),
-          ),
-        ElevatedButton.icon(
-          onPressed: (_isAiLoading ||
-                  _selectedCriteriaA == null ||
-                  _selectedCriteriaA!.isEmpty)
-              ? null
-              : _handleGenerateWbsAi,
-          icon: _isAiLoading
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white),
-                )
-              : const Icon(Icons.auto_awesome, size: 18),
-          label: Text(_isAiLoading ? 'Generating...' : 'Suggest Structure'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _kAccentColor,
-            foregroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWbsTreeView() {
+  Widget _buildWbsSegmentList() {
     if (_wbsItems.isEmpty) {
-      return Center(
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const SizedBox(height: 24),
             const Icon(Icons.account_tree_outlined,
-                size: 64, color: _kSecondaryText),
-            const SizedBox(height: 16),
+                size: 48, color: _kTextLight),
+            const SizedBox(height: 12),
             const Text(
               'No WBS items yet',
               style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: _kSecondaryText),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: _kTextLight),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             _buildAddTopLevelButton(),
           ],
         ),
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(0, 0, 48, 48),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (var i = 0; i < _wbsItems.length; i++) ...[
-              _buildWbsNodeRecursive(_wbsItems[i], path: [i + 1]),
-              const SizedBox(width: 32),
-            ],
-            _buildAddTopLevelButton(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < _wbsItems.length; i++) ...[
+            _buildSegmentCard(_wbsItems[i], path: [i + 1]),
+            const SizedBox(height: 12),
           ],
-        ),
+          _buildAddTopLevelButton(),
+        ],
       ),
     );
   }
 
-  Widget _buildWbsNodeRecursive(WorkItem item, {required List<int> path}) {
+  Widget _buildSegmentCard(WorkItem item, {required List<int> path}) {
     final isCollapsed = _collapsedNodeIds.contains(item.id);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildWbsNodeCard(item, path: path),
-        if (item.children.isNotEmpty && !isCollapsed) ...[
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.only(left: 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (var i = 0; i < item.children.length; i++) ...[
-                  _buildWbsNodeRecursive(item.children[i],
-                      path: [...path, i + 1]),
-                  if (i != item.children.length - 1) const SizedBox(height: 16),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildWbsNodeCard(WorkItem item, {required List<int> path}) {
     final level = path.length - 1;
-    final nodeColor = _getNodeColor(level);
     final canAddChild = path.length < _maxWbsDepth;
-    final displayTitle = _formatWbsTitle(path: path, title: item.title);
-    final isCollapsed = _collapsedNodeIds.contains(item.id);
     final goalIndex = path.isNotEmpty ? path.first - 1 : 0;
+    final isTopLevel = level == 0;
+    final segmentLabel = path.isEmpty ? '' : 'S${path.first}';
+    final cleanTitle = _stripWbsPrefix(item.title);
+
     return Container(
-      width: 280,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _kCardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
         ],
-        border: Border.all(color: _kCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Red top border for all segments
           Container(
-            height: 6,
+            height: 4,
             decoration: BoxDecoration(
-              color: nodeColor,
+              color: _kStatusRed,
               borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(16),
-                topRight: Radius.circular(16),
+                topLeft: Radius.circular(6),
+                topRight: Radius.circular(6),
               ),
             ),
           ),
+          // Content area
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Title row with segment label, title, and status dot
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
-                        displayTitle,
-                        style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: _kPrimaryText),
+                      child: Row(
+                        children: [
+                          if (segmentLabel.isNotEmpty) ...[
+                            Text(
+                              '$segmentLabel:',
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: _kPrimaryText,
+                                  height: 1.2),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: GestureDetector(
+                              onTap: item.children.isNotEmpty ? () => _toggleCollapse(item) : null,
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      cleanTitle,
+                                      style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          color: _kPrimaryText,
+                                          height: 1.2),
+                                    ),
+                                  ),
+                                  if (item.children.isNotEmpty) ...[
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      isCollapsed ? Icons.chevron_right : Icons.expand_more,
+                                      size: 20,
+                                      color: _kTextLight,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    _buildStatusIcon(item.status),
-                    if (item.children.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () => _toggleCollapse(item),
-                        child: Icon(
-                          isCollapsed ? Icons.chevron_right : Icons.expand_more,
-                          size: 18,
-                          color: _kSecondaryText,
-                        ),
-                      ),
-                    ],
+                    const SizedBox(width: 8),
+                    _buildStatusDot(item.status),
                   ],
                 ),
+                // Description
                 if (item.description.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
                     item.description,
-                    maxLines: 2,
+                    maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: _kSecondaryText),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: _kSecondaryText,
+                        height: 1.4),
                   ),
                 ],
-                if (level == 0) ...[
-                  const SizedBox(height: 10),
+                // Framework dropdown for top-level items
+                if (isTopLevel) ...[
+                  const SizedBox(height: 8),
                   _buildFrameworkDropdown(item, goalIndex),
                 ],
+                // Collapsed sub-items indicator
                 if (item.children.isNotEmpty && isCollapsed) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     '${item.children.length} sub-items hidden',
                     style: const TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _kSecondaryText),
+                        fontWeight: FontWeight.w500,
+                        color: _kTextLight),
                   ),
                 ],
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _handleEditNode(item),
-                      child: const Icon(Icons.edit_outlined,
-                          size: 18, color: Colors.grey),
+              ],
+            ),
+          ),
+          // Bottom action row with top border divider
+          const SizedBox(height: 8),
+          Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Color(0xFFF3F4F6))),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Edit button
+                Tooltip(
+                  message: 'Edit',
+                  child: InkWell(
+                    onTap: () => _handleEditNode(item),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.edit_outlined, size: 20, color: _kTextLight),
                     ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () => _handleDeleteNode(item),
-                      child: const Icon(Icons.delete_outline,
-                          size: 18, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Delete button
+                Tooltip(
+                  message: 'Delete',
+                  child: InkWell(
+                    onTap: () => _handleDeleteNode(item),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.delete_outline, size: 20, color: _kTextLight),
                     ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () {
-                        if (!canAddChild) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Maximum WBS depth is Level $_maxWbsDepth.'),
-                              backgroundColor: const Color(0xFFEF4444),
-                            ),
-                          );
-                          return;
-                        }
-                        _handleAddNode(parent: item);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: (_kAccentColor.withOpacity(0.2)),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Icon(Icons.add,
-                            size: 18, color: _kPrimaryText),
-                      ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Add sub-segment button
+                Tooltip(
+                  message: 'Add Sub-segment',
+                  child: InkWell(
+                    onTap: () {
+                      if (!canAddChild) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Maximum WBS depth is Level $_maxWbsDepth.'),
+                            backgroundColor: const Color(0xFFEF4444),
+                          ),
+                        );
+                        return;
+                      }
+                      _handleAddNode(parent: item);
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.add, size: 20, color: _kTextLight),
                     ),
-                  ],
+                  ),
                 ),
               ],
             ),
           ),
+          // Nested sub-segment cards (when expanded)
+          if (item.children.isNotEmpty && !isCollapsed) ...[
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 8, bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var i = 0; i < item.children.length; i++) ...[
+                    _buildSegmentCard(item.children[i], path: [...path, i + 1]),
+                    if (i != item.children.length - 1) const SizedBox(height: 8),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusDot(String status) {
+    Color dotColor;
+    bool filled;
+    switch (status) {
+      case 'completed':
+        dotColor = _kStatusBlue;
+        filled = true;
+        break;
+      case 'in_progress':
+        dotColor = _kStatusBlue;
+        filled = true;
+        break;
+      default:
+        dotColor = _kTextLight;
+        filled = false;
+    }
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: filled ? dotColor : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(color: dotColor, width: 2),
       ),
     );
   }
@@ -962,32 +1053,38 @@ class _WorkBreakdownStructureBodyState
   Widget _buildAddTopLevelButton() {
     return GestureDetector(
       onTap: () => _handleAddNode(),
-      child: Container(
-        width: 280,
-        height: 100,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.4),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _kCardBorder, style: BorderStyle.none),
-        ),
-        child: _DottedBorder(
-          color: _kCardBorder,
-          strokeWidth: 2,
-          dashPattern: const [8, 4],
-          borderType: BorderType.rRect,
-          radius: const Radius.circular(16),
-          child: const Center(
+      child: _DottedBorder(
+        color: _kCardBorder,
+        strokeWidth: 2,
+        dashPattern: const [8, 4],
+        borderType: BorderType.rRect,
+        radius: const Radius.circular(6),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.add_circle_outline, color: _kSecondaryText),
-                SizedBox(height: 4),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _kGrayBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, size: 22, color: _kTextLight),
+                ),
+                const SizedBox(height: 8),
                 Text(
                   'Add Main Segment',
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _kSecondaryText),
+                      fontWeight: FontWeight.w500,
+                      color: _kTextLight),
                 ),
               ],
             ),
@@ -995,23 +1092,6 @@ class _WorkBreakdownStructureBodyState
         ),
       ),
     );
-  }
-
-  Color _getNodeColor(int level) {
-    switch (level) {
-      case 0:
-        return const Color(0xFFFF5252); // Level 1: Red
-      case 1:
-        return const Color(0xFF00BFA5); // Level 2: Teal
-      case 2:
-        return const Color(0xFFFFD54F); // Level 3: Yellow
-      case 3:
-        return const Color(0xFF7C4DFF); // Level 4: Deep Purple
-      case 4:
-        return const Color(0xFF448AFF); // Level 5: Blue
-      default:
-        return Colors.blueGrey.shade100;
-    }
   }
 
   String _formatWbsTitle({
@@ -1062,25 +1142,6 @@ class _WorkBreakdownStructureBodyState
 
     visit(_wbsItems, 1);
     return maxDepth;
-  }
-
-  Widget _buildStatusIcon(String status) {
-    IconData icon;
-    Color color;
-    switch (status) {
-      case 'completed':
-        icon = Icons.check_circle;
-        color = const Color(0xFF059669);
-        break;
-      case 'in_progress':
-        icon = Icons.pending;
-        color = const Color(0xFF2563EB);
-        break;
-      default:
-        icon = Icons.radio_button_unchecked;
-        color = Colors.grey;
-    }
-    return Icon(icon, size: 16, color: color);
   }
 
   Widget _buildFrameworkDropdown(WorkItem item, int goalIndex) {
@@ -1163,16 +1224,14 @@ class _WorkBreakdownStructureBodyState
     }
   }
 
-  Widget _buildNotesCard() {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 400),
-      child: const PlanningAiNotesCard(
-        title: 'Notes',
-        sectionLabel: 'Work Breakdown Structure',
-        noteKey: 'planning_wbs_notes',
-        checkpoint: 'wbs',
+  Widget _buildNotesSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: _WbsNotesCard(
         description:
             'Summarize the WBS structure, criteria decisions, and any key dependencies.',
+        noteKey: 'planning_wbs_notes',
+        checkpoint: 'wbs',
       ),
     );
   }
@@ -1180,15 +1239,24 @@ class _WorkBreakdownStructureBodyState
   Widget _buildInfoBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: const Color(0xFFBFD9FF),
-        borderRadius: BorderRadius.circular(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: _kInfoBg,
+        border: Border(bottom: BorderSide(color: Color(0xFFBBDEFB))),
       ),
-      child: const Text(
-        'The WBS is a breakdown of the project into manageable bitesize components for more effective execution. This is dependent on the project type and could be by project area, sub scope, discipline, contract, or a different criteria.',
-        style: TextStyle(
-            fontSize: 15, fontWeight: FontWeight.w700, color: _kPrimaryText),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_rounded, size: 16, color: _kInfoText),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'The WBS is a breakdown of the project into manageable bitesize components for more effective execution. This is dependent on the project type and could be by project area, sub scope, discipline, contract, or a different criteria.',
+              style: const TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.w400, color: _kInfoText, height: 1.5),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1463,17 +1531,16 @@ class _WorkBreakdownStructureBodyState
         : 'Current project context (no AI snapshot yet).';
 
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: _kCardBorder),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -1482,123 +1549,141 @@ class _WorkBreakdownStructureBodyState
         children: [
           InkWell(
             onTap: () => setState(() => _contextExpanded = !_contextExpanded),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Project Context Used For WBS',
-                    style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: _kPrimaryText),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Project Context Used For WBS',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _kPrimaryText),
+                    ),
                   ),
-                ),
-                Icon(
-                  _contextExpanded ? Icons.expand_less : Icons.expand_more,
-                  color: _kSecondaryText,
-                ),
-              ],
+                  Icon(
+                    _contextExpanded ? Icons.expand_less : Icons.keyboard_arrow_down,
+                    color: _kTextLight,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
           ),
           if (_contextExpanded) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    caption,
-                    style:
-                        const TextStyle(fontSize: 11, color: _kSecondaryText),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _downloadContextPdf(contextData),
-                  icon: const Icon(Icons.download_outlined, size: 18),
-                  label: const Text('Download PDF'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildContextField(
-                'Project Name', (contextData['projectName'] ?? '').toString()),
-            const SizedBox(height: 12),
-            _buildContextField('Project Objective',
-                (contextData['projectObjective'] ?? '').toString()),
-            const SizedBox(height: 12),
-            _buildContextField(
-              'Breakdown Dimension',
-              dimension.isNotEmpty ? dimension : 'Not selected',
-            ),
-            if (dimension.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildContextField('Dimension Rationale', dimensionDescription),
-            ],
-            const SizedBox(height: 16),
-            const Text(
-              'Project Goals',
-              style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: _kPrimaryText),
-            ),
-            const SizedBox(height: 8),
-            if (goals.isEmpty)
-              const Text(
-                'No project goals provided yet.',
-                style: TextStyle(fontSize: 12, color: _kSecondaryText),
-              )
-            else
-              Column(
-                children: goals.map((goal) {
-                  final goalMap = goal is Map
-                      ? goal
-                      : {'name': '', 'description': goal.toString()};
-                  final name = (goalMap['name'] ?? '').toString();
-                  final description = (goalMap['description'] ?? '').toString();
-                  final framework = (goalMap['framework'] ?? '').toString();
-                  if (name.trim().isEmpty && description.trim().isEmpty) {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF9FAFB),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kCardBorder),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name.isNotEmpty ? name : 'Goal',
-                          style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _kPrimaryText),
+            const Divider(height: 1, color: _kCardBorder),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          caption,
+                          style: const TextStyle(fontSize: 11, color: _kTextLight),
                         ),
-                        if (description.trim().isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            description,
-                            style: const TextStyle(
-                                fontSize: 12, color: _kSecondaryText),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => _downloadContextPdf(contextData),
+                        icon: const Icon(Icons.download_outlined, size: 16),
+                        label: const Text('Download PDF'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          textStyle: const TextStyle(fontSize: 12),
+                          minimumSize: Size.zero,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildContextField(
+                      'Project Name', (contextData['projectName'] ?? '').toString()),
+                  const SizedBox(height: 12),
+                  _buildContextField('Project Objective',
+                      (contextData['projectObjective'] ?? '').toString()),
+                  const SizedBox(height: 12),
+                  _buildContextField(
+                    'Breakdown Dimension',
+                    dimension.isNotEmpty ? dimension : 'Not selected',
+                  ),
+                  if (dimension.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _buildContextField('Dimension Rationale', dimensionDescription),
+                  ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Project Goals',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: _kPrimaryText),
+                  ),
+                  const SizedBox(height: 8),
+                  if (goals.isEmpty)
+                    const Text(
+                      'No project goals provided yet.',
+                      style: TextStyle(fontSize: 12, color: _kSecondaryText),
+                    )
+                  else
+                    Column(
+                      children: goals.map((goal) {
+                        final goalMap = goal is Map
+                            ? goal
+                            : {'name': '', 'description': goal.toString()};
+                        final name = (goalMap['name'] ?? '').toString();
+                        final description = (goalMap['description'] ?? '').toString();
+                        final framework = (goalMap['framework'] ?? '').toString();
+                        if (name.trim().isEmpty && description.trim().isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+                        return Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _kGrayBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: _kCardBorder),
                           ),
-                        ],
-                        if (framework.trim().isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            'Framework: $framework',
-                            style: const TextStyle(
-                                fontSize: 11, color: _kSecondaryText),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name.isNotEmpty ? name : 'Goal',
+                                style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: _kPrimaryText),
+                              ),
+                              if (description.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  description,
+                                  style: const TextStyle(
+                                      fontSize: 12, color: _kSecondaryText),
+                                ),
+                              ],
+                              if (framework.trim().isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Framework: $framework',
+                                  style: const TextStyle(
+                                      fontSize: 11, color: _kTextLight),
+                                ),
+                              ],
+                            ],
                           ),
-                        ],
-                      ],
+                        );
+                      }).toList(),
                     ),
-                  );
-                }).toList(),
+                ],
               ),
+            ),
           ],
         ],
       ),
@@ -1652,114 +1737,160 @@ class _WorkBreakdownStructureBodyState
     );
   }
 
+  Widget _buildBreadcrumbsAndTitle() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: _kCardBorder)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Planning Phase',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: _kTextLight),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_right, size: 14, color: _kTextLight),
+              const SizedBox(width: 4),
+              Text(
+                'Work Breakdown Structure',
+                style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: _kPrimaryText),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Work Breakdown Structure',
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: _kPrimaryText,
+                letterSpacing: -0.3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: _kCardBorder)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 8,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          ElevatedButton.icon(
+            onPressed: () => PlanningPhaseNavigation.goToPrevious(
+              context,
+              'work_breakdown_structure',
+            ),
+            icon: const Icon(Icons.arrow_back, size: 16),
+            label: const Text('Back'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _kPrimaryText,
+              elevation: 0,
+              side: const BorderSide(color: _kCardBorder),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final nextScreen =
+                  PlanningPhaseNavigation.resolveNextScreen(
+                        context,
+                        'work_breakdown_structure',
+                      ) ??
+                      const ProjectFrameworkNextScreen();
+
+              await ProjectDataHelper.saveAndNavigate(
+                context: context,
+                checkpoint: 'work_breakdown_structure',
+                saveInBackground: true,
+                nextScreenBuilder: () => nextScreen,
+                dataUpdater: (data) => data.copyWith(
+                  wbsCriteriaA: _selectedCriteriaA,
+                  wbsTree: _wbsItems,
+                ),
+              );
+            },
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: const Text('Next'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kAccentColor,
+              foregroundColor: _kPrimaryText,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              side: const BorderSide(color: Color(0xFFFFB300)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final padding = AppBreakpoints.pagePadding(context);
-    final isMobile = AppBreakpoints.isMobile(context);
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
       color: _kSurfaceBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const FrontEndPlanningHeader(title: 'Work Breakdown Structure'),
+          FrontEndPlanningHeader(title: 'Work Breakdown Structure', onExportPdf: _exportPdf),
+          _buildBreadcrumbsAndTitle(),
+          _buildInfoBanner(),
           Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isMobile ? 16 : padding * 1.5,
-                vertical: 24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildInfoBanner(),
-                              const SizedBox(height: 20),
-                              _buildCriteriaRow(),
-                              const SizedBox(height: 28),
-                              _buildContextCard(),
-                              const SizedBox(height: 32),
-                              _buildWbsTreeView(),
-                              const SizedBox(height: 28),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: _buildNotesCard(),
-                              ),
-                              const SizedBox(height: 40),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 80),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildControlsSection(),
+                      const SizedBox(height: 12),
+                      _buildContextCard(),
+                      const SizedBox(height: 16),
+                      _buildWbsSegmentList(),
+                      const SizedBox(height: 16),
+                      _buildNotesSection(),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 24),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: () => PlanningPhaseNavigation.goToPrevious(
-                            context,
-                            'work_breakdown_structure',
-                          ),
-                          icon: const Icon(Icons.arrow_back, size: 16),
-                          label: const Text('Back'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF374151),
-                            elevation: 0,
-                            side: const BorderSide(color: Color(0xFFD1D5DB)),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () async {
-                            final nextScreen =
-                                PlanningPhaseNavigation.resolveNextScreen(
-                                      context,
-                                      'work_breakdown_structure',
-                                    ) ??
-                                    const ProjectFrameworkNextScreen();
-
-                            await ProjectDataHelper.saveAndNavigate(
-                              context: context,
-                              checkpoint: 'work_breakdown_structure',
-                              saveInBackground: true,
-                              nextScreenBuilder: () => nextScreen,
-                              dataUpdater: (data) => data.copyWith(
-                                wbsCriteriaA: _selectedCriteriaA,
-                                wbsTree: _wbsItems,
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_forward, size: 16),
-                          label: const Text('Next'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFC044),
-                            foregroundColor: const Color(0xFF111827),
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 12),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: _buildBottomNavigationBar(),
+                ),
+              ],
             ),
           ),
         ],
@@ -1871,4 +2002,271 @@ class _DottedBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ---------------------------------------------------------------------------
+// WBS Notes Card — matches the HTML design's inline notes section with
+// sparkle icon header, format button, and textarea, while retaining
+// Firebase persistence through ProjectDataHelper.
+// ---------------------------------------------------------------------------
+class _WbsNotesCard extends StatefulWidget {
+  final String description;
+  final String noteKey;
+  final String checkpoint;
+
+  const _WbsNotesCard({
+    required this.description,
+    required this.noteKey,
+    required this.checkpoint,
+  });
+
+  @override
+  State<_WbsNotesCard> createState() => _WbsNotesCardState();
+}
+
+class _WbsNotesCardState extends State<_WbsNotesCard> {
+  late TextEditingController _controller;
+  String _currentText = '';
+  bool _saving = false;
+  DateTime? _lastSavedAt;
+  bool _didInit = false;
+  Timer? _debounceTimer;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didInit) return;
+    _didInit = true;
+
+    final stored =
+        ProjectDataHelper.getData(context).planningNotes[widget.noteKey] ?? '';
+    _currentText = stored.trim();
+    _controller = TextEditingController(text: _currentText);
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleChanged(String value) {
+    final trimmed = value.trim();
+    if (trimmed == _currentText) return;
+    setState(() {
+      _currentText = trimmed;
+    });
+
+    // Update in-memory state
+    final provider = ProjectDataHelper.getProvider(context);
+    provider.updateField((data) => data.copyWith(
+      planningNotes: {
+        ...data.planningNotes,
+        widget.noteKey: trimmed,
+      },
+    ));
+
+    // Debounced save
+    _scheduleSave();
+  }
+
+  void _scheduleSave() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 700), _saveNow);
+  }
+
+  Future<void> _saveNow() async {
+    if (_saving) return;
+    _saving = true;
+    try {
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: widget.checkpoint,
+        showSnackbar: false,
+        dataUpdater: (data) => data.copyWith(
+          planningNotes: {
+            ...data.planningNotes,
+            widget.noteKey: _currentText,
+          },
+        ),
+      );
+      if (mounted) {
+        setState(() {
+          _lastSavedAt = DateTime.now();
+        });
+      }
+    } catch (e) {
+      // Silent fail
+    } finally {
+      _saving = false;
+    }
+  }
+
+  String _formatSaveTime(DateTime? time) {
+    if (time == null) return '';
+    final hour = time.hour.toString().padLeft(2, '0');
+    final minute = time.minute.toString().padLeft(2, '0');
+    return 'Saved $hour:$minute';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: _kCardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF9FAFB),
+              border: Border(bottom: BorderSide(color: _kCardBorder)),
+            ),
+            child: Row(
+              children: [
+                // Sparkle icon + "Notes" label
+                const Icon(Icons.auto_awesome, size: 18, color: _kAccentColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'Notes',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _kAccentColor,
+                  ),
+                ),
+                const Spacer(),
+                // Save status
+                if (_saving)
+                  const Text(
+                    'Saving...',
+                    style: TextStyle(fontSize: 11, color: _kTextLight),
+                  )
+                else if (_lastSavedAt != null)
+                  Text(
+                    _formatSaveTime(_lastSavedAt),
+                    style: const TextStyle(fontSize: 11, color: _kTextLight),
+                  ),
+                if (_lastSavedAt != null || _saving)
+                  const SizedBox(width: 8),
+                // History button
+                Tooltip(
+                  message: 'History',
+                  child: InkWell(
+                    onTap: () {},
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.history, size: 18, color: _kTextLight),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                // Undo button
+                Tooltip(
+                  message: 'Undo',
+                  child: InkWell(
+                    onTap: () {
+                      _controller.clear();
+                      _handleChanged('');
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(
+                      padding: const EdgeInsets.all(4),
+                      child: Icon(Icons.undo, size: 18, color: _kTextLight),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Body
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Description
+                Text(
+                  widget.description,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: _kSecondaryText,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Format button
+                InkWell(
+                  onTap: () {},
+                  borderRadius: BorderRadius.circular(4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: _kCardBorder),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.text_fields, size: 14, color: _kTextLight),
+                        SizedBox(width: 4),
+                        Text(
+                          'Format',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: _kTextLight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Textarea
+                TextField(
+                  controller: _controller,
+                  onChanged: _handleChanged,
+                  maxLines: 4,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: _kPrimaryText,
+                    height: 1.5,
+                  ),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    hintText: 'Capture the key decisions and details for this section...',
+                    hintStyle: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: _kTextLight,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

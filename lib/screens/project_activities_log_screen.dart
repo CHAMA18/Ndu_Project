@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/activity_log_panel.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ProjectActivitiesLogScreen extends StatefulWidget {
   const ProjectActivitiesLogScreen({super.key});
 
@@ -48,6 +50,21 @@ class ProjectActivitiesLogScreen extends StatefulWidget {
 
 class _ProjectActivitiesLogScreenState
     extends State<ProjectActivitiesLogScreen> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Project Activities Log',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   final TextEditingController _searchController = TextEditingController();
 
   String _searchQuery = '';
@@ -127,7 +144,7 @@ class _ProjectActivitiesLogScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                       onChanged: (value) {
                         setModalState(() {
                           localQuery = value;
@@ -746,10 +763,9 @@ class _ProjectActivitiesLogScreenState
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(
+                      FrontEndPlanningHeader(
                         title: 'Project Activities Log',
-                        showActivityLogAction: false,
-                      ),
+                        showActivityLogAction: false, onExportPdf: _exportPdf),
                       Expanded(
                         child: LayoutBuilder(
                           builder: (context, constraints) {
@@ -1054,7 +1070,12 @@ class _ProjectActivitiesLogScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Activities Log',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -1409,7 +1430,7 @@ class _FilterToolbar extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: searchWidth,
-                    child: TextField(
+                    child: VoiceTextField(
                       controller: searchController,
                       onChanged: onSearchChanged,
                       decoration: InputDecoration(
@@ -2250,7 +2271,7 @@ class _ActivityField extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
+      child: VoiceTextField(
         controller: controller,
         enabled: enabled,
         maxLines: maxLines,

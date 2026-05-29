@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/control_account_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -7,6 +6,10 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class OperationsControlScreen extends StatefulWidget {
   const OperationsControlScreen({super.key});
@@ -50,8 +53,82 @@ class _OperationsControlScreenState extends State<OperationsControlScreen> {
     final completedActivities =
         activities.where((a) => a.status == 'complete').length;
 
+    final isMobile = AppBreakpoints.isMobile(context);
+
+    final content = SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PlanningPhaseHeader(title: 'Operations Control', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 16),
+          header('Operations Control Board'),
+          const SizedBox(height: 20),
+          evmMetricsRow(bac, ev, ac, cpi, cv, eac),
+          const SizedBox(height: 20),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: scheduleSummaryCard(
+                    activities.length, completedActivities),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: riskSummaryCard(openRisks, totalRiskScore),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: changeRequestSummaryCard(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          controlAccountTable(accounts),
+        ],
+      ),
+    );
+
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        drawer: Drawer(
+          width: sidebarWidth,
+          child: SafeArea(
+            child: const InitiationLikeSidebar(
+              activeItemLabel: 'Operations Control',
+            ),
+          ),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: Stack(
+                  children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Operations Control',
+                      ),
+                    ),
+                    content,
+                    const Positioned(
+                      right: 24,
+                      bottom: 24,
+                      child: KazAiChatBubble(positioned: false),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,39 +139,7 @@ class _OperationsControlScreenState extends State<OperationsControlScreen> {
                 activeItemLabel: 'Operations Control',
               ),
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    header('Operations Control Board'),
-                    const SizedBox(height: 20),
-                    evmMetricsRow(bac, ev, ac, cpi, cv, eac),
-                    const SizedBox(height: 20),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: scheduleSummaryCard(
-                              activities.length, completedActivities),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: riskSummaryCard(openRisks, totalRiskScore),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: changeRequestSummaryCard(),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    controlAccountTable(accounts),
-                  ],
-                ),
-              ),
-            ),
+            Expanded(child: content),
           ],
         ),
       ),
@@ -347,6 +392,21 @@ class _OperationsControlScreenState extends State<OperationsControlScreen> {
             }),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Operations Control',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_operations_control_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

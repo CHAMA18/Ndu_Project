@@ -12,6 +12,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum _SecurityTab { dashboard, roles, permissions, settings, accessLogs }
 
 class SecurityManagementScreen extends StatefulWidget {
@@ -76,7 +80,7 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
           ..addAll(logs);
         _systemSettings = systemSettings;
       });
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unable to load security data from Firestore')),
@@ -124,17 +128,17 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(labelText: 'Role name'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: tierController,
                   decoration: const InputDecoration(labelText: 'Tier label'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: 'Description'),
                 ),
@@ -185,22 +189,22 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(labelText: 'Permission name'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: resourceController,
                   decoration: const InputDecoration(labelText: 'Resource'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: actionController,
                   decoration: const InputDecoration(labelText: 'Action'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: 'Description'),
                 ),
@@ -245,17 +249,17 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(labelText: 'Setting name'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: valueController,
                   decoration: const InputDecoration(labelText: 'Value'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: 'Description'),
                 ),
@@ -353,6 +357,8 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Security Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         const _PageHeader(),
                         if (_loadingData) ...[
                           const SizedBox(height: 12),
@@ -362,6 +368,24 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                           const _SecurityNotesCard(),
                           const SizedBox(height: 24),
                         _TabStrip(selectedTab: _selectedTab, onSelected: _handleTabSelected),
+                        const SizedBox(height: 16),
+                        InnerPageNavigationHint(
+                          pageId: 'security_management',
+                          pageTitle: 'Security Management',
+                          description: 'Navigate between security sections',
+                          currentSectionId: _selectedTab.name,
+                          sections: [
+                            InnerPageSection(id: _SecurityTab.dashboard.name, label: 'Dashboard', icon: Icons.dashboard_customize, status: _selectedTab == _SecurityTab.dashboard ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 1),
+                            InnerPageSection(id: _SecurityTab.roles.name, label: 'Roles', icon: Icons.badge_outlined, status: _selectedTab == _SecurityTab.roles ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 2),
+                            InnerPageSection(id: _SecurityTab.permissions.name, label: 'Permissions', icon: Icons.lock_open_outlined, status: _selectedTab == _SecurityTab.permissions ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 3),
+                            InnerPageSection(id: _SecurityTab.settings.name, label: 'Settings', icon: Icons.settings_outlined, status: _selectedTab == _SecurityTab.settings ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 4),
+                            InnerPageSection(id: _SecurityTab.accessLogs.name, label: 'Access Logs', icon: Icons.receipt_long_outlined, status: _selectedTab == _SecurityTab.accessLogs ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 5),
+                          ],
+                          onSectionTap: (sectionId) {
+                            final tab = _SecurityTab.values.firstWhere((t) => t.name == sectionId);
+                            _handleTabSelected(tab);
+                          },
+                        ),
                         const SizedBox(height: 28),
                         _TabContent(
                           selectedTab: _selectedTab,
@@ -379,13 +403,33 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Security Management',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Security Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_security_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -525,7 +569,7 @@ class _SecurityNotesCardState extends State<_SecurityNotesCard> {
             style: TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
           ),
           const SizedBox(height: 16),
-          TextField(
+          VoiceTextField(
             controller: _controller,
             onChanged: _handleChanged,
             maxLines: 6,
@@ -1537,7 +1581,7 @@ class _SettingInputRow extends StatelessWidget {
         const SizedBox(width: 20),
         SizedBox(
           width: 120,
-          child: TextField(
+          child: VoiceTextField(
             controller: controller,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
@@ -1576,7 +1620,7 @@ class _LogsSearchField extends StatelessWidget {
     return ValueListenableBuilder<TextEditingValue>(
       valueListenable: controller,
       builder: (context, value, _) {
-        return TextField(
+        return VoiceTextField(
           controller: controller,
           decoration: InputDecoration(
             hintText: 'Search logs.',

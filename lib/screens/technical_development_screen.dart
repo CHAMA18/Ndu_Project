@@ -8,6 +8,7 @@ import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // Theme constants used via AppSemanticColors and LightModeColors are
 // imported transitively through project_data_provider.
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -15,9 +16,9 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+
 
 class TechnicalDevelopmentScreen extends StatefulWidget {
   const TechnicalDevelopmentScreen({super.key});
@@ -35,11 +36,9 @@ class _TechnicalDevelopmentScreenState
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _didSeedDefaults = false;
+  bool _frameworkGuideExpanded = false;
   Map<String, dynamic>? _engineeringContext;
   Map<String, dynamic>? _backendDesignContext;
-
-  // Filter state
-  Set<String> _selectedFilters = {'All items'};
 
   // Build strategy chips data
   List<_ChipItem> _standardsChips = [];
@@ -103,14 +102,6 @@ class _TechnicalDevelopmentScreenState
     'Low',
   ];
 
-  static const List<String> _filterOptions = [
-    'All items',
-    'In Production',
-    'Delivered',
-    'At risk',
-    'Blocked',
-  ];
-
   List<String> _ownerOptions({String? currentValue}) {
     final provider = ProjectDataInherited.maybeOf(context);
     final members = provider?.projectData.teamMembers ?? [];
@@ -157,7 +148,21 @@ class _TechnicalDevelopmentScreenState
     _approachController.addListener(_scheduleSave);
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Technical Development',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['technical_development_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notesController.dispose();
     _approachController.dispose();
@@ -477,86 +482,6 @@ class _TechnicalDevelopmentScreenState
     );
   }
 
-  _TechnicalDevelopmentDashboardSnapshot _snapshotFor(ProjectDataModel data) {
-    return _TechnicalDevelopmentDashboardSnapshot.from(
-      projectData: data,
-      engineeringContext: _engineeringContext,
-      backendDesignContext: _backendDesignContext,
-      notes: _notesController.text.trim(),
-      approach: _approachController.text.trim(),
-      standardsChips: _standardsChips,
-      workstreams: _workstreams,
-      readinessItems: _readinessItems,
-    );
-  }
-
-  // ─── Filtering helpers ────────────────────────────────────────────────
-
-  bool _matchesFilter(String status) {
-    if (_selectedFilters.contains('All items')) return true;
-    final lower = status.toLowerCase();
-    if (_selectedFilters.contains('In Production') &&
-        (lower.contains('production') || lower.contains('progress'))) {
-      return true;
-    }
-    if (_selectedFilters.contains('Delivered') &&
-        (lower.contains('delivered') ||
-            lower.contains('ready') ||
-            lower.contains('connected'))) {
-      return true;
-    }
-    if (_selectedFilters.contains('At risk') && lower.contains('risk')) {
-      return true;
-    }
-    if (_selectedFilters.contains('Blocked') && lower.contains('blocked')) {
-      return true;
-    }
-    return false;
-  }
-
-  List<_WorkstreamItem> get _filteredWorkstreams {
-    if (_selectedFilters.contains('All items')) return _workstreams;
-    return _workstreams.where((w) => _matchesFilter(w.status)).toList();
-  }
-
-  List<_BuildComponentRow> get _filteredBuildComponents {
-    if (_selectedFilters.contains('All items')) return _buildComponents;
-    return _buildComponents.where((c) => _matchesFilter(c.status)).toList();
-  }
-
-  List<_IntegrationRow> get _filteredIntegrations {
-    if (_selectedFilters.contains('All items')) return _integrations;
-    return _integrations.where((i) => _matchesFilter(i.status)).toList();
-  }
-
-  List<_IssueRow> get _filteredIssues {
-    if (_selectedFilters.contains('All items')) return _issues;
-    return _issues.where((i) {
-      // Issues show on "Blocked" or "At risk" filters
-      if (_selectedFilters.contains('Blocked') &&
-          i.severity.toLowerCase() == 'critical') return true;
-      if (_selectedFilters.contains('At risk') &&
-          (i.severity.toLowerCase() == 'high' ||
-           i.severity.toLowerCase() == 'critical')) return true;
-      return false;
-    }).toList();
-  }
-
-  List<_ReadinessItem> get _filteredReadinessItems {
-    if (_selectedFilters.contains('All items')) return _readinessItems;
-    return _readinessItems.where((r) => _matchesFilter(r.status)).toList();
-  }
-
-  // ─── Computed stats ───────────────────────────────────────────────────
-
-  int get _buildRegisterCount => _buildComponents.length;
-  int get _deliveredCount =>
-      _buildComponents.where((c) => c.status == 'Delivered').length +
-      _workstreams.where((w) => w.status == 'Delivered').length;
-  int get _interfacesReadyCount =>
-      _integrations.where((i) => i.status == 'Connected').length;
-  int get _openIssuesCount => _issues.length;
-
   // ─── Build method ─────────────────────────────────────────────────────
 
   @override
@@ -570,12 +495,11 @@ class _TechnicalDevelopmentScreenState
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Technical Development',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -584,12 +508,6 @@ class _TechnicalDevelopmentScreenState
                 children: [
                   if (_isLoading) const LinearProgressIndicator(minHeight: 2),
                   if (_isLoading) const SizedBox(height: 16),
-                  _buildHeader(isNarrow),
-                  const SizedBox(height: 16),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
-                  _buildStatsRow(isNarrow),
-                  const SizedBox(height: 24),
                   _buildFrameworkGuide(isNarrow),
                   const SizedBox(height: 24),
                   _buildWorkstreamRegisterPanel(),
@@ -623,87 +541,6 @@ class _TechnicalDevelopmentScreenState
     );
   }
 
-  // ─── Header ───────────────────────────────────────────────────────────
-
-  Widget _buildHeader(bool isNarrow) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFC812),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'TECHNICAL DEVELOPMENT',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Technical Development',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827)),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Direct and manage project execution aligned with PMI PMBOK 4.3, IEEE 1220 systems engineering, '
-                    'and Agile sprint frameworks. Track build workstreams, integration proving, defect resolution, '
-                    'and deployment readiness across software and physical deliverables.',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                  ),
-                ],
-              ),
-            ),
-            if (!isNarrow) _buildHeaderActions(),
-          ],
-        ),
-        if (isNarrow) ...[
-          const SizedBox(height: 12),
-          _buildHeaderActions(),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add workstream',
-            onPressed: () => _showWorkstreamDialog()),
-        _actionButton(Icons.download_rounded, 'Export summary',
-            onPressed: _exportDevelopmentSummary),
-        _primaryButton(
-          'Start sprint review',
-          onPressed: () {
-            setState(() {
-              _selectedFilters
-                ..clear()
-                ..add('In Production');
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text(
-                      'Sprint review started. Filter set to In Production items.')),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
   // ─── Shared button helpers ────────────────────────────────────────────
 
   Widget _actionButton(IconData icon, String label,
@@ -728,168 +565,73 @@ class _TechnicalDevelopmentScreenState
     );
   }
 
-  Widget _primaryButton(String label, {VoidCallback? onPressed}) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: const Icon(Icons.play_arrow, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
+  // ─── Technical Development Framework Guide ─────────────────────────────
 
-  // ─── Filter chips ─────────────────────────────────────────────────────
-
-  Widget _buildFilterChips() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _filterOptions.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              if (filter == 'All items') {
-                _selectedFilters = {'All items'};
-              } else {
-                _selectedFilters.remove('All items');
-                if (selected) {
-                  _selectedFilters.remove(filter);
-                } else {
-                  _selectedFilters.add(filter);
-                }
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters = {'All items'};
-                }
-              }
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFF111827) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Text(
-              filter,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF475569),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  // ─── Stats row ────────────────────────────────────────────────────────
-
-  Widget _buildStatsRow(bool isNarrow) {
-    final stats = [
-      _StatCardData(
-        '$_buildRegisterCount',
-        'Build Register',
-        'Workstreams and components tracked',
-        const Color(0xFF0EA5E9),
-      ),
-      _StatCardData(
-        '$_deliveredCount',
-        'Delivered',
-        'Components shipped and validated',
-        const Color(0xFF059669),
-      ),
-      _StatCardData(
-        '$_interfacesReadyCount',
-        'Interfaces Ready',
-        'Connected integration endpoints',
-        const Color(0xFF06B6D4),
-      ),
-      _StatCardData(
-        '$_openIssuesCount',
-        'Open Issues',
-        'Active defects and blockers',
-        const Color(0xFFF97316),
-      ),
-    ];
-
-    if (isNarrow) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: stats.map((stat) => _buildStatCard(stat)).toList(),
-      );
-    }
-
-    return Row(
-      children: stats
-          .map((stat) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: _buildStatCard(stat),
-                ),
-              ))
-          .toList(),
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
+  Widget _buildFrameworkGuide(bool isNarrow) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 6))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 6),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
+          // Clickable header row
+          InkWell(
+            onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Technical development framework',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    child: Icon(Icons.expand_more, size: 22, color: const Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // Collapsible content
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Aligned with PMI PMBOK 4.3 (Direct & Manage Project Work), IEEE 1220 Systems Engineering, '
+                    'Agile Scrum/Kanban sprint execution, and ISO 9001 quality management principles.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  isNarrow
+                      ? Column(children: _frameworkCards())
+                      : Row(
+                          children: _frameworkCards()
+                              .map((card) => Expanded(child: Padding(
+                                    padding: const EdgeInsets.only(right: 12),
+                                    child: card,
+                                  )))
+                              .toList(),
+                        ),
+                ],
+              ),
+            ),
+            crossFadeState: _frameworkGuideExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
+          ),
         ],
       ),
-    );
-  }
-
-  // ─── Technical Development Framework Guide ─────────────────────────────
-
-  Widget _buildFrameworkGuide(bool isNarrow) {
-    return _PanelShell(
-      title: 'Technical development framework',
-      subtitle:
-          'Aligned with PMI PMBOK 4.3 (Direct & Manage Project Work), IEEE 1220 Systems Engineering, '
-          'Agile Scrum/Kanban sprint execution, and ISO 9001 quality management principles.',
-      child: isNarrow
-          ? Column(
-              children: _frameworkCards(),
-            )
-          : Row(
-              children: _frameworkCards()
-                  .map((card) => Expanded(child: Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: card,
-                      )))
-                  .toList(),
-            ),
     );
   }
 
@@ -929,14 +671,13 @@ class _TechnicalDevelopmentScreenState
   // ─── Workstream Register Panel (MAIN TABLE) ───────────────────────────
 
   Widget _buildWorkstreamRegisterPanel() {
-    final filtered = _filteredWorkstreams;
     return _PanelShell(
       title: 'Workstream register',
       subtitle: 'Track build workstreams, ownership, and sprint progress',
       trailing: _actionButton(Icons.add, 'Add workstream',
           onPressed: () => _showWorkstreamDialog()),
-      child: filtered.isEmpty
-          ? _buildEmptyState('No workstreams match the current filter.',
+      child: _workstreams.isEmpty
+          ? _buildEmptyState('No workstreams added yet.',
               () => _showWorkstreamDialog())
           : Column(
               children: [
@@ -948,7 +689,7 @@ class _TechnicalDevelopmentScreenState
                   ('ACTIONS', 1),
                 ]),
                 const SizedBox(height: 4),
-                ...filtered.asMap().entries.map((entry) {
+                ..._workstreams.asMap().entries.map((entry) {
                   final item = entry.value;
                   final idx = entry.key;
                   return _buildWorkstreamRow(item, idx);
@@ -1059,15 +800,14 @@ class _TechnicalDevelopmentScreenState
   // ─── Component Build Register Panel ───────────────────────────────────
 
   Widget _buildComponentBuildPanel() {
-    final filtered = _filteredBuildComponents;
     return _PanelShell(
       title: 'Component build register',
       subtitle:
           'Track deliverables across software modules, fabrication packages, and site build items',
       trailing: _actionButton(Icons.add, 'Add component',
           onPressed: () => _showBuildComponentDialog()),
-      child: filtered.isEmpty
-          ? _buildEmptyState('No components match the current filter.',
+      child: _buildComponents.isEmpty
+          ? _buildEmptyState('No components added yet.',
               () => _showBuildComponentDialog())
           : Column(
               children: [
@@ -1079,7 +819,7 @@ class _TechnicalDevelopmentScreenState
                   ('ACTIONS', 1),
                 ]),
                 const SizedBox(height: 4),
-                ...filtered.asMap().entries.map((entry) {
+                ..._buildComponents.asMap().entries.map((entry) {
                   final item = entry.value;
                   final idx = entry.key;
                   return _buildComponentRow(item, idx);
@@ -1147,15 +887,14 @@ class _TechnicalDevelopmentScreenState
   // ─── Integration & Interface Panel ────────────────────────────────────
 
   Widget _buildIntegrationPanel() {
-    final filtered = _filteredIntegrations;
     return _PanelShell(
       title: 'Integration & interface realization',
       subtitle:
           'Live connection checks between build components, services, and physical systems',
       trailing: _actionButton(Icons.add, 'Add integration',
           onPressed: () => _showIntegrationDialog()),
-      child: filtered.isEmpty
-          ? _buildEmptyState('No integrations match the current filter.',
+      child: _integrations.isEmpty
+          ? _buildEmptyState('No integrations added yet.',
               () => _showIntegrationDialog())
           : Column(
               children: [
@@ -1166,7 +905,7 @@ class _TechnicalDevelopmentScreenState
                   ('ACTIONS', 1),
                 ]),
                 const SizedBox(height: 4),
-                ...filtered.asMap().entries.map((entry) {
+                ..._integrations.asMap().entries.map((entry) {
                   final item = entry.value;
                   final idx = entry.key;
                   return _buildIntegrationRow(item, idx);
@@ -1232,15 +971,14 @@ class _TechnicalDevelopmentScreenState
   // ─── Defect & Issue Tracker Panel ─────────────────────────────────────
 
   Widget _buildIssueTrackerPanel() {
-    final filtered = _filteredIssues;
     return _PanelShell(
       title: 'Defect & issue tracker',
       subtitle:
           'Current build blockers, production exceptions, and technical rework items',
       trailing: _actionButton(Icons.add, 'Add issue',
           onPressed: () => _showIssueDialog()),
-      child: filtered.isEmpty
-          ? _buildEmptyState('No issues match the current filter.',
+      child: _issues.isEmpty
+          ? _buildEmptyState('No issues added yet.',
               () => _showIssueDialog())
           : Column(
               children: [
@@ -1251,7 +989,7 @@ class _TechnicalDevelopmentScreenState
                   ('ACTIONS', 1),
                 ]),
                 const SizedBox(height: 4),
-                ...filtered.asMap().entries.map((entry) {
+                ..._issues.asMap().entries.map((entry) {
                   final item = entry.value;
                   final idx = entry.key;
                   return _buildIssueRow(item, idx);
@@ -1542,15 +1280,14 @@ class _TechnicalDevelopmentScreenState
   // ─── Readiness Checklist Panel ────────────────────────────────────────
 
   Widget _buildReadinessChecklistPanel() {
-    final filtered = _filteredReadinessItems;
     return _PanelShell(
       title: 'Deployment readiness checklist',
       subtitle:
           'Go-live control pack with final QA checks and handover readiness',
       trailing: _actionButton(Icons.add, 'Add item',
           onPressed: () => _showReadinessDialog()),
-      child: filtered.isEmpty
-          ? _buildEmptyState('No readiness items match the current filter.',
+      child: _readinessItems.isEmpty
+          ? _buildEmptyState('No readiness items added yet.',
               () => _showReadinessDialog())
           : Column(
               children: [
@@ -1561,7 +1298,7 @@ class _TechnicalDevelopmentScreenState
                   ('ACTIONS', 1),
                 ]),
                 const SizedBox(height: 4),
-                ...filtered.asMap().entries.map((entry) {
+                ..._readinessItems.asMap().entries.map((entry) {
                   final item = entry.value;
                   final idx = entry.key;
                   return _buildReadinessRow(item, idx);
@@ -1709,7 +1446,7 @@ class _TechnicalDevelopmentScreenState
               style:
                   TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
           const SizedBox(height: 8),
-          TextField(
+          VoiceTextField(
             controller: _approachController,
             minLines: 2,
             maxLines: null,
@@ -1739,7 +1476,7 @@ class _TechnicalDevelopmentScreenState
               style:
                   TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
           const SizedBox(height: 8),
-          TextField(
+          VoiceTextField(
             controller: _notesController,
             minLines: 3,
             maxLines: null,
@@ -1938,7 +1675,7 @@ class _TechnicalDevelopmentScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: titleCtl,
                   decoration: const InputDecoration(
                     labelText: 'Workstream title',
@@ -1947,7 +1684,7 @@ class _TechnicalDevelopmentScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: subtitleCtl,
                   minLines: 2,
                   maxLines: 4,
@@ -1959,7 +1696,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _workstreamStatusOptions.contains(status)
+                  initialValue: _workstreamStatusOptions.contains(status)
                       ? status
                       : _workstreamStatusOptions.first,
                   items: _workstreamStatusOptions
@@ -1982,7 +1719,7 @@ class _TechnicalDevelopmentScreenState
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: ownerCtl,
                         decoration: const InputDecoration(
                           labelText: 'Owner',
@@ -1994,7 +1731,7 @@ class _TechnicalDevelopmentScreenState
                     const SizedBox(width: 12),
                     SizedBox(
                       width: 100,
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: TextEditingController(
                             text: progress.toString()),
                         keyboardType: TextInputType.number,
@@ -2127,7 +1864,7 @@ class _TechnicalDevelopmentScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameCtl,
                   decoration: const InputDecoration(
                     labelText: 'Component name',
@@ -2136,7 +1873,7 @@ class _TechnicalDevelopmentScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: ownerCtl,
                   decoration: const InputDecoration(
                     labelText: 'Owner',
@@ -2149,7 +1886,7 @@ class _TechnicalDevelopmentScreenState
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _buildStatusOptions.contains(status)
+                        initialValue: _buildStatusOptions.contains(status)
                             ? status
                             : _buildStatusOptions.first,
                         items: _buildStatusOptions
@@ -2172,7 +1909,7 @@ class _TechnicalDevelopmentScreenState
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: type,
+                        initialValue: type,
                         items: ['Software', 'Physical', 'Mixed']
                             .map((option) => DropdownMenuItem(
                                   value: option,
@@ -2303,7 +2040,7 @@ class _TechnicalDevelopmentScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: labelCtl,
                   decoration: const InputDecoration(
                     labelText: 'Interface name',
@@ -2312,7 +2049,7 @@ class _TechnicalDevelopmentScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descCtl,
                   minLines: 2,
                   maxLines: 4,
@@ -2324,7 +2061,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _integrationStatusOptions.contains(status)
+                  initialValue: _integrationStatusOptions.contains(status)
                       ? status
                       : _integrationStatusOptions.first,
                   items: _integrationStatusOptions
@@ -2452,7 +2189,7 @@ class _TechnicalDevelopmentScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: titleCtl,
                   decoration: const InputDecoration(
                     labelText: 'Issue title',
@@ -2462,7 +2199,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _severityOptions.contains(severity)
+                  initialValue: _severityOptions.contains(severity)
                       ? severity
                       : _severityOptions[1],
                   items: _severityOptions
@@ -2482,7 +2219,7 @@ class _TechnicalDevelopmentScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: detailCtl,
                   minLines: 2,
                   maxLines: 4,
@@ -2604,7 +2341,7 @@ class _TechnicalDevelopmentScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: signalCtl,
                   decoration: const InputDecoration(
                     labelText: 'Signal name',
@@ -2614,7 +2351,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _severityOptions.contains(severity)
+                  initialValue: _severityOptions.contains(severity)
                       ? severity
                       : _severityOptions[1],
                   items: _severityOptions
@@ -2634,7 +2371,7 @@ class _TechnicalDevelopmentScreenState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descCtl,
                   minLines: 2,
                   maxLines: 4,
@@ -2648,7 +2385,7 @@ class _TechnicalDevelopmentScreenState
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: categoryCtl,
                         decoration: const InputDecoration(
                           labelText: 'Category',
@@ -2659,7 +2396,7 @@ class _TechnicalDevelopmentScreenState
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: ownerCtl,
                         decoration: const InputDecoration(
                           labelText: 'Owner',
@@ -2757,7 +2494,7 @@ class _TechnicalDevelopmentScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: titleCtl,
                   decoration: const InputDecoration(
                     labelText: 'Checklist item',
@@ -2767,7 +2504,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _ownerOptions(currentValue: owner).contains(owner)
+                  initialValue: _ownerOptions(currentValue: owner).contains(owner)
                       ? owner
                       : _ownerOptions(currentValue: owner).first,
                   items: _ownerOptions(currentValue: owner)
@@ -2788,7 +2525,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _readinessStatusOptions.contains(status)
+                  initialValue: _readinessStatusOptions.contains(status)
                       ? status
                       : _readinessStatusOptions.first,
                   items: _readinessStatusOptions
@@ -2915,7 +2652,7 @@ class _TechnicalDevelopmentScreenState
             : 'Edit quality standard'),
         content: SizedBox(
           width: 420,
-          child: TextField(
+          child: VoiceTextField(
             controller: controller,
             decoration: const InputDecoration(
               labelText: 'Standard / quality code',
@@ -2954,119 +2691,6 @@ class _TechnicalDevelopmentScreenState
     );
   }
 
-  // ─── PDF Export ───────────────────────────────────────────────────────
-
-  Future<void> _exportDevelopmentSummary() async {
-    final provider = ProjectDataInherited.maybeOf(context);
-    final snapshot = _snapshotFor(provider?.projectData ?? ProjectDataModel());
-    final doc = pw.Document();
-
-    final standards = _standardsChips
-        .map((chip) => chip.label.trim())
-        .where((label) => label.isNotEmpty)
-        .toList();
-    final workstreams = _workstreams
-        .map((item) {
-          final title = item.title.trim();
-          final subtitle = item.subtitle.trim();
-          final status = item.status.trim();
-          if (title.isEmpty && subtitle.isEmpty && status.isEmpty) return '';
-          final base = subtitle.isEmpty ? title : '$title - $subtitle';
-          return status.isEmpty ? base : '$base (Status: $status)';
-        })
-        .where((line) => line.trim().isNotEmpty)
-        .toList();
-    final readiness = _readinessItems
-        .map((item) {
-          final title = item.title.trim();
-          final owner = item.owner.trim();
-          final status = item.status.trim();
-          if (title.isEmpty && owner.isEmpty && status.isEmpty) return '';
-          final meta = [
-            if (owner.isNotEmpty) 'Owner: $owner',
-            if (status.isNotEmpty) 'Status: $status',
-          ].join(' | ');
-          return meta.isEmpty ? title : '$title ($meta)';
-        })
-        .where((line) => line.trim().isNotEmpty)
-        .toList();
-    final buildRows = _buildComponents
-        .map((item) => '${item.name} - ${item.owner} (${item.status}, ${item.type})')
-        .toList();
-    final integrations = _integrations
-        .map((item) => '${item.label} (${item.status}) - ${item.description}')
-        .toList();
-    final issues = _issues
-        .map((item) => '${item.title} [${item.severity}] - ${item.detail}')
-        .toList();
-
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          pw.Text(
-            'Technical Development Summary',
-            style: pw.TextStyle(
-              fontSize: 22,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          pw.SizedBox(height: 12),
-          _pdfTextBlock('Project', snapshot.projectLabel),
-          _pdfTextBlock('Build approach', _approachController.text.trim()),
-          _pdfTextBlock('Notes', _notesController.text.trim()),
-          _pdfSection('Standards & quality code', standards),
-          _pdfSection('Development roadmap & workflow', workstreams),
-          _pdfSection('Component build register', buildRows),
-          _pdfSection('Integration realization', integrations),
-          _pdfSection('Defect & issue tracker', issues),
-          _pdfSection('Readiness & release checklist', readiness),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-      name: 'technical-development-summary.pdf',
-    );
-  }
-
-  pw.Widget _pdfTextBlock(String title, String content) {
-    final normalized = content.trim().isEmpty ? 'No entries.' : content.trim();
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          title,
-          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Text(normalized, style: const pw.TextStyle(fontSize: 12)),
-        pw.SizedBox(height: 12),
-      ],
-    );
-  }
-
-  pw.Widget _pdfSection(String title, List<String> items) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(
-          title,
-          style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
-        ),
-        pw.SizedBox(height: 6),
-        if (items.isEmpty)
-          pw.Text('No entries.', style: const pw.TextStyle(fontSize: 12))
-        else
-          pw.Column(
-            children: items.map((item) => pw.Bullet(text: item)).toList(),
-          ),
-        pw.SizedBox(height: 12),
-      ],
-    );
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3485,20 +3109,6 @@ class _FrameworkGuideCard extends StatelessWidget {
     );
   }
 }
-
-/// Stat card data holder.
-class _StatCardData {
-  const _StatCardData(this.value, this.label, this.supporting, this.color);
-
-  final String value;
-  final String label;
-  final String supporting;
-  final Color color;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// DASHBOARD SNAPSHOT (kept for read-only computed metrics & PDF export)
-// ═══════════════════════════════════════════════════════════════════════════
 
 class _TechnicalDevelopmentDashboardSnapshot {
   const _TechnicalDevelopmentDashboardSnapshot({

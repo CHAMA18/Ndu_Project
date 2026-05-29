@@ -21,6 +21,9 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/status_reports_widget.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class ProgressTrackingScreen extends StatefulWidget {
   const ProgressTrackingScreen({super.key});
@@ -57,7 +60,7 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
     try {
       final provider = ProjectDataInherited.maybeOf(context);
       return provider?.projectData.projectId;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -395,6 +398,7 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
     return ResponsiveScaffold(
       activeItemLabel: 'Progress Tracking',
       backgroundColor: const Color(0xFFF5F7FB),
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: horizontalPadding,
@@ -405,12 +409,11 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Progress Tracking',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
           _buildHeader(),
             const SizedBox(height: 20),
@@ -436,7 +439,7 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
                 subtitle:
                     'Switch between live deliverables, recurring execution work, and stakeholder reporting without nested tables or fixed-height tabs.',
                 collapsible: true,
-                initiallyExpanded: true,
+                initiallyExpanded: false,
                 headerIcon: Icons.view_timeline_outlined,
                 headerIconColor: const Color(0xFF2563EB),
                 child: Wrap(
@@ -463,7 +466,7 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
               ),
               const SizedBox(height: 20),
               _buildActiveWorkspace(),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               LaunchPhaseNavigation(
                 backLabel: 'Back: Team Meetings',
                 nextLabel: 'Next: Contracts Tracking',
@@ -548,5 +551,20 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
           onStatusReportsChanged: _handleStatusReportsChanged,
         );
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Progress Tracking',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_progress_tracking_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }

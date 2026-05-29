@@ -1,3 +1,4 @@
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
@@ -23,6 +24,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/requirements_traceability_dashboard.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class RequirementsImplementationScreen extends StatefulWidget {
   const RequirementsImplementationScreen({super.key});
@@ -39,6 +42,7 @@ class _RequirementsImplementationScreenState
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _showAllRows = false;
+  bool _frameworkGuideExpanded = false;
   int _selectedRequirementIndex = 0;
   final Set<String> _selectedFilters = {'All requirements'};
   String _sectionApprovalStatus = 'Draft';
@@ -226,6 +230,7 @@ class _RequirementsImplementationScreenState
     final provider = ProjectDataInherited.maybeOf(context);
     final projectId = provider?.projectData.projectId;
     if (projectId == null || projectId.isEmpty) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
     try {
@@ -709,11 +714,10 @@ class _RequirementsImplementationScreenState
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
-            title: 'Design Specifications',
+          PlanningPhaseHeader(
+            title: 'Requirements Implementation',
             showImportButton: false,
-            showContentButton: false,
-          ),
+            showContentButton: false, onExportPdf: _exportPdf),
           if (_isLoading)
             const LinearProgressIndicator(
               minHeight: 2,
@@ -759,7 +763,7 @@ class _RequirementsImplementationScreenState
                       ],
                     ),
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
                   LaunchPhaseNavigation(
                     backLabel: 'Back: Design Management',
                     nextLabel: 'Next: Technical Alignment',
@@ -811,7 +815,7 @@ class _RequirementsImplementationScreenState
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: _sectionApprovalStatus,
+                  initialValue: _sectionApprovalStatus,
                   decoration: const InputDecoration(
                     labelText: 'Approval Status',
                     border: OutlineInputBorder(),
@@ -833,7 +837,7 @@ class _RequirementsImplementationScreenState
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value:
+                  initialValue:
                       effectiveApprover.isEmpty ? null : effectiveApprover,
                   decoration: const InputDecoration(
                     labelText: 'Approved By',
@@ -854,7 +858,7 @@ class _RequirementsImplementationScreenState
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: TextField(
+                child: VoiceTextField(
                   controller: _sectionApprovalDateController,
                   onChanged: (_) => _scheduleSave(),
                   decoration: const InputDecoration(
@@ -868,7 +872,7 @@ class _RequirementsImplementationScreenState
             ],
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: _sectionApprovalNotesController,
             onChanged: (_) => _scheduleSave(),
             minLines: 2,
@@ -944,7 +948,7 @@ class _RequirementsImplementationScreenState
           Row(
             children: [
               Expanded(
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: row.name,
                   onChanged: (value) => _updateDocumentRow(
                       index, (current) => current.copyWith(name: value)),
@@ -957,7 +961,7 @@ class _RequirementsImplementationScreenState
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: row.category,
                   onChanged: (value) => _updateDocumentRow(
                       index, (current) => current.copyWith(category: value)),
@@ -970,7 +974,7 @@ class _RequirementsImplementationScreenState
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: row.version,
                   onChanged: (value) => _updateDocumentRow(
                       index, (current) => current.copyWith(version: value)),
@@ -988,7 +992,7 @@ class _RequirementsImplementationScreenState
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  value: options.contains(row.owner) ? row.owner : null,
+                  initialValue: options.contains(row.owner) ? row.owner : null,
                   decoration: const InputDecoration(
                     labelText: 'Owner',
                     border: OutlineInputBorder(),
@@ -1006,7 +1010,7 @@ class _RequirementsImplementationScreenState
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: row.linkedSpecId,
                   onChanged: (value) => _updateDocumentRow(index,
                       (current) => current.copyWith(linkedSpecId: value)),
@@ -1019,7 +1023,7 @@ class _RequirementsImplementationScreenState
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: row.status,
                   onChanged: (value) => _updateDocumentRow(
                       index, (current) => current.copyWith(status: value)),
@@ -1036,7 +1040,7 @@ class _RequirementsImplementationScreenState
           Row(
             children: [
               Expanded(
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: row.link,
                   onChanged: (value) => _updateDocumentRow(
                       index, (current) => current.copyWith(link: value)),
@@ -1081,6 +1085,8 @@ class _RequirementsImplementationScreenState
 
     return DesignPhaseStableShell(
       activeLabel: 'Design Specifications',
+      breadcrumbPhase: 'Design Phase',
+      breadcrumbTitle: 'Design Specifications',
       onItemSelected: _openStableDesignItem,
       child: ListView(
         padding: EdgeInsets.fromLTRB(
@@ -1100,10 +1106,6 @@ class _RequirementsImplementationScreenState
 
           // 5. Requirements Register Table (MAIN)
           _buildWebRequirementsRegister(ownerOptions),
-          const SizedBox(height: 20),
-
-          // 6. Acceptance Criteria & Verification Panel
-          _buildWebVerificationPanel(ownerOptions),
           const SizedBox(height: 20),
 
           // 7. Gap & Exception Analysis Panel
@@ -1425,7 +1427,6 @@ class _RequirementsImplementationScreenState
   // -------------------------------------------------------------------------
   Widget _buildWebFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1441,69 +1442,110 @@ class _RequirementsImplementationScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Design specifications framework',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF111827),
+          // Collapsible header — always visible
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => setState(() {
+              _frameworkGuideExpanded = !_frameworkGuideExpanded;
+            }),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Design specifications framework',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 22,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in IEEE 830 Software Requirements Specification, '
-            'ISO/IEC/IEEE 29148 Requirement Engineering Lifecycle, PMI PMBOK '
-            'Collect Requirements (5.2), and INCOSE systems engineering '
-            'lifecycle practices. Effective requirement traceability ensures '
-            'every specification is linked to design artifacts, acceptance '
-            'criteria, and validation evidence before proceeding to Technical Alignment.',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF6B7280),
-              height: 1.5,
+          // Expandable body
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in IEEE 830 Software Requirements Specification, '
+                    'ISO/IEC/IEEE 29148 Requirement Engineering Lifecycle, PMI PMBOK '
+                    'Collect Requirements (5.2), and INCOSE systems engineering '
+                    'lifecycle practices. Effective requirement traceability ensures '
+                    'every specification is linked to design artifacts, acceptance '
+                    'criteria, and validation evidence before proceeding to Technical Alignment.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Column(
+                    children: [
+                      _buildWebGuideCard(
+                        Icons.account_tree_outlined,
+                        'Requirements Traceability',
+                        'The Requirements Traceability Matrix (RTM) connects each requirement '
+                        'to design artifacts, test cases, and source documents. Every mapped '
+                        'requirement should have an unbroken chain from origin through '
+                        'implementation to verification.',
+                        const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWebGuideCard(
+                        Icons.verified_outlined,
+                        'Validation & Evidence',
+                        'Each mapped requirement must have acceptance criteria and a defined '
+                        'test method. Validation evidence demonstrates that the design artifact '
+                        'satisfies the requirement intent and can be independently verified.',
+                        const Color(0xFF10B981),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWebGuideCard(
+                        Icons.warning_amber_outlined,
+                        'Gap Management',
+                        'Track unmapped requirements and resolve conflicts before proceeding '
+                        'to Technical Alignment. Pending approval gaps indicate design decisions '
+                        'that still need stakeholder resolution or additional evidence.',
+                        const Color(0xFFF59E0B),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWebGuideCard(
+                        Icons.admin_panel_settings_outlined,
+                        'Approval Gates',
+                        'Section-level approval is required before the project can advance '
+                        'to Technical Alignment. All gaps must be resolved, acceptance criteria '
+                        'defined for mapped items, and the section approver must sign off.',
+                        const Color(0xFFEF4444),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildWebGuideCard(
-                Icons.account_tree_outlined,
-                'Requirements Traceability',
-                'The Requirements Traceability Matrix (RTM) connects each requirement '
-                'to design artifacts, test cases, and source documents. Every mapped '
-                'requirement should have an unbroken chain from origin through '
-                'implementation to verification.',
-                const Color(0xFF2563EB),
-              ),
-              const SizedBox(height: 12),
-              _buildWebGuideCard(
-                Icons.verified_outlined,
-                'Validation & Evidence',
-                'Each mapped requirement must have acceptance criteria and a defined '
-                'test method. Validation evidence demonstrates that the design artifact '
-                'satisfies the requirement intent and can be independently verified.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildWebGuideCard(
-                Icons.warning_amber_outlined,
-                'Gap Management',
-                'Track unmapped requirements and resolve conflicts before proceeding '
-                'to Technical Alignment. Pending approval gaps indicate design decisions '
-                'that still need stakeholder resolution or additional evidence.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildWebGuideCard(
-                Icons.admin_panel_settings_outlined,
-                'Approval Gates',
-                'Section-level approval is required before the project can advance '
-                'to Technical Alignment. All gaps must be resolved, acceptance criteria '
-                'defined for mapped items, and the section approver must sign off.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+            crossFadeState: _frameworkGuideExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
@@ -1762,7 +1804,7 @@ class _RequirementsImplementationScreenState
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: () => _selectRequirement(actualIndex),
+        onTap: () => _showVerificationPopup(actualIndex),
         child: Container(
           color: isSelected
               ? const Color(0xFFEFF6FF)
@@ -1895,7 +1937,7 @@ class _RequirementsImplementationScreenState
                           IconButton(
                             icon: const Icon(Icons.visibility_outlined,
                                 size: 16, color: Color(0xFF64748B)),
-                            onPressed: () => _selectRequirement(actualIndex),
+                            onPressed: () => _showVerificationPopup(actualIndex),
                             tooltip: 'View detail',
                             padding: EdgeInsets.zero,
                             constraints:
@@ -1927,7 +1969,39 @@ class _RequirementsImplementationScreenState
   }
 
   // -------------------------------------------------------------------------
-  // 6. Acceptance Criteria & Verification Panel
+  // 6. Acceptance Criteria & Verification — Popup Dialog
+  // -------------------------------------------------------------------------
+  void _showVerificationPopup(int index) {
+    if (index < 0 || index >= _requirementRows.length) return;
+    setState(() => _selectedRequirementIndex = index);
+    final selected = _requirementRows[index];
+    final ownerOptions = _ownerOptions(
+        ProjectDataInherited.maybeOf(context)?.projectData ?? ProjectDataModel());
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => _VerificationPopupDialog(
+        requirement: selected,
+        ownerOptions: ownerOptions,
+        onUpdate: (updated) {
+          _updateRequirement(index, (_) => updated);
+        },
+        onEditAll: () {
+          Navigator.of(dialogContext).pop();
+          _showRequirementEditDialog(index);
+        },
+        onUploadArtifact: () {
+          Navigator.of(dialogContext).pop();
+          _uploadArtifactForRequirement(selected);
+        },
+        onClose: () => Navigator.of(dialogContext).pop(),
+      ),
+    );
+  }
+
+  // Keep the inline builder for reuse in non-web paths (unused in web ListView now)
+  // -------------------------------------------------------------------------
+  // 6b. Acceptance Criteria & Verification Panel (inline — kept for reference)
   // -------------------------------------------------------------------------
   Widget _buildWebVerificationPanel(List<String> ownerOptions) {
     final selected = _requirementRows.isEmpty
@@ -2722,7 +2796,7 @@ class _RequirementsImplementationScreenState
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: _notesController,
             minLines: 4,
             maxLines: 10,
@@ -2784,7 +2858,7 @@ class _RequirementsImplementationScreenState
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: reqIdController,
                           decoration: const InputDecoration(
                             labelText: 'Requirement ID *',
@@ -2795,7 +2869,7 @@ class _RequirementsImplementationScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedReqType,
+                          initialValue: selectedReqType,
                           decoration: const InputDecoration(
                             labelText: 'Requirement Type *',
                             isDense: true,
@@ -2821,7 +2895,7 @@ class _RequirementsImplementationScreenState
                   ),
                   const SizedBox(height: 12),
                   // Title
-                  TextField(
+                  VoiceTextField(
                     controller: titleController,
                     decoration: const InputDecoration(
                       labelText: 'Title *',
@@ -2830,7 +2904,7 @@ class _RequirementsImplementationScreenState
                   ),
                   const SizedBox(height: 12),
                   // Owner
-                  TextField(
+                  VoiceTextField(
                     controller: ownerController,
                     decoration: const InputDecoration(
                       labelText: 'Owner *',
@@ -2839,7 +2913,7 @@ class _RequirementsImplementationScreenState
                   ),
                   const SizedBox(height: 12),
                   // Definition
-                  TextField(
+                  VoiceTextField(
                     controller: definitionController,
                     minLines: 2,
                     maxLines: 4,
@@ -2854,7 +2928,7 @@ class _RequirementsImplementationScreenState
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedRuleType,
+                          initialValue: selectedRuleType,
                           decoration: const InputDecoration(
                             labelText: 'Rule Type',
                             isDense: true,
@@ -2873,7 +2947,7 @@ class _RequirementsImplementationScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedSourceType,
+                          initialValue: selectedSourceType,
                           decoration: const InputDecoration(
                             labelText: 'Source Type',
                             isDense: true,
@@ -2903,7 +2977,7 @@ class _RequirementsImplementationScreenState
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedArtifactType,
+                          initialValue: selectedArtifactType,
                           decoration: const InputDecoration(
                             labelText: 'Artifact Type',
                             isDense: true,
@@ -2930,7 +3004,7 @@ class _RequirementsImplementationScreenState
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: artifactLabelController,
                           decoration: const InputDecoration(
                             labelText: 'Artifact Label',
@@ -2946,7 +3020,7 @@ class _RequirementsImplementationScreenState
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedValidationStatus,
+                          initialValue: selectedValidationStatus,
                           decoration: const InputDecoration(
                             labelText: 'Validation Status',
                             isDense: true,
@@ -2966,7 +3040,7 @@ class _RequirementsImplementationScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedGapStatus,
+                          initialValue: selectedGapStatus,
                           decoration: const InputDecoration(
                             labelText: 'Gap Status',
                             isDense: true,
@@ -2991,7 +3065,7 @@ class _RequirementsImplementationScreenState
                   ),
                   const SizedBox(height: 12),
                   // Acceptance Criteria
-                  TextField(
+                  VoiceTextField(
                     controller: criteriaController,
                     minLines: 2,
                     maxLines: 4,
@@ -3005,7 +3079,7 @@ class _RequirementsImplementationScreenState
                   Row(
                     children: [
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: testMethodController,
                           decoration: const InputDecoration(
                             labelText: 'Test Method',
@@ -3015,7 +3089,7 @@ class _RequirementsImplementationScreenState
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: sourceDocController,
                           decoration: const InputDecoration(
                             labelText: 'Source Document',
@@ -3027,7 +3101,7 @@ class _RequirementsImplementationScreenState
                   ),
                   const SizedBox(height: 12),
                   // Artifact URL
-                  TextField(
+                  VoiceTextField(
                     controller: artifactUrlController,
                     decoration: const InputDecoration(
                       labelText: 'Artifact URL',
@@ -3040,7 +3114,7 @@ class _RequirementsImplementationScreenState
                     children: [
                       Expanded(
                         flex: 3,
-                        child: TextField(
+                        child: VoiceTextField(
                           controller: conflictNoteController,
                           decoration: const InputDecoration(
                             labelText: 'Conflict Note',
@@ -3051,7 +3125,7 @@ class _RequirementsImplementationScreenState
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          value: selectedConflictImpact,
+                          initialValue: selectedConflictImpact,
                           decoration: const InputDecoration(
                             labelText: 'Impact',
                             isDense: true,
@@ -3127,7 +3201,7 @@ class _RequirementsImplementationScreenState
     int maxLines = 1,
     required ValueChanged<String> onChanged,
   }) {
-    return TextField(
+    return VoiceTextField(
       controller: TextEditingController(text: value),
       onChanged: onChanged,
       maxLines: maxLines,
@@ -3163,7 +3237,7 @@ class _RequirementsImplementationScreenState
   }) {
     final safeOptions = options.contains(value) ? options : [value, ...options];
     return DropdownButtonFormField<String>(
-      value: safeOptions.contains(value) ? value : safeOptions.first,
+      initialValue: safeOptions.contains(value) ? value : safeOptions.first,
       decoration: InputDecoration(
         labelText: label,
         isDense: true,
@@ -3206,7 +3280,7 @@ class _RequirementsImplementationScreenState
     }.toList()
       ..sort();
     return DropdownButtonFormField<String>(
-      value: safeOptions.contains(value.trim()) ? value.trim() : (safeOptions.isEmpty ? null : safeOptions.first),
+      initialValue: safeOptions.contains(value.trim()) ? value.trim() : (safeOptions.isEmpty ? null : safeOptions.first),
       decoration: InputDecoration(
         labelText: label,
         isDense: true,
@@ -3361,6 +3435,21 @@ class _RequirementsImplementationScreenState
         return 'Pending';
     }
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Requirements Implementation',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_requirements_implementation_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 // End of _RequirementsImplementationScreenState
@@ -3392,7 +3481,7 @@ class _TableColumn {
   const _TableColumn({
     required this.label,
     this.flex = 1,
-    this.alignment = Alignment.center,
+    this.alignment = Alignment.centerLeft,
   });
 
   final String label;
@@ -3491,6 +3580,421 @@ class _DesignSpecDocumentRow {
       status: map['status']?.toString() ?? 'Draft',
       fileName: map['fileName']?.toString() ?? '',
       storagePath: map['storagePath']?.toString() ?? '',
+    );
+  }
+}
+
+// =========================================================================
+// Verification Popup Dialog — Shown when a requirement row is clicked
+// =========================================================================
+class _VerificationPopupDialog extends StatefulWidget {
+  final RequirementRow requirement;
+  final List<String> ownerOptions;
+  final ValueChanged<RequirementRow> onUpdate;
+  final VoidCallback onEditAll;
+  final VoidCallback onUploadArtifact;
+  final VoidCallback onClose;
+
+  const _VerificationPopupDialog({
+    required this.requirement,
+    required this.ownerOptions,
+    required this.onUpdate,
+    required this.onEditAll,
+    required this.onUploadArtifact,
+    required this.onClose,
+  });
+
+  @override
+  State<_VerificationPopupDialog> createState() =>
+      _VerificationPopupDialogState();
+}
+
+class _VerificationPopupDialogState extends State<_VerificationPopupDialog> {
+  late RequirementRow _current;
+  late TextEditingController _reqIdController;
+  late TextEditingController _titleController;
+  late TextEditingController _definitionController;
+  late TextEditingController _artifactLabelController;
+  late TextEditingController _criteriaController;
+  late TextEditingController _testMethodController;
+  late TextEditingController _sourceDocController;
+  late TextEditingController _artifactUrlController;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.requirement;
+    _reqIdController = TextEditingController(text: _current.requirementId);
+    _titleController = TextEditingController(text: _current.title);
+    _definitionController = TextEditingController(text: _current.definition);
+    _artifactLabelController =
+        TextEditingController(text: _current.designArtifactLabel);
+    _criteriaController =
+        TextEditingController(text: _current.acceptanceCriteria);
+    _testMethodController = TextEditingController(text: _current.testMethod);
+    _sourceDocController =
+        TextEditingController(text: _current.sourceDocument);
+    _artifactUrlController =
+        TextEditingController(text: _current.designArtifactUrl);
+  }
+
+  @override
+  void dispose() {
+    _reqIdController.dispose();
+    _titleController.dispose();
+    _definitionController.dispose();
+    _artifactLabelController.dispose();
+    _criteriaController.dispose();
+    _testMethodController.dispose();
+    _sourceDocController.dispose();
+    _artifactUrlController.dispose();
+    super.dispose();
+  }
+
+  void _update(RequirementRow updated) {
+    setState(() => _current = updated);
+    widget.onUpdate(updated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isNarrow ? 16 : 40,
+        vertical: 24,
+      ),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: isNarrow ? double.infinity : 780,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Acceptance criteria & verification — ${_current.requirementId}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _current.title,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6B7280),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: widget.onEditAll,
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    label: const Text('Edit all fields',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF475569),
+                      side: const BorderSide(color: Color(0xFFE2E8F0)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: widget.onClose,
+                    icon: const Icon(Icons.close, size: 20),
+                    color: const Color(0xFF6B7280),
+                    padding: EdgeInsets.zero,
+                    constraints:
+                        const BoxConstraints(minWidth: 32, minHeight: 32),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+
+            // Scrollable content
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Row 1: ID, Owner, Type
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Requirement ID',
+                          controller: _reqIdController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(requirementId: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Owner',
+                          value: _current.owner,
+                          options: widget.ownerOptions,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(owner: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Requirement Type',
+                          value: _current.requirementType,
+                          options: const [
+                            'Functional',
+                            'Non-Functional',
+                            'Constraint',
+                            'Performance',
+                            'Security'
+                          ],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(requirementType: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 2: Source, Source Type, Validation
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupDropdown(
+                          label: 'Source (Rule Type)',
+                          value: _current.ruleType,
+                          options: const ['Internal', 'External'],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(ruleType: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Source Type',
+                          value: _current.sourceType,
+                          options: const [
+                            'Contract',
+                            'Vendor',
+                            'Regulatory',
+                            'Standard',
+                            'Stakeholder',
+                          ],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(sourceType: v)),
+                        ),
+                        _buildPopupDropdown(
+                          label: 'Validation Status',
+                          value: _current.validationStatus,
+                          options: const ['Mapped', 'Unmapped', 'In Review'],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(validationStatus: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 3: Description, Definition
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Description / Title',
+                          controller: _titleController,
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(title: v)),
+                        ),
+                        _buildPopupField(
+                          label: 'Definition / Intent',
+                          controller: _definitionController,
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(definition: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 4: Design artifact fields
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupDropdown(
+                          label: 'Design Artifact Type',
+                          value: _current.designArtifactType,
+                          options: const [
+                            'Figma',
+                            'PDF',
+                            'Confluence',
+                            'Jira',
+                            'Miro',
+                            'Spreadsheet',
+                            'Code',
+                            'Other',
+                          ],
+                          onChanged: (v) =>
+                              _update(_current.copyWith(designArtifactType: v)),
+                        ),
+                        _buildPopupField(
+                          label: 'Artifact Label',
+                          controller: _artifactLabelController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(designArtifactLabel: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 5: Acceptance Criteria, Test Method
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Acceptance Criteria',
+                          controller: _criteriaController,
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(acceptanceCriteria: v)),
+                        ),
+                        _buildPopupField(
+                          label: 'Test Method',
+                          controller: _testMethodController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(testMethod: v)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Row 6: Source Document, Artifact URL
+                    _buildPopupRow(
+                      children: [
+                        _buildPopupField(
+                          label: 'Source Document',
+                          controller: _sourceDocController,
+                          onChanged: (v) =>
+                              _update(_current.copyWith(sourceDocument: v)),
+                        ),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildPopupField(
+                                  label: 'Artifact URL',
+                                  controller: _artifactUrlController,
+                                  onChanged: (v) => _update(
+                                      _current.copyWith(designArtifactUrl: v)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton.icon(
+                                onPressed: widget.onUploadArtifact,
+                                icon: const Icon(Icons.upload_file,
+                                    size: 16, color: Color(0xFF64748B)),
+                                label: const Text('Upload'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF64748B),
+                                  side: const BorderSide(
+                                      color: Color(0xFFE2E8F0)),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Footer with close button
+            const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: widget.onClose,
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF6B7280),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPopupRow({required List<Widget> children}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children
+          .expand((w) => [Expanded(child: w), const SizedBox(width: 12)])
+          .toList()
+        ..removeLast(),
+    );
+  }
+
+  Widget _buildPopupField({
+    required String label,
+    required TextEditingController controller,
+    int maxLines = 1,
+    required ValueChanged<String> onChanged,
+  }) {
+    return VoiceTextField(
+      controller: controller,
+      onChanged: onChanged,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+    );
+  }
+
+  Widget _buildPopupDropdown({
+    required String label,
+    required String value,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    final effectiveOptions = <String>{...options, if (value.isNotEmpty) value}
+        .toList()
+      ..sort();
+    return DropdownButtonFormField<String>(
+      initialValue: effectiveOptions.contains(value) ? value : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: effectiveOptions
+          .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+          .toList(),
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
     );
   }
 }

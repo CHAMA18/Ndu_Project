@@ -11,7 +11,11 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 enum _TechnologyTab {
   inventory('Technology Inventory'),
   aiIntegrations('AI Integrations'),
@@ -299,15 +303,15 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: name,
                     decoration: const InputDecoration(labelText: 'Name'),
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: category,
                     decoration: const InputDecoration(labelText: 'Category'),
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: cost,
                     decoration: const InputDecoration(labelText: 'Cost'),
                   ),
@@ -325,7 +329,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                       setLocalState(() => status = value);
                     },
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: vendor,
                     decoration: const InputDecoration(labelText: 'Vendor'),
                   ),
@@ -432,11 +436,11 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: name,
                     decoration: const InputDecoration(labelText: 'Name'),
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: description,
                     decoration: const InputDecoration(labelText: 'Description'),
                   ),
@@ -454,7 +458,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                       setLocalState(() => status = value);
                     },
                   ),
-                  TextField(
+                  VoiceTextField(
                     controller: cost,
                     decoration: InputDecoration(
                       labelText: isExternal
@@ -525,11 +529,11 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: term,
                 decoration: const InputDecoration(labelText: 'Term'),
               ),
-              TextField(
+              VoiceTextField(
                 controller: definition,
                 maxLines: 5,
                 decoration: const InputDecoration(labelText: 'Definition'),
@@ -593,19 +597,19 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: recommendation,
                 decoration: const InputDecoration(labelText: 'Recommendation'),
               ),
-              TextField(
+              VoiceTextField(
                 controller: description,
                 decoration: const InputDecoration(labelText: 'Description'),
               ),
-              TextField(
+              VoiceTextField(
                 controller: cost,
                 decoration: const InputDecoration(labelText: 'Estimated Cost'),
               ),
-              TextField(
+              VoiceTextField(
                 controller: vendor,
                 decoration:
                     const InputDecoration(labelText: 'Suggested Vendor'),
@@ -944,13 +948,30 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                                     PlanningPhaseNavigation.goToNext(
                                   context,
                                   'technology',
-                                ),
-                              ),
+                                ), onExportPdf: _exportPdf),
                               const SizedBox(height: 18),
                               _buildTopMetrics(),
                               const SizedBox(height: 14),
                               _buildTabsBar(),
                               const SizedBox(height: 12),
+                              InnerPageNavigationHint(
+                                pageId: 'planning_technology',
+                                pageTitle: 'Technology Planning',
+                                sections: _TechnologyTab.values.map((tab) => InnerPageSection(
+                                  id: tab.name,
+                                  label: tab.label,
+                                  status: tab == _selectedTab
+                                      ? InnerPageSectionStatus.current
+                                      : InnerPageSectionStatus.available,
+                                  stepNumber: _TechnologyTab.values.indexOf(tab) + 1,
+                                )).toList(),
+                                currentSectionId: _selectedTab.name,
+                                onSectionTap: (sectionId) {
+                                  final tab = _TechnologyTab.values.firstWhere(
+                                      (t) => t.name == sectionId);
+                                  setState(() => _selectedTab = tab);
+                                },
+                              ),
                               _buildCurrentTabContent(),
                               const SizedBox(height: 24),
                               LaunchPhaseNavigation(
@@ -974,7 +995,12 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                 ),
               ],
             ),
-            const KazAiChatBubble(),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Technology Planning',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
           ],
         ),
       ),
@@ -1131,7 +1157,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: VoiceTextField(
                 onChanged: (value) => setState(() => _inventorySearch = value),
                 decoration: const InputDecoration(
                   hintText: 'Search technology...',
@@ -1459,6 +1485,21 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
           );
         }),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Technology',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_technology_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

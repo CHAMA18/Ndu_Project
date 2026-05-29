@@ -7,11 +7,10 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
-import 'package:ndu_project/widgets/progress_charts.dart';
-import 'package:ndu_project/widgets/progress_quick_actions.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:intl/intl.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
 /// Deliverables Tracking sub-page with Timeline view and full CRUD
 class DeliverablesTrackingWidget extends StatefulWidget {
   const DeliverablesTrackingWidget({
@@ -34,17 +33,6 @@ class _DeliverablesTrackingWidgetState
   DeliverableRow? _deletedItem;
   int? _deletedIndex;
   Timer? _undoTimer;
-
-  void _addNewDeliverable() {
-    final newDeliverable = DeliverableRow(
-      title: '',
-      description: '',
-      owner: '',
-      status: 'Not Started',
-    );
-    final updated = [newDeliverable, ..._deliverables];
-    widget.onDeliverablesChanged(updated);
-  }
 
   void _updateDeliverable(int index, DeliverableRow updated) {
     final updatedList = List<DeliverableRow>.from(_deliverables);
@@ -185,47 +173,9 @@ class _DeliverablesTrackingWidgetState
 
   @override
   Widget build(BuildContext context) {
-    // Prepare timeline data
-    final timelineData = _deliverables
-        .map((d) => {
-              'title': d.title,
-              'dueDate': d.dueDate,
-              'status': d.status,
-              'completionDate': d.completionDate,
-            })
-        .toList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Quick Actions
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            ProgressQuickActions(
-              onAdd: _addNewDeliverable,
-              onRegenerate: () {
-                // Regenerate all deliverables
-              },
-              showRegenerate: false, // Disable for now
-              showExport: false, // Disable for now
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        // Timeline Chart
-        if (_deliverables.isNotEmpty) ...[
-          const Text(
-            'Deliverable Timeline',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 12),
-          DeliverableTimelineChart(deliverables: timelineData),
-          const SizedBox(height: 24),
-        ],
         // Deliverables Table
         _buildDeliverablesTable(),
       ],
@@ -433,7 +383,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: titleController,
                     decoration: const InputDecoration(
                       labelText: 'Deliverable Title *',
@@ -443,7 +393,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                   const SizedBox(height: 12),
                   TextFormattingToolbar(controller: descriptionController),
                   const SizedBox(height: 6),
-                  TextField(
+                  VoiceTextField(
                     controller: descriptionController,
                     decoration: const InputDecoration(
                       labelText: 'Description (Prose)',
@@ -453,7 +403,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     maxLines: 3,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: ownerController,
                     decoration: const InputDecoration(
                       labelText: 'Owner',
@@ -461,7 +411,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: TextEditingController(
                       text: selectedDueDate != null
                           ? DateFormat('yyyy-MM-dd').format(selectedDueDate!)
@@ -506,7 +456,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: blockersController,
                     decoration: const InputDecoration(
                       labelText: 'Blockers',
@@ -516,7 +466,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     maxLines: 3,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: nextStepsController,
                     decoration: const InputDecoration(
                       labelText: 'Next Steps',
@@ -528,7 +478,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                   const SizedBox(height: 12),
                   TextFormattingToolbar(controller: notesController),
                   const SizedBox(height: 6),
-                  TextField(
+                  VoiceTextField(
                     controller: notesController,
                     decoration: const InputDecoration(
                       labelText: 'Notes',

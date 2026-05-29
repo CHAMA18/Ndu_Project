@@ -15,6 +15,8 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -66,7 +68,7 @@ class _AgileEpicsFeaturesScreenState
         }
       });
       if (_selectedEpicId != null) _loadFeatures();
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -198,7 +200,7 @@ class _AgileEpicsFeaturesScreenState
         }
         return Epic(title: 'Generated Epic');
       }).toList();
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
@@ -209,7 +211,7 @@ class _AgileEpicsFeaturesScreenState
     if (start == -1 || end == -1) return null;
     try {
       return _parseJson(text.substring(start, end + 1));
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -219,7 +221,7 @@ class _AgileEpicsFeaturesScreenState
       final result = jsonDecode(json);
       if (result is List) return result;
       return null;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -243,6 +245,11 @@ class _AgileEpicsFeaturesScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Epics & Features',
+                      ),
+                    ),
                   SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                 child: Column(
@@ -250,11 +257,12 @@ class _AgileEpicsFeaturesScreenState
                   children: [
                     PlanningPhaseHeader(
                       title: 'Epics & Features Planning',
+                      showImportButton: false,
+                      showContentButton: false,
                       onBack: () => PlanningPhaseNavigation.goToPrevious(
                           context, 'agile_epics_features'),
                       onForward: () => PlanningPhaseNavigation.goToNext(
-                          context, 'agile_epics_features'),
-                    ),
+                          context, 'agile_epics_features'), onExportPdf: _exportPdf),
                     const SizedBox(height: 32),
                     if (_isLoading)
                       const Center(child: CircularProgressIndicator())
@@ -376,7 +384,7 @@ Widget _buildEpicTile(int index, Epic epic) {
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
+                    child: VoiceTextField(
                       decoration: const InputDecoration(
                         hintText: 'Epic title',
                         border: InputBorder.none,
@@ -469,7 +477,7 @@ Widget _buildEpicTile(int index, Epic epic) {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: VoiceTextField(
                     decoration: const InputDecoration(
                       hintText: 'Feature title',
                       border: InputBorder.none,
@@ -579,7 +587,7 @@ Widget _buildEpicTile(int index, Epic epic) {
           Text('$label: ', style: TextStyle(fontSize: 11, color: _kMuted)),
           SizedBox(
             width: 80,
-            child: TextField(
+            child: VoiceTextField(
               decoration:
                   const InputDecoration(border: InputBorder.none, isDense: true),
               style: const TextStyle(fontSize: 11),
@@ -602,6 +610,21 @@ Widget _buildEpicTile(int index, Epic epic) {
       child: Center(
         child: Text(message, style: TextStyle(color: _kMuted, fontSize: 14)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Epics & Features',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_epics_features_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

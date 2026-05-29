@@ -17,7 +17,10 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class PlanningRequirementsScreen extends StatefulWidget {
   const PlanningRequirementsScreen({super.key});
 
@@ -1083,6 +1086,11 @@ $requirementsList
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Requirements',
+                      ),
+                    ),
                   const AdminEditToggle(),
                   Column(
                     children: [
@@ -1099,6 +1107,8 @@ $requirementsList
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
+                                    PlanningPhaseHeader(title: 'Requirements', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                                    const SizedBox(height: 16),
                                     _roundedField(
                                       controller: _notesController,
                                       hint: 'Input your notes here...',
@@ -1292,6 +1302,7 @@ $requirementsList
             ),
           ),
           const Spacer(),
+          const SizedBox(width: 12),
           Row(
             children: [
               CircleAvatar(
@@ -1537,7 +1548,7 @@ $requirementsList
         border: Border.all(color: const Color(0xFFE4E7EC)),
       ),
       padding: const EdgeInsets.all(14),
-      child: TextField(
+      child: VoiceTextField(
         controller: controller,
         minLines: minLines,
         maxLines: null,
@@ -1549,6 +1560,21 @@ $requirementsList
         ),
         style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Requirements',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_requirements_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -1731,7 +1757,7 @@ class _RequirementRow {
                   ],
                 ),
               ),
-              TextField(
+              VoiceTextField(
                 controller: descriptionController,
                 minLines: 2,
                 maxLines: null,
@@ -1769,7 +1795,7 @@ class _RequirementRow {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
+          child: VoiceTextField(
             controller: roleController,
             maxLines: 1,
             onChanged: (_) => onChanged?.call(),
@@ -1806,7 +1832,7 @@ class _RequirementRow {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
+          child: VoiceTextField(
             controller: sourceController,
             maxLines: 1,
             onChanged: (_) => onChanged?.call(),
@@ -1821,7 +1847,7 @@ class _RequirementRow {
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: TextField(
+          child: VoiceTextField(
             controller: commentsController,
             minLines: 2,
             maxLines: null,
@@ -2198,7 +2224,7 @@ class _MemberPickerDialogState extends State<_MemberPickerDialog> {
         height: 420,
         child: Column(
           children: [
-            TextField(
+            VoiceTextField(
               controller: _searchController,
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(

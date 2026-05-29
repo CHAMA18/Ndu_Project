@@ -5,7 +5,6 @@ import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/actual_vs_planned_gap_analysis_screen.dart';
 import 'package:ndu_project/screens/demobilize_team_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -15,11 +14,12 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 class ProjectCloseOutScreen extends StatefulWidget {
   const ProjectCloseOutScreen({
     super.key,
@@ -89,15 +89,50 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Project Close Out',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _selectedView == _CloseOutView.longForm
+                          ? 'Summary View'
+                          : 'Full View',
+                      icon: _selectedView == _CloseOutView.longForm
+                          ? Icons.summarize_outlined
+                          : Icons.list_alt,
+                      tone: ExecutionActionTone.secondary,
+                      onPressed: () => setState(() {
+                        _selectedView = _selectedView == _CloseOutView.longForm
+                            ? _CloseOutView.summarized
+                            : _CloseOutView.longForm;
+                      }),
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             if (_selectedView == _CloseOutView.longForm) ...[
@@ -119,46 +154,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Project Close Out',
-      description:
-          'Formally close the project with final approvals, archive documentation, and capture lessons learned.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isExporting ? 'Exporting…' : 'Export PDF',
-            icon: Icons.picture_as_pdf_outlined,
-            tone: ExecutionActionTone.secondary,
-            isLoading: _isExporting,
-            onPressed: _isExporting ? null : _exportPdf,
-          ),
-          ExecutionActionItem(
-            label: _selectedView == _CloseOutView.longForm
-                ? 'Summary View'
-                : 'Full View',
-            icon: _selectedView == _CloseOutView.longForm
-                ? Icons.summarize_outlined
-                : Icons.list_alt,
-            tone: ExecutionActionTone.secondary,
-            onPressed: () => setState(() {
-              _selectedView = _selectedView == _CloseOutView.longForm
-                  ? _CloseOutView.summarized
-                  : _CloseOutView.longForm;
-            }),
-          ),
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMetricsRow() {
     final total = _closeOutChecklist.length;
@@ -208,10 +204,36 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       title: 'Close-Out Checklist',
       subtitle:
           'Verify all items are addressed before formally closing the project.',
-      columns: const ['Category', 'Item', 'Status', 'Notes'],
+      columns: const [LaunchColumn(label: 'Category', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: LaunchCloseOutCheckItem.categories), LaunchColumn(label: 'Item', flexible: true, fieldType: LaunchFieldType.text, hint: 'Item'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'In Progress', 'Complete']), LaunchColumn(label: 'Notes', flexible: true, fieldType: LaunchFieldType.text, hint: 'Notes')],
       rowCount: _closeOutChecklist.length,
-      onAdd: () {
-        setState(() => _closeOutChecklist.add(LaunchCloseOutCheckItem()));
+      onAddValues: (values) {
+        setState(() {
+          _closeOutChecklist.add(LaunchCloseOutCheckItem(
+            category: values['Category'] ?? 'Deliverables',
+            item: values['Item'] ?? '',
+            status: values['Status'] ?? 'Pending',
+            notes: values['Notes'] ?? '',
+          ));
+        });
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Deliverables', allowedValues: ['Deliverables', 'Contracts', 'Vendors', 'Team', 'Documentation', 'Finance']),
+        CsvColumnSpec(key: 'item', label: 'Item', sampleValue: 'Verify final deliverables'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'In Progress', 'Complete']),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'On track'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _closeOutChecklist.add(LaunchCloseOutCheckItem(
+              category: row['category'] ?? '',
+              item: row['item'] ?? '',
+              status: row['status'] ?? 'Pending',
+              notes: row['notes'] ?? '',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Add close-out verification tasks by category.',
@@ -278,10 +300,39 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       title: 'Final Approvals',
       subtitle:
           'Stakeholders who must sign off before the project is formally closed.',
-      columns: const ['Stakeholder', 'Role', 'Status', 'Date', 'Notes'],
+      columns: const [LaunchColumn(label: 'Stakeholder', flexible: true, fieldType: LaunchFieldType.text, hint: 'Name'), LaunchColumn(label: 'Role', width: 120, fieldType: LaunchFieldType.text, hint: 'Role'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'Approved', 'Rejected']), LaunchColumn(label: 'Date', width: 130, fieldType: LaunchFieldType.date, hint: 'Date'), LaunchColumn(label: 'Notes', flexible: true, fieldType: LaunchFieldType.text, hint: 'Notes')],
       rowCount: _approvals.length,
-      onAdd: () {
-        setState(() => _approvals.add(LaunchApproval()));
+      onAddValues: (values) {
+        setState(() {
+          _approvals.add(LaunchApproval(
+            stakeholder: values['Stakeholder'] ?? '',
+            role: values['Role'] ?? '',
+            status: values['Status'] ?? 'Pending',
+            date: values['Date'] ?? '',
+            notes: values['Notes'] ?? '',
+          ));
+        });
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'stakeholder', label: 'Stakeholder', sampleValue: 'Jane Smith'),
+        CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Project Sponsor'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'Approved', 'Rejected']),
+        CsvColumnSpec(key: 'date', label: 'Date', sampleValue: '2025-01-15'),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'Awaiting review'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _approvals.add(LaunchApproval(
+              stakeholder: row['stakeholder'] ?? '',
+              role: row['role'] ?? '',
+              status: row['status'] ?? 'Pending',
+              date: row['date'] ?? '',
+              notes: row['notes'] ?? '',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Add stakeholders who need to sign off.',
@@ -329,7 +380,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
             LaunchDateCell(
               value: a.date,
               hint: 'Date',
-              width: 100,
+              width: 130,
               onChanged: (s) {
                 _approvals[i] = a.copyWith(date: s);
                 _save();
@@ -356,15 +407,44 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       subtitle:
           'Document repositories, code, and access changes required for closure.',
       columns: const [
-        'Repository',
-        'Type',
-        'Retention',
-        'Access Change',
-        'Status'
+        LaunchColumn(label: 'Repository', flexible: true, fieldType: LaunchFieldType.text, hint: 'Repository'),
+        LaunchColumn(label: 'Type', width: 130, fieldType: LaunchFieldType.text, hint: 'Type'),
+        LaunchColumn(label: 'Retention', width: 130, fieldType: LaunchFieldType.text, hint: 'Retention'),
+        LaunchColumn(label: 'Access Change', width: 120, fieldType: LaunchFieldType.text, hint: 'Access'),
+        LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'In Progress', 'Complete']),
       ],
       rowCount: _archive.length,
-      onAdd: () {
-        setState(() => _archive.add(LaunchArchiveItem()));
+      onAddValues: (values) {
+        setState(() {
+          _archive.add(LaunchArchiveItem(
+            repository: values['Repository'] ?? '',
+            documentType: values['Type'] ?? '',
+            retentionPeriod: values['Retention'] ?? '',
+            accessChange: values['Access Change'] ?? '',
+            status: values['Status'] ?? 'Pending',
+          ));
+        });
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'repository', label: 'Repository', sampleValue: 'GitHub Repo'),
+        CsvColumnSpec(key: 'documentType', label: 'Type', sampleValue: 'Source Code'),
+        CsvColumnSpec(key: 'retentionPeriod', label: 'Retention', sampleValue: '5 years'),
+        CsvColumnSpec(key: 'accessChange', label: 'Access Change', sampleValue: 'Read-only'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'In Progress', 'Complete']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _archive.add(LaunchArchiveItem(
+              repository: row['repository'] ?? '',
+              documentType: row['documentType'] ?? '',
+              retentionPeriod: row['retentionPeriod'] ?? '',
+              accessChange: row['accessChange'] ?? '',
+              status: row['status'] ?? 'Pending',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'List repositories and documents for archival.',
@@ -401,7 +481,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
             LaunchEditableCell(
               value: a.retentionPeriod,
               hint: 'Retention',
-              width: 90,
+              width: 130,
               onChanged: (s) {
                 _archive[i] = a.copyWith(retentionPeriod: s);
                 _save();
@@ -410,7 +490,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
             LaunchEditableCell(
               value: a.accessChange,
               hint: 'Access',
-              width: 110,
+              width: 130,
               onChanged: (s) {
                 _archive[i] = a.copyWith(accessChange: s);
                 _save();
@@ -439,10 +519,10 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       subtitle:
           'What went well, what to improve, and recommendations for future projects.',
       collapsible: true,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       headerIcon: Icons.auto_stories_outlined,
       headerIconColor: const Color(0xFFF59E0B),
-      child: TextFormField(
+      child: VoiceTextFormField(
         initialValue: _lessonsLearned.notes,
         maxLines: 8,
         style: const TextStyle(fontSize: 13, height: 1.6),
@@ -481,7 +561,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
         title: 'Close-Out Summary',
         subtitle: 'Aggregated view of all close-out progress.',
         collapsible: true,
-        initiallyExpanded: true,
+        initiallyExpanded: false,
         headerIcon: Icons.assignment_outlined,
         headerIconColor: const Color(0xFF10B981),
         child: Column(
@@ -529,7 +609,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
         subtitle:
             '${_approvals.where((a) => a.status == 'Approved').length} of ${_approvals.length} approved.',
         collapsible: true,
-        initiallyExpanded: true,
+        initiallyExpanded: false,
         headerIcon: Icons.fact_check_outlined,
         headerIconColor: const Color(0xFF6366F1),
         child: _approvals.isEmpty
@@ -745,9 +825,9 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Project Close Out',
         sections: const {
@@ -763,6 +843,19 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       debugPrint('Close-out AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _closeOutChecklist.isNotEmpty ||
         _approvals.isNotEmpty ||
         _archive.isNotEmpty;
@@ -771,21 +864,21 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       return;
     }
     setState(() {
-      _closeOutChecklist = (gen['checklist'] ?? [])
+      _closeOutChecklist = (generated['checklist'] ?? [])
           .map((m) => LaunchCloseOutCheckItem(
               item: _s(m['title']),
               notes: _s(m['details']),
               status: _ns(m['status'], 'Pending')))
           .where((i) => i.item.isNotEmpty)
           .toList();
-      _approvals = (gen['approvals'] ?? [])
+      _approvals = (generated['approvals'] ?? [])
           .map((m) => LaunchApproval(
               stakeholder: _s(m['title']),
               role: _s(m['details']),
               status: _ns(m['status'], 'Pending')))
           .where((i) => i.stakeholder.isNotEmpty)
           .toList();
-      _archive = (gen['archive'] ?? [])
+      _archive = (generated['archive'] ?? [])
           .map((m) => LaunchArchiveItem(
               repository: _s(m['title']),
               documentType: _s(m['details']),

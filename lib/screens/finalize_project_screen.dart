@@ -7,10 +7,13 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class FinalizeProjectScreen extends StatefulWidget {
   const FinalizeProjectScreen({super.key});
 
@@ -74,7 +77,21 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadFromFirestore());
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Finalize Project',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['finalize_project_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _summaryTitleController.dispose();
     _summaryDescriptionController.dispose();
@@ -288,6 +305,8 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              PlanningPhaseHeader(title: 'Finalize Project', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
                               _buildOverviewCards(),
                               const SizedBox(height: 24),
                               if (_isLoading)
@@ -314,7 +333,12 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Finalize Project',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -540,7 +564,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
     Color getSafeAccent() {
       try {
         return metric.accent;
-      } catch (_) {
+      } catch (e) {
         return const Color(0xFF0EA5E9);
       }
     }
@@ -861,7 +885,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
         children: [
           Expanded(
             flex: 4,
-            child: TextFormField(
+            child: VoiceTextFormField(
               key: ValueKey('checklist-title-${item.id}'),
               initialValue: item.title,
               decoration: _inputDecoration('Checklist item'),
@@ -873,7 +897,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: TextFormField(
+            child: VoiceTextFormField(
               key: ValueKey('checklist-owner-${item.id}'),
               initialValue: item.owner,
               decoration: _inputDecoration('Owner'),
@@ -884,7 +908,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: TextFormField(
+            child: VoiceTextFormField(
               key: ValueKey('checklist-date-${item.id}'),
               initialValue: item.dueDate,
               decoration: _inputDecoration('Due date'),
@@ -964,7 +988,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
         children: [
           Expanded(
             flex: 3,
-            child: TextFormField(
+            child: VoiceTextFormField(
               key: ValueKey('signoff-name-${item.id}'),
               initialValue: item.name,
               decoration: _inputDecoration('Stakeholder'),
@@ -975,7 +999,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           const SizedBox(width: 12),
           Expanded(
             flex: 3,
-            child: TextFormField(
+            child: VoiceTextFormField(
               key: ValueKey('signoff-role-${item.id}'),
               initialValue: item.role,
               decoration: _inputDecoration('Role'),
@@ -1002,7 +1026,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: TextFormField(
+            child: VoiceTextFormField(
               key: ValueKey('signoff-date-${item.id}'),
               initialValue: item.decisionDate,
               decoration: _inputDecoration('Decision date'),
@@ -1441,7 +1465,7 @@ class _InsightCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextFormField(
+          VoiceTextFormField(
             key: ValueKey('insight-title-${item.id}'),
             initialValue: item.title,
             decoration: const InputDecoration(
@@ -1456,7 +1480,7 @@ class _InsightCard extends StatelessWidget {
                 onChanged(item.copyWith(title: value)),
           ),
           const SizedBox(height: 8),
-          TextFormField(
+          VoiceTextFormField(
             key: ValueKey('insight-detail-${item.id}'),
             initialValue: item.detail,
             decoration: const InputDecoration(
@@ -1688,7 +1712,7 @@ class _SnapshotMetric {
         if (map['accent'] is int && map['accent'] != null) {
           try {
             return Color(map['accent'] as int);
-          } catch (_) {
+          } catch (e) {
             // Invalid color value, use default
           }
         }

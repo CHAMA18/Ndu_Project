@@ -20,6 +20,9 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class VendorTrackingScreen extends StatefulWidget {
   const VendorTrackingScreen({super.key});
 
@@ -34,7 +37,6 @@ class VendorTrackingScreen extends StatefulWidget {
 }
 
 class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
-  final Set<String> _selectedFilters = {'All vendors'};
   bool _isSeedingVendors = false;
 
   final List<_KpiRow> _customKpiRows = [];
@@ -141,9 +143,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
-    final policy = _crudPolicy;
 
     return ResponsiveScaffold(
       activeItemLabel: 'Vendor Tracking',
@@ -154,21 +154,12 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Vendor Tracking',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
-          const SizedBox(height: 16),
-          _buildHeader(isNarrow, policy),
-            const SizedBox(height: 16),
-            _buildFilterChips(),
-            const SizedBox(height: 14),
-            _buildGovernanceStrip(policy),
-            const SizedBox(height: 20),
-            _buildStatsRow(isNarrow),
-            const SizedBox(height: 24),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 24),
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -194,104 +185,6 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
     );
   }
 
-  Widget _buildHeader(bool isNarrow, _VendorCrudPolicy policy) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFC812),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'VENDOR OVERSIGHT',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Vendor Tracking',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827)),
-                  ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Monitor vendor performance, compliance, and delivery health across execution.',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                  ),
-                ],
-              ),
-            ),
-            if (!isNarrow) _buildHeaderActions(policy),
-          ],
-        ),
-        if (isNarrow) ...[
-          const SizedBox(height: 12),
-          _buildHeaderActions(policy),
-        ],
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions(_VendorCrudPolicy policy) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add vendor',
-            onPressed:
-                policy.canCreate ? () => _showAddVendorDialog(context) : null),
-        _actionButton(Icons.assessment_outlined, 'Quarterly review',
-            onPressed: policy.canReview
-                ? () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Quarterly review started. Use vendor status and score columns to capture decisions.')),
-                    );
-                  }
-                : null),
-        _actionButton(Icons.description_outlined, 'Export scorecard',
-            onPressed: policy.canExport
-                ? () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Scorecard export is queued while report templates are finalized.')),
-                    );
-                  }
-                : null),
-        _primaryButton(
-          'Start vendor audit',
-          onPressed: policy.canAudit
-              ? () {
-                  setState(() {
-                    _selectedFilters
-                      ..clear()
-                      ..add('At risk');
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Vendor audit started. Filter set to at-risk vendors.')),
-                  );
-                }
-              : null,
-        ),
-      ],
-    );
-  }
-
   Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
     final enabled = onPressed != null;
     return OutlinedButton.icon(
@@ -309,233 +202,6 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
         side: const BorderSide(color: Color(0xFFE2E8F0)),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _primaryButton(String label, {VoidCallback? onPressed}) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      icon: const Icon(Icons.play_arrow, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _buildGovernanceStrip(_VendorCrudPolicy policy) {
-    final items = [
-      _GovernanceItem(Icons.verified_user_outlined, 'Access', policy.roleLabel,
-          policy.roleColor),
-      _GovernanceItem(
-          Icons.add_circle_outline,
-          'Create',
-          policy.canCreate ? 'Enabled' : 'Restricted',
-          policy.canCreate ? const Color(0xFF10B981) : const Color(0xFF94A3B8)),
-      _GovernanceItem(
-          Icons.edit_outlined,
-          'Update',
-          policy.canUpdate ? 'Enabled' : 'Read-only',
-          policy.canUpdate ? const Color(0xFF0EA5E9) : const Color(0xFF94A3B8)),
-      _GovernanceItem(
-          Icons.delete_outline,
-          'Delete',
-          policy.canDelete ? 'Admin only' : 'Restricted',
-          policy.canDelete ? const Color(0xFFEF4444) : const Color(0xFF94A3B8)),
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        alignment: WrapAlignment.spaceBetween,
-        children: [
-          ...items.map(_buildGovernancePill),
-          Text(
-            policy.hasProject
-                ? 'Scorecard, SLA, risk, compliance, review, and remediation controls are separated by access level.'
-                : 'Open a project to enable vendor governance controls.',
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGovernancePill(_GovernanceItem item) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: item.color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: item.color.withOpacity(0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(item.icon, size: 16, color: item.color),
-          const SizedBox(width: 8),
-          Text('${item.label}: ',
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w600)),
-          Text(item.value,
-              style: TextStyle(
-                  fontSize: 12,
-                  color: item.color,
-                  fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    const filters = ['All vendors', 'At risk', 'Watchlist', 'Strategic', 'New'];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              if (selected) {
-                _selectedFilters.remove(filter);
-              } else {
-                _selectedFilters.add(filter);
-              }
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFF111827) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Text(
-              filter,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF475569),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildStatsRow(bool isNarrow) {
-    if (_projectId == null || _projectId!.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return StreamBuilder<List<VendorModel>>(
-      stream: VendorService.streamVendors(_projectId!),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return _buildPermissionError(snapshot.error);
-        }
-        if (!snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
-
-        final vendors = snapshot.data!;
-        final activeVendors = vendors.where((v) => v.status == 'Active').length;
-        // Calculate pending deliveries (vendors with incomplete orders)
-        // For now, we'll use vendors with status != 'Completed' as pending
-        final pendingDeliveries = vendors
-            .where((v) => v.status != 'Completed' && v.status != 'Expired')
-            .length;
-        // Calculate vendor risk level based on criticality
-        final highCriticalityCount =
-            vendors.where((v) => v.criticality.toLowerCase() == 'high').length;
-        final mediumCriticalityCount = vendors
-            .where((v) => v.criticality.toLowerCase() == 'medium')
-            .length;
-        final riskLevel = highCriticalityCount > 0
-            ? 'High'
-            : mediumCriticalityCount > vendors.length * 0.5
-                ? 'Medium'
-                : 'Low';
-
-        final stats = [
-          _StatCardData('Active Vendors', '$activeVendors',
-              '${vendors.length} total', const Color(0xFF0EA5E9)),
-          _StatCardData('Pending Deliveries', '$pendingDeliveries',
-              'Open/incomplete orders', const Color(0xFFF59E0B)),
-          _StatCardData(
-              'Vendor Risk Level',
-              riskLevel,
-              highCriticalityCount > 0
-                  ? '$highCriticalityCount high criticality'
-                  : 'All stable',
-              const Color(0xFFEF4444)),
-        ];
-
-        if (isNarrow) {
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: stats.map((stat) => _buildStatCard(stat)).toList(),
-          );
-        }
-
-        return Row(
-          children: stats
-              .map((stat) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: _buildStatCard(stat),
-                    ),
-                  ))
-              .toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 6),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
-        ],
       ),
     );
   }
@@ -579,9 +245,8 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
           }
 
           final vendors = snapshot.data ?? [];
-          final filteredVendors = _filterVendors(vendors);
 
-          if (filteredVendors.isEmpty) {
+          if (vendors.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -610,7 +275,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
           }
 
           return VendorsTableWidget(
-            vendors: filteredVendors,
+            vendors: vendors,
             canEdit: policy.canUpdate,
             canDelete: policy.canDelete,
             canUseAi: policy.canUpdate,
@@ -638,25 +303,6 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
         child: Text(message, style: const TextStyle(color: Color(0xFFDC2626))),
       ),
     );
-  }
-
-  List<VendorModel> _filterVendors(List<VendorModel> vendors) {
-    if (_selectedFilters.contains('All vendors')) return vendors;
-    return vendors.where((v) {
-      if (_selectedFilters.contains('At risk') && v.status == 'At risk') {
-        return true;
-      }
-      if (_selectedFilters.contains('Watchlist') && v.status == 'Watch') {
-        return true;
-      }
-      if (_selectedFilters.contains('Strategic') && v.rating == 'A') {
-        return true;
-      }
-      if (_selectedFilters.contains('New') && v.status == 'Onboard') {
-        return true;
-      }
-      return false;
-    }).toList();
   }
 
   Widget _buildPerformancePanel() {
@@ -874,25 +520,27 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
             Text(isEdit ? 'Edit KPI Metric' : 'Add KPI Metric', style: const TextStyle(fontSize: 16)),
           ],
         ),
-        content: SizedBox(
+        content: SingleChildScrollView(
+          child: SizedBox(
           width: 480,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: metricCtl, decoration: const InputDecoration(labelText: 'Metric name', isDense: true, border: OutlineInputBorder())),
+              VoiceTextField(controller: metricCtl, decoration: const InputDecoration(labelText: 'Metric name', isDense: true, border: OutlineInputBorder())),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: TextField(controller: valueCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Actual %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
+                Expanded(child: VoiceTextField(controller: valueCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Actual %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: targetCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
+                Expanded(child: VoiceTextField(controller: targetCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
               ]),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: TextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
+                Expanded(child: VoiceTextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: trendCtl, decoration: const InputDecoration(labelText: 'Trend note', isDense: true, border: OutlineInputBorder()))),
+                Expanded(child: VoiceTextField(controller: trendCtl, decoration: const InputDecoration(labelText: 'Trend note', isDense: true, border: OutlineInputBorder()))),
               ]),
             ],
+          ),
           ),
         ),
         actions: [
@@ -1154,14 +802,15 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
             const SizedBox(width: 8),
             Text(isEdit ? 'Edit Risk Signal' : 'Add Risk Signal', style: const TextStyle(fontSize: 16)),
           ]),
-          content: SizedBox(
+          content: SingleChildScrollView(
+            child: SizedBox(
             width: 480,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: signalCtl, decoration: const InputDecoration(labelText: 'Signal name', isDense: true, border: OutlineInputBorder())),
+                VoiceTextField(controller: signalCtl, decoration: const InputDecoration(labelText: 'Signal name', isDense: true, border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: descCtl, decoration: const InputDecoration(labelText: 'Description', isDense: true, border: OutlineInputBorder()), maxLines: 2),
+                VoiceTextField(controller: descCtl, decoration: const InputDecoration(labelText: 'Description', isDense: true, border: OutlineInputBorder()), maxLines: 2),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: DropdownButtonFormField<String>(
@@ -1180,11 +829,12 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 ]),
                 const SizedBox(height: 12),
                 Row(children: [
-                  Expanded(child: TextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
+                  Expanded(child: VoiceTextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
                   const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: catCtl, decoration: const InputDecoration(labelText: 'Category', isDense: true, border: OutlineInputBorder()))),
+                  Expanded(child: VoiceTextField(controller: catCtl, decoration: const InputDecoration(labelText: 'Category', isDense: true, border: OutlineInputBorder()))),
                 ]),
               ],
+            ),
             ),
           ),
           actions: [
@@ -1373,7 +1023,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: titleCtl, decoration: const InputDecoration(labelText: 'Action item', isDense: true, border: OutlineInputBorder())),
+                VoiceTextField(controller: titleCtl, decoration: const InputDecoration(labelText: 'Action item', isDense: true, border: OutlineInputBorder())),
                 const SizedBox(height: 12),
                 Row(children: [
                   Expanded(child: DropdownButtonFormField<String>(
@@ -1392,9 +1042,9 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 ]),
                 const SizedBox(height: 12),
                 Row(children: [
-                  Expanded(child: TextField(controller: dueCtl, decoration: const InputDecoration(labelText: 'Due date', isDense: true, border: OutlineInputBorder(), hintText: 'e.g. Nov 15'))),
+                  Expanded(child: VoiceTextField(controller: dueCtl, decoration: const InputDecoration(labelText: 'Due date', isDense: true, border: OutlineInputBorder(), hintText: 'e.g. Nov 15'))),
                   const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
+                  Expanded(child: VoiceTextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
                 ]),
               ],
             ),
@@ -1545,7 +1195,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                     controller: nameController,
                     decoration:
                         const InputDecoration(labelText: 'Vendor Name *')),
@@ -1570,7 +1220,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 ],
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedCategory,
+                  value: selectedCategory,
                   decoration: const InputDecoration(labelText: 'Category *'),
                   items: const [
                     'Logistics',
@@ -1590,7 +1240,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedCriticality,
+                  value: selectedCriticality,
                   decoration: const InputDecoration(labelText: 'Criticality *'),
                   items: const ['High', 'Medium', 'Low']
                       .map((crit) =>
@@ -1603,23 +1253,23 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: slaController,
                     decoration: const InputDecoration(
                         labelText: 'SLA % *', hintText: 'e.g., 92%')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: slaPerformanceController,
                     decoration: const InputDecoration(
                         labelText: 'SLA Performance (0.0-1.0) *',
                         hintText: 'e.g., 0.85')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: leadTimeController,
                     decoration: const InputDecoration(
                         labelText: 'Lead Time *', hintText: 'e.g., 14 Days')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: requiredDeliverablesController,
                     decoration: const InputDecoration(
                         labelText: 'Required Deliverables (SLA Terms)',
@@ -1627,7 +1277,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                     maxLines: 5),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: ratingController.text,
+                  value: ratingController.text,
                   decoration: const InputDecoration(labelText: 'Rating *'),
                   items: ['A', 'B', 'C', 'D']
                       .map((r) => DropdownMenuItem(value: r, child: Text(r)))
@@ -1636,7 +1286,7 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: statusController.text,
+                  value: statusController.text,
                   decoration: const InputDecoration(labelText: 'Status *'),
                   items: ['Active', 'Watch', 'At risk', 'Onboard']
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -1644,14 +1294,14 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                   onChanged: (v) => statusController.text = v ?? 'Active',
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: nextReviewController,
                     decoration: const InputDecoration(
                         labelText: 'Next Review *', hintText: 'e.g., Oct 28')),
                 if (contracts.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String?>(
-                    initialValue: selectedContractId,
+                    value: selectedContractId,
                     decoration: const InputDecoration(
                         labelText: 'Linked Contract (Optional)'),
                     items: [
@@ -1669,29 +1319,29 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
                   ),
                 ],
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: onTimeController,
                     decoration: const InputDecoration(
                         labelText: 'On-time Delivery (0.0-1.0) *')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: incidentController,
                     decoration: const InputDecoration(
                         labelText: 'Incident Response (0.0-1.0) *')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: qualityController,
                     decoration: const InputDecoration(
                         labelText: 'Quality Score (0.0-1.0) *')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: costController,
                     decoration: const InputDecoration(
                         labelText: 'Cost Adherence (0.0-1.0) *')),
                 const SizedBox(height: 12),
                 TextFormattingToolbar(controller: notesController),
                 const SizedBox(height: 6),
-                TextField(
+                VoiceTextField(
                     controller: notesController,
                     decoration: const InputDecoration(
                         labelText: 'Vendor Notes',
@@ -1795,6 +1445,21 @@ class _VendorTrackingScreenState extends State<VendorTrackingScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Vendor Tracking',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_vendor_tracking_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _PanelShell extends StatelessWidget {
@@ -1860,15 +1525,6 @@ class _PanelShell extends StatelessWidget {
       ),
     );
   }
-}
-
-class _GovernanceItem {
-  const _GovernanceItem(this.icon, this.label, this.value, this.color);
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
 }
 
 class _VendorCrudPolicy {
@@ -1978,11 +1634,4 @@ class _ActionRow {
   final String status;
 }
 
-class _StatCardData {
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
 
-  final String label;
-  final String value;
-  final String supporting;
-  final Color color;
-}

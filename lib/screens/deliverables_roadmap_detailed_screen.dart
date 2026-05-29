@@ -8,7 +8,11 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 const Color _kBackground = Color(0xFFF7F8FC);
 const Color _kAccent = Color(0xFFFFC812);
 const Color _kHeadline = Color(0xFF1A1D1F);
@@ -152,7 +156,12 @@ class _DeliverablesRoadmapDetailedScreenState
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Detailed Deliverables',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );
@@ -161,6 +170,19 @@ class _DeliverablesRoadmapDetailedScreenState
   Widget _buildContent() {
     return Column(
       children: [
+        PlanningPhaseHeader(
+          title: 'Detailed Deliverables',
+          showImportButton: false,
+          showContentButton: false,
+          onBack: () => PlanningPhaseNavigation.goToPrevious(
+            context,
+            'deliverables_roadmap_detailed',
+          ),
+          onForward: () => PlanningPhaseNavigation.goToNext(
+            context,
+            'deliverables_roadmap_detailed',
+          ), onExportPdf: _exportPdf),
+        const SizedBox(height: 16),
         _buildHeader(),
         Expanded(
           child: SingleChildScrollView(
@@ -228,7 +250,7 @@ class _DeliverablesRoadmapDetailedScreenState
     return Row(
       children: [
         Expanded(
-          child: TextField(
+          child: VoiceTextField(
             decoration: InputDecoration(
               hintText: 'Search deliverables...',
               prefixIcon: const Icon(Icons.search),
@@ -828,6 +850,21 @@ class _DeliverablesRoadmapDetailedScreenState
     fontSize: 14,
     color: Color(0xFF374151),
   );
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Deliverables Roadmap Detailed',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_deliverables_roadmap_detailed_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _AddDeliverableDialog extends StatefulWidget {
@@ -868,7 +905,7 @@ class _AddDeliverableDialogState extends State<_AddDeliverableDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextFormField(
+              VoiceTextFormField(
                 controller: _titleController,
                 decoration: const InputDecoration(
                   labelText: 'Title *',
@@ -877,7 +914,7 @@ class _AddDeliverableDialogState extends State<_AddDeliverableDialog> {
                 validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              VoiceTextFormField(
                 controller: _descriptionController,
                 maxLines: 3,
                 decoration: const InputDecoration(
@@ -887,7 +924,7 @@ class _AddDeliverableDialogState extends State<_AddDeliverableDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<DeliverableCategory>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category *',
                   border: OutlineInputBorder(),
@@ -902,7 +939,7 @@ class _AddDeliverableDialogState extends State<_AddDeliverableDialog> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<RoadmapDeliverablePriority>(
-                value: _selectedPriority,
+                initialValue: _selectedPriority,
                 decoration: const InputDecoration(
                   labelText: 'Priority',
                   border: OutlineInputBorder(),
@@ -916,7 +953,7 @@ class _AddDeliverableDialogState extends State<_AddDeliverableDialog> {
                 onChanged: (v) => setState(() => _selectedPriority = v!),
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              VoiceTextFormField(
                 controller: _assigneeController,
                 decoration: const InputDecoration(
                   labelText: 'Assignee',
@@ -1059,7 +1096,7 @@ class _EditDeliverableDialogState extends State<_EditDeliverableDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
+            VoiceTextField(
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Title',
@@ -1067,7 +1104,7 @@ class _EditDeliverableDialogState extends State<_EditDeliverableDialog> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
+            VoiceTextField(
               controller: _descriptionController,
               maxLines: 3,
               decoration: const InputDecoration(
@@ -1077,7 +1114,7 @@ class _EditDeliverableDialogState extends State<_EditDeliverableDialog> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<RoadmapDeliverableStatus>(
-              value: _selectedStatus,
+              initialValue: _selectedStatus,
               decoration: const InputDecoration(
                 labelText: 'Status',
                 border: OutlineInputBorder(),
@@ -1092,7 +1129,7 @@ class _EditDeliverableDialogState extends State<_EditDeliverableDialog> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<RoadmapDeliverablePriority>(
-              value: _selectedPriority,
+              initialValue: _selectedPriority,
               decoration: const InputDecoration(
                 labelText: 'Priority',
                 border: OutlineInputBorder(),

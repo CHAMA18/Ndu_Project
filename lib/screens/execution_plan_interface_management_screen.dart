@@ -1,23 +1,31 @@
-import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Interface Management',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_interface_management_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanInterfaceManagementScreen extends StatelessWidget {
   const ExecutionPlanInterfaceManagementScreen({super.key});
@@ -34,45 +42,33 @@ class ExecutionPlanInterfaceManagementScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Interface Management',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Interface Management'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Interface Management'),
+                                const SizedBox(height: 16),
+            const CrossReferenceNote(standalonePage: 'Interface Management'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Interface Management',
+              hintText:
+                  'Summarize interface dependencies, coordination protocols, and governance.',
+              noteKey: 'execution_interface_management',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Interface Management'),
-                                        const SizedBox(height: 16),
-                    const CrossReferenceNote(standalonePage: 'Interface Management'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Interface Management',
-                      hintText:
-                          'Summarize interface dependencies, coordination protocols, and governance.',
-                      noteKey: 'execution_interface_management',
-                    ),
-                    const SizedBox(height: 32),
-                    const _InterfaceManagementSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _InterfaceManagementSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
@@ -103,8 +99,59 @@ class _InterfaceManagementSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _InterfaceRegisterTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Interface Register',
+                columns: [
+                  CsvColumnSpec(key: 'interfaceId', label: 'Interface ID', required: true, sampleValue: 'IF-001'),
+                  CsvColumnSpec(key: 'interfaceName', label: 'Name', required: true, sampleValue: 'Site Access Road'),
+                  CsvColumnSpec(key: 'interfaceType', label: 'Type', allowedValues: ['Physical', 'Contractual', 'Organizational', 'Technical', 'Procedural'], defaultValue: 'Physical', sampleValue: 'Physical'),
+                  CsvColumnSpec(key: 'partyA', label: 'Party A', required: true, sampleValue: 'Contractor A'),
+                  CsvColumnSpec(key: 'partyB', label: 'Party B', required: true, sampleValue: 'Contractor B'),
+                  CsvColumnSpec(key: 'status', label: 'Status', allowedValues: ['Active', 'Pending', 'Closed', 'Resolved'], defaultValue: 'Active', sampleValue: 'Active'),
+                  CsvColumnSpec(key: 'frequency', label: 'Frequency', allowedValues: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'Quarterly', 'As Needed'], defaultValue: 'Daily', sampleValue: 'Weekly'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'Coordinate schedule'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _InterfaceRegisterTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createInterfaceRegister(
+                        projectId: projectId,
+                        interfaceId: row['interfaceId'] ?? '',
+                        interfaceName: row['interfaceName'] ?? '',
+                        interfaceType: row['interfaceType']?.isNotEmpty == true ? row['interfaceType']! : 'Physical',
+                        partyA: row['partyA'] ?? '',
+                        partyB: row['partyB'] ?? '',
+                        status: row['status']?.isNotEmpty == true ? row['status']! : 'Active',
+                        frequency: row['frequency']?.isNotEmpty == true ? row['frequency']! : 'Daily',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported interface entr(ies) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _InterfaceRegisterTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)
@@ -256,18 +303,18 @@ class _InterfaceRegisterTable extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                     controller: interfaceIdController,
                     decoration:
                         const InputDecoration(labelText: 'Interface ID *')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: interfaceNameController,
                     decoration:
                         const InputDecoration(labelText: 'Interface Name *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: interfaceType,
+                  initialValue: interfaceType,
                   decoration: const InputDecoration(labelText: 'Type *'),
                   items: interfaceTypes
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -276,16 +323,16 @@ class _InterfaceRegisterTable extends StatelessWidget {
                       setState(() => interfaceType = v ?? 'Physical'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: partyAController,
                     decoration: const InputDecoration(labelText: 'Party A *')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: partyBController,
                     decoration: const InputDecoration(labelText: 'Party B *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: status,
+                  initialValue: status,
                   decoration: const InputDecoration(labelText: 'Status *'),
                   items: statuses
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -294,7 +341,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: frequency,
+                  initialValue: frequency,
                   decoration: const InputDecoration(labelText: 'Frequency *'),
                   items: frequencies
                       .map((f) => DropdownMenuItem(value: f, child: Text(f)))
@@ -302,7 +349,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                   onChanged: (v) => setState(() => frequency = v ?? 'Daily'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: commentsController,
                     decoration: const InputDecoration(labelText: 'Comments'),
                     maxLines: 3),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/services/subscription_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
 const Color _pageBackground = Color(0xFFF5F6F8);
 const Color _primaryText = Color(0xFF0F0F0F);
 const Color _secondaryText = Color(0xFF5A5C60);
@@ -107,43 +108,6 @@ class _PaymentDialogState extends State<PaymentDialog> {
       _isValidatingCoupon = true;
       _couponError = null;
     });
-
-    // Special fast-path: SAVE200 grants immediate access
-    if (code.toUpperCase() == 'SAVE200') {
-      // Create a valid subscription record in Firestore so AuthWrapper allows access
-      final success = await SubscriptionService.activateCouponSubscription(
-        tier: widget.tier,
-        isAnnual: widget.isAnnual,
-        couponCode: 'SAVE200',
-      );
-
-      if (success) {
-        if (mounted) {
-          setState(() {
-            _isValidatingCoupon = false;
-            _appliedCoupon = AppliedCouponResult(
-              couponId: '',
-              code: 'SAVE200',
-              discountedPrice: 0,
-              originalPrice: _originalPrice,
-              discountPercent: 100,
-              discountAmount: _originalPrice,
-            );
-          });
-          widget.onPaymentComplete();
-          Navigator.of(context).pop(true);
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _isValidatingCoupon = false;
-            _couponError =
-                'Failed to activate coupon subscription. Please try again.';
-          });
-        }
-      }
-      return;
-    }
 
     final applied = await SubscriptionService.applyCoupon(
       couponCode: code,
@@ -505,7 +469,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: _couponController,
                         decoration: InputDecoration(
                           hintText: 'Enter coupon code',

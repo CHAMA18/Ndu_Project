@@ -16,11 +16,12 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
 class StartUpPlanningOperationsScreen extends StatelessWidget {
   const StartUpPlanningOperationsScreen({super.key});
 
@@ -455,6 +456,11 @@ class _StartUpPlanningDetailScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Start-Up Planning - Operations Plan and Manual',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: horizontalPadding,
@@ -463,13 +469,14 @@ class _StartUpPlanningDetailScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        UnifiedPhaseHeader(
+                        PlanningPhaseHeader(
                           title: widget.config.title,
-                          onBackPressed: () => PlanningPhaseNavigation.goToPrevious(
+                          breadcrumbPhase: 'Planning Phase',
+                          breadcrumbTitle: 'Startup Planning',
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
                             context,
                             widget.config.checkpoint,
-                          ),
-                        ),
+                          ), onExportPdf: _exportPdf),
                         const SizedBox(height: 12),
                         Text(
                           widget.config.subtitle,
@@ -1236,7 +1243,7 @@ class _SimpleField extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
         width: 280,
-        child: TextFormField(initialValue: initialValue, decoration: _fieldDecoration(label), onChanged: onChanged),
+        child: VoiceTextFormField(initialValue: initialValue, decoration: _fieldDecoration(label), onChanged: onChanged),
       );
 }
 
@@ -1250,7 +1257,7 @@ class _SimpleFieldBlock extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE5E7EB))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)), const SizedBox(height: 12), TextFormField(initialValue: initialValue, maxLines: null, decoration: _fieldDecoration(label), onChanged: onChanged)]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)), const SizedBox(height: 12), VoiceTextFormField(initialValue: initialValue, maxLines: null, decoration: _fieldDecoration(label), onChanged: onChanged)]),
       );
 }
 
@@ -1369,7 +1376,7 @@ class _ChecklistRow extends StatelessWidget {
               ),
               Expanded(
                 flex: 3,
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: entry.title,
                   decoration: _fieldDecoration('Item / deliverable'),
                   onChanged: (value) => onChanged(
@@ -1385,7 +1392,7 @@ class _ChecklistRow extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 flex: 2,
-                child: TextFormField(
+                child: VoiceTextFormField(
                   initialValue: entry.owner,
                   decoration: _fieldDecoration('Owner'),
                   onChanged: (value) => onChanged(
@@ -1406,7 +1413,7 @@ class _ChecklistRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          TextFormField(
+          VoiceTextFormField(
             initialValue: entry.notes,
             maxLines: 2,
             decoration: _fieldDecoration('Notes / evidence / link / trigger'),
@@ -1574,7 +1581,7 @@ class _RegisterRow extends StatelessWidget {
       );
 }
 
-Widget _registerField(String label, String initialValue, ValueChanged<String> onChanged) => SizedBox(width: 180, child: TextFormField(initialValue: initialValue, decoration: _fieldDecoration(label), onChanged: onChanged));
+Widget _registerField(String label, String initialValue, ValueChanged<String> onChanged) => SizedBox(width: 180, child: VoiceTextFormField(initialValue: initialValue, decoration: _fieldDecoration(label), onChanged: onChanged));
 InputDecoration _fieldDecoration(String hintText)=>InputDecoration(hintText:hintText,isDense:true,border:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:Color(0xFFE5E7EB))),enabledBorder:OutlineInputBorder(borderRadius:BorderRadius.circular(12),borderSide:const BorderSide(color:Color(0xFFE5E7EB))));
 class _StatusChip extends StatelessWidget { const _StatusChip({required this.label,required this.color,this.background}); final String label; final Color color; final Color? background; @override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.symmetric(horizontal:10,vertical:6),decoration:BoxDecoration(color:background??color.withOpacity(0.12),borderRadius:BorderRadius.circular(999)),child:Text(label,style:TextStyle(fontSize:11,fontWeight:FontWeight.w600,color:color))); }
 class _Debouncer { _Debouncer({Duration? delay}):delay=delay??const Duration(milliseconds:700); final Duration delay; Timer? _timer; void Function()? _pendingAction; void run(void Function() action){_timer?.cancel();_pendingAction=action;_timer=Timer(delay,(){_pendingAction=null;action();});} void flush(){final action=_pendingAction;_timer?.cancel();_timer=null;_pendingAction=null;if(action!=null)action();} void dispose(){_timer?.cancel();_timer=null;_pendingAction=null;} }

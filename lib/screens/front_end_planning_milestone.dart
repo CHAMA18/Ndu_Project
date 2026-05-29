@@ -17,6 +17,8 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:intl/intl.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Milestone screen
 /// Allows users to define project start date, key milestones, and end date.
 class FrontEndPlanningMilestoneScreen extends StatefulWidget {
@@ -72,7 +74,7 @@ class _FrontEndPlanningMilestoneScreenState
           .doc('initialization_flags')
           .get();
       return doc.data()?[flagKey] == true;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -87,7 +89,7 @@ class _FrontEndPlanningMilestoneScreenState
           .collection('planning_meta')
           .doc('initialization_flags')
           .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   @override
@@ -101,7 +103,22 @@ class _FrontEndPlanningMilestoneScreenState
     });
   }
 
-  void _loadMilestoneData() {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Milestone Planning',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+void _loadMilestoneData() {
     final data = ProjectDataHelper.getData(context);
 
     // Load start and end dates from front end planning notes
@@ -320,7 +337,7 @@ class _FrontEndPlanningMilestoneScreenState
     if (dateStr.isEmpty) return null;
     try {
       return _dateFormat.parse(dateStr);
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -736,11 +753,16 @@ Consider typical project timelines and ensure end date is after start date.''';
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(child: _buildContent()),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Milestone',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -1237,7 +1259,7 @@ Consider typical project timelines and ensure end date is after start date.''';
                             ),
                           ),
                           _milestoneDataCell(
-                            TextFormField(
+                            VoiceTextFormField(
                               key: _milestoneNameKey(index),
                               controller: _milestoneNameControllers[index],
                               onChanged: (value) =>
@@ -1328,7 +1350,7 @@ Consider typical project timelines and ensure end date is after start date.''';
                             ),
                           ),
                           _milestoneDataCell(
-                            TextFormField(
+                            VoiceTextFormField(
                               controller:
                                   _milestoneDisciplineControllers[index],
                               onChanged: (value) => _updateMilestoneField(
@@ -1359,7 +1381,7 @@ Consider typical project timelines and ensure end date is after start date.''';
                                       _milestoneCommentControllers[index],
                                 ),
                                 const SizedBox(height: 8),
-                                TextFormField(
+                                VoiceTextFormField(
                                   controller:
                                       _milestoneCommentControllers[index],
                                   onChanged: (value) => _updateMilestoneField(

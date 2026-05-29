@@ -18,6 +18,8 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Security screen
 /// Mirrors the provided layout with shared workspace chrome,
 /// large notes area, security text panel, and AI hint + Next controls.
@@ -80,7 +82,22 @@ class _FrontEndPlanningSecurityScreenState
     });
   }
 
-  Future<void> _triggerAutoSecurityGenerationIfMissing() async {
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Security',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+Future<void> _triggerAutoSecurityGenerationIfMissing() async {
     if (_autoGenerationTriggered || _isGenerating || !mounted) return;
     if (_securityNotes.text.trim().isNotEmpty) return;
     _autoGenerationTriggered = true;
@@ -349,12 +366,12 @@ Security Training:
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: nameController,
                     decoration: const InputDecoration(labelText: 'Role Name'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: descController,
                     decoration:
                         const InputDecoration(labelText: 'Description'),
@@ -404,13 +421,13 @@ Security Training:
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: resourceController,
                     decoration:
                         const InputDecoration(labelText: 'Resource'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: scopeController,
                     decoration: const InputDecoration(labelText: 'Scope'),
                   ),
@@ -454,13 +471,13 @@ Security Training:
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: keyController,
                     decoration:
                         const InputDecoration(labelText: 'Setting Key'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: valueController,
                     decoration:
                         const InputDecoration(labelText: 'Value'),
@@ -509,17 +526,17 @@ Security Training:
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: userController,
                     decoration: const InputDecoration(labelText: 'User'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: actionController,
                     decoration: const InputDecoration(labelText: 'Action'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: timestampController,
                     decoration:
                         const InputDecoration(labelText: 'Timestamp'),
@@ -654,13 +671,15 @@ Security Training:
     required String description,
     required String actionLabel,
     required VoidCallback onAdd,
-    required List<DataColumn> columns,
-    required List<DataRow> rows,
+    required List<String> columnLabels,
+    required List<double> columnFlex,
+    required List<List<Widget>> rowCells,
     required String emptyMessage,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Title row with Add button
         Row(
           children: [
             Expanded(
@@ -678,8 +697,7 @@ Security Training:
                   const SizedBox(height: 4),
                   Text(
                     description,
-                    style:
-                        const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                   ),
                 ],
               ),
@@ -692,7 +710,7 @@ Security Training:
           ],
         ),
         const SizedBox(height: 12),
-        if (rows.isEmpty)
+        if (rowCells.isEmpty)
           buildNduTableEmptyState(context, message: emptyMessage)
         else
           Container(
@@ -702,18 +720,80 @@ Security Training:
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: ResponsiveDataTableWrapper(
-              minWidth: 720,
-              child: buildNduDataTable(
-                context: context,
-                columnSpacing: 20,
-                horizontalMargin: 18,
-                headingRowHeight: 46,
-                dataRowMinHeight: 54,
-                dataRowMaxHeight: 90,
-                columns: columns,
-                rows: rows,
-              ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                // Dark header row
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F2937),
+                  ),
+                  child: Row(
+                    children: List.generate(columnLabels.length, (i) {
+                      return Expanded(
+                        flex: columnFlex[i].toInt(),
+                        child: Text(
+                          columnLabels[i],
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+                // Data rows
+                ...rowCells.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final cells = entry.value;
+                  final isOdd = index.isOdd;
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: isOdd ? const Color(0xFFFAFCFF) : Colors.white,
+                      border: Border(
+                        bottom: BorderSide(
+                          color: const Color(0xFFE2E8F0).withOpacity(0.6),
+                          width: 0.5,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: List.generate(cells.length, (i) {
+                        return Expanded(
+                          flex: columnFlex[i].toInt(),
+                          child: cells[i],
+                        );
+                      }),
+                    ),
+                  );
+                }),
+                // Footer row count
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    border: Border(
+                      top: BorderSide(color: const Color(0xFFE2E8F0).withOpacity(0.6)),
+                    ),
+                  ),
+                  child: Text(
+                    '${rowCells.length} ${title.toLowerCase()}',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
       ],
@@ -727,35 +807,30 @@ Security Training:
       actionLabel: 'Add Role',
       onAdd: _addSecurityRole,
       emptyMessage: 'No security roles added yet.',
-      columns: const [
-        DataColumn(label: Text('Role')),
-        DataColumn(label: Text('Description')),
-        DataColumn(label: Text('Actions')),
-      ],
-      rows: _securityRoles.map((role) {
-        return DataRow(
-          cells: [
-            DataCell(Text(role.name.trim().isEmpty ? 'Untitled' : role.name)),
-            DataCell(Text(
-                role.description.trim().isEmpty ? '-' : role.description)),
-            DataCell(
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _editSecurityRole(role),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Edit role',
-                  ),
-                  IconButton(
-                    onPressed: () => _removeSecurityRole(role.id),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Remove',
-                  ),
-                ],
+      columnLabels: const ['Role', 'Description', 'Actions'],
+      columnFlex: const [2, 4, 1],
+      rowCells: _securityRoles.map((role) {
+        return [
+          Text(role.name.trim().isEmpty ? 'Untitled' : role.name,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+          Text(role.description.trim().isEmpty ? '-' : role.description,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), height: 1.45)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _editSecurityRole(role),
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                tooltip: 'Edit role',
               ),
-            ),
-          ],
-        );
+              IconButton(
+                onPressed: () => _removeSecurityRole(role.id),
+                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                tooltip: 'Remove',
+              ),
+            ],
+          ),
+        ];
       }).toList(),
     );
   }
@@ -767,35 +842,30 @@ Security Training:
       actionLabel: 'Add Permission',
       onAdd: _addPermission,
       emptyMessage: 'No permissions added yet.',
-      columns: const [
-        DataColumn(label: Text('Resource')),
-        DataColumn(label: Text('Scope')),
-        DataColumn(label: Text('Actions')),
-      ],
-      rows: _securityPermissions.map((item) {
-        return DataRow(
-          cells: [
-            DataCell(
-                Text(item.resource.trim().isEmpty ? '-' : item.resource)),
-            DataCell(Text(item.scope.trim().isEmpty ? '-' : item.scope)),
-            DataCell(
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _editPermission(item),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Edit permission',
-                  ),
-                  IconButton(
-                    onPressed: () => _removePermission(item.id),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Remove',
-                  ),
-                ],
+      columnLabels: const ['Resource', 'Scope', 'Actions'],
+      columnFlex: const [3, 4, 1],
+      rowCells: _securityPermissions.map((item) {
+        return [
+          Text(item.resource.trim().isEmpty ? '-' : item.resource,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+          Text(item.scope.trim().isEmpty ? '-' : item.scope,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), height: 1.45)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _editPermission(item),
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                tooltip: 'Edit permission',
               ),
-            ),
-          ],
-        );
+              IconButton(
+                onPressed: () => _removePermission(item.id),
+                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                tooltip: 'Remove',
+              ),
+            ],
+          ),
+        ];
       }).toList(),
     );
   }
@@ -807,36 +877,30 @@ Security Training:
       actionLabel: 'Add Setting',
       onAdd: _addSetting,
       emptyMessage: 'No security settings added yet.',
-      columns: const [
-        DataColumn(label: Text('Setting')),
-        DataColumn(label: Text('Value')),
-        DataColumn(label: Text('Actions')),
-      ],
-      rows: _securitySettings.map((setting) {
-        return DataRow(
-          cells: [
-            DataCell(
-                Text(setting.key.trim().isEmpty ? '-' : setting.key)),
-            DataCell(Text(
-                setting.value.trim().isEmpty ? '-' : setting.value)),
-            DataCell(
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _editSetting(setting),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Edit setting',
-                  ),
-                  IconButton(
-                    onPressed: () => _removeSetting(setting.key),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Remove',
-                  ),
-                ],
+      columnLabels: const ['Setting', 'Value', 'Actions'],
+      columnFlex: const [3, 4, 1],
+      rowCells: _securitySettings.map((setting) {
+        return [
+          Text(setting.key.trim().isEmpty ? '-' : setting.key,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+          Text(setting.value.trim().isEmpty ? '-' : setting.value,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), height: 1.45)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _editSetting(setting),
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                tooltip: 'Edit setting',
               ),
-            ),
-          ],
-        );
+              IconButton(
+                onPressed: () => _removeSetting(setting.key),
+                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                tooltip: 'Remove',
+              ),
+            ],
+          ),
+        ];
       }).toList(),
     );
   }
@@ -848,37 +912,32 @@ Security Training:
       actionLabel: 'Add Log',
       onAdd: _addAccessLog,
       emptyMessage: 'No access logs recorded yet.',
-      columns: const [
-        DataColumn(label: Text('User')),
-        DataColumn(label: Text('Action')),
-        DataColumn(label: Text('Timestamp')),
-        DataColumn(label: Text('Actions')),
-      ],
-      rows: _securityAccessLogs.map((log) {
-        return DataRow(
-          cells: [
-            DataCell(Text(log.user.trim().isEmpty ? '-' : log.user)),
-            DataCell(Text(log.action.trim().isEmpty ? '-' : log.action)),
-            DataCell(Text(
-                log.timestamp.trim().isEmpty ? '-' : log.timestamp)),
-            DataCell(
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => _editAccessLog(log),
-                    icon: const Icon(Icons.edit_outlined, size: 18),
-                    tooltip: 'Edit log',
-                  ),
-                  IconButton(
-                    onPressed: () => _removeAccessLog(log.id),
-                    icon: const Icon(Icons.delete_outline, size: 18),
-                    tooltip: 'Remove',
-                  ),
-                ],
+      columnLabels: const ['User', 'Action', 'Timestamp', 'Actions'],
+      columnFlex: const [2, 3, 2, 1],
+      rowCells: _securityAccessLogs.map((log) {
+        return [
+          Text(log.user.trim().isEmpty ? '-' : log.user,
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A))),
+          Text(log.action.trim().isEmpty ? '-' : log.action,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), height: 1.45)),
+          Text(log.timestamp.trim().isEmpty ? '-' : log.timestamp,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A), height: 1.45)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: () => _editAccessLog(log),
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                tooltip: 'Edit log',
               ),
-            ),
-          ],
-        );
+              IconButton(
+                onPressed: () => _removeAccessLog(log.id),
+                icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                tooltip: 'Remove',
+              ),
+            ],
+          ),
+        ];
       }).toList(),
     );
   }
@@ -980,7 +1039,7 @@ Security Training:
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: ScrollIndicatorOverlay(
                           controller: _contentScrollController,
@@ -1063,7 +1122,12 @@ Security Training:
                   _BottomOverlay(
                     onNext: _handleNextPressed,
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Security',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -1108,7 +1172,7 @@ class _SecurityPanel extends StatelessWidget {
             children: [
               TextFormattingToolbar(controller: controller),
               const SizedBox(height: 8),
-              TextField(
+              VoiceTextField(
                 controller: controller,
                 minLines: 12,
                 maxLines: null,
@@ -1233,7 +1297,7 @@ Widget _roundedField(
       children: [
         TextFormattingToolbar(controller: controller),
         const SizedBox(height: 8),
-        TextField(
+        VoiceTextField(
           controller: controller,
           minLines: minLines,
           maxLines: null,

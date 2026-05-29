@@ -15,6 +15,10 @@ import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
 
 const _dateHint = 'Select date';
@@ -135,7 +139,7 @@ Widget _datePickerField(
   required TextEditingController controller,
   required Future<void> Function() onTap,
 }) {
-  return TextField(
+  return VoiceTextField(
     controller: controller,
     readOnly: true,
     onTap: () => onTap(),
@@ -311,10 +315,154 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
     setState(() => _selectedTab = tab);
   }
 
+  Widget _buildNavigationHint() {
+    return InnerPageNavigationHint(
+      pageId: 'quality_management',
+      pageTitle: 'Quality Management',
+      description: 'Navigate between quality management sections',
+      currentSectionId: _selectedTab.name,
+      onSectionTap: (sectionId) {
+        final tab = _QualityTab.values.firstWhere(
+          (t) => t.name == sectionId,
+          orElse: () => _selectedTab,
+        );
+        _handleTabSelected(tab);
+      },
+      sections: [
+        InnerPageSection(
+          id: _QualityTab.plan.name,
+          label: 'Quality Plan',
+          icon: Icons.description_outlined,
+          stepNumber: 1,
+          status: _selectedTab == _QualityTab.plan
+              ? InnerPageSectionStatus.current
+              : InnerPageSectionStatus.available,
+        ),
+        InnerPageSection(
+          id: _QualityTab.targets.name,
+          label: 'Targets',
+          icon: Icons.flag_outlined,
+          stepNumber: 2,
+          status: _selectedTab == _QualityTab.targets
+              ? InnerPageSectionStatus.current
+              : InnerPageSectionStatus.available,
+        ),
+        InnerPageSection(
+          id: _QualityTab.qaTracking.name,
+          label: 'QA Tracking',
+          icon: Icons.verified_outlined,
+          stepNumber: 3,
+          status: _selectedTab == _QualityTab.qaTracking
+              ? InnerPageSectionStatus.current
+              : InnerPageSectionStatus.available,
+        ),
+        InnerPageSection(
+          id: _QualityTab.qcTracking.name,
+          label: 'QC Tracking',
+          icon: Icons.fact_check_outlined,
+          stepNumber: 4,
+          status: _selectedTab == _QualityTab.qcTracking
+              ? InnerPageSectionStatus.current
+              : InnerPageSectionStatus.available,
+        ),
+        InnerPageSection(
+          id: _QualityTab.metrics.name,
+          label: 'Metrics',
+          icon: Icons.analytics_outlined,
+          stepNumber: 5,
+          status: _selectedTab == _QualityTab.metrics
+              ? InnerPageSectionStatus.current
+              : InnerPageSectionStatus.available,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final horizontalPadding = AppBreakpoints.isMobile(context) ? 20.0 : 32.0;
+    final isMobile = AppBreakpoints.isMobile(context);
+    final horizontalPadding = isMobile ? 16.0 : 32.0;
 
+    // Mobile: Scaffold with drawer → full-width content
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F7FB),
+        drawer: MobileSidebarDrawer(
+          sidebar: const InitiationLikeSidebar(
+            activeItemLabel: 'Quality Management',
+          ),
+        ),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    PlanningPhaseHeader(title: 'Quality Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                    const SizedBox(height: 16),
+                    // Hamburger + title row for mobile
+                    Row(
+                      children: [
+                        Builder(builder: (ctx) {
+                          return IconButton(
+                            icon: const Icon(Icons.menu,
+                                color: Color(0xFF374151)),
+                            onPressed: () {
+                              final scaffold = Scaffold.maybeOf(ctx);
+                              if (scaffold != null && scaffold.hasDrawer) {
+                                scaffold.openDrawer();
+                              }
+                            },
+                            tooltip: 'Open menu',
+                          );
+                        }),
+                        const Expanded(child: _PageHeader()),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    const PlanningAiNotesCard(
+                      title: 'Notes',
+                      sectionLabel: 'Quality Management',
+                      noteKey: 'planning_quality_management_notes',
+                      checkpoint: 'quality_management',
+                      description:
+                          'Summarize quality targets, assurance cadence, and control measures.',
+                    ),
+                    const SizedBox(height: 24),
+                    _TabStrip(
+                      selectedTab: _selectedTab,
+                      onSelected: _handleTabSelected,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildNavigationHint(),
+                    const SizedBox(height: 28),
+                    _TabContent(selectedTab: _selectedTab),
+                    const SizedBox(height: 28),
+                    _NavigationRow(
+                      onBack: () => PlanningPhaseNavigation.goToPrevious(
+                        context,
+                        'quality_management',
+                      ),
+                      onNext: () => PlanningPhaseNavigation.goToNext(
+                        context,
+                        'quality_management',
+                      ),
+                    ),
+                    const SizedBox(height: 48),
+                  ],
+                ),
+              ),
+              const KazAiChatBubble(),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Desktop/Tablet: Row with sidebar
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       body: SafeArea(
@@ -336,6 +484,8 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Quality Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         const _PageHeader(),
                         const SizedBox(height: 24),
                         const PlanningAiNotesCard(
@@ -351,6 +501,8 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                           selectedTab: _selectedTab,
                           onSelected: _handleTabSelected,
                         ),
+                        const SizedBox(height: 16),
+                        _buildNavigationHint(),
                         const SizedBox(height: 28),
                         _TabContent(selectedTab: _selectedTab),
                         const SizedBox(height: 28),
@@ -377,6 +529,21 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Quality Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_quality_management_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _PageHeader extends StatelessWidget {
@@ -384,25 +551,37 @@ class _PageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Quality Management',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF111827),
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Manage quality standards, objectives, QA/QC workflows, audits, and corrective actions',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF6B7280),
-          ),
+        Row(
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Quality Management',
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Manage quality standards, objectives, QA/QC workflows, audits, and corrective actions',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 16),
+          ],
         ),
       ],
     );
@@ -417,34 +596,55 @@ class _NavigationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        ElevatedButton.icon(
-          onPressed: onBack,
-          icon: const Icon(Icons.arrow_back, size: 16),
-          label: Text(PlanningPhaseNavigation.backLabel('quality_management')),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: const Color(0xFF374151),
-            elevation: 0,
-            side: const BorderSide(color: Color(0xFFD1D5DB)),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: onBack,
+            icon: const Icon(Icons.arrow_back, size: 16),
+            label: Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                    PlanningPhaseNavigation.backLabel('quality_management')),
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF374151),
+              side: const BorderSide(color: Color(0xFFD1D5DB)),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 8 : 20,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ),
-        ElevatedButton.icon(
-          onPressed: onNext,
-          icon: const Icon(Icons.arrow_forward, size: 16),
-          label: Text(PlanningPhaseNavigation.nextLabel('quality_management')),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFFC044),
-            foregroundColor: const Color(0xFF111827),
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: FilledButton.icon(
+            onPressed: onNext,
+            icon: const Icon(Icons.arrow_forward, size: 16),
+            label: Flexible(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                    PlanningPhaseNavigation.nextLabel('quality_management')),
+              ),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFFFC044),
+              foregroundColor: const Color(0xFF111827),
+              padding: EdgeInsets.symmetric(
+                horizontal: isMobile ? 8 : 20,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ),
       ],
@@ -680,6 +880,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
 
   Future<void> _generateFromContext() async {
     if (_isGenerating) return;
+    if (!mounted) return;
     setState(() => _isGenerating = true);
 
     try {
@@ -953,7 +1154,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _FieldLabel('Quality Narrative'),
-          TextField(
+          VoiceTextField(
             controller: _planController,
             minLines: 5,
             maxLines: 10,
@@ -970,7 +1171,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _FieldLabel('Review Cadence'),
-                    TextField(
+                    VoiceTextField(
                       controller: _reviewCadenceController,
                       decoration: _inputDecoration(
                         context,
@@ -986,7 +1187,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _FieldLabel('Escalation Path'),
-                    TextField(
+                    VoiceTextField(
                       controller: _escalationPathController,
                       decoration: _inputDecoration(
                         context,
@@ -1000,7 +1201,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
           ),
           const SizedBox(height: 12),
           _FieldLabel('Change Control Process'),
-          TextField(
+          VoiceTextField(
             controller: _changeControlController,
             minLines: 2,
             maxLines: 4,
@@ -3133,21 +3334,21 @@ class _QualityStandardDialogState extends State<_QualityStandardDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _FieldLabel('Name'),
-            TextField(
+            VoiceTextField(
                 controller: _name, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Source'),
-            TextField(
+            VoiceTextField(
                 controller: _source,
                 decoration: _inputDecoration(context, 'e.g. ISO 9001')),
             const SizedBox(height: 10),
             _FieldLabel('Category'),
-            TextField(
+            VoiceTextField(
                 controller: _category,
                 decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Description'),
-            TextField(
+            VoiceTextField(
               controller: _description,
               minLines: 2,
               maxLines: 4,
@@ -3155,7 +3356,7 @@ class _QualityStandardDialogState extends State<_QualityStandardDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Applicability'),
-            TextField(
+            VoiceTextField(
                 controller: _applicability,
                 decoration: _inputDecoration(context, '')),
           ],
@@ -3263,11 +3464,11 @@ class _QualityObjectiveDialogState extends State<_QualityObjectiveDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Objective'),
-            TextField(
+            VoiceTextField(
                 controller: _title, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Acceptance Criteria'),
-            TextField(
+            VoiceTextField(
               controller: _acceptance,
               minLines: 2,
               maxLines: 4,
@@ -3281,7 +3482,7 @@ class _QualityObjectiveDialogState extends State<_QualityObjectiveDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Metric'),
-                      TextField(
+                      VoiceTextField(
                           controller: _metric,
                           decoration: _inputDecoration(context, '')),
                     ],
@@ -3293,7 +3494,7 @@ class _QualityObjectiveDialogState extends State<_QualityObjectiveDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Target'),
-                      TextField(
+                      VoiceTextField(
                           controller: _target,
                           decoration: _inputDecoration(context, '')),
                     ],
@@ -3309,7 +3510,7 @@ class _QualityObjectiveDialogState extends State<_QualityObjectiveDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Current'),
-                      TextField(
+                      VoiceTextField(
                           controller: _current,
                           decoration: _inputDecoration(context, '')),
                     ],
@@ -3339,17 +3540,17 @@ class _QualityObjectiveDialogState extends State<_QualityObjectiveDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Linked Requirement'),
-            TextField(
+            VoiceTextField(
                 controller: _linkedReq,
                 decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Linked WBS'),
-            TextField(
+            VoiceTextField(
                 controller: _linkedWbs,
                 decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Status'),
-            TextField(
+            VoiceTextField(
                 controller: _status,
                 decoration:
                     _inputDecoration(context, 'Draft/On Track/Off Track')),
@@ -3454,11 +3655,11 @@ class _WorkflowControlDialogState extends State<_WorkflowControlDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Control Name'),
-            TextField(
+            VoiceTextField(
                 controller: _name, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Method'),
-            TextField(
+            VoiceTextField(
               controller: _method,
               minLines: 2,
               maxLines: 4,
@@ -3466,11 +3667,11 @@ class _WorkflowControlDialogState extends State<_WorkflowControlDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Tools'),
-            TextField(
+            VoiceTextField(
                 controller: _tools, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Checklist'),
-            TextField(
+            VoiceTextField(
                 controller: _checklist,
                 decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
@@ -3481,7 +3682,7 @@ class _WorkflowControlDialogState extends State<_WorkflowControlDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Frequency'),
-                      TextField(
+                      VoiceTextField(
                           controller: _frequency,
                           decoration: _inputDecoration(context, 'Weekly')),
                     ],
@@ -3511,7 +3712,7 @@ class _WorkflowControlDialogState extends State<_WorkflowControlDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Standards Reference'),
-            TextField(
+            VoiceTextField(
                 controller: _standards,
                 decoration:
                     _inputDecoration(context, 'ISO 9001 / Internal SOP')),
@@ -3659,7 +3860,7 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Task'),
-            TextField(
+            VoiceTextField(
                 controller: _task,
                 decoration: _inputDecoration(context, 'Task title')),
             const SizedBox(height: 10),
@@ -3670,7 +3871,7 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('% Complete'),
-                      TextField(
+                      VoiceTextField(
                           controller: _percent,
                           decoration: _inputDecoration(context, '0-100')),
                     ],
@@ -3795,7 +3996,7 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Comments'),
-            TextField(
+            VoiceTextField(
               controller: _comments,
               minLines: 2,
               maxLines: 4,
@@ -3940,11 +4141,11 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Audit Title'),
-            TextField(
+            VoiceTextField(
                 controller: _title, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Scope'),
-            TextField(
+            VoiceTextField(
               controller: _scope,
               minLines: 2,
               maxLines: 3,
@@ -4042,7 +4243,7 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Findings'),
-            TextField(
+            VoiceTextField(
               controller: _findings,
               minLines: 2,
               maxLines: 4,
@@ -4050,7 +4251,7 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Notes'),
-            TextField(
+            VoiceTextField(
               controller: _notes,
               minLines: 2,
               maxLines: 4,
@@ -4190,11 +4391,11 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Title'),
-            TextField(
+            VoiceTextField(
                 controller: _title, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Root Cause'),
-            TextField(
+            VoiceTextField(
               controller: _rootCause,
               minLines: 2,
               maxLines: 4,
@@ -4202,7 +4403,7 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Action'),
-            TextField(
+            VoiceTextField(
               controller: _action,
               minLines: 2,
               maxLines: 4,
@@ -4273,7 +4474,7 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Verification Notes'),
-            TextField(
+            VoiceTextField(
               controller: _verification,
               minLines: 2,
               maxLines: 4,
@@ -4388,7 +4589,7 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Description'),
-            TextField(
+            VoiceTextField(
               controller: _description,
               minLines: 2,
               maxLines: 4,
@@ -4396,7 +4597,7 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
             ),
             const SizedBox(height: 10),
             _FieldLabel('Reason'),
-            TextField(
+            VoiceTextField(
                 controller: _reason, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             Row(
@@ -4406,7 +4607,7 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Requested By'),
-                      TextField(
+                      VoiceTextField(
                           controller: _requestedBy,
                           decoration: _inputDecoration(context, '')),
                     ],
@@ -4418,7 +4619,7 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Approved By'),
-                      TextField(
+                      VoiceTextField(
                           controller: _approvedBy,
                           decoration: _inputDecoration(context, '')),
                     ],
@@ -4448,7 +4649,7 @@ class _QualityChangeDialogState extends State<_QualityChangeDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Status'),
-                      TextField(
+                      VoiceTextField(
                           controller: _status,
                           decoration:
                               _inputDecoration(context, 'Draft/Approved')),
@@ -4546,11 +4747,11 @@ class _TrainingShortcutDialogState extends State<_TrainingShortcutDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Title'),
-            TextField(
+            VoiceTextField(
                 controller: _title, decoration: _inputDecoration(context, '')),
             const SizedBox(height: 10),
             _FieldLabel('Description'),
-            TextField(
+            VoiceTextField(
               controller: _description,
               minLines: 2,
               maxLines: 4,
@@ -4578,7 +4779,7 @@ class _TrainingShortcutDialogState extends State<_TrainingShortcutDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _FieldLabel('Duration'),
-                      TextField(
+                      VoiceTextField(
                           controller: _duration,
                           decoration: _inputDecoration(context, '60 mins')),
                     ],
@@ -4681,12 +4882,12 @@ class _DashboardConfigDialogState extends State<_DashboardConfigDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _FieldLabel('Target Time to Resolution (days)'),
-            TextField(
+            VoiceTextField(
                 controller: _target,
                 decoration: _inputDecoration(context, '15')),
             const SizedBox(height: 10),
             _FieldLabel('Max Trend Points'),
-            TextField(
+            VoiceTextField(
                 controller: _trendPoints,
                 decoration: _inputDecoration(context, '12')),
             const SizedBox(height: 10),
@@ -4820,14 +5021,14 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
         Row(
           children: [
             Expanded(
-              child: TextField(
+              child: VoiceTextField(
                 controller: value,
                 decoration: _inputDecoration(context, 'Value'),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: TextField(
+              child: VoiceTextField(
                 controller: change,
                 decoration: _inputDecoration(context, 'Change'),
               ),
@@ -4889,13 +5090,13 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
             ),
             const SizedBox(height: 12),
             _FieldLabel('Defect Trend (comma-separated)'),
-            TextField(
+            VoiceTextField(
               controller: _defectTrend,
               decoration: _inputDecoration(context, '12, 10, 9, 8, 7, 6'),
             ),
             const SizedBox(height: 10),
             _FieldLabel('Satisfaction Trend (comma-separated)'),
-            TextField(
+            VoiceTextField(
               controller: _satisfactionTrend,
               decoration:
                   _inputDecoration(context, '3.5, 3.7, 4.0, 4.1, 4.3, 4.4'),

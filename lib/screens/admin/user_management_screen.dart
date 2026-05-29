@@ -3,6 +3,8 @@ import 'package:ndu_project/models/user_role.dart';
 import 'package:ndu_project/services/permission_service.dart';
 import 'package:ndu_project/widgets/permission_aware_widgets.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+
 /// World-class User Management Screen for admins and owners
 /// Comprehensive user and role management interface
 class UserManagementScreen extends StatefulWidget {
@@ -62,20 +64,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               label: const Text('Add User'),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF6366F1),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               ),
             ),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          _buildFilters(),
-          const SizedBox(height: 16),
-          Expanded(child: _buildUserList()),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            _buildHeader(),
+            const SizedBox(height: 16),
+            _buildFilters(),
+            const SizedBox(height: 16),
+            Expanded(child: _buildUserList()),
+          ],
+        ),
       ),
     );
   }
@@ -149,7 +155,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       child: Row(
         children: [
           Expanded(
-            child: TextField(
+            child: VoiceTextField(
               controller: _searchController,
               onChanged: (v) => setState(() => _searchQuery = v),
               decoration: InputDecoration(
@@ -185,8 +191,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 hint: const Text('All Roles'),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('All Roles')),
-                  ...SiteRole.values.map((role) =>
-                      DropdownMenuItem(value: role, child: Text(role.displayName))),
+                  ...SiteRole.values.map((role) => DropdownMenuItem(
+                      value: role, child: Text(role.displayName))),
                 ],
                 onChanged: (v) => setState(() => _selectedRoleFilter = v),
               ),
@@ -232,7 +238,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     Stream<List<UserProfile>> baseStream;
 
     if (_selectedRoleFilter != null) {
-      baseStream = _permissionService.getUsersByRoleStream(_selectedRoleFilter!);
+      baseStream =
+          _permissionService.getUsersByRoleStream(_selectedRoleFilter!);
     } else {
       baseStream = _permissionService.getAllUsersStream();
     }
@@ -306,9 +313,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: user.isActive
-              ? const Color(0xFFE5E7EB)
-              : const Color(0xFFFEE2E2),
+          color:
+              user.isActive ? const Color(0xFFE5E7EB) : const Color(0xFFFEE2E2),
           width: user.isActive ? 1 : 2,
         ),
       ),
@@ -586,7 +592,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             value: 'activate',
             child: Row(
               children: [
-                Icon(Icons.check_circle_outlined, size: 18, color: Color(0xFF10B981)),
+                Icon(Icons.check_circle_outlined,
+                    size: 18, color: Color(0xFF10B981)),
                 SizedBox(width: 12),
                 Text('Reactivate', style: TextStyle(color: Color(0xFF10B981))),
               ],
@@ -625,7 +632,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 450),
             child: Padding(
@@ -643,7 +651,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  TextField(
+                  VoiceTextField(
                     controller: emailController,
                     decoration: const InputDecoration(
                       labelText: 'Email Address',
@@ -653,7 +661,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: nameController,
                     decoration: const InputDecoration(
                       labelText: 'Full Name',
@@ -674,7 +682,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         value: role,
                         child: Row(
                           children: [
-                            Icon(_getRoleIcon(role), size: 18, color: role.color),
+                            Icon(_getRoleIcon(role),
+                                size: 18, color: role.color),
                             const SizedBox(width: 10),
                             Text(role.displayName),
                           ],
@@ -727,9 +736,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _showEditUserDialog(UserProfile user) async {
     final nameController = TextEditingController(text: user.displayName);
     final titleController = TextEditingController(text: user.jobTitle ?? '');
-    final departmentController = TextEditingController(text: user.department ?? '');
+    final departmentController =
+        TextEditingController(text: user.department ?? '');
     final phoneController = TextEditingController(text: user.phoneNumber ?? '');
-    final organizationController = TextEditingController(text: user.organization ?? '');
+    final organizationController =
+        TextEditingController(text: user.organization ?? '');
 
     final result = await showDialog<bool>(
       context: context,
@@ -758,7 +769,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF111827),
                             ),
-                        ),
+                          ),
                           Text(
                             user.email,
                             style: const TextStyle(
@@ -776,7 +787,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Display Name',
@@ -788,7 +799,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: titleController,
                         decoration: const InputDecoration(
                           labelText: 'Job Title',
@@ -799,7 +810,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: departmentController,
                         decoration: const InputDecoration(
                           labelText: 'Department',
@@ -814,7 +825,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: phoneController,
                         decoration: const InputDecoration(
                           labelText: 'Phone Number',
@@ -826,7 +837,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: organizationController,
                         decoration: const InputDecoration(
                           labelText: 'Organization',
@@ -1084,7 +1095,9 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: isSelected ? role.color : const Color(0xFFE5E7EB),
+                            color: isSelected
+                                ? role.color
+                                : const Color(0xFFE5E7EB),
                             width: isSelected ? 2 : 1,
                           ),
                           borderRadius: BorderRadius.circular(12),
@@ -1120,7 +1133,8 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
                               ),
                             ),
                             if (isSelected)
-                              Icon(Icons.check_circle, color: role.color, size: 24),
+                              Icon(Icons.check_circle,
+                                  color: role.color, size: 24),
                           ],
                         ),
                       ),
@@ -1145,7 +1159,8 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           )
                         : const Text('Save Changes'),
@@ -1202,7 +1217,8 @@ class _UserPermissionsDialogState extends State<_UserPermissionsDialog> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.user.displayName} is now ${_selectedRole.displayName}'),
+            content: Text(
+                '${widget.user.displayName} is now ${_selectedRole.displayName}'),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ),

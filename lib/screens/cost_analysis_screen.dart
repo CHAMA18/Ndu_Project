@@ -40,6 +40,10 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
 class CostAnalysisScreen extends StatefulWidget {
   final String notes;
   final List<AiSolutionItem> solutions;
@@ -232,6 +236,19 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     'USD': 1.0,
     'EUR': 0.92,
     'GBP': 0.79,
+    'JPY': 155.0,
+    'CNY': 7.25,
+    'CAD': 1.37,
+    'AUD': 1.53,
+    'CHF': 0.89,
+    'INR': 83.5,
+    'BRL': 5.05,
+    'MXN': 17.2,
+    'ZAR': 18.5,
+    'SGD': 1.35,
+    'ZMW': 27.5,
+    'NGN': 1550.0,
+    'AED': 3.67,
   };
   late final OpenAiServiceSecure _openAi;
   bool _isGenerating = false;
@@ -257,6 +274,44 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       TextEditingController(text: '10');
   bool _isSavingsGenerating = false;
   String? _savingsError;
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final sections = <PdfSection>[
+      PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+      PdfSection.keyValue('Configuration', [
+        {'Currency': _currency},
+        {'NPV Horizon': '$_npvHorizon years'},
+        {'Discount Rate': '${(_discountRate * 100).toStringAsFixed(0)}%'},
+        if (_basisFrequency != null) {'Basis Frequency': _basisFrequency!},
+      ]),
+    ];
+    for (int i = 0; i < _rowsPerSolution.length; i++) {
+      final solutionTitle = _solutionTitle(i);
+      final costRows = _rowsPerSolution[i];
+      final tableRows = <List<String>>[];
+      for (final row in costRows) {
+        final itemName = row.itemController.text.trim();
+        final cost = row.costController.text.trim();
+        if (itemName.isNotEmpty || cost.isNotEmpty) {
+          tableRows.add([
+            itemName.isEmpty ? 'N/A' : itemName,
+            cost.isEmpty ? 'N/A' : cost,
+          ]);
+        }
+      }
+      sections.add(PdfSection.table(
+        'Cost Estimate - $solutionTitle',
+        headers: ['Item', 'Cost ($_currency)'],
+        rows: tableRows,
+      ));
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Cost Benefit Analysis',
+      sections: sections,
+    );
+  }
 
   @override
   void initState() {
@@ -475,9 +530,34 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       ]);
     }
 
+    // Detect project scale from project context for realistic default values
+    final projectContext = [
+      projectData?.projectName ?? '',
+      projectData?.solutionTitle ?? '',
+      projectData?.solutionDescription ?? '',
+      projectData?.businessCase ?? '',
+      ...opportunities,
+    ].join(' ').toLowerCase();
+
+    final isSmallProject = _isSmallScaleProject(projectContext);
+    final isLargeProject = _isLargeScaleProject(projectContext);
+
     final baseEstimate =
         _parseCurrencyInput(_projectValueAmountController.text);
-    final baseUnitValue = baseEstimate > 0 ? baseEstimate / 30 : 1200;
+    // Scale-aware per-unit defaults based on detected project scale.
+    // Small business (barbershop, salon): ~$200-$800/mo per benefit stream
+    // Medium/department: ~$800-$2,500/mo
+    // Large/enterprise: ~$2,500-$8,000/mo
+    final double baseUnitValue;
+    if (baseEstimate > 0) {
+      baseUnitValue = baseEstimate / 36;
+    } else if (isSmallProject) {
+      baseUnitValue = 350.0; // ~$350/mo per benefit line for small businesses
+    } else if (isLargeProject) {
+      baseUnitValue = 4500.0; // ~$4,500/mo per benefit line for large projects
+    } else {
+      baseUnitValue = 850.0; // ~$850/mo per benefit line (medium default)
+    }
     const categories = <String>[
       'process_improvement',
       'ops_efficiency',
@@ -489,19 +569,52 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     setState(() {
       final itemsToSeed = math.min(3, candidateTitles.length);
       for (int i = 0; i < itemsToSeed; i++) {
-        final unitValue = baseUnitValue * (1 + (i * 0.28));
+        // Vary unit values modestly around the base, not with aggressive multipliers
+        final unitValue = baseUnitValue * (1 + (i * 0.15));
         final entry = _BenefitLineItemEntry(
           id: 'benefit-seed-${DateTime.now().microsecondsSinceEpoch}-$i',
           categoryKey: categories[i % categories.length],
           title: candidateTitles[i],
           unitValue: unitValue,
-          units: 12 + (i * 4),
-          notes: 'Auto-seeded from project context; refine assumptions.',
+          units: 12, // 12 months – standard annual basis
+          notes: 'Auto-seeded estimate based on project context; refine assumptions.',
         );
         entry.bind(_onBenefitEntryEdited);
         _benefitLineItems.add(entry);
       }
     });
+  }
+
+  /// Detects whether the project context suggests a small-scale project
+  /// (barbershop, salon, small retail, local business, etc.)
+  static bool _isSmallScaleProject(String context) {
+    final smallIndicators = [
+      'barbershop', 'barber shop', 'salon', 'hair salon', 'nail salon',
+      'small business', 'small retail', 'sole proprietor', 'mom and pop',
+      'local shop', 'local store', 'boutique', 'freelance', 'solo',
+      'micro business', 'home-based', 'pop-up', 'food truck', 'food cart',
+      'corner store', 'kiosk', 'stall', 'personal brand',
+      'pet grooming', 'dog walking', 'tutoring', 'cleaning service',
+      'lawn care', 'small clinic', 'dental practice', 'yoga studio',
+      'gym studio', 'personal training', 'craft', 'artisan',
+      'personal app', 'portfolio app', 'booking app', 'appointment app',
+    ];
+    return smallIndicators.any((term) => context.contains(term));
+  }
+
+  /// Detects whether the project context suggests a large-scale project
+  /// (enterprise, infrastructure, government, etc.)
+  static bool _isLargeScaleProject(String context) {
+    final largeIndicators = [
+      'enterprise', 'corporation', 'multi-site', 'infrastructure',
+      'government', 'municipal', 'federal', 'hospital', 'university',
+      'campus', 'city-wide', 'nationwide', 'global', 'industrial',
+      'manufacturing plant', 'power plant', 'data center', 'data centre',
+      'oil and gas', 'mining', 'pipeline', 'railway', 'airport',
+      'large-scale', 'large scale', 'multi-phase', 'multi-year',
+      'multi-million', 'digital transformation',
+    ];
+    return largeIndicators.any((term) => context.contains(term));
   }
 
   bool _hasMeaningfulBenefitLineItems({int? solutionIndex}) {
@@ -1164,24 +1277,32 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         key: _scaffoldKey,
         backgroundColor: Colors.white,
         drawer: isMobile ? _buildMobileDrawer() : null,
-        body: Stack(
-          children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                  child: Row(children: [
-                DraggableSidebar(
-                  openWidth: sidebarWidth,
-                  child: const InitiationLikeSidebar(
-                      activeItemLabel:
-                          'Cost Benefit Analysis & Financial Metrics'),
-                ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
-            const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
+        body: SafeArea(
+          top: true,
+          child: Stack(
+            children: [
+              Column(children: [
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                Expanded(
+                    child: Row(children: [
+                  DraggableSidebar(
+                    openWidth: sidebarWidth,
+                    child: const InitiationLikeSidebar(
+                        activeItemLabel:
+                            'Cost Benefit Analysis & Financial Metrics'),
+                  ),
+                  Expanded(child: _buildMainContent()),
+                ])),
+              ]),
+              MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Cost Benefit Analysis & Financial Metrics',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
+              const AdminEditToggle(),
+            ],
+          ),
         ),
       ),
     );
@@ -1424,8 +1545,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1468,8 +1588,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1508,8 +1627,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1546,8 +1664,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1584,8 +1701,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1955,12 +2071,63 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Widget _buildStepNavigationControls() {
     final horizontalPadding = AppBreakpoints.pagePadding(context);
+    final isMobile = AppBreakpoints.isMobile(context);
     final isFirst = _currentStepIndex == 0;
     final isLast = _currentStepIndex == _stepDefinitions.length - 1;
     final stepStatus =
         '${_stepDefinitions[_currentStepIndex].shortLabel} (${_currentStepIndex + 1}/${_stepDefinitions.length})';
     final primaryLabel = isLast ? 'Continue to Preferred Solution' : 'Next Tab';
     final primaryIcon = isLast ? Icons.check : Icons.arrow_forward_ios_rounded;
+
+    final previousButton = TextButton.icon(
+      onPressed: isFirst ? null : _handlePreviousStep,
+      icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+      label: const Text('Previous'),
+    );
+    final stepStatusText = Text(
+      stepStatus,
+      style: TextStyle(
+          fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[800]),
+    );
+    final saveButton = OutlinedButton.icon(
+      onPressed: _handleSave,
+      icon: const Icon(Icons.save_outlined, size: 16),
+      label: const Text('Save'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.grey[800],
+        side: BorderSide(color: Colors.grey.shade300),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    final nextButton = ElevatedButton.icon(
+      onPressed: () async {
+        if (!_reviewConfirmed) {
+          final continueAnyway = await showProceedWithoutReviewDialog(
+            context,
+            title: 'Please confirm before continuing',
+            message:
+                'You have not confirmed this tab yet. You can continue now and come back to complete it, or stay and update it now.',
+          );
+          if (!continueAnyway || !mounted) return;
+        }
+
+        if (isLast) {
+          await _openPreferredSolution();
+        } else {
+          await _handleNextStep();
+        }
+      },
+      icon: Icon(primaryIcon, size: 16),
+      label: Text(primaryLabel),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFFD700),
+        foregroundColor: Colors.black,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -1976,68 +2143,39 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             scrollController: _mainScrollController,
             padding: const EdgeInsets.only(bottom: 16),
           ),
-          Row(
-            children: [
-              TextButton.icon(
-                onPressed: isFirst ? null : _handlePreviousStep,
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
-                label: const Text('Previous'),
-              ),
-              const SizedBox(width: 16),
-              Text(
-                stepStatus,
-                style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[800]),
-              ),
-              const Spacer(),
-              OutlinedButton.icon(
-                onPressed: _handleSave,
-                icon: const Icon(Icons.save_outlined, size: 16),
-                label: const Text('Save'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.grey[800],
-                  side: BorderSide(color: Colors.grey.shade300),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  if (!_reviewConfirmed) {
-                    final continueAnyway = await showProceedWithoutReviewDialog(
-                      context,
-                      title: 'Please confirm before continuing',
-                      message:
-                          'You have not confirmed this tab yet. You can continue now and come back to complete it, or stay and update it now.',
-                    );
-                    if (!continueAnyway || !mounted) return;
-                  }
-
-                  if (isLast) {
-                    await _openPreferredSolution();
-                  } else {
-                    await _handleNextStep();
-                  }
-                },
-                icon: Icon(primaryIcon, size: 16),
-                label: Text(primaryLabel),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFD700),
-                  foregroundColor: Colors.black,
-                  elevation: 0,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
-            ],
-          ),
+          if (isMobile) ...[
+            // Mobile: stack vertically to avoid overflow
+            Row(
+              children: [
+                previousButton,
+                const Spacer(),
+                stepStatusText,
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: saveButton,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: nextButton,
+            ),
+          ] else ...[
+            // Desktop: original horizontal Row layout
+            Row(
+              children: [
+                previousButton,
+                const SizedBox(width: 16),
+                stepStatusText,
+                const Spacer(),
+                saveButton,
+                const SizedBox(width: 12),
+                nextButton,
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -2049,8 +2187,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       decoration: BoxDecoration(
         color: const Color(0xFFE6F2FF),
         borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: const Color(0xFF90CAF9).withOpacity(0.4)),
+        border: Border.all(color: const Color(0xFF90CAF9).withOpacity(0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2584,7 +2721,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   }
 
   Widget _buildCurrencySelector() {
-    final availableCurrencies = {'USD', 'EUR', 'GBP', 'ZMW'};
+    final availableCurrencies = _currencyRates.keys.toSet();
     final selectedCurrency =
         availableCurrencies.contains(_currency) ? _currency : 'USD';
     return Container(
@@ -2607,12 +2744,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           const SizedBox(width: 16),
           DropdownButton<String>(
             value: selectedCurrency,
-            items: const [
-              DropdownMenuItem(value: 'USD', child: Text('USD')),
-              DropdownMenuItem(value: 'EUR', child: Text('EUR')),
-              DropdownMenuItem(value: 'GBP', child: Text('GBP')),
-              DropdownMenuItem(value: 'ZMW', child: Text('ZMW')),
-            ],
+            items: _currencyRates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
             onChanged: (value) {
               if (value != null) {
                 final factor = _currencyFactor(_lastCurrency, value);
@@ -2654,39 +2786,63 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Expanded(
-            child: Column(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            final titleColumn = Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Text('Project Benefit Calculation',
+                  const Text('Project Benefit Calculation',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 8),
-                  _AiTag(),
+                  const SizedBox(width: 8),
+                  const _AiTag(),
                 ]),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'AI-assisted estimation to showcase project benefits',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          if (_isGeneratingValue)
-            const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2.2)),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: _isGeneratingValue ? null : _generateProjectValue,
-            icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
-            label: const Text('Populate with AI'),
-          ),
-        ]),
+            );
+            final aiButton = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isGeneratingValue)
+                  const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.2)),
+                if (_isGeneratingValue) const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _isGeneratingValue ? null : _generateProjectValue,
+                  icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
+                  label: const Text('Populate with AI'),
+                ),
+              ],
+            );
+
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titleColumn,
+                  const SizedBox(height: 10),
+                  aiButton,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: titleColumn),
+                const SizedBox(width: 12),
+                aiButton,
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 12),
         if (_rowsPerSolution.length > 1) ...[
           const Text(
@@ -2717,7 +2873,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         Text('Estimated Project Benefit Value ($_currency)',
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
           controller: _projectValueAmountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           decoration: InputDecoration(
@@ -2726,8 +2882,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             fillColor: Colors.grey.shade100,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    BorderSide(color: Colors.grey.withOpacity(0.3))),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: Color(0xFFFFD700))),
@@ -2738,11 +2893,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, constraints) {
+            final isVeryNarrow = constraints.maxWidth < 400;
             final basisWidth = constraints.maxWidth >= 980
                 ? 220.0
                 : math.max(150.0, constraints.maxWidth * 0.32);
             final basisControl = SizedBox(
-              width: basisWidth,
+              width: isVeryNarrow ? constraints.maxWidth : basisWidth,
               child: DropdownButtonFormField<String>(
                 initialValue: _basisFrequency,
                 items: _frequencyOptions
@@ -2758,8 +2914,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   fillColor: Colors.grey.shade100,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(
-                          color: Colors.grey.withOpacity(0.3))),
+                      borderSide:
+                          BorderSide(color: Colors.grey.withOpacity(0.3))),
                   focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(color: Color(0xFFFFD700))),
@@ -2783,8 +2939,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             final helperText = Text(
               basisHelperText,
               style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
             );
 
             return Container(
@@ -2795,24 +2949,37 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.grey.withOpacity(0.25)),
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    currencyControl,
-                    const SizedBox(width: 14),
-                    basisControl,
-                    const SizedBox(width: 14),
-                    ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minWidth: math.max(240, constraints.maxWidth * 0.42),
-                        maxWidth: math.max(260, constraints.maxWidth * 0.55),
+              child: isVeryNarrow
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        currencyControl,
+                        const SizedBox(height: 10),
+                        basisControl,
+                        const SizedBox(height: 10),
+                        helperText,
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          currencyControl,
+                          const SizedBox(width: 14),
+                          basisControl,
+                          const SizedBox(width: 14),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minWidth:
+                                  math.max(240, constraints.maxWidth * 0.42),
+                              maxWidth:
+                                  math.max(260, constraints.maxWidth * 0.55),
+                            ),
+                            child: helperText,
+                          ),
+                        ],
                       ),
-                      child: helperText,
                     ),
-                  ],
-                ),
-              ),
             );
           },
         ),
@@ -2967,8 +3134,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           color: isSelected ? accentColor : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color:
-                isSelected ? accentColor : Colors.grey.withOpacity(0.3),
+            color: isSelected ? accentColor : Colors.grey.withOpacity(0.3),
             width: isSelected ? 2 : 1,
           ),
           boxShadow: isSelected
@@ -3017,6 +3183,32 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        InnerPageNavigationHint(
+          pageId: 'cost_analysis',
+          pageTitle: 'Benefit Categories',
+          description: 'Navigate between benefit categories',
+          currentSectionId: _projectValueFields[_activeBenefitCategoryIndex].key,
+          compact: true,
+          sections: [
+            for (int i = 0; i < _projectValueFields.length; i++)
+              InnerPageSection(
+                id: _projectValueFields[i].key,
+                label: _projectValueFields[i].value,
+                status: _activeBenefitCategoryIndex == i
+                    ? InnerPageSectionStatus.current
+                    : InnerPageSectionStatus.available,
+                stepNumber: i + 1,
+              ),
+          ],
+          onSectionTap: (sectionId) {
+            final index = _projectValueFields.indexWhere((f) => f.key == sectionId);
+            if (index >= 0) {
+              setState(() => _activeBenefitCategoryIndex = index);
+              _benefitCategoryTabController.animateTo(index);
+            }
+          },
+        ),
+        const SizedBox(height: 12),
         const Text(
           'Estimated Benefits',
           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
@@ -3187,8 +3379,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       decoration: BoxDecoration(
         color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
+        border: Border.all(color: const Color(0xFFFFD700).withOpacity(0.4)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -3259,8 +3450,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       decoration: BoxDecoration(
         border: isFirst
             ? null
-            : Border(
-                top: BorderSide(color: Colors.grey.withOpacity(0.2))),
+            : Border(top: BorderSide(color: Colors.grey.withOpacity(0.2))),
       ),
       child: Row(children: [
         Expanded(
@@ -3478,7 +3668,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: titleController,
                       readOnly: readOnly,
                       decoration: const InputDecoration(
@@ -3490,7 +3680,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: VoiceTextField(
                             controller: unitValueController,
                             readOnly: readOnly,
                             keyboardType: const TextInputType.numberWithOptions(
@@ -3504,7 +3694,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextField(
+                          child: VoiceTextField(
                             controller: unitsController,
                             readOnly: readOnly,
                             keyboardType: const TextInputType.numberWithOptions(
@@ -3570,7 +3760,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       ),
                     ],
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: notesController,
                       readOnly: readOnly,
                       minLines: 3,
@@ -3691,25 +3881,48 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
               'Assign an estimated financial value to identified project benefits',
               style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             );
-            final basisControls = Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Select Basis Frequency:',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700])),
-                const SizedBox(width: 8),
-                _BasisFrequencyToggle(
-                  value: _trackerBasisFrequency,
-                  onChanged: (value) {
-                    final solutionIndex = _activeSolutionIndex();
-                    setState(() {
-                      _trackerBasisFrequency = value;
-                      _clearSavingsSuggestionsForSolution(solutionIndex);
-                    });
-                    _markDirty();
-                  },
-                ),
-              ],
-            );
+            final isVeryNarrow = constraints.maxWidth < 500;
+            final basisControls = isVeryNarrow
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Select Basis Frequency:',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[700])),
+                      const SizedBox(height: 6),
+                      _BasisFrequencyToggle(
+                        value: _trackerBasisFrequency,
+                        onChanged: (value) {
+                          final solutionIndex = _activeSolutionIndex();
+                          setState(() {
+                            _trackerBasisFrequency = value;
+                            _clearSavingsSuggestionsForSolution(solutionIndex);
+                          });
+                          _markDirty();
+                        },
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Select Basis Frequency:',
+                          style:
+                              TextStyle(fontSize: 12, color: Colors.grey[700])),
+                      const SizedBox(width: 8),
+                      _BasisFrequencyToggle(
+                        value: _trackerBasisFrequency,
+                        onChanged: (value) {
+                          final solutionIndex = _activeSolutionIndex();
+                          setState(() {
+                            _trackerBasisFrequency = value;
+                            _clearSavingsSuggestionsForSolution(solutionIndex);
+                          });
+                          _markDirty();
+                        },
+                      ),
+                    ],
+                  );
             final itemsChip = Chip(
               label: Text('${_benefitLineItems.length} items'),
               avatar: const Icon(Icons.table_chart_outlined, size: 16),
@@ -3977,22 +4190,48 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                         Padding(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 20),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'No project benefits yet. Add at least one item to unlock summaries, review highlights, and profitability rollups.',
-                                  style: TextStyle(
-                                      fontSize: 12.5, color: Colors.grey[600]),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              TextButton.icon(
-                                onPressed: () => _addBenefitLineItem(),
-                                icon: const Icon(Icons.add_circle_outline),
-                                label: const Text('Add first item'),
-                              ),
-                            ],
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final isNarrow = constraints.maxWidth < 500;
+                              if (isNarrow) {
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'No project benefits yet. Add at least one item to unlock summaries, review highlights, and profitability rollups.',
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: Colors.grey[600]),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    TextButton.icon(
+                                      onPressed: () => _addBenefitLineItem(),
+                                      icon:
+                                          const Icon(Icons.add_circle_outline),
+                                      label: const Text('Add first item'),
+                                    ),
+                                  ],
+                                );
+                              }
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      'No project benefits yet. Add at least one item to unlock summaries, review highlights, and profitability rollups.',
+                                      style: TextStyle(
+                                          fontSize: 12.5,
+                                          color: Colors.grey[600]),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  TextButton.icon(
+                                    onPressed: () => _addBenefitLineItem(),
+                                    icon: const Icon(Icons.add_circle_outline),
+                                    label: const Text('Add first item'),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
                       Container(
@@ -4002,8 +4241,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                           color: const Color(0xFFFFF8E1),
                           border: Border(
                             top: BorderSide(
-                                color: const Color(0xFFFFD700)
-                                    .withOpacity(0.5)),
+                                color:
+                                    const Color(0xFFFFD700).withOpacity(0.5)),
                           ),
                         ),
                         child: Row(children: [
@@ -4468,8 +4707,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border:
-                        Border.all(color: Colors.grey.withOpacity(0.3)),
+                    border: Border.all(color: Colors.grey.withOpacity(0.3)),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.05),
@@ -4611,8 +4849,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   border: isLast
                       ? null
                       : Border(
-                          bottom: BorderSide(
-                              color: Colors.grey.withOpacity(0.2)),
+                          bottom:
+                              BorderSide(color: Colors.grey.withOpacity(0.2)),
                         ),
                 ),
                 child: Row(
@@ -4873,8 +5111,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
+          border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
             flex: 3, child: Text(label, style: const TextStyle(fontSize: 12))),
@@ -4883,7 +5120,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           flex: 2,
           child: Align(
             alignment: Alignment.topRight,
-            child: TextField(
+            child: VoiceTextField(
               controller: entry.costController,
               textAlign: TextAlign.right,
               keyboardType:
@@ -4930,8 +5167,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
+          border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
           width: 300,
@@ -5152,25 +5388,54 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         ],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Text('Initial cost estimate',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 8),
-          const _AiTag(),
-          const Spacer(),
-          OutlinedButton.icon(
-            onPressed: _isGenerating ? null : _populateCategoriesFromAi,
-            icon: _isGenerating
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.auto_fix_high_outlined, size: 18),
-            label: const Text('Populate categories (AI)'),
-          ),
-          const SizedBox(width: 8),
-          _currencyDropdown(),
-        ]),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 600;
+            final titleRow = Row(children: [
+              const Text('Initial cost estimate',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              const _AiTag(),
+            ]);
+            final actionButtons = Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _isGenerating ? null : _populateCategoriesFromAi,
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.auto_fix_high_outlined, size: 18),
+                  label: const Text('Populate categories (AI)'),
+                ),
+                const SizedBox(width: 8),
+                _currencyDropdown(),
+              ],
+            );
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  titleRow,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [actionButtons],
+                  ),
+                ],
+              );
+            }
+            return Row(children: [
+              titleRow,
+              const Spacer(),
+              actionButtons,
+            ]);
+          },
+        ),
         const SizedBox(height: 12),
         if (tabCount == 0)
           Text('Add solutions to start estimating per-solution costs.',
@@ -5270,7 +5535,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             SizedBox(
               width: 200,
               height: 56,
-              child: TextField(
+              child: VoiceTextField(
                 controller: _savingsTargetController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
@@ -5285,7 +5550,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             SizedBox(
               width: 280,
               height: 56,
-              child: TextField(
+              child: VoiceTextField(
                 controller: _savingsNotesController,
                 maxLines: 1,
                 decoration: const InputDecoration(
@@ -5368,8 +5633,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             decoration: BoxDecoration(
               color: const Color(0xFFFFF7CC),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: const Color(0xFFFFD700).withOpacity(0.5)),
+              border:
+                  Border.all(color: const Color(0xFFFFD700).withOpacity(0.5)),
             ),
             child: Row(children: [
               Expanded(
@@ -5581,8 +5846,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                               decoration: BoxDecoration(
                                   border: Border(
                                       top: BorderSide(
-                                          color: Colors.grey
-                                              .withOpacity(0.2)))),
+                                          color:
+                                              Colors.grey.withOpacity(0.2)))),
                               child: Row(children: [
                                 SizedBox(
                                   width: 300,
@@ -5793,7 +6058,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextField(
+                    VoiceTextField(
                       controller: itemController,
                       readOnly: readOnly,
                       decoration: const InputDecoration(
@@ -5802,7 +6067,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: descriptionController,
                       readOnly: readOnly,
                       minLines: 2,
@@ -5813,7 +6078,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: costController,
                       readOnly: readOnly,
                       keyboardType: const TextInputType.numberWithOptions(
@@ -5872,7 +6137,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                       ),
                     ],
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: assumptionsController,
                       readOnly: readOnly,
                       minLines: 3,
@@ -6297,19 +6562,27 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
     if (isMobile) {
       return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          const Text('Financial metric horizon',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 12),
-          toggleButtons,
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text('Financial metric horizon',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            toggleButtons,
+          ],
+        ),
         const SizedBox(height: 10),
-        Row(children: [
-          const Text('NPV discount rate',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-          const SizedBox(width: 12),
-          rateToggleButtons,
-        ]),
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text('NPV discount rate',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            rateToggleButtons,
+          ],
+        ),
         const SizedBox(height: 12),
         Row(children: [
           const Tooltip(
@@ -6638,8 +6911,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                 'Explain why this investment level is appropriate (e.g., resourcing, integrations, governance).',
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide:
-                    BorderSide(color: Colors.grey.withOpacity(0.3))),
+                borderSide: BorderSide(color: Colors.grey.withOpacity(0.3))),
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -7560,6 +7832,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Future<void> _populateCategoriesFromAi({int? targetSolution}) async {
     if (_isGenerating) return;
+    if (!mounted) return;
     setState(() {
       _isGenerating = true;
       _error = null;
@@ -7672,7 +7945,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   }
 
   Widget _currencyDropdown() {
-    final availableCurrencies = {'USD', 'EUR', 'GBP', 'ZMW'};
+    final availableCurrencies = _currencyRates.keys.toSet();
     final selectedCurrency =
         availableCurrencies.contains(_currency) ? _currency : 'USD';
     return Container(
@@ -7684,12 +7957,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: selectedCurrency,
-          items: const [
-            DropdownMenuItem(value: 'USD', child: Text('USD')),
-            DropdownMenuItem(value: 'EUR', child: Text('EUR')),
-            DropdownMenuItem(value: 'GBP', child: Text('GBP')),
-            DropdownMenuItem(value: 'ZMW', child: Text('ZMW')),
-          ],
+          items: _currencyRates.keys.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
           onChanged: (v) {
             final selected = v ?? 'USD';
             final factor = _currencyFactor(_lastCurrency, selected);
@@ -7777,8 +8045,8 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
+          border:
+              Border(top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
           flex: 2,
@@ -7812,7 +8080,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           flex: 2,
           child: Align(
             alignment: Alignment.topRight,
-            child: TextField(
+            child: VoiceTextField(
               controller: row.roiController,
               textAlign: TextAlign.right,
               readOnly: true,
@@ -7830,7 +8098,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           flex: 2,
           child: Align(
             alignment: Alignment.topRight,
-            child: TextField(
+            child: VoiceTextField(
               controller: row.npvController,
               textAlign: TextAlign.right,
               readOnly: true,
@@ -7848,7 +8116,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           flex: 2,
           child: Align(
             alignment: Alignment.topRight,
-            child: TextField(
+            child: VoiceTextField(
               controller: row.costController,
               textAlign: TextAlign.right,
               decoration: const InputDecoration(
@@ -7911,7 +8179,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         const Text('Return On Investment',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
             controller: row.roiController,
             readOnly: true,
             decoration: const InputDecoration(
@@ -7920,7 +8188,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         Text('Net Present Value ($horizonLabel)',
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
             controller: row.npvController,
             readOnly: true,
             decoration: const InputDecoration(
@@ -7929,7 +8197,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         const Text('Estimated Cost',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
             controller: row.costController,
             decoration: const InputDecoration(
                 border: OutlineInputBorder(), isDense: true, hintText: '0.00')),
@@ -8067,6 +8335,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
     final targetPercent = parsePercent(_savingsTargetController.text.trim());
 
+    if (!mounted) return;
     setState(() {
       _isSavingsGenerating = true;
       _savingsError = null;
@@ -8126,6 +8395,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     final scopedSolutions = scopedSolution == null
         ? widget.solutions
         : <AiSolutionItem>[scopedSolution];
+    if (!mounted) return;
     setState(() {
       _isGeneratingValue = true;
       _projectValueError = null;
@@ -8392,6 +8662,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   }) async {
     final solution = _solutionAt(index);
     if (solution == null || _solutionLoading.contains(index)) return;
+    if (!mounted) return;
     setState(() {
       _solutionLoading.add(index);
       _error = null;
@@ -8437,6 +8708,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
   Future<void> _generateCostBreakdown() async {
     if (_isGenerating) return;
+    if (!mounted) return;
     setState(() {
       _isGenerating = true;
       _error = null;

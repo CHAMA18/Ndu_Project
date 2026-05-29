@@ -4,6 +4,8 @@ import 'package:ndu_project/services/hint_content_service.dart';
 import 'package:ndu_project/services/hint_service.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+
 class AdminHintsScreen extends StatefulWidget {
   const AdminHintsScreen({super.key});
 
@@ -347,49 +349,52 @@ class _AdminHintsScreenState extends State<AdminHintsScreen> {
           ),
         ],
       ),
-      body: StreamBuilder<List<PageHintConfig>>(
-        stream: HintContentService.watchHints(),
-        builder: (context, snapshot) {
-          final remoteHints = snapshot.data ?? const <PageHintConfig>[];
-          final hints = HintContentService.mergeWithDefaults(remoteHints);
-          final categories = <String>{
-            'all',
-            ...hints.map((hint) => hint.category),
-          }.toList()
-            ..sort((a, b) {
-              if (a == 'all') return -1;
-              if (b == 'all') return 1;
-              return a.toLowerCase().compareTo(b.toLowerCase());
-            });
-          final filteredHints = _applyFilters(hints);
-          final activeCount = hints.where((hint) => hint.enabled).length;
-          final disabledCount = hints.length - activeCount;
-          final customizedCount = remoteHints.length;
+      body: SafeArea(
+        top: true,
+        child: StreamBuilder<List<PageHintConfig>>(
+          stream: HintContentService.watchHints(),
+          builder: (context, snapshot) {
+            final remoteHints = snapshot.data ?? const <PageHintConfig>[];
+            final hints = HintContentService.mergeWithDefaults(remoteHints);
+            final categories = <String>{
+              'all',
+              ...hints.map((hint) => hint.category),
+            }.toList()
+              ..sort((a, b) {
+                if (a == 'all') return -1;
+                if (b == 'all') return 1;
+                return a.toLowerCase().compareTo(b.toLowerCase());
+              });
+            final filteredHints = _applyFilters(hints);
+            final activeCount = hints.where((hint) => hint.enabled).length;
+            final disabledCount = hints.length - activeCount;
+            final customizedCount = remoteHints.length;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 20, 28, 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildHero(
-                  totalCount: hints.length,
-                  activeCount: activeCount,
-                  disabledCount: disabledCount,
-                  customizedCount: customizedCount,
-                ),
-                const SizedBox(height: 22),
-                _buildCommandDeck(),
-                const SizedBox(height: 22),
-                _buildFilters(categories),
-                const SizedBox(height: 20),
-                if (filteredHints.isEmpty)
-                  _buildEmptyState()
-                else
-                  _buildHintGrid(filteredHints),
-              ],
-            ),
-          );
-        },
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(28, 20, 28, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHero(
+                    totalCount: hints.length,
+                    activeCount: activeCount,
+                    disabledCount: disabledCount,
+                    customizedCount: customizedCount,
+                  ),
+                  const SizedBox(height: 22),
+                  _buildCommandDeck(),
+                  const SizedBox(height: 22),
+                  _buildFilters(categories),
+                  const SizedBox(height: 20),
+                  if (filteredHints.isEmpty)
+                    _buildEmptyState()
+                  else
+                    _buildHintGrid(filteredHints),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -561,7 +566,8 @@ class _AdminHintsScreenState extends State<AdminHintsScreen> {
                 runSpacing: 12,
                 children: [
                   _ActionPillButton(
-                    label: _seedInFlight ? 'Initializing…' : 'Initialize Defaults',
+                    label:
+                        _seedInFlight ? 'Initializing…' : 'Initialize Defaults',
                     icon: Icons.auto_fix_high_outlined,
                     accent: const Color(0xFF4F46E5),
                     onPressed: _seedInFlight ? null : _seedDefaultHints,
@@ -683,7 +689,7 @@ class _AdminHintsScreenState extends State<AdminHintsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          TextField(
+          VoiceTextField(
             controller: _searchController,
             decoration: InputDecoration(
               hintText: 'Search by screen, page id, category, or hint copy…',
@@ -1035,8 +1041,7 @@ class _HintCard extends StatelessWidget {
                   style: OutlinedButton.styleFrom(
                     backgroundColor: _hintActionColor.withOpacity(0.12),
                     foregroundColor: _hintActionForegroundColor,
-                    side:
-                        BorderSide(color: _hintActionColor.withOpacity(0.7)),
+                    side: BorderSide(color: _hintActionColor.withOpacity(0.7)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -1153,7 +1158,8 @@ class _HintEditorDialogState extends State<_HintEditorDialog> {
         message.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Page id, screen label, category, title, and message are required.'),
+          content: Text(
+              'Page id, screen label, category, title, and message are required.'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -1260,7 +1266,8 @@ class _HintEditorDialogState extends State<_HintEditorDialog> {
                           'Disable this to stop the hint from appearing altogether.',
                           style: TextStyle(fontSize: 12),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                           side: const BorderSide(color: Color(0xFFE5E7EB)),
@@ -1776,7 +1783,7 @@ class _DialogField extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        TextField(
+        VoiceTextField(
           controller: controller,
           maxLines: maxLines,
           onChanged: onChanged,

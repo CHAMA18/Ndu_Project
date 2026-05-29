@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // AiSolutionItem is exported from openai_service_secure.dart
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -35,6 +36,7 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 enum _MissingItConsiderationsAction { manual, autoFill, skip }
 
@@ -85,6 +87,31 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       newController.enableAutoBullet(); // Enable auto-bullet for new field
       _techControllers.add(newController); // Add a new controller
     });
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final techRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length && i < _techControllers.length; i++) {
+      final title = _solutions[i].title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _solutions[i].title.trim();
+      final tech = _techControllers[i].text.trim();
+      techRows.add([title, tech.isEmpty ? 'No data recorded.' : tech]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'IT Considerations',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        if (techRows.isNotEmpty)
+          PdfSection.table(
+            'Core Technology by Solution',
+            headers: ['Solution', 'Core Technology'],
+            rows: techRows,
+          ),
+      ],
+    );
   }
 
   @override
@@ -300,23 +327,31 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(children: [
-            BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(
-                child: Row(children: [
-              DraggableSidebar(
-                openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(
-                    activeItemLabel: 'IT Considerations'),
-              ),
-              Expanded(child: _buildMainContent()),
-            ])),
-          ]),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(children: [
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+              Expanded(
+                  child: Row(children: [
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'IT Considerations'),
+                ),
+                Expanded(child: _buildMainContent()),
+              ])),
+            ]),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'IT Considerations',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -418,7 +453,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFDCE3EE)),
                       ),
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: _notesController,
                         minLines: 3,
                         maxLines: 6,
@@ -630,7 +665,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                     ),
                   ],
                 ),
-                TextField(
+                VoiceTextField(
                   controller: _techControllers[index],
                   minLines: 4,
                   maxLines: null,
@@ -719,8 +754,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(
-              color: Colors.grey.withOpacity(0.25), width: 0.8),
+          right: BorderSide(color: Colors.grey.withOpacity(0.25), width: 0.8),
         ),
       ),
       child: Column(children: [
@@ -886,8 +920,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -921,8 +954,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -957,8 +989,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1439,142 +1470,163 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         controller: _reviewScrollController,
         padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          const EditableContentText(
-              contentKey: 'it_considerations_heading',
-              fallback: 'IT Considerations ',
-              category: 'business_case',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black)),
-          Expanded(
-            child: EditableContentText(
-                contentKey: 'it_considerations_description',
-                fallback: '(List core IT considerations for each solution)',
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            const EditableContentText(
+                contentKey: 'it_considerations_heading',
+                fallback: 'IT Considerations ',
                 category: 'business_case',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black)),
+            Expanded(
+              child: EditableContentText(
+                  contentKey: 'it_considerations_description',
+                  fallback: '(List core IT considerations for each solution)',
+                  category: 'business_case',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+            ),
+            // Page-level Regenerate All button
+            PageRegenerateAllButton(
+              onRegenerateAll: () async {
+                final confirmed = await showRegenerateAllConfirmation(context);
+                if (confirmed && mounted) {
+                  await _regenerateAllTechnologies();
+                }
+              },
+              isLoading: _isGenerating,
+              tooltip: 'Regenerate all IT considerations',
+            ),
+          ]),
+          SizedBox(height: AppBreakpoints.fieldGap(context)),
+          const EditableContentText(
+            contentKey: 'it_considerations_notes_heading',
+            fallback: 'Notes',
+            category: 'business_case',
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
           ),
-          // Page-level Regenerate All button
-          PageRegenerateAllButton(
-            onRegenerateAll: () async {
-              final confirmed = await showRegenerateAllConfirmation(context);
-              if (confirmed && mounted) {
-                await _regenerateAllTechnologies();
-              }
-            },
-            isLoading: _isGenerating,
-            tooltip: 'Regenerate all IT considerations',
-          ),
-        ]),
-        SizedBox(height: AppBreakpoints.fieldGap(context)),
-        const EditableContentText(
-          contentKey: 'it_considerations_notes_heading',
-          fallback: 'Notes',
-          category: 'business_case',
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-        ),
-        const SizedBox(height: 8),
-        TextFormattingToolbar(
-          controller: _notesController,
-          onBeforeUndo: () => _saveITConsiderationsData(),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.withOpacity(0.3))),
-          child: TextField(
+          const SizedBox(height: 8),
+          TextFormattingToolbar(
             controller: _notesController,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            decoration: InputDecoration(
-                hintText: 'Input your notes here...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero),
-            minLines: 1,
-            maxLines: null,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_error != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.red.withOpacity(0.3))),
-            child: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Text(_error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis)),
-              TextButton(
-                  onPressed: _isGenerating ? null : _generateTechnologies,
-                  child: const Text('Retry')),
-            ]),
-          ),
-        const SizedBox(height: 8),
-        const Text('IT Considerations for each potential solution',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black)),
-        const SizedBox(height: 6),
-        Text('Reminder: update text within each Core Technology box.',
-            style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic)),
-        const SizedBox(height: 12),
-        if (isMobile) ...[
-          Column(
-              children: List.generate(_techControllers.length, (i) => _row(i))),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: const Row(children: [
-              Expanded(
-                  child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Solution',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-              Expanded(
-                  child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text('Core Technology',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-            ]),
+            onBeforeUndo: () => _saveITConsiderationsData(),
           ),
           const SizedBox(height: 8),
           Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: Column(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withOpacity(0.3))),
+            child: VoiceTextField(
+              controller: _notesController,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              decoration: InputDecoration(
+                  hintText: 'Input your notes here...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero),
+              minLines: 1,
+              maxLines: null,
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (_error != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.red.withOpacity(0.3))),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                      child: Text(_error!,
+                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          maxLines: 5,
+                          overflow: TextOverflow.ellipsis)),
+                ]),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                      onPressed: _isGenerating ? null : _generateTechnologies,
+                      child: const Text('Retry')),
+                ),
+              ]),
+            ),
+          const SizedBox(height: 8),
+          const Text('IT Considerations for each potential solution',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black)),
+          const SizedBox(height: 6),
+          Text('Reminder: update text within each Core Technology box.',
+              style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontStyle: FontStyle.italic)),
+          const SizedBox(height: 12),
+          if (isMobile) ...[
+            Column(
                 children:
                     List.generate(_techControllers.length, (i) => _row(i))),
-          ),
-        ],
-        const SizedBox(height: 24),
+          ] else ...[
+            // Table header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FB),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+                  border: Border.all(color: const Color(0xFFE4E7EC))),
+              child: const Row(children: [
+                Expanded(
+                    flex: 2,
+                    child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Solution',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
+                SizedBox(width: 16),
+                Expanded(
+                    flex: 3,
+                    child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text('Core Technology',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
+              ]),
+            ),
+            // Table body
+            Container(
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                  border: Border.all(color: const Color(0xFFE4E7EC))),
+              child: _techControllers.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'No solutions added yet. Add solutions from the Potential Solutions page to generate IT considerations.',
+                          style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children: List.generate(_techControllers.length, (i) => _row(i))),
+            ),
+          ],
+          const SizedBox(height: 24),
 
-        // Navigation Buttons
+          // Navigation Buttons
           BusinessCaseNavigationButtons(
             currentScreen: 'IT Considerations',
             padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
@@ -1619,6 +1671,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
+    final isStriped = index.isOdd;
     // Handle cases where we have more controllers than solutions (user added items)
     final s = index < _solutions.length
         ? _solutions[index]
@@ -1626,8 +1679,9 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
+          color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
+          border:
+              Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
       child: isMobile
           ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1648,6 +1702,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             ])
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Expanded(
+                flex: 2,
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Column(
@@ -1665,7 +1720,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                                   textAlign: TextAlign.left,
                                   style: const TextStyle(
                                       fontSize: 13,
-                                      color: Colors.black87,
+                                      color: Color(0xFF1F2937),
                                       fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -1675,7 +1730,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                           Text(s.description,
                               textAlign: TextAlign.left,
                               style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
+                                  fontSize: 12, color: Color(0xFF6B7280)),
                               maxLines: 5,
                               softWrap: true,
                               overflow: TextOverflow.ellipsis),
@@ -1684,25 +1739,26 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                 ),
               ),
               const SizedBox(width: 16),
-              Expanded(child: _techTextArea(_techControllers[index], index)),
+              Expanded(
+                flex: 3,
+                child: _techTextArea(_techControllers[index], index),
+              ),
             ]),
     );
   }
 
   Widget _numberBadge(int number) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Container(
-      width: 20,
-      height: 20,
+      width: 22,
+      height: 22,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: primary.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: primary.withOpacity(0.6), width: 1),
+        color: const Color(0xFFFBBF24),
+        borderRadius: BorderRadius.circular(11),
       ),
       child: Text('$number',
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
+          style: const TextStyle(
+              fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
     );
   }
 
@@ -1748,18 +1804,17 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             controller: controller,
             onBeforeUndo: () => _saveITConsiderationsData(),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.25))),
-            child: TextField(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE4E7EC))),
+            child: VoiceTextField(
               controller: controller,
-              minLines: 2,
+              minLines: 3,
               maxLines: null,
-              textAlign: TextAlign.center,
               onChanged: (value) {
                 provider.addFieldToHistory(fieldKey, value,
                     isAiGenerated: true);
@@ -1772,7 +1827,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                     'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
                 hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
               ),
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style: const TextStyle(fontSize: 12, color: Color(0xFF334155), height: 1.5),
             ),
           ),
         ],

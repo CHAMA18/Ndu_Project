@@ -17,6 +17,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
 class ToolsIntegrationScreen extends StatefulWidget {
   const ToolsIntegrationScreen({super.key});
 
@@ -42,6 +43,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   List<_ActionRow> _actionRows = [];
   List<_ApprovalGateData> _approvalGates = [];
   List<_DataFlowRow> _dataFlows = [];
+  bool _frameworkGuideExpanded = false;
 
   String? get _projectId {
     try {
@@ -456,7 +458,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
           ),
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
+              padding: EdgeInsets.fromLTRB(padding, 8, padding, padding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -466,11 +468,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     _buildLoadErrorCard(),
                     const SizedBox(height: 16),
                   ],
-                  _buildHeader(isNarrow),
-                  const SizedBox(height: 16),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
-                  _buildStatsRow(isNarrow),
+                  _buildHeader(),
                   const SizedBox(height: 20),
                   _buildFrameworkGuide(),
                   const SizedBox(height: 24),
@@ -541,7 +539,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   // Header
   // ---------------------------------------------------------------------------
 
-  Widget _buildHeader(bool isNarrow) {
+  Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -557,46 +555,16 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Tools Integration',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Govern integration lifecycle, API scopes, and data flow health across your design and delivery toolchain. '
-                  'Aligned with ITIL Service Integration, PMI PMBOK 4.3 (Direct & Manage Project Work), '
-                  'and ISO 27001 Annex A.12 (Operations Security) for tool chain management and access control.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
+        const Text(
+          'Tools Integration',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Govern integration lifecycle, API scopes, and data flow health across your design and delivery toolchain. '
+          'Aligned with ITIL Service Integration, PMI PMBOK 4.3 (Direct & Manage Project Work), '
+          'and ISO 27001 Annex A.12 (Operations Security) for tool chain management and access control.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
         ),
       ],
     );
@@ -855,7 +823,6 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
 
   Widget _buildFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -871,56 +838,91 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Tools integration framework',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+          // Clickable header row
+          InkWell(
+            onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Tools integration framework',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 22,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in ITIL Service Integration and Management (SIAM), PMI PMBOK 4.3 Direct & Manage Project Work, '
-            'and ISO 27001 Annex A.12 Operations Security. Effective tools integration ensures that connected services '
-            'maintain data integrity, access control, and operational continuity across the project delivery lifecycle.',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
-          ),
-          const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildGuideCard(
-                Icons.sync_outlined,
-                'Integration Lifecycle',
-                'Connected → Syncing → Active → Degraded → Expired. '
-                'Each integration should be tracked from initial connection through operational maturity. '
-                'Set automated health checks at regular intervals and configure alerts for status transitions.',
-                const Color(0xFF2563EB),
+          // Collapsible content
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in ITIL Service Integration and Management (SIAM), PMI PMBOK 4.3 Direct & Manage Project Work, '
+                    'and ISO 27001 Annex A.12 Operations Security. Effective tools integration ensures that connected services '
+                    'maintain data integrity, access control, and operational continuity across the project delivery lifecycle.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildGuideCard(
+                    Icons.sync_outlined,
+                    'Integration Lifecycle',
+                    'Connected → Syncing → Active → Degraded → Expired. '
+                    'Each integration should be tracked from initial connection through operational maturity. '
+                    'Set automated health checks at regular intervals and configure alerts for status transitions.',
+                    const Color(0xFF2563EB),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.api_outlined,
+                    'Data Flow & API Governance',
+                    'Manage scope definitions, rate limiting, and error handling per ITIL SIAM data flow standards. '
+                    'Validate that all API integrations follow least-privilege access principles and document '
+                    'data mapping between integrated tools.',
+                    const Color(0xFF10B981),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.security_outlined,
+                    'Security & Compliance',
+                    'Enforce OAuth 2.0 authentication, API key rotation schedules, and audit trails per ISO 27001 A.9 '
+                    'Access Control and A.12 Operations Security. Maintain credential inventories and validate '
+                    'encryption in transit for all data exchanges.',
+                    const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.monitor_heart_outlined,
+                    'Health Monitoring & Incident Response',
+                    'Automated health checks with configurable alerting thresholds and remediation workflows. '
+                    'Define escalation paths for degraded connections and maintain runbooks for common integration '
+                    'failure scenarios per ITIL Incident Management practices.',
+                    const Color(0xFFEF4444),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.api_outlined,
-                'Data Flow & API Governance',
-                'Manage scope definitions, rate limiting, and error handling per ITIL SIAM data flow standards. '
-                'Validate that all API integrations follow least-privilege access principles and document '
-                'data mapping between integrated tools.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.security_outlined,
-                'Security & Compliance',
-                'Enforce OAuth 2.0 authentication, API key rotation schedules, and audit trails per ISO 27001 A.9 '
-                'Access Control and A.12 Operations Security. Maintain credential inventories and validate '
-                'encryption in transit for all data exchanges.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.monitor_heart_outlined,
-                'Health Monitoring & Incident Response',
-                'Automated health checks with configurable alerting thresholds and remediation workflows. '
-                'Define escalation paths for degraded connections and maintain runbooks for common integration '
-                'failure scenarios per ITIL Incident Management practices.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+            ),
+            crossFadeState: _frameworkGuideExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
@@ -1394,9 +1396,9 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     children: [
                       Expanded(flex: 3, child: Text('SIGNAL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
                       Expanded(flex: 3, child: Text('DESCRIPTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 80, child: Text('SEVERITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('SEVERITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       Expanded(flex: 2, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 80, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       SizedBox(width: 52, child: Text('', style: TextStyle(fontSize: 10))),
                     ],
                   ),
@@ -1424,7 +1426,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(sig.description, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildSeverityBadge(sig.severity),
                         ),
                         Expanded(
@@ -1432,7 +1434,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(sig.owner, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildStatusBadge(sig.status),
                         ),
                         SizedBox(
@@ -1538,10 +1540,10 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   child: const Row(
                     children: [
                       Expanded(flex: 4, child: Text('ACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 80, child: Text('PRIORITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
-                      SizedBox(width: 80, child: Text('DUE DATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('PRIORITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('DUE DATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       Expanded(flex: 2, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 90, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 120, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       SizedBox(width: 52, child: Text('', style: TextStyle(fontSize: 10))),
                     ],
                   ),
@@ -1565,11 +1567,11 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(act.title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF111827))),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildSeverityBadge(act.priority),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: Text(act.dueDate, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)), textAlign: TextAlign.center),
                         ),
                         Expanded(
@@ -1577,7 +1579,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(act.owner, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                         ),
                         SizedBox(
-                          width: 90,
+                          width: 120,
                           child: _buildStatusBadge(act.status),
                         ),
                         SizedBox(
@@ -1642,7 +1644,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: providerCtl.text,
+                    initialValue: providerCtl.text,
                     items: ['Figma', 'Draw.io', 'Miro', 'Whiteboard', 'Jira', 'GitHub', 'Custom']
                         .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                         .toList(),
@@ -1664,12 +1666,12 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     decoration: const InputDecoration(labelText: 'Provider', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
-                  TextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Tool name', border: OutlineInputBorder())),
+                  VoiceTextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Tool name', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: subtitleCtl, decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder())),
+                  VoiceTextField(controller: subtitleCtl, decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: status,
+                    initialValue: status,
                     items: ['Connected', 'Degraded', 'Not connected', 'Expired']
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
@@ -1680,11 +1682,11 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
-                  TextField(controller: scopesCtl, decoration: const InputDecoration(labelText: 'Scopes (comma-separated)', border: OutlineInputBorder())),
+                  VoiceTextField(controller: scopesCtl, decoration: const InputDecoration(labelText: 'Scopes (comma-separated)', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: mapsToCtl, decoration: const InputDecoration(labelText: 'Maps to', border: OutlineInputBorder())),
+                  VoiceTextField(controller: mapsToCtl, decoration: const InputDecoration(labelText: 'Maps to', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: featuresCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Features / notes', border: OutlineInputBorder())),
+                  VoiceTextField(controller: featuresCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Features / notes', border: OutlineInputBorder())),
                 ],
               ),
             ),
@@ -1778,18 +1780,18 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: metricCtl, decoration: const InputDecoration(labelText: 'Metric name', isDense: true, border: OutlineInputBorder())),
+              VoiceTextField(controller: metricCtl, decoration: const InputDecoration(labelText: 'Metric name', isDense: true, border: OutlineInputBorder())),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: TextField(controller: valueCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Actual %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
+                Expanded(child: VoiceTextField(controller: valueCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Actual %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: targetCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
+                Expanded(child: VoiceTextField(controller: targetCtl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target %', isDense: true, border: OutlineInputBorder(), suffixText: '%'))),
               ]),
               const SizedBox(height: 12),
               Row(children: [
-                Expanded(child: TextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
+                Expanded(child: VoiceTextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', isDense: true, border: OutlineInputBorder()))),
                 const SizedBox(width: 12),
-                Expanded(child: TextField(controller: trendCtl, decoration: const InputDecoration(labelText: 'Trend note', isDense: true, border: OutlineInputBorder()))),
+                Expanded(child: VoiceTextField(controller: trendCtl, decoration: const InputDecoration(labelText: 'Trend note', isDense: true, border: OutlineInputBorder()))),
               ]),
             ],
           ),
@@ -1859,14 +1861,14 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(controller: signalCtl, decoration: const InputDecoration(labelText: 'Signal name', border: OutlineInputBorder())),
+                  VoiceTextField(controller: signalCtl, decoration: const InputDecoration(labelText: 'Signal name', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: descCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                  VoiceTextField(controller: descCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: severity,
+                        initialValue: severity,
                         items: ['Critical', 'High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => severity = v); },
                         decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
@@ -1875,7 +1877,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: category,
+                        initialValue: category,
                         items: ['Connectivity', 'Authentication', 'Governance', 'Security', 'Performance'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => category = v); },
                         decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
@@ -1884,11 +1886,11 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: TextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: status,
+                        initialValue: status,
                         items: ['Open', 'Monitoring', 'Resolved', 'Escalated'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -1963,27 +1965,27 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(controller: titleCtl, decoration: const InputDecoration(labelText: 'Action title', border: OutlineInputBorder())),
+                  VoiceTextField(controller: titleCtl, decoration: const InputDecoration(labelText: 'Action title', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: priority,
+                        initialValue: priority,
                         items: ['Critical', 'High', 'Medium', 'Low'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => priority = v); },
                         decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Expanded(child: TextField(controller: dueDateCtl, decoration: const InputDecoration(labelText: 'Due date', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: dueDateCtl, decoration: const InputDecoration(labelText: 'Due date', border: OutlineInputBorder()))),
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: TextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: ownerCtl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: status,
+                        initialValue: status,
                         items: ['Not Started', 'In Progress', 'Pending', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -2077,9 +2079,9 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                       Expanded(flex: 3, child: Text('GATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
                       Expanded(flex: 4, child: Text('DESCRIPTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
                       Expanded(flex: 2, child: Text('APPROVER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 80, child: Text('DEPT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('DEPT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       SizedBox(width: 72, child: Text('PRIORITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
-                      SizedBox(width: 80, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       SizedBox(width: 72, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       SizedBox(width: 52, child: Text('', style: TextStyle(fontSize: 10))),
                     ],
@@ -2112,7 +2114,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(gate.approver, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: Text(gate.department, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF374151)), textAlign: TextAlign.center),
                         ),
                         SizedBox(
@@ -2120,7 +2122,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: _buildSeverityBadge(gate.priority),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildStatusBadge(gate.status),
                         ),
                         SizedBox(
@@ -2206,9 +2208,9 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                       Expanded(flex: 2, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
                       Expanded(flex: 2, child: Text('DATA TYPE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
                       Expanded(flex: 2, child: Text('API METHOD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 80, child: Text('FREQUENCY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('FREQUENCY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       Expanded(flex: 3, child: Text('TRANSFORMATION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5))),
-                      SizedBox(width: 80, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
+                      SizedBox(width: 110, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFFD1D5DB), letterSpacing: 0.5), textAlign: TextAlign.center)),
                       SizedBox(width: 52, child: Text('', style: TextStyle(fontSize: 10))),
                     ],
                   ),
@@ -2244,7 +2246,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(flow.apiMethod, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF374151))),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: Text(flow.frequency, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)), textAlign: TextAlign.center),
                         ),
                         Expanded(
@@ -2252,7 +2254,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                           child: Text(flow.transformation, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)), maxLines: 2, overflow: TextOverflow.ellipsis),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildStatusBadge(flow.status),
                         ),
                         SizedBox(
@@ -2314,16 +2316,16 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(controller: gateCtl, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
+                  VoiceTextField(controller: gateCtl, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
-                  TextField(controller: descCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                  VoiceTextField(controller: descCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: TextField(controller: approverCtl, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: approverCtl, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: department,
+                        initialValue: department,
                         items: ['Security', 'Data', 'Operations', 'Quality', 'Procurement', 'Executive', 'Other']
                             .map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => department = v); },
@@ -2335,7 +2337,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: priority,
+                        initialValue: priority,
                         items: ['Critical', 'High', 'Medium', 'Low'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => priority = v); },
                         decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
@@ -2344,7 +2346,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: status,
+                        initialValue: status,
                         items: ['Not Started', 'In Review', 'Pending', 'Approved', 'Rejected'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -2352,7 +2354,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     ),
                   ]),
                   const SizedBox(height: 12),
-                  TextField(controller: targetDateCtl, decoration: const InputDecoration(labelText: 'Target date', border: OutlineInputBorder())),
+                  VoiceTextField(controller: targetDateCtl, decoration: const InputDecoration(labelText: 'Target date', border: OutlineInputBorder())),
                 ],
               ),
             ),
@@ -2445,17 +2447,17 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Row(children: [
-                    Expanded(child: TextField(controller: sourceCtl, decoration: const InputDecoration(labelText: 'Source', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: sourceCtl, decoration: const InputDecoration(labelText: 'Source', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
-                    Expanded(child: TextField(controller: targetCtl, decoration: const InputDecoration(labelText: 'Target', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: targetCtl, decoration: const InputDecoration(labelText: 'Target', border: OutlineInputBorder()))),
                   ]),
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: TextField(controller: dataTypeCtl, decoration: const InputDecoration(labelText: 'Data type', border: OutlineInputBorder()))),
+                    Expanded(child: VoiceTextField(controller: dataTypeCtl, decoration: const InputDecoration(labelText: 'Data type', border: OutlineInputBorder()))),
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: apiMethodCtl.text,
+                        initialValue: apiMethodCtl.text,
                         items: ['REST GET', 'REST POST', 'REST POST/PUT', 'REST PUT', 'WebSocket', 'GraphQL', 'Webhook']
                             .map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                         onChanged: (v) { if (v != null) apiMethodCtl.text = v; },
@@ -2467,7 +2469,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: frequencyCtl.text.isEmpty ? 'On change' : frequencyCtl.text,
+                        initialValue: frequencyCtl.text.isEmpty ? 'On change' : frequencyCtl.text,
                         items: ['Real-time', 'On change', 'Scheduled', 'Manual'].map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
                         onChanged: (v) { if (v != null) frequencyCtl.text = v; },
                         decoration: const InputDecoration(labelText: 'Frequency', border: OutlineInputBorder()),
@@ -2476,7 +2478,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: status,
+                        initialValue: status,
                         items: ['Active', 'Degraded', 'Disabled', 'Pending'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -2484,7 +2486,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     ),
                   ]),
                   const SizedBox(height: 12),
-                  TextField(controller: transformCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Transformation rule', border: OutlineInputBorder())),
+                  VoiceTextField(controller: transformCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Transformation rule', border: OutlineInputBorder())),
                 ],
               ),
             ),
@@ -2635,6 +2637,39 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
 // Data models
 // =============================================================================
 
+/// Lookup table of icons used by integrations so the web tree-shaker can
+/// statically resolve every [IconData].
+const _knownIcons = <int, IconData>{
+  0xe86b: IconData(0xe86b, fontFamily: 'MaterialIcons'), // Icons.extension
+  0xe8a6: IconData(0xe8a6, fontFamily: 'MaterialIcons'), // Icons.sync
+  0xe8b4: IconData(0xe8b4, fontFamily: 'MaterialIcons'), // Icons.cloud
+  0xe161: IconData(0xe161, fontFamily: 'MaterialIcons'), // Icons.code
+  0xe8d4: IconData(0xe8d4, fontFamily: 'MaterialIcons'), // Icons.storage
+  0xe8ad: IconData(0xe8ad, fontFamily: 'MaterialIcons'), // Icons.security
+  0xe8d8: IconData(0xe8d8, fontFamily: 'MaterialIcons'), // Icons.api
+  0xe56c: IconData(0xe56c, fontFamily: 'MaterialIcons'), // Icons.psychology
+  0xe90f: IconData(0xe90f, fontFamily: 'MaterialIcons'), // Icons.analytics
+  0xe30a: IconData(0xe30a, fontFamily: 'MaterialIcons'), // Icons.mail
+  0xe88e: IconData(0xe88e, fontFamily: 'MaterialIcons'), // Icons.build
+  0xe0af: IconData(0xe0af, fontFamily: 'MaterialIcons'), // Icons.hub
+  0xe8f5: IconData(0xe8f5, fontFamily: 'MaterialIcons'), // Icons.webhook
+  0xe3af: IconData(0xe3af, fontFamily: 'MaterialIcons'), // Icons.notifications
+  0xe332: IconData(0xe332, fontFamily: 'MaterialIcons'), // Icons.group
+  0xe053: IconData(0xe053, fontFamily: 'MaterialIcons'), // Icons.dashboard
+  0xe8c3: IconData(0xe8c3, fontFamily: 'MaterialIcons'), // Icons.link
+  0xe0b9: IconData(0xe0b9, fontFamily: 'MaterialIcons'), // Icons.insights
+  0xe56f: IconData(0xe56f, fontFamily: 'MaterialIcons'), // Icons.settings
+  0xe33c: IconData(0xe33c, fontFamily: 'MaterialIcons'), // Icons.key
+};
+
+IconData _iconFromCodePoint(int? codePoint) {
+  if (codePoint != null) {
+    return _knownIcons[codePoint] ??
+        const IconData(0xe86b, fontFamily: 'MaterialIcons');
+  }
+  return const IconData(0xe86b, fontFamily: 'MaterialIcons');
+}
+
 class _IntegrationRow {
   final String id;
   final String name;
@@ -2731,7 +2766,7 @@ class _IntegrationRow {
         scopes: e['scopes'] ?? '',
         mapsTo: e['mapsTo'] ?? '',
         lastSync: e['lastSync'] ?? 'Never',
-        icon: IconData(e['iconCodePoint'] ?? Icons.extension.codePoint, fontFamily: 'MaterialIcons'),
+        icon: _iconFromCodePoint(e['iconCodePoint'] as int?),
         iconColor: Color(e['iconColor'] ?? const Color(0xFF64748B).toARGB32()),
         features: e['features'] ?? '',
         autoHandoff: e['autoHandoff'],
@@ -3155,7 +3190,7 @@ class _PanelShell extends StatelessWidget {
 // =============================================================================
 
 class _Debouncer {
-  _Debouncer([this.delay = const Duration(milliseconds: 800)]);
+  _Debouncer({this.delay = const Duration(milliseconds: 300)});
   final Duration delay;
   Timer? _timer;
 

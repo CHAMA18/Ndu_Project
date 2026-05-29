@@ -12,6 +12,10 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class ProjectPlanScreen extends StatefulWidget {
   const ProjectPlanScreen({super.key});
 
@@ -224,6 +228,15 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(
+                          title: 'Project Plan Overview',
+                          showImportButton: false,
+                          showContentButton: false,
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
+                              context, 'project_plan'),
+                          onForward: () => PlanningPhaseNavigation.goToNext(
+                              context, 'project_plan'), onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _buildHeader(isMobile),
                         const SizedBox(height: 24),
                         const PlanningAiNotesCard(
@@ -238,6 +251,51 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                         _ProjectPlanOverviewCard(isMobile: isMobile),
                         const SizedBox(height: 24),
                         _buildTabBar(),
+                        const SizedBox(height: 16),
+                        InnerPageNavigationHint(
+                          pageId: 'project_plan',
+                          pageTitle: 'Project Plan',
+                          description: 'Navigate between project plan sections',
+                          currentSectionId: _tabController.index.toString(),
+                          onSectionTap: (sectionId) {
+                            final index = int.tryParse(sectionId) ?? 0;
+                            if (index >= 0 && index < 5) {
+                              _tabController.animateTo(index);
+                            }
+                          },
+                          sections: const [
+                            InnerPageSection(
+                              id: '0',
+                              label: 'Overview',
+                              icon: Icons.dashboard_outlined,
+                              stepNumber: 1,
+                            ),
+                            InnerPageSection(
+                              id: '1',
+                              label: 'Resources',
+                              icon: Icons.people_outline,
+                              stepNumber: 2,
+                            ),
+                            InnerPageSection(
+                              id: '2',
+                              label: 'Tasks',
+                              icon: Icons.task_alt_outlined,
+                              stepNumber: 3,
+                            ),
+                            InnerPageSection(
+                              id: '3',
+                              label: 'Budget',
+                              icon: Icons.account_balance_wallet_outlined,
+                              stepNumber: 4,
+                            ),
+                            InnerPageSection(
+                              id: '4',
+                              label: 'Risks',
+                              icon: Icons.warning_amber_outlined,
+                              stepNumber: 5,
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 24),
                         _buildTabContent(isMobile),
                         const SizedBox(height: 24),
@@ -255,7 +313,12 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Plan',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -309,6 +372,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
                 const SizedBox(width: 32),
                 _buildProjectDropdown(),
                 const Spacer(),
+                const SizedBox(width: 10),
                 _buildStatusBadges(),
                 const SizedBox(width: 10),
                 _buildEditPlanButton(),
@@ -716,7 +780,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           .doc('initialization_flags')
           .get();
       return doc.data()?[flagKey] == true;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -732,7 +796,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
           .doc('initialization_flags')
           .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()},
               SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   void _importOverview() {
@@ -930,7 +994,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
               notes: (d['notes'] ?? '').toString().trim(),
             ));
           }
-        } catch (_) {}
+        } catch (e) { debugPrint('Error: $e'); }
 
         try {
           final vendorSnap = await FirebaseFirestore.instance
@@ -951,7 +1015,7 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
               notes: (d['notes'] ?? '').toString().trim(),
             ));
           }
-        } catch (_) {}
+        } catch (e) { debugPrint('Error: $e'); }
       }
 
       setState(() => _vendors.addAll(entries));
@@ -2221,6 +2285,21 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       ],
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Project Plan',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_project_plan_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _Deliverable {
@@ -3063,7 +3142,7 @@ class _ListEditor extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: TextFormField(
+                      child: VoiceTextFormField(
                         key: ValueKey(item.id),
                         initialValue: item.text,
                         decoration: InputDecoration(
@@ -3203,7 +3282,7 @@ class _LabeledTextField extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF374151))),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
@@ -3388,7 +3467,7 @@ class _TextCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return VoiceTextFormField(
       key: ValueKey(fieldKey),
       initialValue: value,
       decoration: InputDecoration(

@@ -9,6 +9,9 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class RiskTrackingScreen extends StatefulWidget {
   const RiskTrackingScreen({super.key});
 
@@ -76,7 +79,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
     ),
   ];
 
-  List<_EscalationReadiness> _escalations = [
+  final List<_EscalationReadiness> _escalations = [
     _EscalationReadiness(
       id: 'ESC-001',
       event: 'Executive sync — critical path unblock',
@@ -299,12 +302,11 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Risk Tracking',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                         _buildHeader(isNarrow),
             const SizedBox(height: 20),
@@ -638,15 +640,18 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF0EA5E9)))),
                           DataCell(Text(risk.title,
-                              style: const TextStyle(fontSize: 13))),
+                              style: const TextStyle(fontSize: 13),
+                              maxLines: 1, overflow: TextOverflow.ellipsis)),
                           DataCell(Text(risk.owner,
                               style: const TextStyle(
-                                  fontSize: 13, color: Color(0xFF64748B)))),
+                                  fontSize: 13, color: Color(0xFF64748B)),
+                              maxLines: 1, overflow: TextOverflow.ellipsis)),
                           DataCell(_chip('${risk.probability} p')),
                           DataCell(_impactChip(risk.impact)),
                           DataCell(_statusChip(risk.status)),
                           DataCell(Text(risk.nextReview,
-                              style: const TextStyle(fontSize: 12))),
+                              style: const TextStyle(fontSize: 12),
+                              maxLines: 1, overflow: TextOverflow.ellipsis)),
                           DataCell(_buildRowActions(
                             onEdit: () => _openEditRiskDialog(risk),
                             onDelete: () => _deleteRisk(risk),
@@ -1526,14 +1531,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: idController,
                           decoration: const InputDecoration(
                               labelText: 'Escalation ID', hintText: 'e.g., ESC-005'),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Enter an ID' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: eventController,
                           decoration: const InputDecoration(
                               labelText: 'Escalation event', hintText: 'e.g., Executive sync — critical unblock'),
@@ -1541,7 +1546,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedLevel,
+                          initialValue: selectedLevel,
                           items: ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1549,7 +1554,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           decoration: const InputDecoration(labelText: 'Escalation level'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: triggerController,
                           decoration: const InputDecoration(
                               labelText: 'Trigger condition', hintText: 'e.g., SLA breach or threshold exceeded'),
@@ -1557,19 +1562,19 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: responsibleController,
                           decoration: const InputDecoration(labelText: 'Responsible party'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: targetController,
                           decoration: const InputDecoration(
                               labelText: 'Escalation target', hintText: 'e.g., CTO / Steering Committee'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedStatus,
+                          initialValue: selectedStatus,
                           items: ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1595,13 +1600,13 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: windowController,
                           decoration: const InputDecoration(
                               labelText: 'Response window', hintText: 'e.g., 4 hrs, 24 hrs'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: decisionController,
                           decoration: const InputDecoration(
                               labelText: 'Decision required', hintText: 'What decision is needed?'),
@@ -1680,14 +1685,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: eventController,
                           decoration: const InputDecoration(labelText: 'Escalation event'),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedLevel,
+                          initialValue: selectedLevel,
                           items: ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1695,25 +1700,25 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           decoration: const InputDecoration(labelText: 'Escalation level'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: triggerController,
                           decoration: const InputDecoration(labelText: 'Trigger condition'),
                           maxLines: 2,
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: responsibleController,
                           decoration: const InputDecoration(labelText: 'Responsible party'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: targetController,
                           decoration: const InputDecoration(labelText: 'Escalation target'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedStatus,
+                          initialValue: selectedStatus,
                           items: ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1739,12 +1744,12 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: windowController,
                           decoration: const InputDecoration(labelText: 'Response window'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: decisionController,
                           decoration: const InputDecoration(labelText: 'Decision required'),
                           maxLines: 2,
@@ -1898,7 +1903,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: idController,
                         decoration: const InputDecoration(
                             labelText: 'Risk ID', hintText: 'e.g., R-050'),
@@ -1908,7 +1913,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                                 : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: titleController,
                         decoration:
                             const InputDecoration(labelText: 'Risk title'),
@@ -1918,12 +1923,12 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                                 : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: ownerController,
                         decoration: const InputDecoration(labelText: 'Owner'),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: probabilityController,
                         decoration: const InputDecoration(
                             labelText: 'Probability (e.g., 0.42)'),
@@ -1932,7 +1937,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedImpact,
+                        initialValue: selectedImpact,
                         items: const ['Low', 'Medium', 'High']
                             .map((impact) => DropdownMenuItem(
                                 value: impact, child: Text(impact)))
@@ -1946,7 +1951,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedStatus,
+                        initialValue: selectedStatus,
                         items: const [
                           'Mitigating',
                           'Monitoring',
@@ -1964,7 +1969,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         decoration: const InputDecoration(labelText: 'Status'),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: nextReviewController,
                         decoration: const InputDecoration(
                             labelText: 'Next review (date or note)'),
@@ -2041,25 +2046,25 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: titleController,
                         decoration: const InputDecoration(labelText: 'Risk title'),
                         validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: ownerController,
                         decoration: const InputDecoration(labelText: 'Owner'),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: probabilityController,
                         decoration: const InputDecoration(labelText: 'Probability'),
                         keyboardType: TextInputType.numberWithOptions(decimal: true),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedImpact,
+                        initialValue: selectedImpact,
                         items: ['Low', 'Medium', 'High']
                             .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                             .toList(),
@@ -2068,7 +2073,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: selectedStatus,
+                        initialValue: selectedStatus,
                         items: ['Mitigating', 'Monitoring', 'Escalated', 'Accepted']
                             .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                             .toList(),
@@ -2076,7 +2081,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         decoration: const InputDecoration(labelText: 'Status'),
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: nextReviewController,
                         decoration: const InputDecoration(labelText: 'Next review'),
                       ),
@@ -2172,20 +2177,20 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: idController,
                           decoration: const InputDecoration(
                               labelText: 'Plan ID', hintText: 'e.g., MIT-006'),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Enter an ID' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: riskIdController,
                           decoration: const InputDecoration(
                               labelText: 'Linked Risk ID', hintText: 'e.g., R-001'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: strategyController,
                           decoration: const InputDecoration(
                               labelText: 'Mitigation strategy', hintText: 'Describe the mitigation approach'),
@@ -2193,13 +2198,13 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: ownerController,
                           decoration: const InputDecoration(labelText: 'Responsible owner'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedCategory,
+                          initialValue: selectedCategory,
                           items: ['Integrations', 'Compliance', 'Data team', 'Cybersecurity', 'Finance', 'General']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2208,7 +2213,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedStatus,
+                          initialValue: selectedStatus,
                           items: ['Not started', 'In progress', 'On track', 'At risk', 'Completed']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2234,14 +2239,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: targetDateController,
                           decoration: const InputDecoration(
                               labelText: 'Target date', hintText: 'e.g., 2026-06-15'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedEffectiveness,
+                          initialValue: selectedEffectiveness,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2250,7 +2255,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedResidual,
+                          initialValue: selectedResidual,
                           items: ['Low', 'Medium', 'High']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2326,20 +2331,20 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: strategyController,
                           decoration: const InputDecoration(labelText: 'Mitigation strategy'),
                           maxLines: 2,
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: ownerController,
                           decoration: const InputDecoration(labelText: 'Responsible owner'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedCategory,
+                          initialValue: selectedCategory,
                           items: ['Integrations', 'Compliance', 'Data team', 'Cybersecurity', 'Finance', 'General']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2348,7 +2353,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedStatus,
+                          initialValue: selectedStatus,
                           items: ['Not started', 'In progress', 'On track', 'At risk', 'Completed']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2374,13 +2379,13 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: targetDateController,
                           decoration: const InputDecoration(labelText: 'Target date'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedEffectiveness,
+                          initialValue: selectedEffectiveness,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2389,7 +2394,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedResidual,
+                          initialValue: selectedResidual,
                           items: ['Low', 'Medium', 'High']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2489,21 +2494,21 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: idController,
                           decoration: const InputDecoration(
                               labelText: 'Signal ID', hintText: 'e.g., SIG-005'),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Enter an ID' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: titleController,
                           decoration: const InputDecoration(labelText: 'Signal name'),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedCategory,
+                          initialValue: selectedCategory,
                           items: ['Leading', 'Lagging']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2512,7 +2517,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedSeverity,
+                          initialValue: selectedSeverity,
                           items: ['Critical', 'High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2521,7 +2526,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedConfidence,
+                          initialValue: selectedConfidence,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2529,21 +2534,21 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           decoration: const InputDecoration(labelText: 'Confidence level'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: descriptionController,
                           decoration: const InputDecoration(labelText: 'Description'),
                           maxLines: 3,
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: linkedRiskController,
                           decoration: const InputDecoration(
                               labelText: 'Linked Risk ID', hintText: 'e.g., R-001'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedTrend,
+                          initialValue: selectedTrend,
                           items: ['Increasing', 'Stable', 'Decreasing']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2616,14 +2621,14 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: titleController,
                           decoration: const InputDecoration(labelText: 'Signal name'),
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedCategory,
+                          initialValue: selectedCategory,
                           items: ['Leading', 'Lagging']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2632,7 +2637,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedSeverity,
+                          initialValue: selectedSeverity,
                           items: ['Critical', 'High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2641,7 +2646,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedConfidence,
+                          initialValue: selectedConfidence,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2649,20 +2654,20 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           decoration: const InputDecoration(labelText: 'Confidence level'),
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: descriptionController,
                           decoration: const InputDecoration(labelText: 'Description'),
                           maxLines: 3,
                           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
                         ),
                         const SizedBox(height: 12),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: linkedRiskController,
                           decoration: const InputDecoration(labelText: 'Linked Risk ID'),
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          value: selectedTrend,
+                          initialValue: selectedTrend,
                           items: ['Increasing', 'Stable', 'Decreasing']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2730,6 +2735,21 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Risk Tracking',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_risk_tracking_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

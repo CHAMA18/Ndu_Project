@@ -2,6 +2,7 @@ import 'package:ndu_project/models/scope_tracking_item.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/cbs_element_model.dart';
 import 'package:ndu_project/models/obs_element_model.dart';
+import 'package:ndu_project/models/control_account_model.dart';
 
 /// ── P3.7: Scope Traceability Automation Service ──
 ///

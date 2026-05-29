@@ -8,10 +8,14 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class TeamManagementScreen extends StatefulWidget {
   const TeamManagementScreen({super.key});
 
@@ -257,6 +261,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
     );
     return Scaffold(
       backgroundColor: Colors.white,
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,6 +287,8 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Team Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         Row(
                           children: [
                             _CircleIconButton(
@@ -305,6 +312,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                               style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
                             ),
                             const Spacer(),
+                            const SizedBox(width: 12),
                             const _UserChip(),
                           ],
                         ),
@@ -389,6 +397,21 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Team Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_team_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -674,7 +697,7 @@ class _DialogTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return VoiceTextFormField(
       controller: controller,
       validator: validator,
       maxLines: maxLines,

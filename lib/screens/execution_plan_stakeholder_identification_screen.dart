@@ -2,23 +2,30 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
-import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Stakeholder Identification',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_stakeholder_identification'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
   const ExecutionPlanStakeholderIdentificationScreen({super.key});
@@ -35,46 +42,33 @@ class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Stakeholder Identification',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel:
-                      'Execution Stakeholder Identification'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Stakeholder Identification'),
+                                const SizedBox(height: 16),
+            const CrossReferenceNote(standalonePage: 'Stakeholder Management'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Stakeholder Identification',
+              hintText:
+                  'Capture stakeholder groups, engagement strategies, and key concerns.',
+              noteKey: 'execution_stakeholder_identification',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Stakeholder Identification'),
-                                        const SizedBox(height: 16),
-                    const CrossReferenceNote(standalonePage: 'Stakeholder Management'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Stakeholder Identification',
-                      hintText:
-                          'Capture stakeholder groups, engagement strategies, and key concerns.',
-                      noteKey: 'execution_stakeholder_identification',
-                    ),
-                    const SizedBox(height: 32),
-                    const _StakeholderIdentificationSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _StakeholderIdentificationSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
@@ -92,6 +86,20 @@ class _StakeholderIdentificationSection extends StatefulWidget {
 
 class _StakeholderIdentificationSectionState
     extends State<_StakeholderIdentificationSection> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Stakeholder Identification',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['execution_plan_stakeholder_identification_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   final List<Map<String, String>> _rows = [];
   bool _didHydrateRows = false;
 
@@ -185,36 +193,36 @@ class _StakeholderIdentificationSectionState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: stakeholderGroupController,
                 decoration:
                     const InputDecoration(labelText: 'Stakeholder Group *'),
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: categoryController,
                 decoration: const InputDecoration(labelText: 'Category'),
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: influenceController,
                 decoration: const InputDecoration(labelText: 'Influence'),
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: keyConcernsController,
                 decoration: const InputDecoration(labelText: 'Key Concerns'),
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: engagementStrategyController,
                 decoration:
                     const InputDecoration(labelText: 'Engagement Strategy'),
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: commentsController,
                 decoration: const InputDecoration(labelText: 'Comments'),
                 maxLines: 2,
@@ -309,7 +317,48 @@ class _StakeholderIdentificationSectionState
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(onPressed: () => _openRowDialog()),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Stakeholders',
+                columns: [
+                  CsvColumnSpec(key: 'stakeholderGroup', label: 'Stakeholder Group', required: true, sampleValue: 'Local Government'),
+                  CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'External'),
+                  CsvColumnSpec(key: 'influence', label: 'Influence', sampleValue: 'High'),
+                  CsvColumnSpec(key: 'keyConcerns', label: 'Key Concerns', sampleValue: 'Environmental impact'),
+                  CsvColumnSpec(key: 'engagementStrategy', label: 'Engagement Strategy', sampleValue: 'Regular meetings'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'Monthly updates required'),
+                ],
+                onImport: (rows) async {
+                  var imported = 0;
+                  for (final row in rows) {
+                    final normalized = _normalizeRow({
+                      'stakeholderGroup': row['stakeholderGroup'] ?? '',
+                      'category': row['category'] ?? '',
+                      'influence': row['influence'] ?? '',
+                      'keyConcerns': row['keyConcerns'] ?? '',
+                      'engagementStrategy': row['engagementStrategy'] ?? '',
+                      'comments': row['comments'] ?? '',
+                    });
+                    if (normalized['stakeholderGroup']!.isEmpty) continue;
+                    setState(() => _rows.add(normalized));
+                    imported++;
+                  }
+                  if (imported > 0) {
+                    await _persistRows();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Imported $imported stakeholder(s) successfully')),
+                      );
+                    }
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(onPressed: () => _openRowDialog()),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)

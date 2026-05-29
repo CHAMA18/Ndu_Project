@@ -10,11 +10,23 @@ class DesignPhaseStableShell extends StatelessWidget {
     required this.activeLabel,
     required this.child,
     required this.onItemSelected,
+    this.breadcrumbPhase,
+    this.breadcrumbTitle,
+    this.showExportPdf = true,
+    this.showAiAssist = true,
+    this.onExportPdf,
+    this.onAiAssist,
   });
 
   final String activeLabel;
   final Widget child;
   final ValueChanged<String> onItemSelected;
+  final String? breadcrumbPhase;
+  final String? breadcrumbTitle;
+  final bool showExportPdf;
+  final bool showAiAssist;
+  final VoidCallback? onExportPdf;
+  final VoidCallback? onAiAssist;
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +35,6 @@ class DesignPhaseStableShell extends StatelessWidget {
     if (isMobile) {
       return Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: UnifiedScaffoldAppBar(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          title: activeLabel,
-        ),
         drawer: Drawer(
           width: AppBreakpoints.sidebarWidth(context),
           child: SafeArea(
@@ -37,11 +45,28 @@ class DesignPhaseStableShell extends StatelessWidget {
           ),
         ),
         body: SafeArea(
-          top: false,
-          child: Stack(
+          top: true,
+          child: Column(
             children: [
-              child,
-              const KazAiChatBubble(positioned: true),
+              UnifiedPhaseHeader(
+                title: activeLabel,
+                breadcrumbPhase: breadcrumbPhase,
+                breadcrumbTitle: breadcrumbTitle,
+                showDrawerButton: true,
+                showActivityLogAction: true,
+                showExportPdf: showExportPdf,
+                showAiAssist: showAiAssist,
+                onExportPdf: onExportPdf,
+                onAiAssist: onAiAssist,
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    child,
+                    const KazAiChatBubble(positioned: true),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -64,30 +89,16 @@ class DesignPhaseStableShell extends StatelessWidget {
             Expanded(
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 20,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x0F000000),
-                            blurRadius: 12,
-                            offset: Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: UnifiedPhaseHeader(
-                        title: activeLabel,
-                        showActivityLogAction: true,
-                      ),
-                    ),
+                  UnifiedPhaseHeader(
+                    title: activeLabel,
+                    breadcrumbPhase: breadcrumbPhase,
+                    breadcrumbTitle: breadcrumbTitle,
+                    showDrawerButton: false,
+                    showActivityLogAction: true,
+                    showExportPdf: showExportPdf,
+                    showAiAssist: showAiAssist,
+                    onExportPdf: onExportPdf,
+                    onAiAssist: onAiAssist,
                   ),
                   Expanded(child: child),
                 ],

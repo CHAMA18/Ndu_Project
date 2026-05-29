@@ -13,6 +13,9 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -33,7 +36,7 @@ class _AgileSprintCalendarScreenState
   bool _isLoading = true;
   TextEditingController _ceremonyController = TextEditingController();
   String _searchQuery = '';
-  TextEditingController _searchController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
   Timer? _saveDebounce;
 
   final DateFormat _dateFormat = DateFormat('MMM dd, yyyy');
@@ -84,7 +87,7 @@ class _AgileSprintCalendarScreenState
         _sprints = sprints;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -164,11 +167,12 @@ class _AgileSprintCalendarScreenState
                   children: [
                     PlanningPhaseHeader(
                       title: 'Sprint Cadence & Calendar',
+                      showImportButton: false,
+                      showContentButton: false,
                       onBack: () => PlanningPhaseNavigation.goToPrevious(
                           context, 'agile_sprint_calendar'),
                       onForward: () => PlanningPhaseNavigation.goToNext(
-                          context, 'agile_sprint_calendar'),
-                    ),
+                          context, 'agile_sprint_calendar'), onExportPdf: _exportPdf),
                     const SizedBox(height: 32),
                     Text('Define sprint duration, dates, and ceremony schedule.',
                         style: TextStyle(fontSize: 15, color: _kMuted)),
@@ -176,7 +180,7 @@ class _AgileSprintCalendarScreenState
                     if (_isLoading)
                       const Center(child: CircularProgressIndicator())
                     else ...[
-                      TextField(
+                      VoiceTextField(
                         controller: _searchController,
                         decoration: InputDecoration(
                           hintText: 'Search sprints...',
@@ -216,7 +220,7 @@ class _AgileSprintCalendarScreenState
                               fontWeight: FontWeight.w600,
                               color: _kHeadline)),
                       const SizedBox(height: 8),
-                      TextField(
+                      VoiceTextField(
                         controller: _ceremonyController,
                         decoration: const InputDecoration(
                           hintText:
@@ -335,6 +339,21 @@ class _AgileSprintCalendarScreenState
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Sprint Calendar',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_sprint_calendar_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _SprintEditDialog extends StatefulWidget {
@@ -387,13 +406,13 @@ class _SprintEditDialogState extends State<_SprintEditDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            VoiceTextField(
               controller: _nameCtrl,
               decoration: const InputDecoration(
                   labelText: 'Sprint Name', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: _orderCtrl,
               decoration: const InputDecoration(
                   labelText: 'Sprint #', border: OutlineInputBorder()),
@@ -437,7 +456,7 @@ class _SprintEditDialogState extends State<_SprintEditDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: _goalCtrl,
               decoration: const InputDecoration(
                   labelText: 'Sprint Goal', border: OutlineInputBorder()),

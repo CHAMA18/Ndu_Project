@@ -12,7 +12,10 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
 
@@ -74,16 +77,22 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
       if (_selectedFilter != 'All') {
         if (_selectedFilter == 'Resolved' &&
             i.status != 'Resolved' &&
-            i.status != 'Closed') return false;
-        if (_selectedFilter != 'Resolved' && i.status != _selectedFilter)
+            i.status != 'Closed') {
           return false;
+        }
+        if (_selectedFilter != 'Resolved' && i.status != _selectedFilter) {
+          return false;
+        }
       }
       // Filter by type
-      if (_selectedTypeFilter != 'All' && i.type != _selectedTypeFilter)
+      if (_selectedTypeFilter != 'All' && i.type != _selectedTypeFilter) {
         return false;
+      }
       // Filter by severity
       if (_selectedSeverityFilter != 'All' &&
-          i.severity != _selectedSeverityFilter) return false;
+          i.severity != _selectedSeverityFilter) {
+        return false;
+      }
       return true;
     }).toList();
   }
@@ -179,6 +188,8 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Issue Management', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopUtilityBar(
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'issue_management'),
@@ -220,7 +231,7 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                               setState(() => _searchQuery = value),
                           onEdit: _handleEditIssue,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 24),
                         LaunchPhaseNavigation(
                           backLabel: PlanningPhaseNavigation.backLabel(
                               'issue_management'),
@@ -235,13 +246,33 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Issue Management',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Issue Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_issue_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -281,6 +312,7 @@ class _TopUtilityBar extends StatelessWidget {
                 color: Color(0xFF111827)),
           ),
           const Spacer(),
+          const SizedBox(width: 8),
           const _UserChip(name: '', role: ''),
           const SizedBox(width: 12),
           _YellowButton(label: 'New Issue', onPressed: onAddIssue),
@@ -670,7 +702,7 @@ class _ProjectIssuesLogCard extends StatelessWidget {
               const Spacer(),
               SizedBox(
                 width: 260,
-                child: TextField(
+                child: VoiceTextField(
                   onChanged: onSearchChanged,
                   decoration: InputDecoration(
                     hintText: 'Search issues...',
@@ -831,12 +863,16 @@ class _IssueLogRow extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF111827)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
                   entry.description,
                   style:
                       const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -1117,7 +1153,7 @@ class _NewIssueDialogState extends State<_NewIssueDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(
+                VoiceTextFormField(
                   controller: _titleCtrl,
                   decoration:
                       _decoration('Title', hint: 'e.g. Data migration delay'),
@@ -1158,12 +1194,12 @@ class _NewIssueDialogState extends State<_NewIssueDialog> {
                   decoration: _decoration('Status'),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                VoiceTextFormField(
                   controller: _assigneeCtrl,
                   decoration: _decoration('Assignee', hint: 'Owner'),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                VoiceTextFormField(
                   controller: _dueDateCtrl,
                   readOnly: true,
                   onTap: _pickDate,
@@ -1173,13 +1209,13 @@ class _NewIssueDialogState extends State<_NewIssueDialog> {
                           const Icon(Icons.calendar_today_outlined, size: 18)),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                VoiceTextFormField(
                   controller: _milestoneCtrl,
                   decoration:
                       _decoration('Milestone', hint: 'Related milestone'),
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                VoiceTextFormField(
                   controller: _descriptionCtrl,
                   minLines: 3,
                   maxLines: 5,

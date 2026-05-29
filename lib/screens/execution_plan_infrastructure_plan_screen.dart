@@ -1,23 +1,32 @@
 import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_agile_delivery_plan_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
-import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+
+Future<void> _exportInfrastructurePlanPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Infrastructure Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_infrastructure_plan_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
   const ExecutionPlanInfrastructurePlanScreen({super.key});
@@ -34,50 +43,37 @@ class ExecutionPlanInfrastructurePlanScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Plan - Infrastructure Plan',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Plan - Infrastructure Plan'),
+            ExecutionPlanHeader(
+              onBack: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'execution_plan_infrastructure_plan'),
+              onNext: () => PlanningPhaseNavigation.goToNext(
+                  context, 'execution_plan_infrastructure_plan'), onExportPdf: () => _exportInfrastructurePlanPdf(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Plan - Infrastructure Plan'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Plan - Infrastructure Plan',
+              hintText:
+                  'Outline infrastructure dependencies, scope, and delivery approach.',
+              noteKey: 'execution_infrastructure_plan',
+              showDiagram: false,
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                      onBack: () => PlanningPhaseNavigation.goToPrevious(
-                          context, 'execution_plan_infrastructure_plan'),
-                      onNext: () => PlanningPhaseNavigation.goToNext(
-                          context, 'execution_plan_infrastructure_plan'),
-                    ),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Plan - Infrastructure Plan'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Plan - Infrastructure Plan',
-                      hintText:
-                          'Outline infrastructure dependencies, scope, and delivery approach.',
-                      noteKey: 'execution_infrastructure_plan',
-                      showDiagram: false,
-                    ),
-                    const SizedBox(height: 32),
-                    const _InfrastructurePlanSection(),
-                    const SizedBox(height: 24),
-                    const _PlanningInfrastructureCostSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _InfrastructurePlanSection(),
+            const SizedBox(height: 24),
+            const _PlanningInfrastructureCostSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
@@ -186,6 +182,20 @@ class _PlanningInfrastructureCostSection extends StatefulWidget {
 
 class _PlanningInfrastructureCostSectionState
     extends State<_PlanningInfrastructureCostSection> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Infrastructure Plan',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['execution_plan_infrastructure_plan_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   Future<void> _editItem({
     InfrastructurePlanningItem? existing,
   }) async {
@@ -215,7 +225,7 @@ class _PlanningInfrastructureCostSectionState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Item name',
@@ -223,7 +233,7 @@ class _PlanningInfrastructureCostSectionState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: summaryController,
                   decoration: const InputDecoration(
                     labelText: 'Summary',
@@ -231,7 +241,7 @@ class _PlanningInfrastructureCostSectionState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: detailsController,
                   minLines: 2,
                   maxLines: 4,
@@ -241,7 +251,7 @@ class _PlanningInfrastructureCostSectionState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: costController,
                   keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
@@ -251,7 +261,7 @@ class _PlanningInfrastructureCostSectionState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: ownerController,
                   decoration: const InputDecoration(
                     labelText: 'Owner',
@@ -259,7 +269,7 @@ class _PlanningInfrastructureCostSectionState
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: statusController,
                   decoration: const InputDecoration(
                     labelText: 'Status',

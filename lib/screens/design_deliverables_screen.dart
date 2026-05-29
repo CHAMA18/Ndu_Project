@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -15,6 +17,8 @@ import 'package:ndu_project/models/user_role.dart';
 import 'package:ndu_project/providers/user_role_provider.dart';
 import 'package:ndu_project/services/design_phase_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 // firebase_auth removed - unused
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -43,6 +47,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   String? _error;
   final _saveDebouncer = _Debouncer();
   bool _saving = false;
+  bool _frameworkGuideExpanded = false;
 
   // CRUD state for acceptance evidence
   List<_AcceptanceEvidenceRow> _acceptanceEvidence = [];
@@ -50,6 +55,8 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   List<_HandoffGovernanceRow> _handoffGovernance = [];
   // CRUD state for approval gates
   List<_ApprovalGateRow> _approvalGates = [];
+  // CRUD state for dependencies
+  List<_DependencyRow> _dependencyRows = [];
 
   // Firestore tracking doc
   // _trackedProjectId removed - unused
@@ -152,7 +159,21 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Design Deliverables',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['design_deliverables_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -223,6 +244,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       final aeData = data['acceptanceEvidence'] as List?;
       final hgData = data['handoffGovernance'] as List?;
       final agData = data['approvalGates'] as List?;
+      final depData = data['dependencies'] as List?;
 
       setState(() {
         if (aeData != null && aeData.isNotEmpty) {
@@ -246,6 +268,25 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                   (e) => _ApprovalGateRow.fromMap(Map<String, dynamic>.from(e)))
               .toList();
         }
+        if (depData != null && depData.isNotEmpty) {
+          _dependencyRows = depData
+              .whereType<Map>()
+              .map(
+                  (e) => _DependencyRow.fromMap(Map<String, dynamic>.from(e)))
+              .toList();
+        } else if (_data.dependencies.isNotEmpty) {
+          // Migrate legacy plain-text dependencies into structured rows
+          _dependencyRows = _data.dependencies.asMap().entries.map((entry) {
+            return _DependencyRow(
+              id: _newId(),
+              description: entry.value,
+              owner: '',
+              status: 'Open',
+              priority: 'Medium',
+              dueDate: 'TBD',
+            );
+          }).toList();
+        }
       });
     } catch (e) {
       debugPrint('Load tracking data error: $e');
@@ -261,6 +302,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
             _acceptanceEvidence.map((e) => e.toMap()).toList(),
         'handoffGovernance': _handoffGovernance.map((e) => e.toMap()).toList(),
         'approvalGates': _approvalGates.map((e) => e.toMap()).toList(),
+        'dependencies': _dependencyRows.map((e) => e.toMap()).toList(),
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (e) {
@@ -720,12 +762,11 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Design Deliverables',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -841,7 +882,6 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
 
   Widget _buildFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -857,64 +897,93 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Deliverable control framework',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111827)),
+          // Clickable header row
+          InkWell(
+            onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Deliverable control framework',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827)),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    child: Icon(Icons.expand_more, size: 22, color: const Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in PMI PMBOK 7th Ed. Deliverables (4.3) and Quality (4.4) performance domains, '
-            'ISO/IEC/IEEE 15288:2023 design output verification, and PRINCE2 Managing Product Delivery. '
-            'Effective deliverable tracking ensures that scope, acceptance, version control, and handoff '
-            'evidence remain visible and actionable throughout the design lifecycle.',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF6B7280),
-                height: 1.5),
-          ),
-          const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildGuideCard(
-                Icons.account_tree_outlined,
-                'Deliverable Lifecycle',
-                'Draft \u2192 Review \u2192 Approved \u2192 Baselined \u2192 Handed Off. '
-                'Track every deliverable from authoring through acceptance with version control at each transition. '
-                'Set review milestones at 90/60/30-day intervals aligned to phase gates.',
-                const Color(0xFF2563EB),
+          // Collapsible content
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in PMI PMBOK 7th Ed. Deliverables (4.3) and Quality (4.4) performance domains, '
+                    'ISO/IEC/IEEE 15288:2023 design output verification, and PRINCE2 Managing Product Delivery. '
+                    'Effective deliverable tracking ensures that scope, acceptance, version control, and handoff '
+                    'evidence remain visible and actionable throughout the design lifecycle.',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF6B7280),
+                        height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildGuideCard(
+                    Icons.account_tree_outlined,
+                    'Deliverable Lifecycle',
+                    'Draft \u2192 Review \u2192 Approved \u2192 Baselined \u2192 Handed Off. '
+                    'Track every deliverable from authoring through acceptance with version control at each transition. '
+                    'Set review milestones at 90/60/30-day intervals aligned to phase gates.',
+                    const Color(0xFF2563EB),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.fact_check_outlined,
+                    'Acceptance & Verification',
+                    'Every deliverable needs explicit acceptance criteria, verification method, and evidence of compliance '
+                    'before approval is granted. Map each artefact to its source requirement and maintain a traceability '
+                    'matrix that survives design iterations.',
+                    const Color(0xFF10B981),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.swap_horiz_outlined,
+                    'Handoff & Transition',
+                    'Deliverables must be build-ready, supportable, and consumable by receiving teams without '
+                    'undocumented assumptions or gaps. Use handoff checklists, build-readiness reviews, and operational '
+                    'acceptance tests to ensure clean transitions.',
+                    const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.verified_user_outlined,
+                    'Quality & Compliance',
+                    'Design standards, accessibility, security, privacy, safety, and regulatory conformance must be '
+                    'evidenced and reviewed before handoff. Non-compliance at this stage propagates defects into build, '
+                    'test, and production environments at exponentially higher remediation cost.',
+                    const Color(0xFFEF4444),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.fact_check_outlined,
-                'Acceptance & Verification',
-                'Every deliverable needs explicit acceptance criteria, verification method, and evidence of compliance '
-                'before approval is granted. Map each artefact to its source requirement and maintain a traceability '
-                'matrix that survives design iterations.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.swap_horiz_outlined,
-                'Handoff & Transition',
-                'Deliverables must be build-ready, supportable, and consumable by receiving teams without '
-                'undocumented assumptions or gaps. Use handoff checklists, build-readiness reviews, and operational '
-                'acceptance tests to ensure clean transitions.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.verified_user_outlined,
-                'Quality & Compliance',
-                'Design standards, accessibility, security, privacy, safety, and regulatory conformance must be '
-                'evidenced and reviewed before handoff. Non-compliance at this stage propagates defects into build, '
-                'test, and production environments at exponentially higher remediation cost.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+            ),
+            crossFadeState: _frameworkGuideExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
@@ -978,29 +1047,52 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
 
   Widget _buildDeliverableRegister() {
     final filtered = _filteredRegister;
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return _PanelShell(
       title: 'Deliverable register',
       subtitle:
           'Track design artefacts, owners, status, and readiness gates',
-      trailing: _actionButton(Icons.add, 'Add deliverable',
-          onPressed: () => _showAddDeliverableDialog()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Deliverable Register',
+            columns: [
+              CsvColumnSpec(key: 'name', label: 'DELIVERABLE', required: true, hint: 'Deliverable name'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER', hint: 'Deliverable owner'),
+              CsvColumnSpec(key: 'due', label: 'DUE/GATE', hint: 'Due date or gate'),
+              CsvColumnSpec(key: 'risk', label: 'RISK', allowedValues: ['High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Progress', 'Under Review', 'Approved', 'Delivered'], defaultValue: 'In Progress'),
+            ],
+            onImport: (rows) {
+              final register = [..._data.register];
+              for (final row in rows) {
+                register.add(DesignDeliverableRegisterItem(
+                  name: row['name'] ?? '',
+                  owner: row['owner'] ?? '',
+                  status: row['status'] ?? 'In Progress',
+                  due: row['due'] ?? '',
+                  risk: row['risk'] ?? 'Medium',
+                ));
+              }
+              _updateData(_data.copyWith(register: register));
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add deliverable',
+              onPressed: () => _showAddDeliverableDialog()),
+        ],
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Table header
           Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 20, vertical: 14),
             decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
-            child: const Row(
-              children: [
-                Expanded(flex: 4, child: Text('DELIVERABLE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 100, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 100, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 100, child: Text('DUE/GATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('RISK', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('', style: TextStyle(fontSize: 10))),
-              ],
-            ),
+            child: _RegisterHeaderRow(isNarrow: isNarrow),
           ),
           if (filtered.isEmpty)
             Padding(
@@ -1031,6 +1123,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 onEdit: () => _showEditDeliverableDialog(row, actualIndex),
                 onDelete: () => _confirmDeleteDeliverable(actualIndex),
                 showDivider: index != filtered.length - 1,
+                isNarrow: isNarrow,
               );
             }),
         ],
@@ -1043,27 +1136,53 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Widget _buildAcceptanceEvidencePanel() {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return _PanelShell(
       title: 'Acceptance evidence matrix',
       subtitle:
           'Standard for proving each deliverable is complete, reviewable, and ready for handoff',
-      trailing: _actionButton(Icons.add, 'Add evidence',
-          onPressed: () => _showAcceptanceEvidenceEditor()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Acceptance Evidence',
+            columns: [
+              CsvColumnSpec(key: 'evidenceArea', label: 'EVIDENCE AREA', required: true, hint: 'Evidence area'),
+              CsvColumnSpec(key: 'whatMustBeCaptured', label: 'WHAT MUST BE CAPTURED', hint: 'What must be captured'),
+              CsvColumnSpec(key: 'verificationMethod', label: 'VERIFICATION METHOD', hint: 'Verification method'),
+              CsvColumnSpec(key: 'approvalOwner', label: 'APPROVAL OWNER', hint: 'Approval owner'),
+              CsvColumnSpec(key: 'riskIfMissing', label: 'RISK IF MISSING', hint: 'Risk if missing'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _acceptanceEvidence.add(_AcceptanceEvidenceRow(
+                    id: _newId(),
+                    evidenceArea: row['evidenceArea'] ?? '',
+                    whatMustBeCaptured: row['whatMustBeCaptured'] ?? '',
+                    verificationMethod: row['verificationMethod'] ?? '',
+                    approvalOwner: row['approvalOwner'] ?? '',
+                    riskIfMissing: row['riskIfMissing'] ?? '',
+                  ));
+                }
+              });
+              _saveTrackingData();
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add evidence',
+              onPressed: () => _showAcceptanceEvidenceEditor()),
+        ],
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 20, vertical: 14),
             decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
-            child: const Row(
-              children: [
-                Expanded(flex: 2, child: Text('EVIDENCE AREA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                Expanded(flex: 3, child: Text('WHAT MUST BE CAPTURED', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                Expanded(flex: 2, child: Text('VERIFICATION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 110, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('', style: TextStyle(fontSize: 10))),
-              ],
-            ),
+            child: _EvidenceHeaderRow(isNarrow: isNarrow),
           ),
           if (_acceptanceEvidence.isEmpty)
             const Padding(
@@ -1080,6 +1199,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     _showAcceptanceEvidenceEditor(entry: row, index: index),
                 onDelete: () => _confirmDeleteAcceptanceEvidence(index),
                 showDivider: index != _acceptanceEvidence.length - 1,
+                isNarrow: isNarrow,
               );
             }),
         ],
@@ -1092,28 +1212,53 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Widget _buildHandoffGovernancePanel() {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return _PanelShell(
       title: 'Handoff governance',
       subtitle:
           'Controls that keep deliverables usable by engineering, vendors, approvers, and operations',
-      trailing: _actionButton(Icons.add, 'Add control',
-          onPressed: () => _showHandoffGovernanceEditor()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Handoff Governance',
+            columns: [
+              CsvColumnSpec(key: 'control', label: 'CONTROL', required: true, hint: 'Control name'),
+              CsvColumnSpec(key: 'industryStandardPractice', label: 'INDUSTRY STANDARD PRACTICE', hint: 'Industry standard practice'),
+              CsvColumnSpec(key: 'waterfallEvidence', label: 'WATERFALL EVIDENCE', hint: 'Waterfall evidence'),
+              CsvColumnSpec(key: 'agileHybridEvidence', label: 'AGILE/HYBRID EVIDENCE', hint: 'Agile/hybrid evidence'),
+              CsvColumnSpec(key: 'decision', label: 'DECISION', allowedValues: ['Pending', 'Accepted', 'Waived', 'N/A'], defaultValue: 'Pending'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _handoffGovernance.add(_HandoffGovernanceRow(
+                    id: _newId(),
+                    control: row['control'] ?? '',
+                    industryStandardPractice: row['industryStandardPractice'] ?? '',
+                    waterfallEvidence: row['waterfallEvidence'] ?? '',
+                    agileHybridEvidence: row['agileHybridEvidence'] ?? '',
+                    decision: row['decision'] ?? 'Required',
+                  ));
+                }
+              });
+              _saveTrackingData();
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add control',
+              onPressed: () => _showHandoffGovernanceEditor()),
+        ],
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 20, vertical: 14),
             decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
-            child: const Row(
-              children: [
-                Expanded(flex: 2, child: Text('CONTROL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                Expanded(flex: 3, child: Text('INDUSTRY STANDARD PRACTICE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                Expanded(flex: 2, child: Text('WATERFALL EVIDENCE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                Expanded(flex: 2, child: Text('AGILE/HYBRID EVIDENCE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('DECISION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('', style: TextStyle(fontSize: 10))),
-              ],
-            ),
+            child: _HandoffHeaderRow(isNarrow: isNarrow),
           ),
           if (_handoffGovernance.isEmpty)
             const Padding(
@@ -1130,6 +1275,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     _showHandoffGovernanceEditor(entry: row, index: index),
                 onDelete: () => _confirmDeleteHandoffGovernance(index),
                 showDivider: index != _handoffGovernance.length - 1,
+                isNarrow: isNarrow,
               );
             }),
         ],
@@ -1142,28 +1288,55 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Widget _buildApprovalGatesPanel() {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return _PanelShell(
       title: 'Approval gate readiness',
       subtitle:
           'Design approval gates aligned with PMI PMBOK Quality and PRINCE2 Controlling a Stage processes',
-      trailing: _actionButton(Icons.add, 'Add gate',
-          onPressed: () => _showApprovalGateEditor()),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Approval Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true, hint: 'Gate name'),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', hint: 'Gate description'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER', hint: 'Approver'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['Critical', 'High', 'Medium', 'Low'], defaultValue: 'High'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Review', 'Pending', 'Approved', 'Blocked'], defaultValue: 'Pending'),
+              CsvColumnSpec(key: 'targetDate', label: 'TARGET DATE', hint: 'Target date', defaultValue: 'TBD'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _approvalGates.add(_ApprovalGateRow(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    description: row['description'] ?? '',
+                    approver: row['approver'] ?? '',
+                    priority: row['priority'] ?? 'High',
+                    status: row['status'] ?? 'Pending',
+                    targetDate: row['targetDate'] ?? 'TBD',
+                  ));
+                }
+              });
+              _saveTrackingData();
+            },
+          ),
+          const SizedBox(width: 8),
+          _actionButton(Icons.add, 'Add gate',
+              onPressed: () => _showApprovalGateEditor()),
+        ],
+      ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 20, vertical: 14),
             decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
-            child: const Row(
-              children: [
-                Expanded(flex: 2, child: Text('GATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                Expanded(flex: 3, child: Text('DESCRIPTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 120, child: Text('APPROVER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 90, child: Text('PRIORITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 100, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('', style: TextStyle(fontSize: 10))),
-              ],
-            ),
+            child: _ApprovalGateHeaderRow(isNarrow: isNarrow),
           ),
           if (_approvalGates.isEmpty)
             const Padding(
@@ -1180,6 +1353,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     _showApprovalGateEditor(entry: row, index: index),
                 onDelete: () => _confirmDeleteApprovalGate(index),
                 showDivider: index != _approvalGates.length - 1,
+                isNarrow: isNarrow,
               );
             }),
         ],
@@ -1192,6 +1366,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Widget _buildPipelinePanel() {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return _PanelShell(
       title: 'Deliverable pipeline',
       subtitle:
@@ -1199,18 +1374,13 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
       trailing: _actionButton(Icons.add, 'Add stage',
           onPressed: _showAddPipelineItemDialog),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                EdgeInsets.symmetric(horizontal: isNarrow ? 12 : 20, vertical: 14),
             decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
-            child: const Row(
-              children: [
-                Expanded(flex: 5, child: Text('STAGE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 120, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                SizedBox(width: 80, child: Text('', style: TextStyle(fontSize: 10))),
-              ],
-            ),
+            child: _PipelineHeaderRow(isNarrow: isNarrow),
           ),
           if (_data.pipeline.isEmpty)
             const Padding(
@@ -1229,6 +1399,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                   _updateData(_data.copyWith(pipeline: next));
                 },
                 showDivider: index != _data.pipeline.length - 1,
+                isNarrow: isNarrow,
               );
             }),
         ],
@@ -1241,64 +1412,36 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   Widget _buildDependenciesPanel() {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return _PanelShell(
       title: 'Dependencies & prerequisites',
       subtitle: 'Items that must be resolved before deliverables can advance',
-      trailing: _actionButton(Icons.add, 'Add dependency', onPressed: () {
-        _updateData(
-            _data.copyWith(dependencies: [..._data.dependencies, '']));
-      }),
+      trailing: _actionButton(Icons.add, 'Add dependency',
+          onPressed: () => _showDependencyEditor()),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (_data.dependencies.isEmpty)
+          Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: isNarrow ? 12 : 20, vertical: 14),
+            decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+            child: _DependencyHeaderRow(isNarrow: isNarrow),
+          ),
+          if (_dependencyRows.isEmpty)
             const Padding(
               padding: EdgeInsets.all(24),
               child: Text('No dependencies captured yet.',
                   style: TextStyle(color: Color(0xFF6B7280))),
             )
           else
-            ..._data.dependencies.asMap().entries.map((entry) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.circle,
-                        size: 8, color: Color(0xFF9CA3AF)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextFormField(
-                        key: ValueKey('dep-${entry.key}'),
-                        initialValue: entry.value,
-                        enabled: _canEditDeliverables,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          hintText: 'Add dependency',
-                          border: InputBorder.none,
-                        ),
-                        style: const TextStyle(
-                            fontSize: 13, color: Color(0xFF374151)),
-                        onChanged: (value) {
-                          final next = [..._data.dependencies];
-                          next[entry.key] = value;
-                          _updateData(
-                              _data.copyWith(dependencies: next));
-                        },
-                      ),
-                    ),
-                    if (_canDeleteDeliverables)
-                      IconButton(
-                        onPressed: () {
-                          final next = [..._data.dependencies]
-                            ..removeAt(entry.key);
-                          _updateData(
-                              _data.copyWith(dependencies: next));
-                        },
-                        icon: const Icon(Icons.delete_outline,
-                            size: 18, color: Color(0xFFEF4444)),
-                      ),
-                  ],
-                ),
+            ...List.generate(_dependencyRows.length, (index) {
+              final row = _dependencyRows[index];
+              return _DependencyDisplayRow(
+                row: row,
+                onEdit: () => _showDependencyEditor(entry: row, index: index),
+                onDelete: () => _confirmDeleteDependency(index),
+                showDivider: index != _dependencyRows.length - 1,
+                isNarrow: isNarrow,
               );
             }),
         ],
@@ -1339,14 +1482,14 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                       controller: nameCtl,
                       decoration:
                           const InputDecoration(labelText: 'Deliverable name'),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: owner,
+                      initialValue: owner,
                       items: const [
                         DropdownMenuItem(value: 'Design Lead', child: Text('Design Lead')),
                         DropdownMenuItem(value: 'Architecture', child: Text('Architecture')),
@@ -1360,7 +1503,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: const [
                         DropdownMenuItem(value: 'In progress', child: Text('In progress')),
                         DropdownMenuItem(value: 'In review', child: Text('In review')),
@@ -1371,14 +1514,14 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                       decoration: const InputDecoration(labelText: 'Status'),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    VoiceTextField(
                       controller: dueCtl,
                       decoration:
                           const InputDecoration(labelText: 'Due / Gate'),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: risk,
+                      initialValue: risk,
                       items: const [
                         DropdownMenuItem(value: 'Low', child: Text('Low')),
                         DropdownMenuItem(value: 'Medium', child: Text('Medium')),
@@ -1475,24 +1618,24 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                     controller: areaCtl,
                     decoration: const InputDecoration(labelText: 'Evidence Area')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: whatCtl,
                     decoration: const InputDecoration(labelText: 'What Must Be Captured'),
                     maxLines: 2),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: verCtl,
                     decoration: const InputDecoration(labelText: 'Verification Method')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: ownCtl,
                     decoration: const InputDecoration(labelText: 'Approval Owner')),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                     controller: riskCtl,
                     decoration: const InputDecoration(labelText: 'Risk If Missing'),
                     maxLines: 2),
@@ -1583,28 +1726,28 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                         controller: ctrlCtl,
                         decoration: const InputDecoration(labelText: 'Control')),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                         controller: pracCtl,
                         decoration: const InputDecoration(
                             labelText: 'Industry Standard Practice'),
                         maxLines: 2),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                         controller: wfCtl,
                         decoration: const InputDecoration(
                             labelText: 'Waterfall Evidence')),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                         controller: agileCtl,
                         decoration: const InputDecoration(
                             labelText: 'Agile/Hybrid Evidence')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: decision,
+                      initialValue: decision,
                       items: const [
                         DropdownMenuItem(value: 'Required', child: Text('Required')),
                         DropdownMenuItem(value: 'Conditional', child: Text('Conditional')),
@@ -1701,21 +1844,21 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                         controller: gateCtl,
                         decoration: const InputDecoration(labelText: 'Gate')),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                         controller: descCtl,
                         decoration: const InputDecoration(labelText: 'Description'),
                         maxLines: 2),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                         controller: apprCtl,
                         decoration: const InputDecoration(labelText: 'Approver')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: priority,
+                      initialValue: priority,
                       items: const [
                         DropdownMenuItem(value: 'Critical', child: Text('Critical')),
                         DropdownMenuItem(value: 'High', child: Text('High')),
@@ -1728,7 +1871,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: const [
                         DropdownMenuItem(value: 'Not Started', child: Text('Not Started')),
                         DropdownMenuItem(value: 'In Review', child: Text('In Review')),
@@ -1741,7 +1884,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                       decoration: const InputDecoration(labelText: 'Status'),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                         controller: dateCtl,
                         decoration: const InputDecoration(labelText: 'Target Date')),
                   ],
@@ -1808,6 +1951,158 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
   }
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // DIALOGS — Dependencies
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  void _showDependencyEditor({_DependencyRow? entry, int? index}) {
+    if (index == null && !_canCreateDeliverables) {
+      _showPermissionSnackBar('add dependencies');
+      return;
+    }
+    if (index != null && !_canEditDeliverables) {
+      _showPermissionSnackBar('edit dependencies');
+      return;
+    }
+    final descCtl = TextEditingController(text: entry?.description ?? '');
+    final ownerCtl = TextEditingController(text: entry?.owner ?? '');
+    String priority = entry?.priority ?? 'Medium';
+    String status = entry?.status ?? 'Open';
+    final dateCtl = TextEditingController(text: entry?.dueDate ?? 'TBD');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return AlertDialog(
+              title: Text(index != null ? 'Edit Dependency' : 'Add Dependency'),
+              content: SizedBox(
+                width: 480,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    VoiceTextField(
+                        controller: descCtl,
+                        decoration: const InputDecoration(
+                            labelText: 'Description'),
+                        maxLines: 3),
+                    const SizedBox(height: 12),
+                    VoiceTextField(
+                        controller: ownerCtl,
+                        decoration: const InputDecoration(
+                            labelText: 'Owner / Responsible Party')),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: priority,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'Critical', child: Text('Critical')),
+                        DropdownMenuItem(
+                            value: 'High', child: Text('High')),
+                        DropdownMenuItem(
+                            value: 'Medium', child: Text('Medium')),
+                        DropdownMenuItem(
+                            value: 'Low', child: Text('Low')),
+                      ],
+                      onChanged: (v) =>
+                          setModalState(() => priority = v ?? priority),
+                      decoration:
+                          const InputDecoration(labelText: 'Priority'),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: status,
+                      items: const [
+                        DropdownMenuItem(
+                            value: 'Open', child: Text('Open')),
+                        DropdownMenuItem(
+                            value: 'In progress', child: Text('In progress')),
+                        DropdownMenuItem(
+                            value: 'Resolved', child: Text('Resolved')),
+                        DropdownMenuItem(
+                            value: 'Blocked', child: Text('Blocked')),
+                        DropdownMenuItem(
+                            value: 'Waived', child: Text('Waived')),
+                      ],
+                      onChanged: (v) =>
+                          setModalState(() => status = v ?? status),
+                      decoration:
+                          const InputDecoration(labelText: 'Status'),
+                    ),
+                    const SizedBox(height: 12),
+                    VoiceTextField(
+                        controller: dateCtl,
+                        decoration: const InputDecoration(
+                            labelText: 'Due Date',
+                            hintText: 'e.g. 2026-06-15 or TBD')),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Cancel')),
+                FilledButton(
+                  onPressed: () {
+                    final row = _DependencyRow(
+                      id: entry?.id ?? _newId(),
+                      description: descCtl.text.trim(),
+                      owner: ownerCtl.text.trim(),
+                      priority: priority,
+                      status: status,
+                      dueDate: dateCtl.text.trim(),
+                    );
+                    setState(() {
+                      if (index != null) {
+                        _dependencyRows[index] = row;
+                      } else {
+                        _dependencyRows.add(row);
+                      }
+                    });
+                    _saveTrackingData();
+                    Navigator.pop(ctx);
+                  },
+                  child: Text(index != null ? 'Save' : 'Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteDependency(int index) {
+    if (!_canDeleteDeliverables) {
+      _showPermissionSnackBar('delete dependencies');
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Dependency'),
+        content: const Text(
+            'Remove this dependency item? This action cannot be undone.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () {
+              setState(() => _dependencyRows.removeAt(index));
+              _saveTrackingData();
+              Navigator.pop(ctx);
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // DIALOGS — Pipeline
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1831,13 +2126,13 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                         controller: labelCtl,
                         decoration: const InputDecoration(
                             labelText: 'Stage or deliverable')),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: const [
                         DropdownMenuItem(value: 'In progress', child: Text('In progress')),
                         DropdownMenuItem(value: 'Pending', child: Text('Pending')),
@@ -1894,13 +2189,13 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(
+                    VoiceTextField(
                         controller: labelCtl,
                         decoration: const InputDecoration(
                             labelText: 'Stage or deliverable')),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       items: const [
                         DropdownMenuItem(value: 'In progress', child: Text('In progress')),
                         DropdownMenuItem(value: 'Pending', child: Text('Pending')),
@@ -2051,6 +2346,41 @@ class _ApprovalGateRow {
       );
 }
 
+class _DependencyRow {
+  _DependencyRow({
+    required this.id,
+    this.description = '',
+    this.owner = '',
+    this.priority = 'Medium',
+    this.status = 'Open',
+    this.dueDate = 'TBD',
+  });
+  final String id;
+  String description;
+  String owner;
+  String priority;
+  String status;
+  String dueDate;
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'description': description,
+        'owner': owner,
+        'priority': priority,
+        'status': status,
+        'dueDate': dueDate,
+      };
+
+  static _DependencyRow fromMap(Map<String, dynamic> m) => _DependencyRow(
+        id: m['id'] ?? '',
+        description: m['description'] ?? '',
+        owner: m['owner'] ?? '',
+        priority: m['priority'] ?? 'Medium',
+        status: m['status'] ?? 'Open',
+        dueDate: m['dueDate'] ?? 'TBD',
+      );
+}
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PANEL SHELL WIDGET
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2069,6 +2399,7 @@ class _PanelShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 700;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -2083,10 +2414,11 @@ class _PanelShell extends StatelessWidget {
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(isNarrow ? 14 : 20),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2099,18 +2431,20 @@ class _PanelShell extends StatelessWidget {
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF111827))),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(subtitle,
                           style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w500,
                               color: Color(0xFF6B7280),
-                              height: 1.45)),
+                              height: 1.4),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
                 if (trailing != null) ...[
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   trailing!,
                 ],
               ],
@@ -2173,6 +2507,23 @@ Color _priorityColor(String priority) {
   }
 }
 
+Color _dependencyStatusColor(String status) {
+  switch (status.toLowerCase()) {
+    case 'resolved':
+      return const Color(0xFF10B981);
+    case 'in progress':
+      return const Color(0xFF2563EB);
+    case 'open':
+      return const Color(0xFFF59E0B);
+    case 'blocked':
+      return const Color(0xFFEF4444);
+    case 'waived':
+      return const Color(0xFF9CA3AF);
+    default:
+      return const Color(0xFF64748B);
+  }
+}
+
 Widget _statusBadge(String text, Color color) {
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -2186,25 +2537,182 @@ Widget _statusBadge(String text, Color color) {
   );
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// RESPONSIVE HEADER ROW WIDGETS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+const _headerStyle = TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8);
+
+class _RegisterHeaderRow extends StatelessWidget {
+  const _RegisterHeaderRow({required this.isNarrow});
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrow) {
+      return const Text('DELIVERABLE / OWNER / STATUS / DUE / RISK',
+          style: _headerStyle, overflow: TextOverflow.ellipsis);
+    }
+    return const Row(
+      children: [
+        Expanded(flex: 4, child: Text('DELIVERABLE', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('OWNER', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 2, child: Text('STATUS', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 2, child: Text('DUE/GATE', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 1, child: Text('RISK', style: _headerStyle, textAlign: TextAlign.center)),
+        SizedBox(width: 64),
+      ],
+    );
+  }
+}
+
+class _EvidenceHeaderRow extends StatelessWidget {
+  const _EvidenceHeaderRow({required this.isNarrow});
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrow) {
+      return const Text('EVIDENCE / CAPTURED / VERIFIED / OWNER',
+          style: _headerStyle, overflow: TextOverflow.ellipsis);
+    }
+    return const Row(
+      children: [
+        Expanded(flex: 2, child: Text('EVIDENCE AREA', style: _headerStyle)),
+        Expanded(flex: 3, child: Text('WHAT MUST BE CAPTURED', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('VERIFICATION', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('OWNER', style: _headerStyle, textAlign: TextAlign.center)),
+        SizedBox(width: 64),
+      ],
+    );
+  }
+}
+
+class _PipelineHeaderRow extends StatelessWidget {
+  const _PipelineHeaderRow({required this.isNarrow});
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrow) {
+      return const Row(
+        children: [
+          Expanded(child: Text('STAGE', style: _headerStyle)),
+          SizedBox(width: 80, child: Text('STATUS', style: _headerStyle, textAlign: TextAlign.center)),
+          SizedBox(width: 48),
+        ],
+      );
+    }
+    return const Row(
+      children: [
+        Expanded(flex: 5, child: Text('STAGE', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('STATUS', style: _headerStyle, textAlign: TextAlign.center)),
+        SizedBox(width: 64),
+      ],
+    );
+  }
+}
+
+class _HandoffHeaderRow extends StatelessWidget {
+  const _HandoffHeaderRow({required this.isNarrow});
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrow) {
+      return const Text('CONTROL / PRACTICE / EVIDENCE / DECISION',
+          style: _headerStyle, overflow: TextOverflow.ellipsis);
+    }
+    return const Row(
+      children: [
+        Expanded(flex: 2, child: Text('CONTROL', style: _headerStyle)),
+        Expanded(flex: 3, child: Text('INDUSTRY STANDARD PRACTICE', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('WATERFALL EVIDENCE', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('AGILE/HYBRID EVIDENCE', style: _headerStyle)),
+        Expanded(flex: 1, child: Text('DECISION', style: _headerStyle, textAlign: TextAlign.center)),
+        SizedBox(width: 64),
+      ],
+    );
+  }
+}
+
+class _ApprovalGateHeaderRow extends StatelessWidget {
+  const _ApprovalGateHeaderRow({required this.isNarrow});
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrow) {
+      return const Text('GATE / DESCRIPTION / APPROVER / PRIORITY / STATUS',
+          style: _headerStyle, overflow: TextOverflow.ellipsis);
+    }
+    return const Row(
+      children: [
+        Expanded(flex: 2, child: Text('GATE', style: _headerStyle)),
+        Expanded(flex: 3, child: Text('DESCRIPTION', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('APPROVER', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 1, child: Text('PRIORITY', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 2, child: Text('STATUS', style: _headerStyle, textAlign: TextAlign.center)),
+        SizedBox(width: 64),
+      ],
+    );
+  }
+}
+
+class _DependencyHeaderRow extends StatelessWidget {
+  const _DependencyHeaderRow({required this.isNarrow});
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isNarrow) {
+      return const Text('DESCRIPTION / OWNER / PRIORITY / STATUS / DUE',
+          style: _headerStyle, overflow: TextOverflow.ellipsis);
+    }
+    return const Row(
+      children: [
+        Expanded(flex: 3, child: Text('DESCRIPTION', style: _headerStyle)),
+        Expanded(flex: 2, child: Text('OWNER', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 1, child: Text('PRIORITY', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 2, child: Text('STATUS', style: _headerStyle, textAlign: TextAlign.center)),
+        Expanded(flex: 1, child: Text('DUE', style: _headerStyle, textAlign: TextAlign.center)),
+        SizedBox(width: 64),
+      ],
+    );
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DISPLAY ROW WIDGETS
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 class _DeliverableRegisterRow extends StatelessWidget {
   const _DeliverableRegisterRow({
     required this.row,
     required this.onEdit,
     required this.onDelete,
     required this.showDivider,
+    this.isNarrow = false,
   });
   final DesignDeliverableRegisterItem row;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final bool showDivider;
+  final bool isNarrow;
 
   @override
   Widget build(BuildContext context) {
+    final hPad = isNarrow ? 12.0 : 20.0;
+    if (isNarrow) {
+      // Stacked card layout for narrow screens
+      return _buildNarrowLayout(context, hPad);
+    }
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 flex: 4,
@@ -2216,30 +2724,34 @@ class _DeliverableRegisterRow extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis),
               ),
-              SizedBox(
-                width: 100,
+              Expanded(
+                flex: 2,
                 child: Text(row.owner,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7280)),
-                    textAlign: TextAlign.center),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               ),
-              SizedBox(
-                  width: 100,
-                  child: Center(
-                      child: _statusBadge(row.status, _statusColor(row.status)))),
-              SizedBox(
-                width: 100,
+              Expanded(
+                flex: 2,
+                child: Center(
+                    child: _statusBadge(row.status, _statusColor(row.status))),
+              ),
+              Expanded(
+                flex: 2,
                 child: Text(row.due,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF6B7280)),
-                    textAlign: TextAlign.center),
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 1,
+                child: Center(
+                    child: _statusBadge(row.risk, _riskColor(row.risk))),
               ),
               SizedBox(
-                  width: 80,
-                  child: Center(
-                      child: _statusBadge(row.risk, _riskColor(row.risk)))),
-              SizedBox(
-                width: 80,
+                width: 64,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -2260,9 +2772,63 @@ class _DeliverableRegisterRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout(BuildContext context, double hPad) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(row.name,
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF111827)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                alignment: WrapAlignment.start,
+                children: [
+                  _statusBadge(row.status, _statusColor(row.status)),
+                  _statusBadge(row.risk, _riskColor(row.risk)),
+                  Text('${row.owner} · ${row.due}',
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                      onPressed: onEdit,
+                      icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
+                      visualDensity: VisualDensity.compact),
+                  IconButton(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                      visualDensity: VisualDensity.compact),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
       ],
     );
@@ -2275,18 +2841,24 @@ class _AcceptanceEvidenceDisplayRow extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.showDivider,
+    this.isNarrow = false,
   });
   final _AcceptanceEvidenceRow row;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final bool showDivider;
+  final bool isNarrow;
 
   @override
   Widget build(BuildContext context) {
+    final hPad = isNarrow ? 12.0 : 20.0;
+    if (isNarrow) {
+      return _buildNarrowLayout(hPad);
+    }
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2296,29 +2868,37 @@ class _AcceptanceEvidenceDisplayRow extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827))),
+                        color: Color(0xFF111827)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 flex: 3,
                 child: Text(row.whatMustBeCaptured,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45)),
+                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 flex: 2,
                 child: Text(row.verificationMethod,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45)),
+                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis),
               ),
-              SizedBox(
-                width: 110,
+              Expanded(
+                flex: 2,
                 child: Text(row.approvalOwner,
                     style: const TextStyle(
                         fontSize: 11, color: Color(0xFF6B7280)),
-                    textAlign: TextAlign.center),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
               ),
               SizedBox(
-                width: 80,
+                width: 64,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -2339,9 +2919,62 @@ class _AcceptanceEvidenceDisplayRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout(double hPad) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(row.evidenceArea,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Text(row.whatMustBeCaptured,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563), height: 1.4),
+                  maxLines: 3, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Text('Verify: ${row.verificationMethod}',
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(row.approvalOwner,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  Row(
+                    children: [
+                      IconButton(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
+                          visualDensity: VisualDensity.compact),
+                      IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                          visualDensity: VisualDensity.compact),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
       ],
     );
@@ -2354,18 +2987,24 @@ class _HandoffGovernanceDisplayRow extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.showDivider,
+    this.isNarrow = false,
   });
   final _HandoffGovernanceRow row;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final bool showDivider;
+  final bool isNarrow;
 
   @override
   Widget build(BuildContext context) {
+    final hPad = isNarrow ? 12.0 : 20.0;
+    if (isNarrow) {
+      return _buildNarrowLayout(hPad);
+    }
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2375,36 +3014,45 @@ class _HandoffGovernanceDisplayRow extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827))),
+                        color: Color(0xFF111827)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 flex: 3,
                 child: Text(row.industryStandardPractice,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45)),
+                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 flex: 2,
                 child: Text(row.waterfallEvidence,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45)),
+                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 flex: 2,
                 child: Text(row.agileHybridEvidence,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45)),
+                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 1,
+                child: Center(
+                    child: _statusBadge(
+                        row.decision,
+                        row.decision == 'Required'
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFFF59E0B))),
               ),
               SizedBox(
-                  width: 90,
-                  child: Center(
-                      child: _statusBadge(
-                          row.decision,
-                          row.decision == 'Required'
-                              ? const Color(0xFFEF4444)
-                              : const Color(0xFFF59E0B)))),
-              SizedBox(
-                width: 80,
+                width: 64,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -2425,9 +3073,72 @@ class _HandoffGovernanceDisplayRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout(double hPad) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(row.control,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  _statusBadge(
+                      row.decision,
+                      row.decision == 'Required'
+                          ? const Color(0xFFEF4444)
+                          : const Color(0xFFF59E0B)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(row.industryStandardPractice,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563), height: 1.4),
+                  maxLines: 3, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text('WF: ${row.waterfallEvidence}',
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
+                          visualDensity: VisualDensity.compact),
+                      IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                          visualDensity: VisualDensity.compact),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
       ],
     );
@@ -2440,18 +3151,24 @@ class _ApprovalGateDisplayRow extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.showDivider,
+    this.isNarrow = false,
   });
   final _ApprovalGateRow row;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final bool showDivider;
+  final bool isNarrow;
 
   @override
   Widget build(BuildContext context) {
+    final hPad = isNarrow ? 12.0 : 20.0;
+    if (isNarrow) {
+      return _buildNarrowLayout(hPad);
+    }
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -2461,33 +3178,41 @@ class _ApprovalGateDisplayRow extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF111827))),
+                        color: Color(0xFF111827)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 flex: 3,
                 child: Text(row.description,
                     style: const TextStyle(
-                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45)),
+                        fontSize: 11, color: Color(0xFF4B5563), height: 1.45),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis),
               ),
-              SizedBox(
-                width: 120,
+              Expanded(
+                flex: 2,
                 child: Text(row.approver,
                     style: const TextStyle(
                         fontSize: 11, color: Color(0xFF6B7280)),
-                    textAlign: TextAlign.center),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 1,
+                child: Center(
+                    child: _statusBadge(
+                        row.priority, _priorityColor(row.priority))),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                    child: _statusBadge(
+                        row.status, _statusColor(row.status))),
               ),
               SizedBox(
-                  width: 90,
-                  child: Center(
-                      child: _statusBadge(
-                          row.priority, _priorityColor(row.priority)))),
-              SizedBox(
-                  width: 100,
-                  child: Center(
-                      child: _statusBadge(
-                          row.status, _statusColor(row.status)))),
-              SizedBox(
-                width: 80,
+                width: 64,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -2508,9 +3233,228 @@ class _ApprovalGateDisplayRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout(double hPad) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(row.gate,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                  _statusBadge(row.priority, _priorityColor(row.priority)),
+                  const SizedBox(width: 6),
+                  _statusBadge(row.status, _statusColor(row.status)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(row.description,
+                  style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563), height: 1.4),
+                  maxLines: 3, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(row.approver,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  Row(
+                    children: [
+                      IconButton(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
+                          visualDensity: VisualDensity.compact),
+                      IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                          visualDensity: VisualDensity.compact),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+      ],
+    );
+  }
+}
+
+class _DependencyDisplayRow extends StatelessWidget {
+  const _DependencyDisplayRow({
+    required this.row,
+    required this.onEdit,
+    required this.onDelete,
+    required this.showDivider,
+    this.isNarrow = false,
+  });
+  final _DependencyRow row;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final bool showDivider;
+  final bool isNarrow;
+
+  @override
+  Widget build(BuildContext context) {
+    final hPad = isNarrow ? 12.0 : 20.0;
+    if (isNarrow) {
+      return _buildNarrowLayout(hPad);
+    }
+    return Column(
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 3,
+                child: Text(row.description,
+                    style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827)),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(row.owner,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF6B7280)),
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 1,
+                child: Center(
+                    child: _statusBadge(
+                        row.priority, _priorityColor(row.priority))),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                    child: _statusBadge(
+                        row.status, _dependencyStatusColor(row.status))),
+              ),
+              Expanded(
+                flex: 1,
+                child: Center(
+                  child: Text(row.dueDate,
+                      style: const TextStyle(
+                          fontSize: 10, color: Color(0xFF6B7280)),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ),
+              SizedBox(
+                width: 64,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined,
+                            size: 16, color: Color(0xFF64748B)),
+                        visualDensity: VisualDensity.compact),
+                    IconButton(
+                        onPressed: onDelete,
+                        icon: const Icon(Icons.delete_outline,
+                            size: 16, color: Color(0xFFEF4444)),
+                        visualDensity: VisualDensity.compact),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildNarrowLayout(double hPad) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(row.description,
+                        style: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  _statusBadge(row.priority, _priorityColor(row.priority)),
+                  const SizedBox(width: 6),
+                  _statusBadge(row.status, _dependencyStatusColor(row.status)),
+                  const SizedBox(width: 6),
+                  Text(row.dueDate,
+                      style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(row.owner,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  Row(
+                    children: [
+                      IconButton(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)),
+                          visualDensity: VisualDensity.compact),
+                      IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                          visualDensity: VisualDensity.compact),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (showDivider)
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
       ],
     );
@@ -2523,18 +3467,70 @@ class _PipelineDisplayRow extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     required this.showDivider,
+    this.isNarrow = false,
   });
   final DesignDeliverablePipelineItem item;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final bool showDivider;
+  final bool isNarrow;
 
   @override
   Widget build(BuildContext context) {
+    final hPad = isNarrow ? 12.0 : 20.0;
+    if (isNarrow) {
+      return Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(item.label,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF111827)),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
+                ),
+                _statusBadge(item.status, _statusColor(item.status)),
+                const SizedBox(width: 4),
+                SizedBox(
+                  width: 48,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined,
+                              size: 14, color: Color(0xFF64748B)),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero),
+                      IconButton(
+                          onPressed: onDelete,
+                          icon: const Icon(Icons.delete_outline,
+                              size: 14, color: Color(0xFFEF4444)),
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (showDivider)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            ),
+        ],
+      );
+    }
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 12),
           child: Row(
             children: [
               Expanded(
@@ -2543,15 +3539,18 @@ class _PipelineDisplayRow extends StatelessWidget {
                     style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF111827))),
+                        color: Color(0xFF111827)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 2,
+                child: Center(
+                    child: _statusBadge(
+                        item.status, _statusColor(item.status))),
               ),
               SizedBox(
-                  width: 120,
-                  child: Center(
-                      child: _statusBadge(
-                          item.status, _statusColor(item.status)))),
-              SizedBox(
-                width: 80,
+                width: 64,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -2572,9 +3571,9 @@ class _PipelineDisplayRow extends StatelessWidget {
           ),
         ),
         if (showDivider)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 1, color: Color(0xFFF1F5F9)),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: const Divider(height: 1, color: Color(0xFFF1F5F9)),
           ),
       ],
     );

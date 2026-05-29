@@ -15,6 +15,9 @@ import 'package:ndu_project/widgets/recurring_deliverables_widget.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 /// Dedicated screen for managing recurring deliverables during the execution
 /// phase. Recurring deliverables are periodic outputs that the project team
@@ -59,7 +62,7 @@ class _RecurringDeliverablesScreenState
     try {
       final provider = ProjectDataInherited.maybeOf(context);
       return provider?.projectData.projectId;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -249,6 +252,7 @@ class _RecurringDeliverablesScreenState
     return ResponsiveScaffold(
       activeItemLabel: 'Recurring Deliverables',
       backgroundColor: const Color(0xFFF5F7FB),
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: horizontalPadding,
@@ -259,12 +263,11 @@ class _RecurringDeliverablesScreenState
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Recurring Deliverables',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
           _buildHeader(),
             const SizedBox(height: 20),
@@ -282,7 +285,7 @@ class _RecurringDeliverablesScreenState
                 recurringDeliverables: _recurringDeliverables,
                 onRecurringChanged: _handleRecurringChanged,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               LaunchPhaseNavigation(
                 backLabel: 'Back: Deliverable Status Updates',
                 nextLabel: 'Next: Status Reports',
@@ -336,7 +339,7 @@ class _RecurringDeliverablesScreenState
           'They anchor the project\'s operational heartbeat and provide predictable '
           'touchpoints for governance, quality assurance, and team coordination.',
       collapsible: true,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       headerIcon: Icons.schedule_outlined,
       headerIconColor: const Color(0xFF7C3AED),
       child: Column(
@@ -416,6 +419,21 @@ class _RecurringDeliverablesScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Recurring Deliverables',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_recurring_deliverables_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

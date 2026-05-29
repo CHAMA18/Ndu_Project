@@ -1,18 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class StakeholderManagementScreen extends StatefulWidget {
   const StakeholderManagementScreen({super.key});
@@ -73,109 +75,159 @@ class _StakeholderManagementScreenState
           p.objective.toLowerCase().contains(q);
     }).toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      body: Row(
-        children: [
-          DraggableSidebar(
-            openWidth: AppBreakpoints.sidebarWidth(context),
-            child: const InitiationLikeSidebar(
-                activeItemLabel: 'Stakeholder Management'),
-          ),
-          Expanded(
-            child: Column(
-              children: [
-                const _TopUtilityBar(),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      SingleChildScrollView(
-                        controller: _pageScrollController,
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: horizontalPadding, vertical: 32),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _TitleSection(
-                                showButtonsBelow: isMobile,
-                                onExport: () {},
-                                onAddProject: () {},
-                                onAutoPopulate: _autoPopulateFromInitiation,
-                              ),
-                              const SizedBox(height: 24),
-                              const PlanningAiNotesCard(
-                                title: 'Stakeholder Notes',
-                                sectionLabel: 'Stakeholder Management',
-                                noteKey: 'planning_stakeholder_notes',
-                                checkpoint: 'stakeholder_management',
-                                description:
-                                    'Capture overall stakeholder strategy, risks, and communication protocols.',
-                              ),
-                              const SizedBox(height: 32),
-                              _StatsRow(
-                                totalStakeholders:
-                                    projectData.stakeholderEntries.length,
-                                externalCount: projectData.stakeholderEntries
-                                    .where((s) =>
-                                        s.organization.toLowerCase() !=
-                                        'internal')
-                                    .length,
-                              ),
-                              const SizedBox(height: 32),
-                              _InfluenceInterestMatrix(
-                                  stakeholders: projectData.stakeholderEntries),
-                              const SizedBox(height: 32),
-                              _EngagementSection(
-                                activeTabIndex: _activeTabIndex,
-                                onTabChanged: (idx) =>
-                                    setState(() => _activeTabIndex = idx),
-                                stakeholderTable: _StakeholdersTable(
-                                  entries: filteredStakeholders,
-                                  isLoading: false,
-                                  onChanged: _updateStakeholder,
-                                  onDelete: _deleteStakeholder,
-                                ),
-                                planTable: _EngagementPlansTable(
-                                  entries: filteredPlans,
-                                  isLoading: false,
-                                  onChanged: _updateEngagementPlan,
-                                  onDelete: _deleteEngagementPlan,
-                                ),
-                                onAdd: _activeTabIndex == 0
-                                    ? _addStakeholder
-                                    : _addEngagementPlan,
-                                onSearch: (v) =>
-                                    setState(() => _searchQuery = v),
-                              ),
-                              const SizedBox(height: 24),
-                              LaunchPhaseNavigation(
-                                backLabel: PlanningPhaseNavigation.backLabel(
-                                    'stakeholder_management'),
-                                nextLabel: PlanningPhaseNavigation.nextLabel(
-                                    'stakeholder_management'),
-                                onBack: () =>
-                                    PlanningPhaseNavigation.goToPrevious(
-                                        context, 'stakeholder_management'),
-                                onNext: () => PlanningPhaseNavigation.goToNext(
-                                    context, 'stakeholder_management'),
-                              ),
-                              const SizedBox(height: 60),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const Positioned(
-                          right: 24,
-                          bottom: 24,
-                          child: KazAiChatBubble(positioned: false)),
-                    ],
-                  ),
-                ),
-              ],
+    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
+
+    final header = PlanningPhaseHeader(
+      title: 'Stakeholder Management',
+      breadcrumbPhase: 'Planning Phase',
+      breadcrumbTitle: 'Stakeholder Management',
+      onBack: () => PlanningPhaseNavigation.goToPrevious(
+          context, 'stakeholder_management'),
+      onForward: () =>
+          PlanningPhaseNavigation.goToNext(context, 'stakeholder_management'), onExportPdf: _exportPdf);
+
+    final scrollableContent = SingleChildScrollView(
+      controller: _pageScrollController,
+      child: Padding(
+        padding:
+            EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _TitleSection(
+              showButtonsBelow: isMobile,
+              onExport: () {},
+              onAddProject: () {},
+              onAutoPopulate: _autoPopulateFromInitiation,
+            ),
+            const SizedBox(height: 24),
+            const PlanningAiNotesCard(
+              title: 'Stakeholder Notes',
+              sectionLabel: 'Stakeholder Management',
+              noteKey: 'planning_stakeholder_notes',
+              checkpoint: 'stakeholder_management',
+              description:
+                  'Capture overall stakeholder strategy, risks, and communication protocols.',
+            ),
+            const SizedBox(height: 32),
+            _StatsRow(
+              totalStakeholders: projectData.stakeholderEntries.length,
+              externalCount: projectData.stakeholderEntries
+                  .where((s) => s.organization.toLowerCase() != 'internal')
+                  .length,
+            ),
+            const SizedBox(height: 32),
+            _InfluenceInterestMatrix(
+                stakeholders: projectData.stakeholderEntries),
+            const SizedBox(height: 32),
+            _EngagementSection(
+              activeTabIndex: _activeTabIndex,
+              onTabChanged: (idx) => setState(() => _activeTabIndex = idx),
+              stakeholderTable: _StakeholdersTable(
+                entries: filteredStakeholders,
+                isLoading: false,
+                onChanged: _updateStakeholder,
+                onDelete: _deleteStakeholder,
+              ),
+              planTable: _EngagementPlansTable(
+                entries: filteredPlans,
+                isLoading: false,
+                onChanged: _updateEngagementPlan,
+                onDelete: _deleteEngagementPlan,
+              ),
+              onAdd:
+                  _activeTabIndex == 0 ? _addStakeholder : _addEngagementPlan,
+              onSearch: (v) => setState(() => _searchQuery = v),
+            ),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel:
+                  PlanningPhaseNavigation.backLabel('stakeholder_management'),
+              nextLabel:
+                  PlanningPhaseNavigation.nextLabel('stakeholder_management'),
+              onBack: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'stakeholder_management'),
+              onNext: () => PlanningPhaseNavigation.goToNext(
+                  context, 'stakeholder_management'),
+            ),
+            const SizedBox(height: 60),
+          ],
+        ),
+      ),
+    );
+
+    // --- Mobile layout ---
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        drawer: Drawer(
+          width: sidebarWidth,
+          child: SafeArea(
+            child: InitiationLikeSidebar(
+              activeItemLabel: 'Stakeholder Management',
+              showHeader: true,
             ),
           ),
-        ],
+        ),
+        body: SafeArea(
+          top: true,
+          child: Column(
+            children: [
+              header,
+              Expanded(
+                child: Stack(
+                  children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Stakeholder Management',
+                      ),
+                    ),
+                    scrollableContent,
+                    const Positioned(
+                        right: 24,
+                        bottom: 24,
+                        child: KazAiChatBubble(positioned: false)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // --- Desktop layout ---
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            header,
+            Expanded(
+              child: Row(
+                children: [
+                  DraggableSidebar(
+                    openWidth: sidebarWidth,
+                    child: const InitiationLikeSidebar(
+                        activeItemLabel: 'Stakeholder Management'),
+                  ),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        scrollableContent,
+                        const Positioned(
+                            right: 24,
+                            bottom: 24,
+                            child: KazAiChatBubble(positioned: false)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -336,19 +388,22 @@ class _StakeholderManagementScreenState
 
     // Generate engagement plans for each stakeholder
     final now = DateTime.now();
-    final engagementPlans = newEntries.map((s) => EngagementPlanEntry(
-      id: '${now.microsecondsSinceEpoch}_${s.id}',
-      stakeholder: s.name,
-      objective: 'Engage ${s.name} to align on project objectives and gather input',
-      method: 'Regular meetings',
-      frequency: 'Weekly',
-      owner: 'Project Manager',
-      status: 'Planned',
-      nextTouchpoint: '',
-      notes: 'Auto-generated from Initiation Phase stakeholder data',
-      createdAt: now,
-      updatedAt: now,
-    )).toList();
+    final engagementPlans = newEntries
+        .map((s) => EngagementPlanEntry(
+              id: '${now.microsecondsSinceEpoch}_${s.id}',
+              stakeholder: s.name,
+              objective:
+                  'Engage ${s.name} to align on project objectives and gather input',
+              method: 'Regular meetings',
+              frequency: 'Weekly',
+              owner: 'Project Manager',
+              status: 'Planned',
+              nextTouchpoint: '',
+              notes: 'Auto-generated from Initiation Phase stakeholder data',
+              createdAt: now,
+              updatedAt: now,
+            ))
+        .toList();
 
     await ProjectDataHelper.updateAndSave(
       context: context,
@@ -370,129 +425,19 @@ class _StakeholderManagementScreenState
       ),
     );
   }
-}
 
-class _TopUtilityBar extends StatelessWidget {
-  const _TopUtilityBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          _circleButton(
-              icon: Icons.arrow_back_ios_new_rounded,
-              onTap: () => PlanningPhaseNavigation.goToPrevious(
-                  context, 'stakeholder_management')),
-          const SizedBox(width: 12),
-          _circleButton(
-              icon: Icons.arrow_forward_ios_rounded,
-              onTap: () => PlanningPhaseNavigation.goToNext(
-                  context, 'stakeholder_management')),
-          const Spacer(),
-          const _UserChip(
-            name: '',
-            role: '',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _circleButton({required IconData icon, VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Icon(icon, size: 18, color: const Color(0xFF6B7280)),
-      ),
-    );
-  }
-}
-
-class _UserChip extends StatelessWidget {
-  const _UserChip({required this.name, required this.role});
-
-  final String name;
-  final String role;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName = FirebaseAuthService.displayNameOrEmail(
-        fallback: name.isNotEmpty ? name : 'User');
-    final email = user?.email ?? '';
-    final primary = displayName.isNotEmpty
-        ? displayName
-        : (email.isNotEmpty ? email : name);
-    final photoUrl = user?.photoURL ?? '';
-
-    return StreamBuilder<bool>(
-      stream: UserService.watchAdminStatus(),
-      builder: (context, snapshot) {
-        final isAdmin = snapshot.data ?? UserService.isAdminEmail(email);
-        final resolvedRole = isAdmin ? 'Admin' : 'Member';
-        final roleText = role.isNotEmpty ? role : resolvedRole;
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: const Color(0xFFE5E7EB),
-                backgroundImage:
-                    photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                child: photoUrl.isEmpty
-                    ? Text(
-                        primary.isNotEmpty ? primary[0].toUpperCase() : 'U',
-                        style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF374151)),
-                      )
-                    : null,
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(primary,
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827))),
-                  Text(roleText,
-                      style: const TextStyle(
-                          fontSize: 12, color: Color(0xFF6B7280))),
-                ],
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.keyboard_arrow_down_rounded,
-                  size: 18, color: Color(0xFF9CA3AF)),
-            ],
-          ),
-        );
-      },
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Stakeholder Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_stakeholder_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -1208,7 +1153,7 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return VoiceTextField(
       enabled: enabled,
       onChanged: onChanged,
       decoration: InputDecoration(
@@ -1684,7 +1629,7 @@ class _TextCellState extends State<_TextCell> {
   @override
   Widget build(BuildContext context) {
     return _TableFieldShell(
-      child: TextFormField(
+      child: VoiceTextFormField(
         controller: _controller,
         minLines: widget.minLines,
         maxLines: widget.maxLines,

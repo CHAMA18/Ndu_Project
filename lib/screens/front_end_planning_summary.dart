@@ -22,6 +22,8 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Summary screen
 /// Mirrors the provided layout with shared workspace chrome,
 /// large notes area, summary text panel, and AI hint + Next controls.
@@ -78,7 +80,22 @@ class _FrontEndPlanningSummaryScreenState
     });
   }
 
-  /// Builds the master summary by concatenating Project Vision, Core Stakeholders,
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Front End Planning Summary',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+/// Builds the master summary by concatenating Project Vision, Core Stakeholders,
   /// Business Case, and Selected Preferred Solution
   String _buildMasterSummary(dynamic data) {
     final parts = <String>[];
@@ -193,7 +210,7 @@ class _FrontEndPlanningSummaryScreenState
           const AdminEditToggle(),
           Column(
             children: [
-              const FrontEndPlanningHeader(),
+              FrontEndPlanningHeader(onExportPdf: _exportPdf),
               Expanded(
                 child: ScrollIndicatorOverlay(
                   controller: _contentScrollController,
@@ -568,7 +585,7 @@ class _SummaryPanel extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE4E7EC)),
       ),
       padding: const EdgeInsets.all(16),
-      child: TextField(
+      child: VoiceTextField(
         controller: controller,
         minLines: 12,
         maxLines: null,
@@ -1329,7 +1346,7 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: titleController,
                 decoration: const InputDecoration(
                   labelText: 'Title (Optional)',
@@ -1340,7 +1357,7 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
               const SizedBox(height: 16),
               TextFormattingToolbar(controller: descController),
               const SizedBox(height: 8),
-              TextField(
+              VoiceTextField(
                 controller: descController,
                 decoration: const InputDecoration(
                   labelText: 'Description',
@@ -1659,7 +1676,7 @@ Widget _formattedNotesEditor(
           ),
         TextFormattingToolbar(controller: controller),
         const SizedBox(height: 8),
-        TextField(
+        VoiceTextField(
           controller: controller,
           minLines: minLines,
           maxLines: maxLines,

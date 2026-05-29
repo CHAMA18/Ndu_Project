@@ -1,10 +1,14 @@
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/commerce_viability_screen.dart';
 import 'package:ndu_project/screens/vendor_account_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
@@ -13,8 +17,9 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
 
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 class SummarizeAccountRisksScreen extends StatefulWidget {
   const SummarizeAccountRisksScreen({super.key});
 
@@ -39,8 +44,10 @@ class _SummarizeAccountRisksScreenState
 
   bool _isLoading = true;
   bool _isGenerating = false;
+  bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
   void initState() {
@@ -67,15 +74,44 @@ class _SummarizeAccountRisksScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Project Summary',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _selectedView == 'full' ? 'Summary View' : 'Full View',
+                      icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
+                      tone: ExecutionActionTone.secondary,
+                      onPressed: () => setState(() {
+                        _selectedView = _selectedView == 'full' ? 'summary' : 'full';
+                      }),
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildExecutiveSummaryPanel(),
@@ -99,25 +135,7 @@ class _SummarizeAccountRisksScreenState
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Project Summary',
-      description:
-          'Executive one-page health summary showing budget, scope, timeline, risks, and next steps.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMetricsRow() {
     return ExecutionMetricsGrid(
@@ -182,10 +200,10 @@ class _SummarizeAccountRisksScreenState
       title: 'Executive Summary',
       subtitle: 'Narrative overview of the project status at launch.',
       collapsible: true,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       headerIcon: Icons.summarize_outlined,
       headerIconColor: const Color(0xFFEF4444),
-      child: TextFormField(
+      child: VoiceTextFormField(
         initialValue: _summary.notes,
         maxLines: 6,
         style: const TextStyle(fontSize: 13, height: 1.6),
@@ -217,10 +235,30 @@ class _SummarizeAccountRisksScreenState
     return LaunchDataTable(
       title: 'Highlights & Wins',
       subtitle: 'Key achievements and what went well.',
-      columns: const ['Highlight', 'Details'],
+      columns: const [LaunchColumn(label: 'Highlight', flexible: true, fieldType: LaunchFieldType.text, hint: 'Highlight'), LaunchColumn(label: 'Details', flexible: true, fieldType: LaunchFieldType.text, hint: 'Details')],
       rowCount: _highlights.length,
-      onAdd: () {
-        setState(() => _highlights.add(LaunchHighlightItem()));
+      onAddValues: (values) {
+        setState(() {
+          _highlights.add(LaunchHighlightItem(
+            title: values['Highlight'] ?? '',
+            details: values['Details'] ?? '',
+          ));
+        });
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'highlight', label: 'Highlight', sampleValue: 'On-time delivery'),
+        CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'All milestones delivered on schedule'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _highlights.add(LaunchHighlightItem(
+              title: row['highlight'] ?? '',
+              details: row['details'] ?? '',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Capture wins and achievements.',
@@ -264,10 +302,36 @@ class _SummarizeAccountRisksScreenState
     return LaunchDataTable(
       title: 'Top Risks',
       subtitle: 'Key risks that need attention or monitoring post-launch.',
-      columns: const ['Risk', 'Details', 'Owner', 'Status'],
+      columns: const [LaunchColumn(label: 'Risk', flexible: true, fieldType: LaunchFieldType.text, hint: 'Risk'), LaunchColumn(label: 'Details', flexible: true, fieldType: LaunchFieldType.text, hint: 'Details'), LaunchColumn(label: 'Owner', width: 120, fieldType: LaunchFieldType.text, hint: 'Owner'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Open', 'Mitigated', 'Closed'])],
       rowCount: _topRisks.length,
-      onAdd: () {
-        setState(() => _topRisks.add(LaunchFollowUpItem()));
+      onAddValues: (values) {
+        setState(() {
+          _topRisks.add(LaunchFollowUpItem(
+            title: values['Risk'] ?? '',
+            details: values['Details'] ?? '',
+            owner: values['Owner'] ?? '',
+            status: values['Status'] ?? 'Open',
+          ));
+        });
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'risk', label: 'Risk', sampleValue: 'Budget overrun'),
+        CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'Actual spend exceeded plan by 15%'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Finance Lead'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Open', 'Mitigated', 'Closed']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _topRisks.add(LaunchFollowUpItem(
+              title: row['risk'] ?? '',
+              details: row['details'] ?? '',
+              owner: row['owner'] ?? '',
+              status: row['status'] ?? 'Open',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Document key delivery risks and mitigation plans.',
@@ -304,7 +368,7 @@ class _SummarizeAccountRisksScreenState
             LaunchEditableCell(
               value: r.owner,
               hint: 'Owner',
-              width: 100,
+              width: 130,
               onChanged: (s) {
                 _topRisks[i] = r.copyWith(owner: s);
                 _save();
@@ -331,10 +395,36 @@ class _SummarizeAccountRisksScreenState
       title: 'Next 90 Days Focus',
       subtitle:
           'Immediate priorities and follow-ups to keep the project on track post-launch.',
-      columns: const ['Priority', 'Details', 'Owner', 'Status'],
+      columns: const [LaunchColumn(label: 'Priority', flexible: true, fieldType: LaunchFieldType.text, hint: 'Priority'), LaunchColumn(label: 'Details', flexible: true, fieldType: LaunchFieldType.text, hint: 'Details'), LaunchColumn(label: 'Owner', width: 120, fieldType: LaunchFieldType.text, hint: 'Owner'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Planned', 'In Progress', 'Complete'])],
       rowCount: _next90Days.length,
-      onAdd: () {
-        setState(() => _next90Days.add(LaunchFollowUpItem()));
+      onAddValues: (values) {
+        setState(() {
+          _next90Days.add(LaunchFollowUpItem(
+            title: values['Priority'] ?? '',
+            details: values['Details'] ?? '',
+            owner: values['Owner'] ?? '',
+            status: values['Status'] ?? 'Planned',
+          ));
+        });
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'priority', label: 'Priority', sampleValue: 'Complete UAT'),
+        CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'Finish user acceptance testing'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'QA Lead'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Planned', allowedValues: ['Planned', 'In Progress', 'Complete']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _next90Days.add(LaunchFollowUpItem(
+              title: row['priority'] ?? '',
+              details: row['details'] ?? '',
+              owner: row['owner'] ?? '',
+              status: row['status'] ?? 'Planned',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'List immediate priorities for the next 90 days.',
@@ -371,7 +461,7 @@ class _SummarizeAccountRisksScreenState
             LaunchEditableCell(
               value: f.owner,
               hint: 'Owner',
-              width: 100,
+              width: 130,
               onChanged: (s) {
                 _next90Days[i] = f.copyWith(owner: s);
                 _save();
@@ -603,9 +693,9 @@ class _SummarizeAccountRisksScreenState
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Project Summary',
         sections: const {
@@ -621,6 +711,19 @@ class _SummarizeAccountRisksScreenState
       debugPrint('Summary AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _metrics.isNotEmpty ||
         _highlights.isNotEmpty ||
         _topRisks.isNotEmpty ||
@@ -630,26 +733,26 @@ class _SummarizeAccountRisksScreenState
       return;
     }
     setState(() {
-      _metrics = (gen['metrics'] ?? [])
+      _metrics = (generated['metrics'] ?? [])
           .map((m) => LaunchFinancialMetric(
               label: _s(m['title']),
               value: _s(m['details']),
               notes: _s(m['status'])))
           .where((i) => i.label.isNotEmpty)
           .toList();
-      _highlights = (gen['highlights'] ?? [])
+      _highlights = (generated['highlights'] ?? [])
           .map((m) => LaunchHighlightItem(
               title: _s(m['title']), details: _s(m['details'])))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _topRisks = (gen['risks'] ?? [])
+      _topRisks = (generated['risks'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
               status: _ns(m['status'], 'Open')))
           .where((i) => i.title.isNotEmpty)
           .toList();
-      _next90Days = (gen['next_90_days'] ?? [])
+      _next90Days = (generated['next_90_days'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
@@ -659,6 +762,121 @@ class _SummarizeAccountRisksScreenState
       _isGenerating = false;
     });
     await _persistData();
+  }
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName ?? 'Project';
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final filename = 'project_summary_${projectName.replaceAll(' ', '_')}_$stamp.pdf';
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => [
+            pw.Text('Project Summary', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('$projectName — Generated ${now.toLocal().toIso8601String()}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+            pw.SizedBox(height: 16),
+
+            // Metrics
+            _pdfSectionTitle('Executive Metrics'),
+            pw.SizedBox(height: 6),
+            if (_metrics.isEmpty)
+              _pdfCell('No metrics recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Label', 'Value', 'Notes'],
+                data: _metrics.map((m) => [m.label, m.value, m.notes]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Highlights
+            _pdfSectionTitle('Highlights & Wins'),
+            pw.SizedBox(height: 6),
+            if (_highlights.isEmpty)
+              _pdfCell('No highlights recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Title', 'Details'],
+                data: _highlights.map((h) => [h.title, h.details]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Top Risks
+            _pdfSectionTitle('Top Risks'),
+            pw.SizedBox(height: 6),
+            if (_topRisks.isEmpty)
+              _pdfCell('No risks recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Risk', 'Details', 'Owner', 'Status'],
+                data: _topRisks.map((r) => [r.title, r.details, r.owner, r.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Next 90 Days
+            _pdfSectionTitle('Next 90 Days Focus'),
+            pw.SizedBox(height: 6),
+            if (_next90Days.isEmpty)
+              _pdfCell('No next actions recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Priority', 'Details', 'Owner', 'Status'],
+                data: _next90Days.map((n) => [n.title, n.details, n.owner, n.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (!mounted) return;
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PDF export failed: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold));
+  }
+
+  pw.Widget _pdfHeaderCell(String text) {
+    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)));
+  }
+
+  pw.Widget _pdfCell(String text) {
+    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: const pw.TextStyle(fontSize: 9)));
   }
 
   String _s(dynamic v) => (v ?? '').toString().trim();

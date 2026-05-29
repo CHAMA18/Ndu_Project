@@ -1,3 +1,4 @@
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
@@ -15,6 +16,10 @@ import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/design_phase_service.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class SpecializedDesignScreen extends StatefulWidget {
   const SpecializedDesignScreen({super.key});
@@ -35,14 +40,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
   bool _isLoading = false;
   String? _loadError;
 
-  final Set<String> _selectedFilters = {'All items'};
-
   // Registers
   List<SecurityPatternRow> _securityRows = [];
   List<PerformancePatternRow> _performanceRows = [];
   List<IntegrationFlowRow> _integrationRows = [];
   List<_ComplianceRow> _complianceRows = [];
   List<_ReviewGateRow> _reviewGates = [];
+  bool _frameworkGuideExpanded = false;
 
   static const List<String> _statusOptions = [
     'Ready',
@@ -104,7 +108,21 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Specialized Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['specialized_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _saveDebouncer.dispose();
     super.dispose();
@@ -272,7 +290,6 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
 
     return ResponsiveScaffold(
@@ -281,12 +298,11 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Specialized Design',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -295,23 +311,19 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                 children: [
                   if (_isLoading) const LinearProgressIndicator(minHeight: 2),
                   if (_isLoading) const SizedBox(height: 16),
-                  _buildHeader(isNarrow),
-                  const SizedBox(height: 16),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
-                  _buildStatsRow(isNarrow),
+                  _buildHeader(),
                   const SizedBox(height: 20),
                   _buildFrameworkGuide(),
                   const SizedBox(height: 24),
-                  if (_showSecurity) _buildSecurityRegister(),
-                  if (_showSecurity) const SizedBox(height: 20),
-                  if (_showPerformance) _buildPerformanceRegister(),
-                  if (_showPerformance) const SizedBox(height: 20),
-                  if (_showIntegration) _buildIntegrationRegister(),
-                  if (_showIntegration) const SizedBox(height: 20),
-                  if (_showCompliance) _buildComplianceRegister(),
-                  if (_showCompliance) const SizedBox(height: 20),
-                  if (_showReviewGates) _buildReviewGatesPanel(),
+                  _buildSecurityRegister(),
+                  const SizedBox(height: 20),
+                  _buildPerformanceRegister(),
+                  const SizedBox(height: 20),
+                  _buildIntegrationRegister(),
+                  const SizedBox(height: 20),
+                  _buildComplianceRegister(),
+                  const SizedBox(height: 20),
+                  _buildReviewGatesPanel(),
                   const SizedBox(height: 24),
                   LaunchPhaseNavigation(
                     backLabel: 'Back: Technical Development',
@@ -328,15 +340,9 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     );
   }
 
-  bool get _showSecurity => _selectedFilters.contains('All items') || _selectedFilters.contains('Security');
-  bool get _showPerformance => _selectedFilters.contains('All items') || _selectedFilters.contains('Performance');
-  bool get _showIntegration => _selectedFilters.contains('All items') || _selectedFilters.contains('Integrations');
-  bool get _showCompliance => _selectedFilters.contains('All items') || _selectedFilters.contains('Compliance');
-  bool get _showReviewGates => _selectedFilters.contains('All items') || _selectedFilters.contains('Review pending');
-
   // ─── Header ────────────────────────────────────────────────────────
 
-  Widget _buildHeader(bool isNarrow) {
+  Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -352,139 +358,15 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text('Specialized Design', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                SizedBox(height: 6),
-                Text(
-                  'Manage security patterns, performance engineering, integration contracts, and compliance requirements for the project. '
-                  'Aligned with NIST Cybersecurity Framework, ISO 27001, SOC 2 Type II, and PCI DSS standards. '
-                  'This register ensures specialized design decisions remain traceable, validated, and reviewable throughout the design phase.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-            if (compact) {
-              return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [titleBlock, const SizedBox(height: 12), _buildHeaderActions()]);
-            }
-            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: titleBlock), const SizedBox(width: 20), Flexible(child: _buildHeaderActions())]);
-          },
+        const Text('Specialized Design', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+        const SizedBox(height: 6),
+        const Text(
+          'Manage security patterns, performance engineering, integration contracts, and compliance requirements for the project. '
+          'Aligned with NIST Cybersecurity Framework, ISO 27001, SOC 2 Type II, and PCI DSS standards. '
+          'This register ensures specialized design decisions remain traceable, validated, and reviewable throughout the design phase.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
         ),
       ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10, runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add control', onPressed: () => _showSecurityDialog()),
-        _actionButton(Icons.upload_outlined, 'Import patterns', onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Import patterns from security tooling is available from the Security Register.')));
-        }),
-        _actionButton(Icons.description_outlined, 'Export spec', onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Export specification is queued. Use the registers while export tools are finalized.')));
-        }),
-        _primaryButton('Start security review'),
-      ],
-    );
-  }
-
-  Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
-    return OutlinedButton.icon(
-      onPressed: onPressed ?? () {},
-      icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _primaryButton(String label) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        setState(() { _selectedFilters..clear()..add('Review pending'); });
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Security review started. Filter set to items pending review.')));
-      },
-      icon: const Icon(Icons.play_arrow, size: 18),
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9), foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ─── Filter Chips ────────────────────────────────────────────────
-
-  Widget _buildFilterChips() {
-    const filters = ['All items', 'Security', 'Performance', 'Integrations', 'Compliance', 'Review pending'];
-    return Wrap(
-      spacing: 10, runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(filter, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: selected ? Colors.white : const Color(0xFF475569))),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(side: BorderSide(color: const Color(0xFFE5E7EB))),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All items') { _selectedFilters..clear()..add(filter); }
-                else { _selectedFilters..remove('All items')..add(filter); }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) _selectedFilters.add('All items');
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  // ─── Stats Row ────────────────────────────────────────────────────
-
-  Widget _buildStatsRow(bool isNarrow) {
-    final securityReady = _securityRows.where((r) => r.status == 'Ready').length;
-    final perfDraft = _performanceRows.where((r) => r.status == 'Draft' || r.status == 'Pending').length;
-    final integrationReady = _integrationRows.where((r) => r.status == 'Ready').length;
-    final reviewPending = _reviewGates.where((g) => g.status == 'Pending' || g.status == 'In Review').length;
-
-    final stats = [
-      _StatCardData('${_securityRows.length}', 'Security Controls', '$securityReady ready', const Color(0xFF0EA5E9)),
-      _StatCardData('$perfDraft', 'Performance Pending', 'SLA targets pending', const Color(0xFF10B981)),
-      _StatCardData('${_integrationRows.length}', 'Integrations', '$integrationReady contract-ready', const Color(0xFFF97316)),
-      _StatCardData('$reviewPending', 'Pending Reviews', reviewPending > 0 ? 'Require attention' : 'All reviewed', const Color(0xFF6366F1)),
-    ];
-
-    if (isNarrow) {
-      return Column(children: [for (int i = 0; i < stats.length; i++) ...[SizedBox(width: double.infinity, child: _buildStatCard(stats[i])), if (i < stats.length - 1) const SizedBox(height: 12)]]);
-    }
-    return Row(children: [for (int i = 0; i < stats.length; i++) ...[Expanded(child: _buildStatCard(stats[i])), if (i < stats.length - 1) const SizedBox(width: 12)]]);
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2E8F0))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(data.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: data.color)),
-        const SizedBox(height: 6),
-        Text(data.label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        const SizedBox(height: 6),
-        Text(data.supporting, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: data.color)),
-      ]),
     );
   }
 
@@ -492,29 +374,56 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
 
   Widget _buildFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 6))]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Specialized design framework', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
-        const SizedBox(height: 6),
-        const Text(
-          'Grounded in NIST Cybersecurity Framework (CSF), ISO/IEC 27001:2022 Annex A controls, '
-          'SOC 2 Type II trust service criteria, and PCI DSS v4.0 requirements. Effective specialized '
-          'design ensures that security controls, performance targets, integration contracts, and regulatory '
-          'compliance obligations remain validated, testable, and auditable throughout the project lifecycle.',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+        // Clickable header row
+        InkWell(
+          onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('Specialized design framework', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                ),
+                AnimatedRotation(
+                  duration: const Duration(milliseconds: 200),
+                  turns: _frameworkGuideExpanded ? 0.5 : 0,
+                  child: Icon(Icons.expand_more, size: 22, color: const Color(0xFF6B7280)),
+                ),
+              ],
+            ),
+          ),
         ),
-        const SizedBox(height: 18),
-        Column(children: [
-          _buildGuideCard(Icons.shield_outlined, 'Security & Access Control', 'Implement defense-in-depth with Zero Trust architecture, encryption at rest and in transit, MFA enforcement, and continuous audit logging. Align with NIST SP 800-207 and CIS Controls v8.', const Color(0xFF2563EB)),
-          const SizedBox(height: 12),
-          _buildGuideCard(Icons.speed_outlined, 'Performance & Scalability', 'Define SLA targets, implement caching strategies, optimize database queries, and establish auto-scaling thresholds. Validate under load testing with p95/p99 latency benchmarks.', const Color(0xFF10B981)),
-          const SizedBox(height: 12),
-          _buildGuideCard(Icons.hub_outlined, 'Integration Contracts', 'Formalize API contracts, authentication flows, error handling patterns, and data schemas for all external system integrations before development begins. Use OpenAPI 3.1 specifications.', const Color(0xFFF59E0B)),
-          const SizedBox(height: 12),
-          _buildGuideCard(Icons.verified_user_outlined, 'Compliance & Certification', 'Map design decisions to regulatory requirements (SOC 2, GDPR, PCI DSS, ISO 27001). Maintain evidence trails, conduct gap assessments, and schedule certification audits.', const Color(0xFFEF4444)),
-        ]),
+        // Collapsible content
+        AnimatedCrossFade(
+          firstChild: const SizedBox(width: double.infinity, height: 0),
+          secondChild: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text(
+                'Grounded in NIST Cybersecurity Framework (CSF), ISO/IEC 27001:2022 Annex A controls, '
+                'SOC 2 Type II trust service criteria, and PCI DSS v4.0 requirements. Effective specialized '
+                'design ensures that security controls, performance targets, integration contracts, and regulatory '
+                'compliance obligations remain validated, testable, and auditable throughout the project lifecycle.',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+              ),
+              const SizedBox(height: 18),
+              _buildGuideCard(Icons.shield_outlined, 'Security & Access Control', 'Implement defense-in-depth with Zero Trust architecture, encryption at rest and in transit, MFA enforcement, and continuous audit logging. Align with NIST SP 800-207 and CIS Controls v8.', const Color(0xFF2563EB)),
+              const SizedBox(height: 12),
+              _buildGuideCard(Icons.speed_outlined, 'Performance & Scalability', 'Define SLA targets, implement caching strategies, optimize database queries, and establish auto-scaling thresholds. Validate under load testing with p95/p99 latency benchmarks.', const Color(0xFF10B981)),
+              const SizedBox(height: 12),
+              _buildGuideCard(Icons.hub_outlined, 'Integration Contracts', 'Formalize API contracts, authentication flows, error handling patterns, and data schemas for all external system integrations before development begins. Use OpenAPI 3.1 specifications.', const Color(0xFFF59E0B)),
+              const SizedBox(height: 12),
+              _buildGuideCard(Icons.verified_user_outlined, 'Compliance & Certification', 'Map design decisions to regulatory requirements (SOC 2, GDPR, PCI DSS, ISO 27001). Maintain evidence trails, conduct gap assessments, and schedule certification audits.', const Color(0xFFEF4444)),
+            ]),
+          ),
+          crossFadeState: _frameworkGuideExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
+          sizeCurve: Curves.easeInOut,
+        ),
       ]),
     );
   }
@@ -645,11 +554,40 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Security & compliance patterns register',
       subtitle: 'Track security controls, access patterns, and encryption decisions aligned with NIST CSF and ISO 27001 Annex A controls.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showSecurityDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add control', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Security & Compliance Patterns',
+            columns: [
+              CsvColumnSpec(key: 'pattern', label: 'PATTERN', required: true),
+              CsvColumnSpec(key: 'decision', label: 'DECISION & SCOPE', required: true),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Review', 'Implemented', 'Compliant', 'Non-Compliant'], defaultValue: 'Planned'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _securityRows.add(SecurityPatternRow(
+                    pattern: row['pattern'] ?? '',
+                    decision: row['decision'] ?? '',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showSecurityDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add control', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _securityRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No security patterns defined. Add a control to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -661,7 +599,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 3, child: Text(row.pattern, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)))),
                   Expanded(flex: 5, child: Text(row.decision, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4))),
                   SizedBox(width: 120, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-                  SizedBox(width: 100, child: _buildStatusTag(row.status)),
+                  SizedBox(width: 130, child: _buildStatusTag(row.status)),
                   _crudButtons(() => _showSecurityDialog(existing: row), () => _confirmDelete(() { setState(() => _securityRows.remove(row)); _scheduleSave(); })),
                 ]);
               }),
@@ -675,11 +613,40 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Performance & scale patterns register',
       subtitle: 'Track performance hotspots, SLA targets, and scaling decisions aligned with SRE best practices and Google SRE handbook principles.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showPerformanceDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add hotspot', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Performance & Scale Patterns',
+            columns: [
+              CsvColumnSpec(key: 'hotspot', label: 'HOTSPOT', required: true),
+              CsvColumnSpec(key: 'focus', label: 'DESIGN FOCUS', required: true),
+              CsvColumnSpec(key: 'sla', label: 'SLA'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Review', 'Implemented', 'Compliant', 'Non-Compliant'], defaultValue: 'Draft'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _performanceRows.add(PerformancePatternRow(
+                    hotspot: row['hotspot'] ?? '',
+                    focus: row['focus'] ?? '',
+                    sla: row['sla'] ?? '',
+                    status: row['status'] ?? 'Draft',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showPerformanceDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add hotspot', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _performanceRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No performance hotspots defined. Add a scaling decision to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -691,7 +658,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 3, child: Text(row.hotspot, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)))),
                   Expanded(flex: 5, child: Text(row.focus, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4))),
                   SizedBox(width: 130, child: Text(row.sla, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9)))),
-                  SizedBox(width: 100, child: _buildStatusTag(row.status)),
+                  SizedBox(width: 130, child: _buildStatusTag(row.status)),
                   _crudButtons(() => _showPerformanceDialog(existing: row), () => _confirmDelete(() { setState(() => _performanceRows.remove(row)); _scheduleSave(); })),
                 ]);
               }),
@@ -705,11 +672,40 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Integration contracts register',
       subtitle: 'Track integration flows, API contracts, and system connections aligned with OpenAPI 3.1 and event-driven architecture patterns.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showIntegrationDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add flow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Integration Contracts',
+            columns: [
+              CsvColumnSpec(key: 'flow', label: 'FLOW', required: true),
+              CsvColumnSpec(key: 'system', label: 'SYSTEM'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Review', 'Implemented', 'Compliant', 'Non-Compliant'], defaultValue: 'Draft'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _integrationRows.add(IntegrationFlowRow(
+                    flow: row['flow'] ?? '',
+                    owner: row['owner'] ?? '',
+                    system: row['system'] ?? '',
+                    status: row['status'] ?? 'Draft',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showIntegrationDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add flow', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _integrationRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No integration flows defined. Add an integration contract to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -721,7 +717,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 4, child: Text(row.flow, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)))),
                   SizedBox(width: 150, child: Text(row.system, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
                   SizedBox(width: 120, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-                  SizedBox(width: 100, child: _buildStatusTag(row.status)),
+                  SizedBox(width: 130, child: _buildStatusTag(row.status)),
                   _crudButtons(() => _showIntegrationDialog(existing: row), () => _confirmDelete(() { setState(() => _integrationRows.remove(row)); _scheduleSave(); })),
                 ]);
               }),
@@ -735,11 +731,42 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Compliance & certification register',
       subtitle: 'Track regulatory compliance status, certification progress, and evidence collection aligned with SOC 2, GDPR, PCI DSS, and ISO 27001 requirements.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showComplianceDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add standard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Compliance & Certification',
+            columns: [
+              CsvColumnSpec(key: 'standard', label: 'STANDARD', required: true),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Compliant', 'Non-Compliant', 'In Progress', 'Not Assessed', 'Partial'], defaultValue: 'Not assessed'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _complianceRows.add(_ComplianceRow(
+                    id: _newId(),
+                    standard: row['standard'] ?? '',
+                    description: row['description'] ?? '',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'Not assessed',
+                    evidence: '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showComplianceDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add standard', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _complianceRows.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No compliance standards defined. Add a standard to start tracking.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -751,7 +778,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 3, child: Text(row.standard, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF111827)))),
                   Expanded(flex: 4, child: Text(row.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4))),
                   SizedBox(width: 120, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-                  SizedBox(width: 110, child: _buildComplianceStatusTag(row.status)),
+                  SizedBox(width: 130, child: _buildComplianceStatusTag(row.status)),
                   _crudButtons(() => _showComplianceDialog(existing: row), () => _confirmDelete(() { setState(() => _complianceRows.removeWhere((r) => r.id == row.id)); _scheduleSave(); })),
                 ]);
               }),
@@ -765,11 +792,47 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     return _buildPanelShell(
       title: 'Specialized design review gates',
       subtitle: 'Approval checkpoints aligned with NIST CSF and ISO 27001 design review cycles. Each gate must be cleared before proceeding to the next specialized design maturity level.',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _showReviewGateDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Review Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER'),
+              CsvColumnSpec(key: 'department', label: 'DEPT'),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['High', 'Medium', 'Low'], defaultValue: 'High'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Progress', 'Complete', 'Overdue'], defaultValue: 'Not Started'),
+              CsvColumnSpec(key: 'targetDate', label: 'TARGET DATE', defaultValue: 'TBD'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _reviewGates.add(_ReviewGateRow(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    description: row['description'] ?? '',
+                    approver: row['approver'] ?? '',
+                    department: row['department'] ?? '',
+                    priority: row['priority'] ?? 'High',
+                    status: row['status'] ?? 'Not Started',
+                    targetDate: row['targetDate'] ?? 'TBD',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _showReviewGateDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add gate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF475569), side: const BorderSide(color: Color(0xFFE2E8F0)), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+          ),
+        ],
       ),
       child: _reviewGates.isEmpty
           ? const Padding(padding: EdgeInsets.all(32), child: Center(child: Text('No review gates defined. Add a gate to start tracking specialized design reviews.', style: TextStyle(color: Color(0xFF64748B)))))
@@ -784,8 +847,8 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                     Text(row.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4)),
                   ])),
                   SizedBox(width: 130, child: Text(row.approver, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-                  SizedBox(width: 80, child: _buildPriorityTag(row.priority)),
-                  SizedBox(width: 100, child: _buildReviewGateStatusTag(row.status)),
+                  SizedBox(width: 110, child: _buildPriorityTag(row.priority)),
+                  SizedBox(width: 130, child: _buildReviewGateStatusTag(row.status)),
                   _crudButtons(() => _showReviewGateDialog(existing: row), () => _confirmDelete(() { setState(() => _reviewGates.removeWhere((g) => g.id == row.id)); _scheduleSave(); })),
                 ]);
               }),
@@ -804,14 +867,14 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add security control' : 'Edit security control'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: patternCtrl, decoration: const InputDecoration(labelText: 'Pattern name', border: OutlineInputBorder())),
+        VoiceTextField(controller: patternCtrl, decoration: const InputDecoration(labelText: 'Pattern name', border: OutlineInputBorder())),
         const SizedBox(height: 12),
-        TextField(controller: decisionCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Decision & scope', border: OutlineInputBorder())),
+        VoiceTextField(controller: decisionCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Decision & scope', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: TextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+          Expanded(child: VoiceTextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
           const SizedBox(width: 12),
-          Expanded(child: DropdownButtonFormField<String>(value: status, items: _statusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: status, items: _statusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: (v) { if (v != null) setModalState(() => status = v); }, decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()))),
         ]),
       ])),
@@ -843,14 +906,14 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add performance hotspot' : 'Edit performance hotspot'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: hotspotCtrl, decoration: const InputDecoration(labelText: 'Service hotspot', border: OutlineInputBorder())),
+        VoiceTextField(controller: hotspotCtrl, decoration: const InputDecoration(labelText: 'Service hotspot', border: OutlineInputBorder())),
         const SizedBox(height: 12),
-        TextField(controller: focusCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Design focus', border: OutlineInputBorder())),
+        VoiceTextField(controller: focusCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Design focus', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: TextField(controller: slaCtrl, decoration: const InputDecoration(labelText: 'SLA target', border: OutlineInputBorder()))),
+          Expanded(child: VoiceTextField(controller: slaCtrl, decoration: const InputDecoration(labelText: 'SLA target', border: OutlineInputBorder()))),
           const SizedBox(width: 12),
-          Expanded(child: DropdownButtonFormField<String>(value: status, items: _statusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: status, items: _statusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: (v) { if (v != null) setModalState(() => status = v); }, decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()))),
         ]),
       ])),
@@ -882,14 +945,14 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add integration flow' : 'Edit integration flow'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: flowCtrl, decoration: const InputDecoration(labelText: 'Flow name', border: OutlineInputBorder())),
+        VoiceTextField(controller: flowCtrl, decoration: const InputDecoration(labelText: 'Flow name', border: OutlineInputBorder())),
         const SizedBox(height: 12),
-        TextField(controller: systemCtrl, decoration: const InputDecoration(labelText: 'External system', border: OutlineInputBorder())),
+        VoiceTextField(controller: systemCtrl, decoration: const InputDecoration(labelText: 'External system', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: TextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+          Expanded(child: VoiceTextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
           const SizedBox(width: 12),
-          Expanded(child: DropdownButtonFormField<String>(value: status, items: _statusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: status, items: _statusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: (v) { if (v != null) setModalState(() => status = v); }, decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()))),
         ]),
       ])),
@@ -922,18 +985,18 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add compliance standard' : 'Edit compliance standard'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: standardCtrl, decoration: const InputDecoration(labelText: 'Standard', border: OutlineInputBorder())),
+        VoiceTextField(controller: standardCtrl, decoration: const InputDecoration(labelText: 'Standard', border: OutlineInputBorder())),
         const SizedBox(height: 12),
-        TextField(controller: descCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+        VoiceTextField(controller: descCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: TextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+          Expanded(child: VoiceTextField(controller: ownerCtrl, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
           const SizedBox(width: 12),
-          Expanded(child: DropdownButtonFormField<String>(value: status, items: _complianceStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: status, items: _complianceStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: (v) { if (v != null) setModalState(() => status = v); }, decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()))),
         ]),
         const SizedBox(height: 12),
-        TextField(controller: evidenceCtrl, decoration: const InputDecoration(labelText: 'Evidence / notes', border: OutlineInputBorder())),
+        VoiceTextField(controller: evidenceCtrl, decoration: const InputDecoration(labelText: 'Evidence / notes', border: OutlineInputBorder())),
       ])),
       actions: [
         TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
@@ -966,21 +1029,21 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add review gate' : 'Edit review gate'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
-        TextField(controller: gateCtrl, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
+        VoiceTextField(controller: gateCtrl, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
         const SizedBox(height: 12),
-        TextField(controller: descCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+        VoiceTextField(controller: descCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: TextField(controller: approverCtrl, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
+          Expanded(child: VoiceTextField(controller: approverCtrl, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
           const SizedBox(width: 12),
-          Expanded(child: TextField(controller: deptCtrl, decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()))),
+          Expanded(child: VoiceTextField(controller: deptCtrl, decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()))),
         ]),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: DropdownButtonFormField<String>(value: priority, items: ['Critical', 'High', 'Medium', 'Low'].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: priority, items: ['Critical', 'High', 'Medium', 'Low'].map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: (v) { if (v != null) setModalState(() => priority = v); }, decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()))),
           const SizedBox(width: 12),
-          Expanded(child: DropdownButtonFormField<String>(value: status, items: _reviewGateStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: status, items: _reviewGateStatusOptions.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
             onChanged: (v) { if (v != null) setModalState(() => status = v); }, decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()))),
         ]),
       ])),
@@ -1062,14 +1125,6 @@ class _ReviewGateRow {
       return _ReviewGateRow(id: m['id'] ?? '', gate: m['gate'] ?? '', description: m['description'] ?? '', approver: m['approver'] ?? '', department: m['department'] ?? '', priority: m['priority'] ?? 'High', status: m['status'] ?? 'Pending', targetDate: m['targetDate'] ?? 'TBD');
     }).toList();
   }
-}
-
-class _StatCardData {
-  final String value;
-  final String label;
-  final String supporting;
-  final Color color;
-  _StatCardData(this.value, this.label, this.supporting, this.color);
 }
 
 class _ColDef {

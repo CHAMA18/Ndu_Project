@@ -15,7 +15,10 @@ import 'package:ndu_project/services/contract_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
+import 'package:ndu_project/widgets/front_end_planning_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const String _contractingCollection = 'contracting';
 const String _contractPlanNoteKey = 'planning_contract_plan';
 const String _contractPlanMarketKey = 'planning_contract_market';
@@ -134,7 +137,22 @@ class _FrontEndPlanningContractsScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Contracting',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notesController.dispose();
     super.dispose();
@@ -256,6 +274,48 @@ class _FrontEndPlanningContractsScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
+                              FrontEndPlanningHeader(title: 'Contracting', onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
+                              // Export PDF & AI Assist action buttons
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                alignment: WrapAlignment.end,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: _exportPdf,
+                                    style: OutlinedButton.styleFrom(
+                                      backgroundColor: Colors.white,
+                                      foregroundColor: Colors.black87,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      side: const BorderSide(color: Color(0xFFE5E7EB)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                                    label: const Text('Export PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  ),
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('AI Assist will generate content for this section.'),
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF4154F1),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
+                                    icon: const Icon(Icons.auto_awesome, size: 16),
+                                    label: const Text('AI Assist', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
                               _ContractTabs(
                                 selectedIndex: _selectedTabIndex,
                                 onTabSelected: (index) {
@@ -568,7 +628,12 @@ class _FrontEndPlanningContractsScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -1201,7 +1266,12 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -1446,7 +1516,12 @@ class _ContractingStrategyScreenState extends State<ContractingStrategyScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -2160,7 +2235,7 @@ class _ContractTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     final int minLines = maxLines != null && maxLines! > 1 ? maxLines! : 1;
 
-    return TextFormField(
+    return VoiceTextFormField(
       controller: controller,
       minLines: minLines,
       maxLines: maxLines ?? 1,
@@ -2722,7 +2797,7 @@ class _CollapsibleAiTextCard extends StatefulWidget {
     required this.sectionLabel,
     required this.hintText,
     this.subtitle,
-    this.minLines = 4,
+    this.minLines = 3,
     this.maxLines = 8,
     this.initiallyExpanded = false,
   });
@@ -2839,7 +2914,7 @@ class _CollapsibleAiTextCardState extends State<_CollapsibleAiTextCard> {
       onAiRegenerate: _handleRegenerate,
       isAiLoading: _isRegenerating,
       initiallyExpanded: widget.initiallyExpanded,
-      child: TextField(
+      child: VoiceTextField(
         controller: _controller,
         minLines: widget.minLines,
         maxLines: widget.maxLines,
@@ -2966,7 +3041,7 @@ class _ContractPreviewRow extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFFFFC812))),
+                      color: Color(0xFFFFC812))),
             ),
             Expanded(
               flex: 2,
@@ -3060,7 +3135,7 @@ class _NotesField extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.all(20),
-      child: TextField(
+      child: VoiceTextField(
         controller: controller,
         minLines: 5,
         maxLines: null,
@@ -3222,14 +3297,14 @@ class _TimelineSectionState extends State<_TimelineSection> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: minController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                       labelText: 'Minimum days', hintText: 'e.g. 1'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: maxController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
@@ -4032,7 +4107,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
       final start = contract.startDate;
       final end = contract.endDate;
       final bidOpeningDate =
-          end != null ? end.add(const Duration(days: 2)) : null;
+          end?.add(const Duration(days: 2));
       _overviewMilestones = [
         _ContractMilestoneData(
           title: 'Published Date',
@@ -4297,7 +4372,12 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -4816,7 +4896,7 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: const BorderSide(
-                                      color: const Color(0xFFFFC812), width: 1.2),
+                                      color: Color(0xFFFFC812), width: 1.2),
                                 ),
                               ),
                               style: const TextStyle(
@@ -4832,7 +4912,12 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -5244,7 +5329,12 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contract',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -6119,7 +6209,7 @@ class _SummaryHighlightBullet extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(top: 6),
           child: Icon(Icons.fiber_manual_record,
-              size: 8, color: const Color(0xFFFFC812)),
+              size: 8, color: Color(0xFFFFC812)),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -6397,7 +6487,7 @@ class _TimelineLegend extends StatelessWidget {
 
   static const List<_TimelineLegendItem> _items = [
     _TimelineLegendItem(label: 'Complete', color: Color(0xFF22C55E)),
-    _TimelineLegendItem(label: 'In Progress', color: const Color(0xFFFFC812)),
+    _TimelineLegendItem(label: 'In Progress', color: Color(0xFFFFC812)),
     _TimelineLegendItem(label: 'Not Started', color: Color(0xFFE5E7EB)),
     _TimelineLegendItem(label: 'Behind Schedule', color: Color(0xFFF59E0B)),
   ];
@@ -6609,7 +6699,7 @@ class _ContractStatusRecentActivityCard extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.only(top: 5),
                       child: Icon(Icons.fiber_manual_record,
-                          size: 8, color: const Color(0xFFFFC812)),
+                          size: 8, color: Color(0xFFFFC812)),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -6748,7 +6838,7 @@ class _ContractorSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return VoiceTextField(
       decoration: InputDecoration(
         hintText: 'Search contractors...',
         hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
@@ -7315,7 +7405,7 @@ class _ContractExecutionSection extends StatelessWidget {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(
-                          color: const Color(0xFFFFC812), width: 1.2),
+                          color: Color(0xFFFFC812), width: 1.2),
                     ),
                   ),
                   style: const TextStyle(
@@ -7638,7 +7728,7 @@ class _AdditionalInfoField extends StatelessWidget {
         ],
       ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: TextField(
+      child: VoiceTextField(
         controller: controller,
         maxLines: 4,
         onChanged: onChanged,
@@ -7742,7 +7832,7 @@ class _ContractOverviewSummaryCard extends StatelessWidget {
                       const _ContractMilestoneData(
                         title: 'Published Date',
                         value: 'TBD',
-                        accentColor: const Color(0xFFFFC812),
+                        accentColor: Color(0xFFFFC812),
                       ),
                     ];
               if (stack) {
@@ -8366,7 +8456,7 @@ class _ContactSidebarCard extends StatelessWidget {
                   Text(
                     info?.email ?? 'Email pending',
                     style:
-                        const TextStyle(fontSize: 13, color: const Color(0xFFFFC812)),
+                        const TextStyle(fontSize: 13, color: Color(0xFFFFC812)),
                   ),
                 ],
               ),
@@ -8492,7 +8582,7 @@ class _UploadBidDocumentsCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: const [
-          Icon(Icons.cloud_upload_outlined, size: 44, color: const Color(0xFFFFC812)),
+          Icon(Icons.cloud_upload_outlined, size: 44, color: Color(0xFFFFC812)),
           SizedBox(height: 16),
           Text(
             'Upload Your Bid Documents',
@@ -8512,7 +8602,7 @@ class _UploadBidDocumentsCard extends StatelessWidget {
                     text: 'click to browse',
                     style: TextStyle(
                         fontSize: 13,
-                        color: const Color(0xFFFFC812),
+                        color: Color(0xFFFFC812),
                         fontWeight: FontWeight.w600)),
               ],
             ),
@@ -8788,7 +8878,7 @@ class _BulletItem extends StatelessWidget {
         children: [
           const Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Icon(Icons.circle, size: 6, color: const Color(0xFFFFC812)),
+            child: Icon(Icons.circle, size: 6, color: Color(0xFFFFC812)),
           ),
           const SizedBox(width: 10),
           Expanded(

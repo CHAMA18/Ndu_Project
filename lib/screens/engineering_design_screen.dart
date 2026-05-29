@@ -8,16 +8,16 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
-import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
-
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 // ─── Data Models ─────────────────────────────────────────────────────────────
 
 class _StructuralItem {
@@ -410,13 +410,6 @@ class _ReadinessGate {
   }
 }
 
-class _StatCardData {
-  final String value;
-  final String label;
-  final String supporting;
-  final Color color;
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
-}
 
 // ─── Debouncer ───────────────────────────────────────────────────────────────
 
@@ -524,11 +517,11 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _keyDecisionsController = TextEditingController();
   final _Debouncer _saveDebouncer = _Debouncer();
-  final Set<String> _selectedFilters = {'All registers'};
 
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _didSeedDefaults = false;
+  bool _frameworkGuideExpanded = false;
 
   // Register data lists
   List<_StructuralItem> _structuralItems = [];
@@ -615,7 +608,21 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     _keyDecisionsController.addListener(_scheduleSave);
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Engineering Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['engineering_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notesController.dispose();
     _keyDecisionsController.dispose();
@@ -1109,7 +1116,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: layerController,
                   decoration: const InputDecoration(
                     labelText: 'Layer name',
@@ -1117,7 +1124,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descController,
                   minLines: 2,
                   maxLines: 4,
@@ -1127,7 +1134,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: specController,
                   decoration: const InputDecoration(
                     labelText: 'Specification',
@@ -1153,7 +1160,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: owner),
                   decoration: const InputDecoration(
                     labelText: 'Owner',
@@ -1234,7 +1241,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Component name',
@@ -1242,7 +1249,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: respController,
                   minLines: 2,
                   maxLines: 4,
@@ -1252,7 +1259,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: ifaceController,
                   decoration: const InputDecoration(
                     labelText: 'Interface type',
@@ -1278,7 +1285,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: owner),
                   decoration: const InputDecoration(
                     labelText: 'Owner',
@@ -1361,7 +1368,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: calcController,
                   decoration: const InputDecoration(
                     labelText: 'Calculation name',
@@ -1369,7 +1376,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: typeController,
                   decoration: const InputDecoration(
                     labelText: 'Type',
@@ -1377,7 +1384,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: stdController,
                   decoration: const InputDecoration(
                     labelText: 'Standard',
@@ -1421,7 +1428,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: reviewer),
                   decoration: const InputDecoration(
                     labelText: 'Reviewer',
@@ -1506,7 +1513,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: stdController,
                   decoration: const InputDecoration(
                     labelText: 'Standard',
@@ -1514,7 +1521,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: scopeController,
                   decoration: const InputDecoration(
                     labelText: 'Scope',
@@ -1522,7 +1529,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: applController,
                   decoration: const InputDecoration(
                     labelText: 'Applicability',
@@ -1548,7 +1555,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: evidence),
                   decoration: const InputDecoration(
                     labelText: 'Evidence',
@@ -1557,7 +1564,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   onChanged: (v) => evidence = v,
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: owner),
                   decoration: const InputDecoration(
                     labelText: 'Owner',
@@ -1640,7 +1647,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: ecnIdController,
                   decoration: const InputDecoration(
                     labelText: 'ECN ID',
@@ -1648,7 +1655,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: titleController,
                   decoration: const InputDecoration(
                     labelText: 'Title',
@@ -1692,7 +1699,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: originator),
                   decoration: const InputDecoration(
                     labelText: 'Originator',
@@ -1701,7 +1708,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   onChanged: (v) => originator = v,
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: approver),
                   decoration: const InputDecoration(
                     labelText: 'Approver',
@@ -1710,7 +1717,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   onChanged: (v) => approver = v,
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: date),
                   decoration: const InputDecoration(
                     labelText: 'Date',
@@ -1789,7 +1796,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: gateController,
                   decoration: const InputDecoration(
                     labelText: 'Gate name',
@@ -1797,7 +1804,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: TextEditingController(text: owner),
                   decoration: const InputDecoration(
                     labelText: 'Owner',
@@ -1864,114 +1871,10 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     );
   }
 
-  // ─── Export PDF ────────────────────────────────────────────────────────────
-
-  Future<void> _exportEngineeringChecklist() async {
-    final doc = pw.Document();
-    final notes = _notesController.text.trim();
-    final keyDecisions = _keyDecisionsController.text.trim();
-
-    doc.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          pw.Text(
-            'Engineering Checklist',
-            style: pw.TextStyle(
-              fontSize: 22,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          pw.SizedBox(height: 12),
-          _pdfTextBlock('Notes', notes),
-          _pdfTextBlock('Key decisions', keyDecisions),
-          _pdfSection(
-              'Structural & Architecture Register',
-              _structuralItems
-                  .map((e) =>
-                      '${e.layer} — ${e.description} [${e.specification}] (${e.status})')
-                  .toList()),
-          _pdfSection(
-              'Components & Interfaces Register',
-              _componentItems
-                  .map((e) =>
-                      '${e.component} — ${e.responsibility} [${e.interfaceType}] (${e.status})')
-                  .toList()),
-          _pdfSection(
-              'Calculations & Analysis Register',
-              _calculationItems
-                  .map((e) =>
-                      '${e.calculation} [${e.standard}] — PE: ${e.peStamp} (${e.status})')
-                  .toList()),
-          _pdfSection(
-              'Compliance & Standards Register',
-              _complianceItems
-                  .map((e) =>
-                      '${e.standard} — ${e.scope} (${e.complianceStatus})')
-                  .toList()),
-          _pdfSection(
-              'Engineering Change Notices',
-              _ecnItems
-                  .map((e) =>
-                      '${e.ecnId}: ${e.title} [${e.priority}] (${e.status})')
-                  .toList()),
-          _pdfSection(
-              'Engineering Readiness Gates',
-              _readinessGates
-                  .map((e) => '${e.gate} — ${e.owner} (${e.status})')
-                  .toList()),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => doc.save(),
-      name: 'engineering-checklist.pdf',
-    );
-  }
-
-  pw.Widget _pdfTextBlock(String title, String content) {
-    final normalized =
-        content.trim().isEmpty ? 'No entries.' : content.trim();
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(title,
-            style: pw.TextStyle(
-                fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 6),
-        pw.Text(normalized, style: const pw.TextStyle(fontSize: 12)),
-        pw.SizedBox(height: 12),
-      ],
-    );
-  }
-
-  pw.Widget _pdfSection(String title, List<String> items) {
-    return pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Text(title,
-            style: pw.TextStyle(
-                fontSize: 14, fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 6),
-        if (items.isEmpty)
-          pw.Text('No entries.', style: const pw.TextStyle(fontSize: 12))
-        else
-          pw.Column(
-            children:
-                items.map((item) => pw.Bullet(text: item)).toList(),
-          ),
-        pw.SizedBox(height: 12),
-      ],
-    );
-  }
-
   // ─── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
 
     return ResponsiveScaffold(
@@ -1980,12 +1883,11 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Engineering',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           Expanded(
             child: SingleChildScrollView(
               padding: EdgeInsets.all(padding),
@@ -1994,12 +1896,6 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 children: [
                   if (_isLoading) const LinearProgressIndicator(minHeight: 2),
                   if (_isLoading) const SizedBox(height: 16),
-                  _buildHeader(isNarrow),
-                  const SizedBox(height: 16),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
-                  _buildStatsRow(),
-                  const SizedBox(height: 20),
                   _buildFrameworkGuide(),
                   const SizedBox(height: 24),
                   _buildStructuralRegister(),
@@ -2031,293 +1927,10 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
     );
   }
 
-  // ─── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(bool isNarrow) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0EA5E9),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'ENGINEERING CONTROL',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Engineering Design',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Structural & technical detailing hub for blueprints, calculations, approvals, '
-                  'interface detail, compliance evidence, and engineering change notices. '
-                  'Aligned with ISO 9001, AISC, ASCE, and PMI PMBOK design processes, '
-                  'this register ensures engineering scope and quality remain visible and actionable.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        OutlinedButton.icon(
-          onPressed: () => _openStructuralItemDialog(),
-          icon: const Icon(Icons.add, size: 18, color: Color(0xFF64748B)),
-          label: const Text('Add layer',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B))),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
-        OutlinedButton.icon(
-          onPressed: _exportEngineeringChecklist,
-          icon: const Icon(Icons.description_outlined,
-              size: 18, color: Color(0xFF64748B)),
-          label: const Text('Export PDF',
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF64748B))),
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── Filter Chips ──────────────────────────────────────────────────────────
-
-  Widget _buildFilterChips() {
-    const filters = [
-      'All registers',
-      'Structural',
-      'Components',
-      'Calculations',
-      'Compliance',
-      'ECN',
-    ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(
-            filter,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(
-            side: BorderSide(color: const Color(0xFFE5E7EB)),
-          ),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All registers') {
-                  _selectedFilters
-                    ..clear()
-                    ..add(filter);
-                } else {
-                  _selectedFilters
-                    ..remove('All registers')
-                    ..add(filter);
-                }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters.add('All registers');
-                }
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  bool get _showStructural =>
-      _selectedFilters.contains('All registers') ||
-      _selectedFilters.contains('Structural');
-  bool get _showComponents =>
-      _selectedFilters.contains('All registers') ||
-      _selectedFilters.contains('Components');
-  bool get _showCalculations =>
-      _selectedFilters.contains('All registers') ||
-      _selectedFilters.contains('Calculations');
-  bool get _showCompliance =>
-      _selectedFilters.contains('All registers') ||
-      _selectedFilters.contains('Compliance');
-  bool get _showEcn =>
-      _selectedFilters.contains('All registers') ||
-      _selectedFilters.contains('ECN');
-
-  // ─── Stats Row ─────────────────────────────────────────────────────────────
-
-  Widget _buildStatsRow() {
-    final architectureLayers = _structuralItems.length;
-    final componentsDefined = _componentItems
-        .where((c) => c.status == 'Defined' || c.status == 'In Review')
-        .length;
-    final calculationsComplete =
-        _calculationItems.where((c) => c.status == 'Complete').length;
-    final ecnsActive = _ecnItems
-        .where((e) =>
-            e.status != 'Approved' && e.status != 'Cancelled')
-        .length;
-
-    final stats = [
-      _StatCardData(
-        'Architecture Layers',
-        '$architectureLayers',
-        'Registered',
-        const Color(0xFF0EA5E9),
-      ),
-      _StatCardData(
-        'Components Defined',
-        '$componentsDefined',
-        '${_componentItems.length} total',
-        const Color(0xFF10B981),
-      ),
-      _StatCardData(
-        'Calculations Complete',
-        '$calculationsComplete',
-        '${_calculationItems.length} total',
-        const Color(0xFFF59E0B),
-      ),
-      _StatCardData(
-        'ECNs Active',
-        '$ecnsActive',
-        ecnsActive > 0 ? 'Require attention' : 'All resolved',
-        const Color(0xFF6366F1),
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final useWrap = constraints.maxWidth < 760;
-        if (useWrap) {
-          return Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: stats
-                .map((s) => SizedBox(
-                      width: (constraints.maxWidth - 12) / 2,
-                      child: _buildStatCard(s),
-                    ))
-                .toList(),
-          );
-        }
-        return Row(
-          children: stats
-              .map((s) => Expanded(child: _buildStatCard(s)))
-              .toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(right: 0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style:
-                  const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 4),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
-        ],
-      ),
-    );
-  }
-
   // ─── Framework Guide ───────────────────────────────────────────────────────
 
   Widget _buildFrameworkGuide() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -2333,65 +1946,94 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Engineering standards & best practices',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF111827)),
+          // Clickable header row
+          InkWell(
+            onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Engineering standards & best practices',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827)),
+                    ),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    child: Icon(Icons.expand_more, size: 22, color: const Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in ISO 9001 Quality Management, AISC 360 Structural Steel, '
-            'ASCE 7 Minimum Design Loads, and PMI PMBOK Design processes. '
-            'Effective engineering control ensures that structural integrity, '
-            'interface compatibility, calculation accuracy, and code compliance '
-            'remain visible and verifiable throughout the project lifecycle.',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF6B7280),
-                height: 1.5),
-          ),
-          const SizedBox(height: 18),
-          Column(
-            children: [
-              _buildGuideCard(
-                Icons.architecture_outlined,
-                'Architecture & Layering',
-                'Define system layers and their responsibilities before detailing '
-                    'interfaces. Each layer must have a clear specification standard '
-                    'and designated owner. Verify layer completeness before integration.',
-                const Color(0xFF0EA5E9),
+          // Collapsible content
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in ISO 9001 Quality Management, AISC 360 Structural Steel, '
+                    'ASCE 7 Minimum Design Loads, and PMI PMBOK Design processes. '
+                    'Effective engineering control ensures that structural integrity, '
+                    'interface compatibility, calculation accuracy, and code compliance '
+                    'remain visible and verifiable throughout the project lifecycle.',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF6B7280),
+                        height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildGuideCard(
+                    Icons.architecture_outlined,
+                    'Architecture & Layering',
+                    'Define system layers and their responsibilities before detailing '
+                        'interfaces. Each layer must have a clear specification standard '
+                        'and designated owner. Verify layer completeness before integration.',
+                    const Color(0xFF0EA5E9),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.calculate_outlined,
+                    'Calculations & Analysis',
+                    'All structural, geotechnical, and performance calculations must '
+                        'reference a governing standard. PE-stamped calculations require '
+                        'independent reviewer sign-off before approval.',
+                    const Color(0xFF10B981),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.verified_outlined,
+                    'Compliance & Evidence',
+                    'Map each applicable standard to project deliverables. Maintain '
+                        'audit-ready evidence artifacts. Track partial compliance '
+                        'with clear remediation actions and owners.',
+                    const Color(0xFFF59E0B),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(
+                    Icons.sync_alt_outlined,
+                    'Change Control (ECN)',
+                    'Engineering changes must follow the ECN process: identify impact, '
+                        'assess priority, route to approver, and update affected '
+                        'calculations and compliance evidence before implementation.',
+                    const Color(0xFFEF4444),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.calculate_outlined,
-                'Calculations & Analysis',
-                'All structural, geotechnical, and performance calculations must '
-                    'reference a governing standard. PE-stamped calculations require '
-                    'independent reviewer sign-off before approval.',
-                const Color(0xFF10B981),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.verified_outlined,
-                'Compliance & Evidence',
-                'Map each applicable standard to project deliverables. Maintain '
-                    'audit-ready evidence artifacts. Track partial compliance '
-                    'with clear remediation actions and owners.',
-                const Color(0xFFF59E0B),
-              ),
-              const SizedBox(height: 12),
-              _buildGuideCard(
-                Icons.sync_alt_outlined,
-                'Change Control (ECN)',
-                'Engineering changes must follow the ECN process: identify impact, '
-                    'assess priority, route to approver, and update affected '
-                    'calculations and compliance evidence before implementation.',
-                const Color(0xFFEF4444),
-              ),
-            ],
+            ),
+            crossFadeState: _frameworkGuideExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
           ),
         ],
       ),
@@ -2472,24 +2114,55 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   // ─── Structural & Architecture Register ────────────────────────────────────
 
   Widget _buildStructuralRegister() {
-    if (!_showStructural) return const SizedBox.shrink();
     return _PanelShell(
       title: 'Structural & Architecture Register',
       subtitle:
           'System layers, specifications, and ownership for architecture control',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openStructuralItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add layer',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Structural Architecture',
+            columns: [
+              CsvColumnSpec(key: 'layer', label: 'LAYER', required: true),
+              CsvColumnSpec(key: 'description', label: 'DESCRIPTION', required: true),
+              CsvColumnSpec(key: 'specification', label: 'SPECIFICATION'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Design', 'Designed', 'Reviewed', 'Approved'], defaultValue: 'Planned'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _structuralItems.add(_StructuralItem(
+                    id: _newId(),
+                    layer: row['layer'] ?? '',
+                    description: row['description'] ?? '',
+                    specification: row['specification'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openStructuralItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add layer',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2502,7 +2175,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 _tableColHeader('LAYER', flex: 3),
                 _tableColHeader('DESCRIPTION', flex: 4),
                 _tableColHeader('SPECIFICATION', flex: 3),
-                _tableColHeader('STATUS', width: 100),
+                _tableColHeader('STATUS', width: 130),
                 _tableColHeader('OWNER', flex: 2),
                 const SizedBox(width: 60, child: Text('')),
               ],
@@ -2550,7 +2223,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                                   color: Color(0xFF475569))),
                         ),
                         SizedBox(
-                          width: 100,
+                          width: 130,
                           child: _buildStatusTag(
                               item.status, _statusColor(item.status)),
                         ),
@@ -2610,24 +2283,55 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   // ─── Components & Interfaces Register ──────────────────────────────────────
 
   Widget _buildComponentsRegister() {
-    if (!_showComponents) return const SizedBox.shrink();
     return _PanelShell(
       title: 'Components & Interfaces Register',
       subtitle:
           'Interface specifications, responsibilities, and ownership for component control',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openComponentItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add component',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Component Interface',
+            columns: [
+              CsvColumnSpec(key: 'component', label: 'COMPONENT', required: true),
+              CsvColumnSpec(key: 'responsibility', label: 'RESPONSIBILITY', required: true),
+              CsvColumnSpec(key: 'interfaceType', label: 'INTERFACE TYPE'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Design', 'Designed', 'Reviewed', 'Approved'], defaultValue: 'Planned'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _componentItems.add(_ComponentItem(
+                    id: _newId(),
+                    component: row['component'] ?? '',
+                    responsibility: row['responsibility'] ?? '',
+                    interfaceType: row['interfaceType'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openComponentItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add component',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2640,7 +2344,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 _tableColHeader('COMPONENT', flex: 3),
                 _tableColHeader('RESPONSIBILITY', flex: 4),
                 _tableColHeader('INTERFACE TYPE', flex: 2),
-                _tableColHeader('STATUS', width: 100),
+                _tableColHeader('STATUS', width: 130),
                 _tableColHeader('OWNER', flex: 2),
                 const SizedBox(width: 60, child: Text('')),
               ],
@@ -2689,7 +2393,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                                   color: Color(0xFF475569))),
                         ),
                         SizedBox(
-                          width: 100,
+                          width: 130,
                           child: _buildStatusTag(
                               item.status, _statusColor(item.status)),
                         ),
@@ -2749,24 +2453,57 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   // ─── Calculations & Analysis Register ──────────────────────────────────────
 
   Widget _buildCalculationsRegister() {
-    if (!_showCalculations) return const SizedBox.shrink();
     return _PanelShell(
       title: 'Calculations & Analysis Register',
       subtitle:
           'Structural, geotechnical, and performance calculations with PE stamp tracking',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openCalculationItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add calculation',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Calculations & Analysis',
+            columns: [
+              CsvColumnSpec(key: 'calculation', label: 'CALCULATION', required: true),
+              CsvColumnSpec(key: 'type', label: 'TYPE'),
+              CsvColumnSpec(key: 'standard', label: 'STANDARD'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Planned', 'In Design', 'Designed', 'Reviewed', 'Approved'], defaultValue: 'Planned'),
+              CsvColumnSpec(key: 'peStamp', label: 'PE STAMP', allowedValues: ['Yes', 'No', 'N/A'], defaultValue: 'No'),
+              CsvColumnSpec(key: 'reviewer', label: 'REVIEWER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _calculationItems.add(_CalculationItem(
+                    id: _newId(),
+                    calculation: row['calculation'] ?? '',
+                    type: row['type'] ?? '',
+                    standard: row['standard'] ?? '',
+                    status: row['status'] ?? 'Planned',
+                    peStamp: row['peStamp'] ?? 'No',
+                    reviewer: row['reviewer'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openCalculationItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add calculation',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2777,10 +2514,10 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             child: Row(
               children: [
                 _tableColHeader('CALCULATION', flex: 3),
-                _tableColHeader('TYPE', width: 100),
-                _tableColHeader('STANDARD', width: 110),
-                _tableColHeader('STATUS', width: 100),
-                _tableColHeader('PE STAMP', width: 80),
+                _tableColHeader('TYPE', width: 130),
+                _tableColHeader('STANDARD', width: 130),
+                _tableColHeader('STATUS', width: 130),
+                _tableColHeader('PE STAMP', width: 110),
                 _tableColHeader('REVIEWER', flex: 2),
                 const SizedBox(width: 60, child: Text('')),
               ],
@@ -2813,14 +2550,14 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                                   color: Color(0xFF111827))),
                         ),
                         SizedBox(
-                          width: 100,
+                          width: 130,
                           child: Text(item.type,
                               style: const TextStyle(
                                   fontSize: 12,
                                   color: Color(0xFF475569))),
                         ),
                         SizedBox(
-                          width: 110,
+                          width: 130,
                           child: Text(item.standard,
                               style: const TextStyle(
                                   fontSize: 12,
@@ -2828,12 +2565,12 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                                   color: Color(0xFF475569))),
                         ),
                         SizedBox(
-                          width: 100,
+                          width: 130,
                           child: _buildStatusTag(
                               item.status, _statusColor(item.status)),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildStatusTag(
                               item.peStamp,
                               item.peStamp == 'Yes'
@@ -2898,24 +2635,57 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   // ─── Compliance & Standards Register ───────────────────────────────────────
 
   Widget _buildComplianceRegister() {
-    if (!_showCompliance) return const SizedBox.shrink();
     return _PanelShell(
       title: 'Compliance & Standards Register',
       subtitle:
           'Applicable standards, compliance tracking, and evidence mapping',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openComplianceItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add standard',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Compliance',
+            columns: [
+              CsvColumnSpec(key: 'standard', label: 'STANDARD', required: true),
+              CsvColumnSpec(key: 'scope', label: 'SCOPE'),
+              CsvColumnSpec(key: 'applicability', label: 'APPLICABILITY'),
+              CsvColumnSpec(key: 'complianceStatus', label: 'STATUS', allowedValues: ['Compliant', 'Partial', 'In Review', 'Not Started'], defaultValue: 'Not Started'),
+              CsvColumnSpec(key: 'evidence', label: 'EVIDENCE'),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _complianceItems.add(_ComplianceItem(
+                    id: _newId(),
+                    standard: row['standard'] ?? '',
+                    scope: row['scope'] ?? '',
+                    applicability: row['applicability'] ?? '',
+                    complianceStatus: row['complianceStatus'] ?? 'Not Started',
+                    evidence: row['evidence'] ?? '',
+                    owner: row['owner'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openComplianceItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add standard',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -2928,7 +2698,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 _tableColHeader('STANDARD', flex: 2),
                 _tableColHeader('SCOPE', flex: 2),
                 _tableColHeader('APPLICABILITY', flex: 2),
-                _tableColHeader('COMPLIANCE', width: 100),
+                _tableColHeader('COMPLIANCE', width: 130),
                 _tableColHeader('EVIDENCE', flex: 2),
                 _tableColHeader('OWNER', flex: 2),
                 const SizedBox(width: 60, child: Text('')),
@@ -2976,7 +2746,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                                   color: Color(0xFF64748B))),
                         ),
                         SizedBox(
-                          width: 100,
+                          width: 130,
                           child: _buildStatusTag(
                               item.complianceStatus,
                               _statusColor(item.complianceStatus)),
@@ -3044,24 +2814,59 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
   // ─── ECN Register ──────────────────────────────────────────────────────────
 
   Widget _buildEcnRegister() {
-    if (!_showEcn) return const SizedBox.shrink();
     return _PanelShell(
       title: 'Engineering Change Notices Register',
       subtitle:
           'Change control tracking aligned with design change management processes',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openEcnItemDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add ECN',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'ECN',
+            columns: [
+              CsvColumnSpec(key: 'ecnId', label: 'ECN ID', required: true),
+              CsvColumnSpec(key: 'title', label: 'TITLE', required: true),
+              CsvColumnSpec(key: 'priority', label: 'PRIORITY', allowedValues: ['High', 'Medium', 'Low'], defaultValue: 'Medium'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Approved', 'Under Review', 'Pending', 'Draft'], defaultValue: 'Draft'),
+              CsvColumnSpec(key: 'originator', label: 'ORIGINATOR'),
+              CsvColumnSpec(key: 'approver', label: 'APPROVER'),
+              CsvColumnSpec(key: 'date', label: 'DATE'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _ecnItems.add(_EcnItem(
+                    id: _newId(),
+                    ecnId: row['ecnId'] ?? '',
+                    title: row['title'] ?? '',
+                    priority: row['priority'] ?? 'Medium',
+                    status: row['status'] ?? 'Draft',
+                    originator: row['originator'] ?? '',
+                    approver: row['approver'] ?? '',
+                    date: row['date'] ?? '',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openEcnItemDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add ECN',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -3071,13 +2876,13 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                 const BoxDecoration(color: Color(0xFFF8FAFC)),
             child: Row(
               children: [
-                _tableColHeader('ECN ID', width: 80),
+                _tableColHeader('ECN ID', width: 110),
                 _tableColHeader('TITLE', flex: 3),
-                _tableColHeader('PRIORITY', width: 80),
-                _tableColHeader('STATUS', width: 100),
+                _tableColHeader('PRIORITY', width: 110),
+                _tableColHeader('STATUS', width: 130),
                 _tableColHeader('ORIGINATOR', flex: 2),
                 _tableColHeader('APPROVER', flex: 2),
-                _tableColHeader('DATE', width: 90),
+                _tableColHeader('DATE', width: 120),
                 const SizedBox(width: 60, child: Text('')),
               ],
             ),
@@ -3100,7 +2905,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                     child: Row(
                       children: [
                         SizedBox(
-                          width: 80,
+                          width: 130,
                           child: Text(item.ecnId,
                               style: const TextStyle(
                                   fontSize: 13,
@@ -3116,12 +2921,12 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                                   color: Color(0xFF1F2937))),
                         ),
                         SizedBox(
-                          width: 80,
+                          width: 110,
                           child: _buildStatusTag(
                               item.priority, _priorityColor(item.priority)),
                         ),
                         SizedBox(
-                          width: 100,
+                          width: 130,
                           child: _buildStatusTag(
                               item.status, _statusColor(item.status)),
                         ),
@@ -3142,7 +2947,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
                               textAlign: TextAlign.center),
                         ),
                         SizedBox(
-                          width: 90,
+                          width: 120,
                           child: Text(item.date,
                               style: const TextStyle(
                                   fontSize: 12,
@@ -3199,19 +3004,47 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
       title: 'Engineering Readiness & Approval Gates',
       subtitle:
           'Approval gates aligned with design sign-off and authorization processes',
-      trailing: OutlinedButton.icon(
-        onPressed: () => _openReadinessGateDialog(),
-        icon: const Icon(Icons.add, size: 16),
-        label: const Text('Add gate',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF475569),
-          side: const BorderSide(color: Color(0xFFE2E8F0)),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CsvTableImportButton(
+            compact: true,
+            tableTitle: 'Readiness Gates',
+            columns: [
+              CsvColumnSpec(key: 'gate', label: 'GATE', required: true),
+              CsvColumnSpec(key: 'owner', label: 'OWNER'),
+              CsvColumnSpec(key: 'status', label: 'STATUS', allowedValues: ['Not Started', 'In Progress', 'Pending', 'Complete'], defaultValue: 'Not Started'),
+            ],
+            onImport: (rows) {
+              setState(() {
+                for (final row in rows) {
+                  _readinessGates.add(_ReadinessGate(
+                    id: _newId(),
+                    gate: row['gate'] ?? '',
+                    owner: row['owner'] ?? '',
+                    status: row['status'] ?? 'Not Started',
+                  ));
+                }
+              });
+              _scheduleSave();
+            },
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: () => _openReadinessGateDialog(),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add gate',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF475569),
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
@@ -3355,7 +3188,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          TextField(
+          VoiceTextField(
             controller: _notesController,
             maxLines: 3,
             decoration: InputDecoration(
@@ -3373,7 +3206,7 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: _keyDecisionsController,
             maxLines: 3,
             decoration: InputDecoration(

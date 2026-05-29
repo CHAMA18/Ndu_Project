@@ -1,3 +1,4 @@
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
@@ -26,6 +27,11 @@ import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+const double _technicalAlignmentActionColumnWidth = 112;
+const double _technicalAlignmentActionButtonSize = 32;
+const double _technicalAlignmentActionGap = 6;
 
 class TechnicalAlignmentScreen extends StatefulWidget {
   const TechnicalAlignmentScreen({super.key});
@@ -41,6 +47,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _registersExpanded = false;
+  final Set<int> _editingMethodologyRows = <int>{};
+  final Set<int> _editingReadinessRows = <int>{};
+  final Set<int> _editingTraceabilityRows = <int>{};
+  final Set<int> _editingConstraintRows = <int>{};
+  final Set<int> _editingMappingRows = <int>{};
+  final Set<int> _editingDependencyRows = <int>{};
 
   final List<ConstraintRow> _constraints = [
     ConstraintRow(
@@ -144,6 +156,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     ),
   ];
 
+  List<_MethodologyStandard> _methodologyStandards = [];
+  List<_ReadinessGateItem> _readinessGateItems = [];
+  List<_TraceabilityItem> _traceabilityItems = [];
+
   final List<String> _statusOptions = const [
     'Approved',
     'Aligned',
@@ -196,9 +212,51 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     return deduped;
   }
 
+  List<_MethodologyStandard> _dedupeMethodologyStandards(
+      Iterable<_MethodologyStandard> rows) {
+    final seen = <String>{};
+    final deduped = <_MethodologyStandard>[];
+    for (final row in rows) {
+      final key =
+          '${_normalize(row.model)}|${_normalize(row.bestFit)}|${_normalize(row.evidence)}|${_normalize(row.controls)}|${_normalize(row.exitStandard)}';
+      if (key == '||||') continue;
+      if (seen.add(key)) deduped.add(row);
+    }
+    return deduped;
+  }
+
+  List<_ReadinessGateItem> _dedupeReadinessGateItems(
+      Iterable<_ReadinessGateItem> rows) {
+    final seen = <String>{};
+    final deduped = <_ReadinessGateItem>[];
+    for (final row in rows) {
+      final key =
+          '${_normalize(row.domain)}|${_normalize(row.standard)}|${_normalize(row.evidence)}|${_normalize(row.owner)}|${_normalize(row.decision)}';
+      if (key == '||||') continue;
+      if (seen.add(key)) deduped.add(row);
+    }
+    return deduped;
+  }
+
+  List<_TraceabilityItem> _dedupeTraceabilityItems(
+      Iterable<_TraceabilityItem> rows) {
+    final seen = <String>{};
+    final deduped = <_TraceabilityItem>[];
+    for (final row in rows) {
+      final key =
+          '${_normalize(row.object)}|${_normalize(row.question)}|${_normalize(row.verification)}|${_normalize(row.waterfallEvidence)}|${_normalize(row.agileEvidence)}';
+      if (key == '||||') continue;
+      if (seen.add(key)) deduped.add(row);
+    }
+    return deduped;
+  }
+
   @override
   void initState() {
     super.initState();
+    _methodologyStandards = _defaultMethodologyStandards();
+    _readinessGateItems = _defaultReadinessGateItems();
+    _traceabilityItems = _defaultTraceabilityItems();
     _notesController.addListener(_onNotesChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = ProjectDataInherited.maybeOf(context);
@@ -266,6 +324,30 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               ..clear()
               ..addAll(_dedupeDependencies(parsed));
           }
+
+          if (data['methodologyStandards'] != null) {
+            final parsed = (data['methodologyStandards'] as List).map(
+                (e) => _MethodologyStandard.fromMap(e as Map<String, dynamic>));
+            _methodologyStandards
+              ..clear()
+              ..addAll(_dedupeMethodologyStandards(parsed));
+          }
+
+          if (data['readinessGateItems'] != null) {
+            final parsed = (data['readinessGateItems'] as List).map(
+                (e) => _ReadinessGateItem.fromMap(e as Map<String, dynamic>));
+            _readinessGateItems
+              ..clear()
+              ..addAll(_dedupeReadinessGateItems(parsed));
+          }
+
+          if (data['traceabilityItems'] != null) {
+            final parsed = (data['traceabilityItems'] as List).map(
+                (e) => _TraceabilityItem.fromMap(e as Map<String, dynamic>));
+            _traceabilityItems
+              ..clear()
+              ..addAll(_dedupeTraceabilityItems(parsed));
+          }
         });
       }
     } catch (e) {
@@ -296,6 +378,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         constraints: _constraints,
         mappings: _mappings,
         dependencies: _dependencies,
+        methodologyStandards:
+            _methodologyStandards.map((e) => e.toMap()).toList(),
+        readinessGateItems: _readinessGateItems.map((e) => e.toMap()).toList(),
+        traceabilityItems: _traceabilityItems.map((e) => e.toMap()).toList(),
       );
     } catch (e) {
       debugPrint('Error saving technical alignment: $e');
@@ -512,12 +598,11 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [
-          const PlanningPhaseHeader(
+          PlanningPhaseHeader(
             title: 'Technical Alignment',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           if (_isLoading) const LinearProgressIndicator(minHeight: 2),
           Expanded(
             child: SingleChildScrollView(
@@ -538,7 +623,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                   _buildGovernanceGrid(snapshot),
                   const SizedBox(height: 20),
                   _buildDetailedRegistersPanel(ownerOptions),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                   LaunchPhaseNavigation(
                     backLabel: 'Back: Requirements Implementation',
                     nextLabel: 'Next: Development Set Up',
@@ -577,39 +662,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
   }) {
     return DesignPhaseStableShell(
       activeLabel: 'Technical Alignment',
+      breadcrumbPhase: 'Design Phase',
+      breadcrumbTitle: 'Technical Alignment',
       onItemSelected: _openStableDesignItem,
       child: ListView(
         padding: EdgeInsets.all(padding),
         children: [
-          _buildStableHeaderCard(snapshot),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _buildStableMetricCard(
-                'Control Areas',
-                '${_constraints.length}',
-                const Color(0xFF1D4ED8),
-              ),
-              _buildStableMetricCard(
-                'Trace Links',
-                '${_mappings.length}',
-                const Color(0xFF0F766E),
-              ),
-              _buildStableMetricCard(
-                'Decisions',
-                '${_dependencies.length}',
-                const Color(0xFFD97706),
-              ),
-              _buildStableMetricCard(
-                'Delivery Models',
-                '${_methodologyStandards.length}',
-                const Color(0xFF7C3AED),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
           _buildStableMethodologyMatrix(),
           const SizedBox(height: 24),
           _buildStableReadinessGateTable(),
@@ -618,7 +676,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           const SizedBox(height: 24),
           _buildStableSectionCard(
             title: 'Technical Alignment Notes',
-            child: TextField(
+            child: VoiceTextField(
               controller: _notesController,
               enabled: _canEditAlignment || _canCreateAlignment,
               minLines: 6,
@@ -631,20 +689,11 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          _buildStableSectionCard(
-            title: 'Constraint And Guardrail Register',
-            child: _buildStableConstraintTable(),
-          ),
+          _buildStableConstraintPanel(ownerOptions),
           const SizedBox(height: 24),
-          _buildStableSectionCard(
-            title: 'Requirement To Solution Mapping',
-            child: _buildStableMappingTable(),
-          ),
+          _buildStableMappingPanel(),
           const SizedBox(height: 24),
-          _buildStableSectionCard(
-            title: 'Dependency And Decision Watchlist',
-            child: _buildStableDependencyTable(),
-          ),
+          _buildStableDependencyPanel(ownerOptions),
           const SizedBox(height: 24),
           Container(
             padding: const EdgeInsets.all(20),
@@ -688,75 +737,6 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
           const SizedBox(height: 24),
           _buildDetailedRegistersPanel(ownerOptions),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStableHeaderCard(_TechnicalAlignmentDashboardSnapshot snapshot) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppSemanticColors.border),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 18,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: _navigateToRequirementsImplementation,
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-            tooltip: 'Back',
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Technical Alignment: ${snapshot.projectLabel}',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStableMetricCard(String label, String value, Color color) {
-    return Container(
-      width: 180,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
         ],
       ),
     );
@@ -831,276 +811,1391 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
+  void _addMethodologyStandard() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add delivery models');
+      return;
+    }
+
+    setState(() {
+      _methodologyStandards.add(
+        _MethodologyStandard(
+          model: '',
+          bestFit: '',
+          evidence: '',
+          controls: '',
+          exitStandard: '',
+        ),
+      );
+      _editingMethodologyRows.add(_methodologyStandards.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addReadinessGateItem() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add readiness gate items');
+      return;
+    }
+
+    _showReadinessGateDialog();
+  }
+
+  void _addTraceabilityItem() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add traceability items');
+      return;
+    }
+
+    _showTraceabilityDialog();
+  }
+
+  void _addConstraintRow() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add constraints');
+      return;
+    }
+
+    setState(() {
+      _constraints.add(
+        ConstraintRow(
+          constraint: '',
+          guardrail: '',
+          owner: '',
+          status: 'Draft',
+        ),
+      );
+      _editingConstraintRows.add(_constraints.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addMappingRow() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add requirement mappings');
+      return;
+    }
+
+    setState(() {
+      _mappings.add(
+        RequirementMappingRow(
+          requirement: '',
+          approach: '',
+          status: 'Draft',
+        ),
+      );
+      _editingMappingRows.add(_mappings.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _addDependencyRow() {
+    if (!_canCreateAlignment) {
+      _showPermissionSnackBar('add dependencies');
+      return;
+    }
+
+    setState(() {
+      _dependencies.add(
+        DependencyDecisionRow(
+          item: '',
+          detail: '',
+          owner: '',
+          status: 'Draft',
+        ),
+      );
+      _editingDependencyRows.add(_dependencies.length - 1);
+      _scheduleSave();
+    });
+  }
+
+  void _toggleEditingRow(Set<int> editingRows, int index) {
+    if (!_canEditAlignment) {
+      _showPermissionSnackBar('edit technical alignment rows');
+      return;
+    }
+
+    setState(() {
+      if (editingRows.contains(index)) {
+        editingRows.remove(index);
+        _scheduleSave();
+      } else {
+        editingRows.add(index);
+      }
+    });
+  }
+
+  void _shiftEditingRowsAfterDelete(Set<int> editingRows, int deletedIndex) {
+    final shifted = editingRows
+        .where((rowIndex) => rowIndex != deletedIndex)
+        .map((rowIndex) => rowIndex > deletedIndex ? rowIndex - 1 : rowIndex)
+        .toSet();
+
+    editingRows
+      ..clear()
+      ..addAll(shifted);
+  }
+
+  // ── Delivery Model Alignment Standard (Action-plan style panel) ──────
+
+  static const _dmHeaderStyle = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFFD1D5DB),
+    letterSpacing: 0.5,
+  );
+
   Widget _buildStableMethodologyMatrix() {
-    return _buildStableSectionCard(
+    return _DeliveryModelPanelShell(
       title: 'Delivery Model Alignment Standard',
-      child: _buildStableDataTable(
-        columns: const [
-          _StableTableColumn('Model', 190),
-          _StableTableColumn('Best-fit Use', 250),
-          _StableTableColumn('Required Alignment Evidence', 360),
-          _StableTableColumn('Technical Control Focus', 320),
-          _StableTableColumn('Exit Standard', 260),
-        ],
-        rows: _methodologyStandards
-            .map(
-              (item) => [
-                item.model,
-                item.bestFit,
-                item.evidence,
-                item.controls,
-                item.exitStandard,
-              ],
-            )
-            .toList(),
+      subtitle:
+          'Define and manage delivery models, alignment evidence, technical controls, and exit standards.',
+      icon: Icons.delivery_dining_outlined,
+      accent: const Color(0xFF7C3AED),
+      trailing: TextButton.icon(
+        onPressed: _addMethodologyStandard,
+        icon: const Icon(Icons.add_rounded, size: 16),
+        label: const Text('Add model'),
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFF7C3AED),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
       ),
-    );
-  }
-
-  Widget _buildStableReadinessGateTable() {
-    return _buildStableSectionCard(
-      title: 'Technical Readiness Gate',
-      child: _buildStableDataTable(
-        columns: const [
-          _StableTableColumn('Control Domain', 220),
-          _StableTableColumn('What Must Be True', 380),
-          _StableTableColumn('Evidence To Attach', 330),
-          _StableTableColumn('Owner', 160),
-          _StableTableColumn('Decision', 160),
-        ],
-        rows: _readinessGateItems
-            .map(
-              (item) => [
-                item.domain,
-                item.standard,
-                item.evidence,
-                item.owner,
-                item.decision,
-              ],
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildStableTraceabilityTable() {
-    return _buildStableSectionCard(
-      title: 'Traceability And Verification Matrix',
-      child: _buildStableDataTable(
-        columns: const [
-          _StableTableColumn('Trace Object', 210),
-          _StableTableColumn('Technical Alignment Question', 360),
-          _StableTableColumn('Verification Method', 280),
-          _StableTableColumn('Waterfall Evidence', 260),
-          _StableTableColumn('Agile / Hybrid Evidence', 280),
-        ],
-        rows: _traceabilityItems
-            .map(
-              (item) => [
-                item.object,
-                item.question,
-                item.verification,
-                item.waterfallEvidence,
-                item.agileEvidence,
-              ],
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildStableConstraintTable() {
-    return _buildStableDataTable(
-      columns: const [
-        _StableTableColumn('Constraint', 260),
-        _StableTableColumn('Guardrail', 520),
-        _StableTableColumn('Owner', 180),
-        _StableTableColumn('Status', 150),
-      ],
-      rows: _constraints
-          .map(
-            (row) => [
-              row.constraint,
-              row.guardrail,
-              row.owner,
-              row.status,
-            ],
-          )
-          .toList(),
-    );
-  }
-
-  Widget _buildStableMappingTable() {
-    return _buildStableDataTable(
-      columns: const [
-        _StableTableColumn('Requirement Area', 280),
-        _StableTableColumn('Technical Approach', 620),
-        _StableTableColumn('Status', 150),
-      ],
-      rows: _mappings
-          .map(
-            (row) => [
-              row.requirement,
-              row.approach,
-              row.status,
-            ],
-          )
-          .toList(),
-    );
-  }
-
-  Widget _buildStableDependencyTable() {
-    return _buildStableDataTable(
-      columns: const [
-        _StableTableColumn('Dependency / Decision', 280),
-        _StableTableColumn('Detail', 560),
-        _StableTableColumn('Owner', 180),
-        _StableTableColumn('Status', 150),
-      ],
-      rows: _dependencies
-          .map(
-            (row) => [
-              row.item,
-              row.detail,
-              row.owner,
-              row.status,
-            ],
-          )
-          .toList(),
-    );
-  }
-
-  Widget _buildStableDataTable({
-    required List<_StableTableColumn> columns,
-    required List<List<String>> rows,
-  }) {
-    final tableWidth = columns.fold<double>(
-      0,
-      (total, column) => total + column.width,
-    );
-
-    return Scrollbar(
-      thumbVisibility: true,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: tableWidth,
-          child: Column(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
+      child: _methodologyStandards.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (final column in columns)
-                      SizedBox(
-                        width: column.width,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          child: Text(
-                            column.label.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0,
-                              color: Color(0xFF334155),
-                            ),
-                          ),
-                        ),
-                      ),
+                    Icon(Icons.delivery_dining_outlined,
+                        size: 36,
+                        color: const Color(0xFF9CA3AF).withOpacity(0.6)),
+                    const SizedBox(height: 8),
+                    const Text('No delivery models yet',
+                        style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    const Text(
+                        'Add the first alignment standard for your delivery model.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
-              for (int rowIndex = 0; rowIndex < rows.length; rowIndex++) ...[
+            )
+          : Column(
+              children: [
+                // Dark table header
                 Container(
-                  decoration: BoxDecoration(
-                    color: rowIndex.isEven
-                        ? Colors.white
-                        : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F2937),
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8)),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: const Row(
                     children: [
-                      for (int cellIndex = 0;
-                          cellIndex < columns.length;
-                          cellIndex++)
-                        SizedBox(
-                          width: columns[cellIndex].width,
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            child: cellIndex == columns.length - 1 &&
-                                    _looksLikeStatus(rows[rowIndex][cellIndex])
-                                ? Align(
-                                    alignment: Alignment.topLeft,
-                                    child: _buildStatusBadge(
-                                      rows[rowIndex][cellIndex],
-                                      _stableStatusColor(
-                                        rows[rowIndex][cellIndex],
-                                      ),
-                                    ),
-                                  )
-                                : Text(
-                                    rows[rowIndex][cellIndex].trim().isEmpty
-                                        ? 'Not assigned'
-                                        : rows[rowIndex][cellIndex],
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      height: 1.45,
-                                      fontWeight: cellIndex == 0
-                                          ? FontWeight.w800
-                                          : FontWeight.w500,
-                                      color: cellIndex == 0
-                                          ? const Color(0xFF0F172A)
-                                          : const Color(0xFF475569),
-                                    ),
-                                  ),
-                          ),
-                        ),
+                      Expanded(flex: 2, child: Text('Model', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Best-fit Use', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Required Alignment Evidence', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Technical Control Focus', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Exit Standard', style: _dmHeaderStyle)),
+                      Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
                     ],
                   ),
                 ),
-                if (rowIndex != rows.length - 1) const SizedBox(height: 8),
+                // Data rows
+                ..._methodologyStandards.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final row = entry.value;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: idx.isEven
+                          ? Colors.white
+                          : const Color(0xFFFAFBFD),
+                      borderRadius: BorderRadius.circular(6),
+                      border:
+                          Border.all(color: const Color(0xFFF3F4F6)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.model,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.bestFit,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.evidence,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.controls,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.exitStandard,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () => _showMethodologyDialog(
+                                    existing: row,
+                                    index: idx),
+                                child: const Icon(Icons.edit_outlined,
+                                    size: 14,
+                                    color: Color(0xFF6B7280)),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () async {
+                                  final confirmed =
+                                      await _confirmDelete(
+                                          'delivery model');
+                                  if (!confirmed) return;
+                                  setState(() {
+                                    _methodologyStandards
+                                        .removeAt(idx);
+                                    _shiftEditingRowsAfterDelete(
+                                        _editingMethodologyRows,
+                                        idx);
+                                    _scheduleSave();
+                                  });
+                                },
+                                child: const Icon(
+                                    Icons.delete_outline,
+                                    size: 14,
+                                    color: Color(0xFFEF4444)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                      '${_methodologyStandards.length} model${_methodologyStandards.length != 1 ? 's' : ''}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF9CA3AF))),
+                ),
               ],
-            ],
+            ),
+    );
+  }
+
+  void _showMethodologyDialog({_MethodologyStandard? existing, int? index}) {
+    final isEdit = existing != null;
+    final modelCtl = TextEditingController(text: existing?.model ?? '');
+    final bestFitCtl = TextEditingController(text: existing?.bestFit ?? '');
+    final evidenceCtl = TextEditingController(text: existing?.evidence ?? '');
+    final controlsCtl = TextEditingController(text: existing?.controls ?? '');
+    final exitCtl =
+        TextEditingController(text: existing?.exitStandard ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: Row(children: [
+            Icon(
+                isEdit
+                    ? Icons.edit_outlined
+                    : Icons.add_circle_outline,
+                size: 20,
+                color: const Color(0xFF7C3AED)),
+            const SizedBox(width: 8),
+            Text(isEdit ? 'Edit Delivery Model' : 'Add Delivery Model',
+                style: const TextStyle(fontSize: 16)),
+          ]),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VoiceTextField(
+                    controller: modelCtl,
+                    decoration: const InputDecoration(
+                      labelText: 'Model name',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: bestFitCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Best-fit use',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: evidenceCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Required alignment evidence',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: controlsCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Technical control focus',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: exitCtl,
+                    maxLines: 3,
+                    minLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Exit standard',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final row = _MethodologyStandard(
+                  model: modelCtl.text.trim(),
+                  bestFit: bestFitCtl.text.trim(),
+                  evidence: evidenceCtl.text.trim(),
+                  controls: controlsCtl.text.trim(),
+                  exitStandard: exitCtl.text.trim(),
+                );
+                setState(() {
+                  if (isEdit && index != null) {
+                    _methodologyStandards[index] = row;
+                  } else {
+                    _methodologyStandards.add(row);
+                  }
+                  _scheduleSave();
+                });
+                Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF7C3AED),
+                foregroundColor: Colors.white,
+              ),
+              child: Text(isEdit ? 'Save' : 'Add'),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  bool _looksLikeStatus(String value) {
-    return _statusOptions.contains(value) ||
-        const ['Go', 'Conditional', 'No-go'].contains(value);
+  Widget _buildStableReadinessGateTable() {
+    return _DeliveryModelPanelShell(
+      title: 'Technical Readiness Gate',
+      subtitle:
+          'Track control domains, readiness criteria, required evidence, ownership, and gate decisions.',
+      icon: Icons.fact_check_outlined,
+      accent: const Color(0xFFD97706),
+      trailing: TextButton.icon(
+        onPressed: _addReadinessGateItem,
+        icon: const Icon(Icons.add_rounded, size: 16),
+        label: const Text('Add gate item'),
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFFD97706),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      child: _readinessGateItems.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.fact_check_outlined,
+                        size: 36,
+                        color: const Color(0xFF9CA3AF).withOpacity(0.6)),
+                    const SizedBox(height: 8),
+                    const Text('No readiness gate items yet',
+                        style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    const Text(
+                        'Add the first control domain to begin tracking readiness.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+                  ],
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                // Dark table header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F2937),
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Expanded(flex: 2, child: Text('Control Domain', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('What Must Be True', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Evidence To Attach', style: _dmHeaderStyle)),
+                      Expanded(flex: 2, child: Text('Owner', style: _dmHeaderStyle)),
+                      Expanded(flex: 1, child: Text('Decision', style: _dmHeaderStyle)),
+                      Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
+                    ],
+                  ),
+                ),
+                // Data rows
+                ..._readinessGateItems.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final row = entry.value;
+                  final decisionColor = _readinessDecisionColor(row.decision);
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: idx.isEven
+                          ? Colors.white
+                          : const Color(0xFFFAFBFD),
+                      borderRadius: BorderRadius.circular(6),
+                      border:
+                          Border.all(color: const Color(0xFFF3F4F6)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.domain,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.standard,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.evidence,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.owner,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF6B7280))),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 3),
+                            decoration: BoxDecoration(
+                                color: decisionColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(4)),
+                            child: Text(row.decision,
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: decisionColor),
+                                textAlign: TextAlign.center),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () => _showReadinessGateDialog(
+                                    existing: row, index: idx),
+                                child: const Icon(Icons.edit_outlined,
+                                    size: 14,
+                                    color: Color(0xFF6B7280)),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () async {
+                                  final confirmed =
+                                      await _confirmDelete(
+                                          'readiness gate item');
+                                  if (!confirmed) return;
+                                  setState(() {
+                                    _readinessGateItems
+                                        .removeAt(idx);
+                                    _shiftEditingRowsAfterDelete(
+                                        _editingReadinessRows,
+                                        idx);
+                                    _scheduleSave();
+                                  });
+                                },
+                                child: const Icon(
+                                    Icons.delete_outline,
+                                    size: 14,
+                                    color: Color(0xFFEF4444)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                      '${_readinessGateItems.length} gate item${_readinessGateItems.length != 1 ? 's' : ''}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF9CA3AF))),
+                ),
+              ],
+            ),
+    );
   }
 
-  Color _stableStatusColor(String status) {
-    switch (status) {
-      case 'Approved':
-      case 'Aligned':
-      case 'Ready':
-      case 'Go':
-        return AppSemanticColors.success;
-      case 'At risk':
-      case 'No-go':
+  Color _readinessDecisionColor(String decision) {
+    switch (decision.toLowerCase()) {
+      case 'go':
+        return const Color(0xFF059669);
+      case 'conditional':
+        return const Color(0xFFD97706);
+      case 'no-go':
         return const Color(0xFFDC2626);
-      case 'Pending':
-      case 'Conditional':
-        return AppSemanticColors.warning;
+      case 'pending':
+        return const Color(0xFF6366F1);
       default:
-        return AppSemanticColors.info;
+        return const Color(0xFF6B7280);
     }
+  }
+
+  void _showReadinessGateDialog(
+      {_ReadinessGateItem? existing, int? index}) {
+    final isEdit = existing != null;
+    if (isEdit && !_canEditAlignment) {
+      _showPermissionSnackBar('edit readiness gate items');
+      return;
+    }
+    final domainCtl =
+        TextEditingController(text: existing?.domain ?? '');
+    final standardCtl =
+        TextEditingController(text: existing?.standard ?? '');
+    final evidenceCtl =
+        TextEditingController(text: existing?.evidence ?? '');
+    final ownerCtl =
+        TextEditingController(text: existing?.owner ?? '');
+    String decision = existing?.decision ?? 'Pending';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDState) => AlertDialog(
+          title: Row(children: [
+            Icon(
+                isEdit
+                    ? Icons.edit_outlined
+                    : Icons.add_circle_outline,
+                size: 20,
+                color: const Color(0xFFD97706)),
+            const SizedBox(width: 8),
+            Text(
+                isEdit
+                    ? 'Edit Gate Item'
+                    : 'Add Gate Item',
+                style: const TextStyle(fontSize: 16)),
+          ]),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VoiceTextField(
+                    controller: domainCtl,
+                    decoration: const InputDecoration(
+                      labelText: 'Control Domain',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: standardCtl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'What Must Be True',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: evidenceCtl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Evidence To Attach',
+                      isDense: true,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(
+                      child: VoiceTextField(
+                        controller: ownerCtl,
+                        decoration: const InputDecoration(
+                          labelText: 'Owner',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: decision,
+                        decoration: const InputDecoration(
+                          labelText: 'Decision',
+                          isDense: true,
+                          border: OutlineInputBorder(),
+                        ),
+                        items: ['Go', 'Conditional', 'No-go', 'Pending']
+                            .map((s) => DropdownMenuItem(
+                                value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (v) {
+                          if (v != null)
+                            setDState(() => decision = v);
+                        },
+                      ),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (isEdit && index != null) {
+                  setState(() {
+                    _readinessGateItems[index] = _ReadinessGateItem(
+                      domain: domainCtl.text.trim(),
+                      standard: standardCtl.text.trim(),
+                      evidence: evidenceCtl.text.trim(),
+                      owner: ownerCtl.text.trim(),
+                      decision: decision,
+                    );
+                    _scheduleSave();
+                  });
+                } else {
+                  setState(() {
+                    _readinessGateItems.add(_ReadinessGateItem(
+                      domain: domainCtl.text.trim(),
+                      standard: standardCtl.text.trim(),
+                      evidence: evidenceCtl.text.trim(),
+                      owner: ownerCtl.text.trim(),
+                      decision: decision,
+                    ));
+                    _scheduleSave();
+                  });
+                }
+                Navigator.of(ctx).pop();
+              },
+              style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFD97706),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8))),
+              child: Text(isEdit ? 'Save' : 'Add'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDecisionDropdown({
+    required String value,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+    bool enabled = true,
+  }) {
+    final normalized = value.trim();
+    final items = normalized.isEmpty || options.contains(normalized)
+        ? options
+        : [normalized, ...options];
+    return DropdownButtonFormField<String>(
+      initialValue: normalized.isEmpty ? items.first : normalized,
+      alignment: Alignment.center,
+      isExpanded: true,
+      style: TextStyle(
+        fontSize: 14,
+        color: enabled ? const Color(0xFF1F2937) : const Color(0xFF475569),
+      ),
+      selectedItemBuilder: (context) => items
+          .map((opt) => Align(
+                alignment: Alignment.center,
+                child: Text(opt, textAlign: TextAlign.center),
+              ))
+          .toList(),
+      items: items
+          .map((opt) => DropdownMenuItem(
+                value: opt,
+                child: Center(child: Text(opt, textAlign: TextAlign.center)),
+              ))
+          .toList(),
+      onChanged: enabled
+          ? (newValue) {
+              if (newValue == null) return;
+              onChanged(newValue);
+            }
+          : null,
+      decoration: InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: enabled ? Colors.white : const Color(0xFFF8FAFC),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFD97706), width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStableTraceabilityTable() {
+    return _DeliveryModelPanelShell(
+      title: 'Traceability And Verification Matrix',
+      subtitle:
+          'Map traceability objects to verification methods and evidence for waterfall and agile/hybrid delivery.',
+      icon: Icons.link_outlined,
+      accent: const Color(0xFF0F766E),
+      trailing: TextButton.icon(
+        onPressed: _addTraceabilityItem,
+        icon: const Icon(Icons.add_rounded, size: 16),
+        label: const Text('Add trace item'),
+        style: TextButton.styleFrom(
+          foregroundColor: const Color(0xFF0F766E),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
+      child: _traceabilityItems.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.link_outlined,
+                        size: 36,
+                        color: const Color(0xFF9CA3AF).withOpacity(0.6)),
+                    const SizedBox(height: 8),
+                    const Text('No traceability items yet',
+                        style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 4),
+                    const Text(
+                        'Add the first trace object to begin mapping verification evidence.',
+                        style:
+                            TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+                  ],
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                // Dark table header
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1F2937),
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Expanded(flex: 2, child: Text('Trace Object', style: _dmHeaderStyle)),
+                      Expanded(flex: 3, child: Text('Alignment Question', style: _dmHeaderStyle)),
+                      Expanded(flex: 2, child: Text('Verification', style: _dmHeaderStyle)),
+                      Expanded(flex: 2, child: Text('Waterfall Evidence', style: _dmHeaderStyle)),
+                      Expanded(flex: 2, child: Text('Agile / Hybrid Evidence', style: _dmHeaderStyle)),
+                      Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
+                    ],
+                  ),
+                ),
+                // Data rows
+                ..._traceabilityItems.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final row = entry.value;
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 3),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: idx.isEven
+                          ? Colors.white
+                          : const Color(0xFFFAFBFD),
+                      borderRadius: BorderRadius.circular(6),
+                      border:
+                          Border.all(color: const Color(0xFFF3F4F6)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.object,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(row.question,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.verification,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.waterfallEvidence,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(row.agileEvidence,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF374151)),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              InkWell(
+                                onTap: () => _showTraceabilityDialog(
+                                    existing: row, index: idx),
+                                child: const Icon(Icons.edit_outlined,
+                                    size: 14,
+                                    color: Color(0xFF6B7280)),
+                              ),
+                              const SizedBox(width: 4),
+                              InkWell(
+                                onTap: () async {
+                                  final confirmed =
+                                      await _confirmDelete(
+                                          'traceability item');
+                                  if (!confirmed) return;
+                                  setState(() {
+                                    _traceabilityItems
+                                        .removeAt(idx);
+                                    _shiftEditingRowsAfterDelete(
+                                        _editingTraceabilityRows,
+                                        idx);
+                                    _scheduleSave();
+                                  });
+                                },
+                                child: const Icon(
+                                    Icons.delete_outline,
+                                    size: 14,
+                                    color: Color(0xFFEF4444)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Text(
+                      '${_traceabilityItems.length} trace item${_traceabilityItems.length != 1 ? 's' : ''}',
+                      style: const TextStyle(
+                          fontSize: 11, color: Color(0xFF9CA3AF))),
+                ),
+              ],
+            ),
+    );
+  }
+
+  void _showTraceabilityDialog({_TraceabilityItem? existing, int? index}) {
+    final isEdit = existing != null;
+    if (isEdit && !_canEditAlignment) {
+      _showPermissionSnackBar('edit traceability items');
+      return;
+    }
+    final objectCtl =
+        TextEditingController(text: existing?.object ?? '');
+    final questionCtl =
+        TextEditingController(text: existing?.question ?? '');
+    final verificationCtl =
+        TextEditingController(text: existing?.verification ?? '');
+    final waterfallCtl =
+        TextEditingController(text: existing?.waterfallEvidence ?? '');
+    final agileCtl =
+        TextEditingController(text: existing?.agileEvidence ?? '');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Icon(
+              isEdit
+                  ? Icons.edit_outlined
+                  : Icons.add_circle_outline,
+              size: 20,
+              color: const Color(0xFF0F766E)),
+          const SizedBox(width: 8),
+          Text(
+              isEdit
+                  ? 'Edit Trace Item'
+                  : 'Add Trace Item',
+              style: const TextStyle(fontSize: 16)),
+        ]),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                VoiceTextField(
+                  controller: objectCtl,
+                  decoration: const InputDecoration(
+                    labelText: 'Trace Object',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                VoiceTextField(
+                  controller: questionCtl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Technical Alignment Question',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                VoiceTextField(
+                  controller: verificationCtl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Verification Method',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                VoiceTextField(
+                  controller: waterfallCtl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Waterfall Evidence',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                VoiceTextField(
+                  controller: agileCtl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Agile / Hybrid Evidence',
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () {
+              if (isEdit && index != null) {
+                setState(() {
+                  _traceabilityItems[index] = _TraceabilityItem(
+                    object: objectCtl.text.trim(),
+                    question: questionCtl.text.trim(),
+                    verification: verificationCtl.text.trim(),
+                    waterfallEvidence: waterfallCtl.text.trim(),
+                    agileEvidence: agileCtl.text.trim(),
+                  );
+                  _scheduleSave();
+                });
+              } else {
+                setState(() {
+                  _traceabilityItems.add(_TraceabilityItem(
+                    object: objectCtl.text.trim(),
+                    question: questionCtl.text.trim(),
+                    verification: verificationCtl.text.trim(),
+                    waterfallEvidence: waterfallCtl.text.trim(),
+                    agileEvidence: agileCtl.text.trim(),
+                  ));
+                  _scheduleSave();
+                });
+              }
+              Navigator.of(ctx).pop();
+            },
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0F766E),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8))),
+            child: Text(isEdit ? 'Save' : 'Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStableConstraintPanel(List<String> ownerOptions) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            icon: Icons.shield_outlined,
+            color: const Color(0xFF1D4ED8),
+            title: 'Constraint And Guardrail Register',
+            subtitle:
+                'Define architectural constraints, guardrails, ownership, and approval status for design governance.',
+            actionLabel: 'Add constraint',
+            onAction: _addConstraintRow,
+          ),
+          const SizedBox(height: 16),
+          _buildScrollableTableHeader(
+            columns: const [
+              _TableColumn(label: 'Constraint', flex: 3, minWidth: 260),
+              _TableColumn(label: 'Guardrail', flex: 5, minWidth: 400),
+              _TableColumn(label: 'Owner', flex: 2, minWidth: 150),
+              _TableColumn(label: 'Status', flex: 2, minWidth: 140),
+              _TableColumn(
+                  label: 'Actions',
+                  flex: 1,
+                  minWidth: _technicalAlignmentActionColumnWidth,
+                  alignment: Alignment.center),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_constraints.isEmpty)
+            _buildEmptyTableState(
+              message: 'No constraints yet. Add the first constraint.',
+              actionLabel: 'Add constraint',
+              onAction: _addConstraintRow,
+            )
+          else
+            _buildScrollableTableBody(
+              columns: const [
+                _TableColumn(label: 'Constraint', flex: 3, minWidth: 260),
+                _TableColumn(label: 'Guardrail', flex: 5, minWidth: 400),
+                _TableColumn(label: 'Owner', flex: 2, minWidth: 150),
+                _TableColumn(label: 'Status', flex: 2, minWidth: 140),
+                _TableColumn(
+                    label: 'Actions',
+                    flex: 1,
+                    minWidth: _technicalAlignmentActionColumnWidth,
+                    alignment: Alignment.center),
+              ],
+              rowCount: _constraints.length,
+              rowBuilder: (i) => _buildConstraintRow(
+                _constraints[i],
+                index: i,
+                isStriped: i.isOdd,
+                ownerOptions: ownerOptions,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStableMappingPanel() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            icon: Icons.swap_horiz,
+            color: const Color(0xFF0F766E),
+            title: 'Requirement To Solution Mapping',
+            subtitle:
+                'Map requirements to technical approaches and track alignment status across delivery models.',
+            actionLabel: 'Add mapping',
+            onAction: _addMappingRow,
+          ),
+          const SizedBox(height: 16),
+          _buildScrollableTableHeader(
+            columns: const [
+              _TableColumn(label: 'Requirement Area', flex: 3, minWidth: 260),
+              _TableColumn(
+                  label: 'Technical Approach', flex: 5, minWidth: 460),
+              _TableColumn(label: 'Status', flex: 2, minWidth: 140),
+              _TableColumn(
+                  label: 'Actions',
+                  flex: 1,
+                  minWidth: _technicalAlignmentActionColumnWidth,
+                  alignment: Alignment.center),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_mappings.isEmpty)
+            _buildEmptyTableState(
+              message: 'No requirement mappings yet. Add the first mapping.',
+              actionLabel: 'Add mapping',
+              onAction: _addMappingRow,
+            )
+          else
+            _buildScrollableTableBody(
+              columns: const [
+                _TableColumn(label: 'Requirement Area', flex: 3, minWidth: 260),
+                _TableColumn(
+                    label: 'Technical Approach', flex: 5, minWidth: 460),
+                _TableColumn(label: 'Status', flex: 2, minWidth: 140),
+                _TableColumn(
+                    label: 'Actions',
+                    flex: 1,
+                    minWidth: _technicalAlignmentActionColumnWidth,
+                    alignment: Alignment.center),
+              ],
+              rowCount: _mappings.length,
+              rowBuilder: (i) => _buildMappingRow(
+                _mappings[i],
+                index: i,
+                isStriped: i.isOdd,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStableDependencyPanel(List<String> ownerOptions) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            icon: Icons.account_tree_outlined,
+            color: const Color(0xFF9333EA),
+            title: 'Dependency And Decision Watchlist',
+            subtitle:
+                'Track critical dependencies, decisions, ownership, and resolution status that affect design alignment.',
+            actionLabel: 'Add dependency',
+            onAction: _addDependencyRow,
+          ),
+          const SizedBox(height: 16),
+          _buildScrollableTableHeader(
+            columns: const [
+              _TableColumn(
+                  label: 'Dependency / Decision', flex: 3, minWidth: 260),
+              _TableColumn(label: 'Detail', flex: 4, minWidth: 380),
+              _TableColumn(label: 'Owner', flex: 2, minWidth: 150),
+              _TableColumn(label: 'Status', flex: 2, minWidth: 140),
+              _TableColumn(
+                  label: 'Actions',
+                  flex: 1,
+                  minWidth: _technicalAlignmentActionColumnWidth,
+                  alignment: Alignment.center),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (_dependencies.isEmpty)
+            _buildEmptyTableState(
+              message: 'No dependencies yet. Add the first dependency.',
+              actionLabel: 'Add dependency',
+              onAction: _addDependencyRow,
+            )
+          else
+            _buildScrollableTableBody(
+              columns: const [
+                _TableColumn(
+                    label: 'Dependency / Decision', flex: 3, minWidth: 260),
+                _TableColumn(label: 'Detail', flex: 4, minWidth: 380),
+                _TableColumn(label: 'Owner', flex: 2, minWidth: 150),
+                _TableColumn(label: 'Status', flex: 2, minWidth: 140),
+                _TableColumn(
+                    label: 'Actions',
+                    flex: 1,
+                    minWidth: _technicalAlignmentActionColumnWidth,
+                    alignment: Alignment.center),
+              ],
+              rowCount: _dependencies.length,
+              rowBuilder: (i) => _buildDependencyRow(
+                _dependencies[i],
+                index: i,
+                isStriped: i.isOdd,
+                ownerOptions: ownerOptions,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   void _openStableDesignItem(String label) {
@@ -1451,7 +2546,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: TextField(
+            child: VoiceTextField(
               controller: _notesController,
               enabled: _canEditAlignment || _canCreateAlignment,
               maxLines: null,
@@ -2566,23 +3661,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'World-class guardrails that clarify what must never drift.',
             actionLabel: 'Add constraint',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add constraints');
-                return;
-              }
-              setState(() {
-                _constraints.add(
-                  ConstraintRow(
-                    constraint: '',
-                    guardrail: '',
-                    owner: '',
-                    status: 'Draft',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addConstraintRow,
           ),
           const SizedBox(height: 16),
           _buildTableHeaderRow(
@@ -2592,7 +3671,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Owner', flex: 2),
               _TableColumn(label: 'Status', flex: 2),
               _TableColumn(
-                  label: 'Action', flex: 2, alignment: Alignment.center),
+                  label: 'Actions', flex: 2, alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -2600,23 +3679,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             _buildEmptyTableState(
               message: 'No constraints captured yet. Add the first guardrail.',
               actionLabel: 'Add constraint',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add constraints');
-                  return;
-                }
-                setState(() {
-                  _constraints.add(
-                    ConstraintRow(
-                      constraint: '',
-                      guardrail: '',
-                      owner: '',
-                      status: 'Draft',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addConstraintRow,
             )
           else
             for (int i = 0; i < _constraints.length; i++) ...[
@@ -2658,22 +3721,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'Exceptional clarity on how requirements become technical choices.',
             actionLabel: 'Add mapping',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add requirement mappings');
-                return;
-              }
-              setState(() {
-                _mappings.add(
-                  RequirementMappingRow(
-                    requirement: '',
-                    approach: '',
-                    status: 'Draft',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addMappingRow,
           ),
           const SizedBox(height: 16),
           _buildTableHeaderRow(
@@ -2682,7 +3730,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Technical approach', flex: 5),
               _TableColumn(label: 'Status', flex: 2),
               _TableColumn(
-                  label: 'Action', flex: 2, alignment: Alignment.center),
+                  label: 'Actions', flex: 2, alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -2691,22 +3739,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               message:
                   'No mappings yet. Add the first requirement-to-solution entry.',
               actionLabel: 'Add mapping',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add requirement mappings');
-                  return;
-                }
-                setState(() {
-                  _mappings.add(
-                    RequirementMappingRow(
-                      requirement: '',
-                      approach: '',
-                      status: 'Draft',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addMappingRow,
             )
           else
             for (int i = 0; i < _mappings.length; i++) ...[
@@ -2748,23 +3781,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             subtitle:
                 'World-class visibility into what must land before build.',
             actionLabel: 'Add dependency',
-            onAction: () {
-              if (!_canCreateAlignment) {
-                _showPermissionSnackBar('add dependencies');
-                return;
-              }
-              setState(() {
-                _dependencies.add(
-                  DependencyDecisionRow(
-                    item: '',
-                    detail: '',
-                    owner: '',
-                    status: 'Draft',
-                  ),
-                );
-                _scheduleSave();
-              });
-            },
+            onAction: _addDependencyRow,
           ),
           const SizedBox(height: 16),
           _buildTableHeaderRow(
@@ -2774,7 +3791,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               _TableColumn(label: 'Owner', flex: 2),
               _TableColumn(label: 'Status', flex: 2),
               _TableColumn(
-                  label: 'Action', flex: 2, alignment: Alignment.center),
+                  label: 'Actions', flex: 2, alignment: Alignment.center),
             ],
           ),
           const SizedBox(height: 10),
@@ -2783,23 +3800,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               message:
                   'No dependencies yet. Add the first decision or external dependency.',
               actionLabel: 'Add dependency',
-              onAction: () {
-                if (!_canCreateAlignment) {
-                  _showPermissionSnackBar('add dependencies');
-                  return;
-                }
-                setState(() {
-                  _dependencies.add(
-                    DependencyDecisionRow(
-                      item: '',
-                      detail: '',
-                      owner: '',
-                      status: 'Draft',
-                    ),
-                  );
-                  _scheduleSave();
-                });
-              },
+              onAction: _addDependencyRow,
             )
           else
             for (int i = 0; i < _dependencies.length; i++) ...[
@@ -3011,9 +4012,91 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
+  /// Wraps the table header in a horizontal scroll view so columns are
+  /// never cramped, even on narrow viewports.
+  Widget _buildScrollableTableHeader({required List<_TableColumn> columns}) {
+    final contentWidth = columns.fold<double>(
+          0.0,
+          (sum, col) => sum + col.minWidth,
+        ) +
+        (columns.length - 1) * 10.0; // account for SizedBox(width:10) gaps
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final targetWidth = contentWidth + 24;
+        final tableWidth = constraints.maxWidth > targetWidth
+            ? constraints.maxWidth
+            : targetWidth;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            child: _buildTableHeaderRow(columns: columns),
+          ),
+        );
+      },
+    );
+  }
+
+  double _tableWidthFor({
+    required BoxConstraints constraints,
+    required double contentWidth,
+  }) {
+    final targetWidth = contentWidth + 24;
+    return constraints.maxWidth > targetWidth
+        ? constraints.maxWidth
+        : targetWidth;
+  }
+
+  Widget _buildTableScrollView({
+    required double width,
+    required Widget child,
+  }) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: width,
+        child: child,
+      ),
+    );
+  }
+
+  /// Wraps table rows in a horizontal scroll view matching the header.
+  Widget _buildScrollableTableBody({
+    required List<_TableColumn> columns,
+    required int rowCount,
+    required Widget Function(int index) rowBuilder,
+  }) {
+    final contentWidth = columns.fold<double>(
+          0.0,
+          (sum, col) => sum + col.minWidth,
+        ) +
+        (columns.length - 1) * 10.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return _buildTableScrollView(
+          width: _tableWidthFor(
+            constraints: constraints,
+            contentWidth: contentWidth,
+          ),
+          child: Column(
+            children: [
+              for (int i = 0; i < rowCount; i++) ...[
+                rowBuilder(i),
+                if (i != rowCount - 1) const SizedBox(height: 8),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildTableHeaderRow({required List<_TableColumn> columns}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF5F7FB),
         borderRadius: BorderRadius.circular(12),
@@ -3021,23 +4104,27 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       ),
       child: Row(
         children: [
-          for (final column in columns)
-            Expanded(
-              flex: column.flex,
+          for (int i = 0; i < columns.length; i++) ...[
+            if (i > 0) const SizedBox(width: 10),
+            SizedBox(
+              width: columns[i].minWidth,
               child: Align(
-                alignment: column.alignment,
+                alignment: columns[i].alignment,
                 child: Text(
-                  column.label.toUpperCase(),
+                  columns[i].label.toUpperCase(),
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0,
                     color: Color(0xFF475467),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -3049,6 +4136,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required bool isStriped,
     required List<String> ownerOptions,
   }) {
+    final isEditing = _editingConstraintRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3058,12 +4146,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
+          SizedBox(
+            width: 260,
             child: _buildTableField(
               initialValue: row.constraint,
               hintText: 'Constraint',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.constraint = value;
                 _scheduleSave();
@@ -3071,14 +4159,14 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 5,
+          SizedBox(
+            width: 400,
             child: _buildTableField(
               initialValue: row.guardrail,
               hintText: 'Guardrail',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.guardrail = value;
                 _scheduleSave();
@@ -3086,12 +4174,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 150,
             child: _buildOwnerDropdown(
               value: row.owner,
               options: ownerOptions,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -3099,8 +4187,8 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 140,
             child: _buildStatusDropdown(
               value: row.status,
               onChanged: (value) {
@@ -3108,22 +4196,28 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                 _scheduleSave();
               },
               accent: const Color(0xFF1D4ED8),
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: _technicalAlignmentActionColumnWidth,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('constraint');
-                if (!confirmed) return;
-                setState(() {
-                  _constraints.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingConstraintRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('constraint');
+                  if (!confirmed) return;
+                  setState(() {
+                    _constraints.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingConstraintRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3133,6 +4227,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
 
   Widget _buildMappingRow(RequirementMappingRow row,
       {required int index, required bool isStriped}) {
+    final isEditing = _editingMappingRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3142,12 +4237,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
+          SizedBox(
+            width: 260,
             child: _buildTableField(
               initialValue: row.requirement,
               hintText: 'Requirement',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.requirement = value;
                 _scheduleSave();
@@ -3155,14 +4250,14 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 5,
+          SizedBox(
+            width: 460,
             child: _buildTableField(
               initialValue: row.approach,
               hintText: 'Technical approach',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.approach = value;
                 _scheduleSave();
@@ -3170,8 +4265,8 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 140,
             child: _buildStatusDropdown(
               value: row.status,
               onChanged: (value) {
@@ -3179,22 +4274,28 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                 _scheduleSave();
               },
               accent: const Color(0xFF0F766E),
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: _technicalAlignmentActionColumnWidth,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('mapping');
-                if (!confirmed) return;
-                setState(() {
-                  _mappings.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingMappingRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('mapping');
+                  if (!confirmed) return;
+                  setState(() {
+                    _mappings.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingMappingRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3208,6 +4309,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     required bool isStriped,
     required List<String> ownerOptions,
   }) {
+    final isEditing = _editingDependencyRows.contains(index);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -3217,12 +4319,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            flex: 4,
+          SizedBox(
+            width: 260,
             child: _buildTableField(
               initialValue: row.item,
               hintText: 'Dependency or decision',
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.item = value;
                 _scheduleSave();
@@ -3230,14 +4332,14 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 5,
+          SizedBox(
+            width: 380,
             child: _buildTableField(
               initialValue: row.detail,
               hintText: 'Detail',
               maxLines: null,
               minLines: 1,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.detail = value;
                 _scheduleSave();
@@ -3245,12 +4347,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 150,
             child: _buildOwnerDropdown(
               value: row.owner,
               options: ownerOptions,
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
               onChanged: (value) {
                 row.owner = value;
                 _scheduleSave();
@@ -3258,8 +4360,8 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: 140,
             child: _buildStatusDropdown(
               value: row.status,
               onChanged: (value) {
@@ -3267,22 +4369,28 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                 _scheduleSave();
               },
               accent: const Color(0xFF9333EA),
-              enabled: _canEditAlignment,
+              enabled: _canEditAlignment && isEditing,
             ),
           ),
           const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
+          SizedBox(
+            width: _technicalAlignmentActionColumnWidth,
             child: Align(
               alignment: Alignment.center,
-              child: _buildDeleteAction(() async {
-                final confirmed = await _confirmDelete('dependency');
-                if (!confirmed) return;
-                setState(() {
-                  _dependencies.removeAt(index);
-                  _scheduleSave();
-                });
-              }),
+              child: _buildRowActions(
+                isEditing: isEditing,
+                onToggleEdit: () =>
+                    _toggleEditingRow(_editingDependencyRows, index),
+                onDelete: () async {
+                  final confirmed = await _confirmDelete('dependency');
+                  if (!confirmed) return;
+                  setState(() {
+                    _dependencies.removeAt(index);
+                    _shiftEditingRowsAfterDelete(_editingDependencyRows, index);
+                    _scheduleSave();
+                  });
+                },
+              ),
             ),
           ),
         ],
@@ -3298,7 +4406,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     bool enabled = true,
     ValueChanged<String>? onChanged,
   }) {
-    return TextFormField(
+    return VoiceTextFormField(
       initialValue: initialValue,
       enabled: enabled,
       minLines: minLines,
@@ -3306,14 +4414,17 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
       textAlign: TextAlign.start,
       textAlignVertical: TextAlignVertical.top,
       keyboardType: TextInputType.multiline,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+      style: TextStyle(
+        fontSize: 14,
+        color: enabled ? const Color(0xFF1F2937) : const Color(0xFF475569),
+      ),
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hintText,
         hintStyle: TextStyle(fontSize: 13, color: Colors.grey[500]),
         isDense: true,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: enabled ? Colors.white : const Color(0xFFF8FAFC),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         border: OutlineInputBorder(
@@ -3321,6 +4432,10 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
         ),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
         ),
@@ -3442,18 +4557,62 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  Widget _buildDeleteAction(Future<void> Function() onDelete) {
-    return TextButton.icon(
-      onPressed: _canDeleteAlignment
-          ? () async {
-              await onDelete();
-            }
-          : null,
-      icon: const Icon(Icons.delete_outline, size: 18),
-      label: const Text('Delete'),
-      style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFFB91C1C),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  Widget _buildRowActions({
+    required bool isEditing,
+    required VoidCallback onToggleEdit,
+    required Future<void> Function() onDelete,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildActionIconButton(
+          tooltip: isEditing ? 'Save changes' : 'Edit',
+          icon: isEditing
+              ? Icons.check_circle_outline_rounded
+              : Icons.edit_outlined,
+          color: isEditing ? const Color(0xFF059669) : const Color(0xFF2563EB),
+          onPressed: _canEditAlignment ? onToggleEdit : null,
+        ),
+        const SizedBox(width: _technicalAlignmentActionGap),
+        _buildActionIconButton(
+          tooltip: 'Delete',
+          icon: Icons.delete_outline,
+          color: const Color(0xFFB91C1C),
+          onPressed: _canDeleteAlignment
+              ? () async {
+                  await onDelete();
+                }
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionIconButton({
+    required String tooltip,
+    required IconData icon,
+    required Color color,
+    required VoidCallback? onPressed,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      waitDuration: const Duration(milliseconds: 350),
+      child: SizedBox.square(
+        dimension: _technicalAlignmentActionButtonSize,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(8),
+            child: Icon(
+              icon,
+              size: 18,
+              color: onPressed == null ? const Color(0xFFCBD5E1) : color,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -3590,6 +4749,21 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Technical Alignment',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_technical_alignment_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -4120,15 +5294,8 @@ class _DebtDashboardItem {
   final String severity;
 }
 
-class _StableTableColumn {
-  const _StableTableColumn(this.label, this.width);
-
-  final String label;
-  final double width;
-}
-
 class _MethodologyStandard {
-  const _MethodologyStandard({
+  _MethodologyStandard({
     required this.model,
     required this.bestFit,
     required this.evidence,
@@ -4136,15 +5303,32 @@ class _MethodologyStandard {
     required this.exitStandard,
   });
 
-  final String model;
-  final String bestFit;
-  final String evidence;
-  final String controls;
-  final String exitStandard;
+  String model;
+  String bestFit;
+  String evidence;
+  String controls;
+  String exitStandard;
+
+  factory _MethodologyStandard.fromMap(Map<String, dynamic> m) =>
+      _MethodologyStandard(
+        model: m['model'] ?? '',
+        bestFit: m['bestFit'] ?? '',
+        evidence: m['evidence'] ?? '',
+        controls: m['controls'] ?? '',
+        exitStandard: m['exitStandard'] ?? '',
+      );
+
+  Map<String, dynamic> toMap() => {
+        'model': model,
+        'bestFit': bestFit,
+        'evidence': evidence,
+        'controls': controls,
+        'exitStandard': exitStandard,
+      };
 }
 
 class _ReadinessGateItem {
-  const _ReadinessGateItem({
+  _ReadinessGateItem({
     required this.domain,
     required this.standard,
     required this.evidence,
@@ -4152,15 +5336,32 @@ class _ReadinessGateItem {
     required this.decision,
   });
 
-  final String domain;
-  final String standard;
-  final String evidence;
-  final String owner;
-  final String decision;
+  String domain;
+  String standard;
+  String evidence;
+  String owner;
+  String decision;
+
+  factory _ReadinessGateItem.fromMap(Map<String, dynamic> m) =>
+      _ReadinessGateItem(
+        domain: m['domain'] ?? '',
+        standard: m['standard'] ?? '',
+        evidence: m['evidence'] ?? '',
+        owner: m['owner'] ?? '',
+        decision: m['decision'] ?? '',
+      );
+
+  Map<String, dynamic> toMap() => {
+        'domain': domain,
+        'standard': standard,
+        'evidence': evidence,
+        'owner': owner,
+        'decision': decision,
+      };
 }
 
 class _TraceabilityItem {
-  const _TraceabilityItem({
+  _TraceabilityItem({
     required this.object,
     required this.question,
     required this.verification,
@@ -4168,180 +5369,282 @@ class _TraceabilityItem {
     required this.agileEvidence,
   });
 
-  final String object;
-  final String question;
-  final String verification;
-  final String waterfallEvidence;
-  final String agileEvidence;
+  String object;
+  String question;
+  String verification;
+  String waterfallEvidence;
+  String agileEvidence;
+
+  factory _TraceabilityItem.fromMap(Map<String, dynamic> m) =>
+      _TraceabilityItem(
+        object: m['object'] ?? '',
+        question: m['question'] ?? '',
+        verification: m['verification'] ?? '',
+        waterfallEvidence: m['waterfallEvidence'] ?? '',
+        agileEvidence: m['agileEvidence'] ?? '',
+      );
+
+  Map<String, dynamic> toMap() => {
+        'object': object,
+        'question': question,
+        'verification': verification,
+        'waterfallEvidence': waterfallEvidence,
+        'agileEvidence': agileEvidence,
+      };
 }
 
-const List<_MethodologyStandard> _methodologyStandards = [
-  _MethodologyStandard(
-    model: 'Waterfall / Predictive',
-    bestFit:
-        'Stable scope, high compliance burden, contractual acceptance, capital approval, or regulated delivery.',
-    evidence:
-        'Signed requirements baseline, architecture views, interface specifications, verification matrix, risk register, change-control log, and stage-gate sign-off.',
-    controls:
-        'Configuration management, formal traceability, design reviews, quality plans, procurement lead times, security and safety approval, and acceptance test readiness.',
-    exitStandard:
-        'No unresolved critical requirements, interfaces, or compliance obligations before detailed design/build gate.',
-  ),
-  _MethodologyStandard(
-    model: 'Agile Scrum',
-    bestFit:
-        'Evolving product scope where frequent inspection, user feedback, and working increments reduce uncertainty.',
-    evidence:
-        'Product goal, ordered backlog, refined epics/stories, Definition of Ready, Definition of Done, sprint review evidence, test automation, and release criteria.',
-    controls:
-        'Backlog quality, technical spikes, architecture runway, automated quality gates, security-by-design checks, observable increments, and dependency escalation.',
-    exitStandard:
-        'Stories are ready, technically feasible, testable, sized, and linked to acceptance criteria before sprint commitment.',
-  ),
-  _MethodologyStandard(
-    model: 'Kanban / Flow',
-    bestFit:
-        'Operational, support, enhancement, integration, or continuous improvement work with variable demand.',
-    evidence:
-        'Service policies, classes of service, WIP limits, intake rules, flow metrics, blocker aging, technical debt register, and release readiness checklist.',
-    controls:
-        'Cycle-time predictability, dependency visibility, operational risk limits, explicit pull criteria, reversible release practices, and incident feedback loops.',
-    exitStandard:
-        'Work items meet explicit policies, have no hidden technical blockers, and can move without breaching WIP or service-risk limits.',
-  ),
-  _MethodologyStandard(
-    model: 'Hybrid',
-    bestFit:
-        'Fixed governance, budget, procurement, or compliance boundaries with iterative product/design elaboration inside phases.',
-    evidence:
-        'Phase baseline, rolling-wave plan, integrated roadmap, dependency board, decision log, release plan, backlog traceability, and formal change approvals.',
-    controls:
-        'Gate-to-increment traceability, change impact analysis, milestone dependency management, release train alignment, and shared acceptance evidence.',
-    exitStandard:
-        'Governance artifacts stay controlled while iterative increments prove feasibility and reduce delivery uncertainty.',
-  ),
-  _MethodologyStandard(
-    model: 'Scaled Agile / Portfolio',
-    bestFit:
-        'Multiple teams, shared platforms, enterprise architecture constraints, high dependency density, or portfolio funding.',
-    evidence:
-        'Capability map, architectural runway, program board, enabler backlog, PI objectives, dependency map, NFRs, risk ROAM, and system demo outcomes.',
-    controls:
-        'Platform standards, cross-team interface contracts, release train synchronization, enabler capacity, observability standards, and enterprise risk governance.',
-    exitStandard:
-        'Teams share the same technical baseline, dependencies are owned, and runway exists for committed business features.',
-  ),
-];
+List<_MethodologyStandard> _defaultMethodologyStandards() => [
+      _MethodologyStandard(
+        model: 'Waterfall / Predictive',
+        bestFit:
+            'Stable scope, high compliance burden, contractual acceptance, capital approval, or regulated delivery.',
+        evidence:
+            'Signed requirements baseline, architecture views, interface specifications, verification matrix, risk register, change-control log, and stage-gate sign-off.',
+        controls:
+            'Configuration management, formal traceability, design reviews, quality plans, procurement lead times, security and safety approval, and acceptance test readiness.',
+        exitStandard:
+            'No unresolved critical requirements, interfaces, or compliance obligations before detailed design/build gate.',
+      ),
+      _MethodologyStandard(
+        model: 'Agile Scrum',
+        bestFit:
+            'Evolving product scope where frequent inspection, user feedback, and working increments reduce uncertainty.',
+        evidence:
+            'Product goal, ordered backlog, refined epics/stories, Definition of Ready, Definition of Done, sprint review evidence, test automation, and release criteria.',
+        controls:
+            'Backlog quality, technical spikes, architecture runway, automated quality gates, security-by-design checks, observable increments, and dependency escalation.',
+        exitStandard:
+            'Stories are ready, technically feasible, testable, sized, and linked to acceptance criteria before sprint commitment.',
+      ),
+      _MethodologyStandard(
+        model: 'Kanban / Flow',
+        bestFit:
+            'Operational, support, enhancement, integration, or continuous improvement work with variable demand.',
+        evidence:
+            'Service policies, classes of service, WIP limits, intake rules, flow metrics, blocker aging, technical debt register, and release readiness checklist.',
+        controls:
+            'Cycle-time predictability, dependency visibility, operational risk limits, explicit pull criteria, reversible release practices, and incident feedback loops.',
+        exitStandard:
+            'Work items meet explicit policies, have no hidden technical blockers, and can move without breaching WIP or service-risk limits.',
+      ),
+      _MethodologyStandard(
+        model: 'Hybrid',
+        bestFit:
+            'Fixed governance, budget, procurement, or compliance boundaries with iterative product/design elaboration inside phases.',
+        evidence:
+            'Phase baseline, rolling-wave plan, integrated roadmap, dependency board, decision log, release plan, backlog traceability, and formal change approvals.',
+        controls:
+            'Gate-to-increment traceability, change impact analysis, milestone dependency management, release train alignment, and shared acceptance evidence.',
+        exitStandard:
+            'Governance artifacts stay controlled while iterative increments prove feasibility and reduce delivery uncertainty.',
+      ),
+      _MethodologyStandard(
+        model: 'Scaled Agile / Portfolio',
+        bestFit:
+            'Multiple teams, shared platforms, enterprise architecture constraints, high dependency density, or portfolio funding.',
+        evidence:
+            'Capability map, architectural runway, program board, enabler backlog, PI objectives, dependency map, NFRs, risk ROAM, and system demo outcomes.',
+        controls:
+            'Platform standards, cross-team interface contracts, release train synchronization, enabler capacity, observability standards, and enterprise risk governance.',
+        exitStandard:
+            'Teams share the same technical baseline, dependencies are owned, and runway exists for committed business features.',
+      ),
+    ];
 
-const List<_ReadinessGateItem> _readinessGateItems = [
-  _ReadinessGateItem(
-    domain: 'Architecture Baseline',
-    standard:
-        'Target architecture, transition states, major technology decisions, constraints, and trade-offs are explicit and approved.',
-    evidence:
-        'Architecture diagrams, ADRs, options analysis, assumptions log, and impacted components list.',
-    owner: 'Architecture',
-    decision: 'Conditional',
-  ),
-  _ReadinessGateItem(
-    domain: 'Requirements Traceability',
-    standard:
-        'Every priority requirement has a technical approach, acceptance criteria, verification method, and owner.',
-    evidence:
-        'Traceability matrix, backlog links, acceptance criteria, test strategy, and sign-off record.',
-    owner: 'BA / PO',
-    decision: 'Go',
-  ),
-  _ReadinessGateItem(
-    domain: 'Non-Functional Requirements',
-    standard:
-        'Performance, availability, security, privacy, accessibility, scalability, resilience, and recovery targets are measurable.',
-    evidence:
-        'NFR catalogue, SLO/SLA targets, threat model, capacity model, accessibility checklist, and recovery objectives.',
-    owner: 'Engineering',
-    decision: 'Conditional',
-  ),
-  _ReadinessGateItem(
-    domain: 'Interfaces And Data',
-    standard:
-        'Inbound and outbound contracts define schemas, protocols, ownership, quality controls, environments, and failure behaviour.',
-    evidence:
-        'API specs, ICDs, data dictionary, sample payloads, test stubs, privacy review, and vendor SLA notes.',
-    owner: 'Integration',
-    decision: 'Conditional',
-  ),
-  _ReadinessGateItem(
-    domain: 'Delivery And Release',
-    standard:
-        'Build path, environments, CI/CD, rollback, deployment approvals, release calendar, and operational handover are known.',
-    evidence:
-        'Environment plan, release checklist, branching strategy, deployment runbook, monitoring plan, and support model.',
-    owner: 'DevOps',
-    decision: 'No-go',
-  ),
-];
+List<_ReadinessGateItem> _defaultReadinessGateItems() => [
+      _ReadinessGateItem(
+        domain: 'Architecture Baseline',
+        standard:
+            'Target architecture, transition states, major technology decisions, constraints, and trade-offs are explicit and approved.',
+        evidence:
+            'Architecture diagrams, ADRs, options analysis, assumptions log, and impacted components list.',
+        owner: 'Architecture',
+        decision: 'Conditional',
+      ),
+      _ReadinessGateItem(
+        domain: 'Requirements Traceability',
+        standard:
+            'Every priority requirement has a technical approach, acceptance criteria, verification method, and owner.',
+        evidence:
+            'Traceability matrix, backlog links, acceptance criteria, test strategy, and sign-off record.',
+        owner: 'BA / PO',
+        decision: 'Go',
+      ),
+      _ReadinessGateItem(
+        domain: 'Non-Functional Requirements',
+        standard:
+            'Performance, availability, security, privacy, accessibility, scalability, resilience, and recovery targets are measurable.',
+        evidence:
+            'NFR catalogue, SLO/SLA targets, threat model, capacity model, accessibility checklist, and recovery objectives.',
+        owner: 'Engineering',
+        decision: 'Conditional',
+      ),
+      _ReadinessGateItem(
+        domain: 'Interfaces And Data',
+        standard:
+            'Inbound and outbound contracts define schemas, protocols, ownership, quality controls, environments, and failure behaviour.',
+        evidence:
+            'API specs, ICDs, data dictionary, sample payloads, test stubs, privacy review, and vendor SLA notes.',
+        owner: 'Integration',
+        decision: 'Conditional',
+      ),
+      _ReadinessGateItem(
+        domain: 'Delivery And Release',
+        standard:
+            'Build path, environments, CI/CD, rollback, deployment approvals, release calendar, and operational handover are known.',
+        evidence:
+            'Environment plan, release checklist, branching strategy, deployment runbook, monitoring plan, and support model.',
+        owner: 'DevOps',
+        decision: 'No-go',
+      ),
+    ];
 
-const List<_TraceabilityItem> _traceabilityItems = [
-  _TraceabilityItem(
-    object: 'Business Requirement',
-    question:
-        'Does the selected technical approach preserve the intended business outcome and contractual acceptance condition?',
-    verification:
-        'Review against acceptance criteria, business rules, and benefit metrics.',
-    waterfallEvidence: 'Signed requirements baseline and V-model test mapping.',
-    agileEvidence:
-        'Epic/story links, acceptance tests, and sprint review evidence.',
-  ),
-  _TraceabilityItem(
-    object: 'Architecture Decision',
-    question:
-        'Is the decision justified, reversible where possible, and connected to risks, constraints, and alternatives?',
-    verification: 'ADR review, options analysis, and risk impact assessment.',
-    waterfallEvidence: 'Architecture review board minutes and design baseline.',
-    agileEvidence: 'ADR in repository, enabler story, and team review record.',
-  ),
-  _TraceabilityItem(
-    object: 'Interface / Dependency',
-    question:
-        'Are data contracts, service expectations, ownership, environments, and failure paths clear enough for build?',
-    verification:
-        'Contract testing, mock service validation, vendor confirmation, and dependency burn-down.',
-    waterfallEvidence:
-        'Interface control document and formal dependency sign-off.',
-    agileEvidence:
-        'Dependency board, API contract tests, and integration demo.',
-  ),
-  _TraceabilityItem(
-    object: 'Non-Functional Requirement',
-    question:
-        'Can the system prove security, performance, accessibility, reliability, observability, and recovery standards?',
-    verification:
-        'Automated tests, threat modelling, load testing, accessibility checks, monitoring trials, and recovery exercises.',
-    waterfallEvidence:
-        'Quality plan, test scripts, and readiness gate evidence.',
-    agileEvidence:
-        'Definition of Done controls, pipeline gates, and system demo metrics.',
-  ),
-  _TraceabilityItem(
-    object: 'Operational Readiness',
-    question:
-        'Can support teams operate, monitor, recover, and improve the solution after release?',
-    verification:
-        'Runbook review, support rehearsal, incident workflow check, and service transition acceptance.',
-    waterfallEvidence: 'Operational acceptance test and handover sign-off.',
-    agileEvidence:
-        'Release checklist, support story completion, and production telemetry review.',
-  ),
-];
+List<_TraceabilityItem> _defaultTraceabilityItems() => [
+      _TraceabilityItem(
+        object: 'Business Requirement',
+        question:
+            'Does the selected technical approach preserve the intended business outcome and contractual acceptance condition?',
+        verification:
+            'Review against acceptance criteria, business rules, and benefit metrics.',
+        waterfallEvidence:
+            'Signed requirements baseline and V-model test mapping.',
+        agileEvidence:
+            'Epic/story links, acceptance tests, and sprint review evidence.',
+      ),
+      _TraceabilityItem(
+        object: 'Architecture Decision',
+        question:
+            'Is the decision justified, reversible where possible, and connected to risks, constraints, and alternatives?',
+        verification:
+            'ADR review, options analysis, and risk impact assessment.',
+        waterfallEvidence:
+            'Architecture review board minutes and design baseline.',
+        agileEvidence:
+            'ADR in repository, enabler story, and team review record.',
+      ),
+      _TraceabilityItem(
+        object: 'Interface / Dependency',
+        question:
+            'Are data contracts, service expectations, ownership, environments, and failure paths clear enough for build?',
+        verification:
+            'Contract testing, mock service validation, vendor confirmation, and dependency burn-down.',
+        waterfallEvidence:
+            'Interface control document and formal dependency sign-off.',
+        agileEvidence:
+            'Dependency board, API contract tests, and integration demo.',
+      ),
+      _TraceabilityItem(
+        object: 'Non-Functional Requirement',
+        question:
+            'Can the system prove security, performance, accessibility, reliability, observability, and recovery standards?',
+        verification:
+            'Automated tests, threat modelling, load testing, accessibility checks, monitoring trials, and recovery exercises.',
+        waterfallEvidence:
+            'Quality plan, test scripts, and readiness gate evidence.',
+        agileEvidence:
+            'Definition of Done controls, pipeline gates, and system demo metrics.',
+      ),
+      _TraceabilityItem(
+        object: 'Operational Readiness',
+        question:
+            'Can support teams operate, monitor, recover, and improve the solution after release?',
+        verification:
+            'Runbook review, support rehearsal, incident workflow check, and service transition acceptance.',
+        waterfallEvidence: 'Operational acceptance test and handover sign-off.',
+        agileEvidence:
+            'Release checklist, support story completion, and production telemetry review.',
+      ),
+    ];
 
 class _TableColumn {
   const _TableColumn({
     required this.label,
     this.flex = 1,
+    this.minWidth = 100.0,
     this.alignment = Alignment.center,
   });
 
   final String label;
   final int flex;
+  final double minWidth;
   final Alignment alignment;
+}
+
+/// Panel shell matching the Vendor Tracking "Action plan" style.
+class _DeliveryModelPanelShell extends StatelessWidget {
+  const _DeliveryModelPanelShell({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.child,
+    this.trailing,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Stack(
+            children: [
+              Align(
+                alignment: Alignment.topLeft,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: accent.withOpacity(0.2)),
+                      ),
+                      child: Icon(icon, color: accent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text(subtitle,
+                              style: const TextStyle(
+                                  fontSize: 12, color: Color(0xFF64748B))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (trailing != null)
+                Align(
+                  alignment: Alignment.topRight,
+                  child: trailing!,
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
 }

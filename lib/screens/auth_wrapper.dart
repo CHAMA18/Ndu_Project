@@ -25,39 +25,42 @@ class _AuthWrapperState extends State<AuthWrapper> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Scaffold(
-            body: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: Card(
-                  margin: const EdgeInsets.all(24),
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.error_outline,
-                            color: Theme.of(context).colorScheme.error,
-                            size: 40),
-                        const SizedBox(height: 12),
-                        Text('Authentication error',
-                            style: Theme.of(context).textTheme.titleLarge),
-                        const SizedBox(height: 8),
-                        Text(
-                          snapshot.error?.toString() ??
-                              'An unexpected error occurred while checking your session.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: () {
-                            // Force rebuild to retry stream subscription
-                            setState(() {});
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                        ),
-                      ],
+            body: SafeArea(
+              top: true,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: Card(
+                    margin: const EdgeInsets.all(24),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.error_outline,
+                              color: Theme.of(context).colorScheme.error,
+                              size: 40),
+                          const SizedBox(height: 12),
+                          Text('Authentication error',
+                              style: Theme.of(context).textTheme.titleLarge),
+                          const SizedBox(height: 8),
+                          Text(
+                            snapshot.error?.toString() ??
+                                'An unexpected error occurred while checking your session.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () {
+                              // Force rebuild to retry stream subscription
+                              setState(() {});
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Retry'),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -67,7 +70,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            body: SafeArea(
+                top: true,
+                child:
+                    Center(child: CircularProgressIndicator(strokeWidth: 2))),
           );
         }
         final user = snapshot.data;
@@ -93,8 +99,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
-                  body:
-                      Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  body: SafeArea(
+                      top: true,
+                      child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2))),
                 );
               }
 

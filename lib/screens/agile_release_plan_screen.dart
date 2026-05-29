@@ -14,6 +14,9 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -52,11 +55,13 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
     setState(() => _isLoading = true);
     try {
       final plans = await AgileWireframeService.loadReleasePlans(pid);
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _plans = plans;
         _isLoading = false;
       });
-    } catch (_) {
+      }
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -127,6 +132,11 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Release Plan',
+                      ),
+                    ),
                   SingleChildScrollView(
                 padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                 child: Column(
@@ -134,11 +144,12 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
                   children: [
                     PlanningPhaseHeader(
                       title: 'Release Plan',
+                      showImportButton: false,
+                      showContentButton: false,
                       onBack: () => PlanningPhaseNavigation.goToPrevious(
                           context, 'agile_release_plan'),
                       onForward: () => PlanningPhaseNavigation.goToNext(
-                          context, 'agile_release_plan'),
-                    ),
+                          context, 'agile_release_plan'), onExportPdf: _exportPdf),
                     const SizedBox(height: 32),
                     Text('Plan releases, PI increments, and versioned deployments.',
                         style: TextStyle(fontSize: 15, color: _kMuted)),
@@ -334,6 +345,21 @@ Widget _buildPlanCard(int index, AgileReleasePlan plan) {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Release Plan',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_release_plan_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _ReleasePlanEditDialog extends StatefulWidget {
@@ -385,7 +411,9 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
     try {
       final epics = await EpicFeatureService.loadEpics(widget.projectId);
       if (mounted) setState(() => _epics = epics);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error loading epics: $e');
+    }
   }
 
   @override
@@ -408,7 +436,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            VoiceTextField(
               controller: _labelCtrl,
               decoration: const InputDecoration(
                   labelText: 'Release Label', border: OutlineInputBorder()),
@@ -417,7 +445,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: VoiceTextField(
                     controller: _versionCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Version', border: OutlineInputBorder()),
@@ -425,7 +453,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: TextField(
+                  child: VoiceTextField(
                     controller: _piCtrl,
                     decoration: const InputDecoration(
                         labelText: 'PI Number', border: OutlineInputBorder()),
@@ -435,7 +463,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
               ],
             ),
             const SizedBox(height: 10),
-            TextField(
+            VoiceTextField(
               controller: _trainCtrl,
               decoration: const InputDecoration(
                   labelText: 'Release Train / ART Name',
@@ -462,7 +490,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _status,
+              initialValue: _status,
               decoration: const InputDecoration(
                   labelText: 'Status', border: OutlineInputBorder()),
               items: ['Draft', 'Ready', 'Approved']
@@ -474,7 +502,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
               },
             ),
             const SizedBox(height: 10),
-            TextField(
+            VoiceTextField(
               controller: _goalCtrl,
               decoration: const InputDecoration(
                   labelText: 'Release Goal', border: OutlineInputBorder()),

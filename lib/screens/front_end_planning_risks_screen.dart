@@ -15,6 +15,8 @@ import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Project Risks page
 /// Matches the provided screenshot with:
 /// - Top bar (back/forward, centered title, user chip)
@@ -71,7 +73,22 @@ class _FrontEndPlanningRisksScreenState
     });
   }
 
-  bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Risks',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
 
   Future<void> _triggerAutoRiskGenerationIfMissing() async {
     if (_autoGenerationTriggered || _isGeneratingRequirements || !mounted) {
@@ -1320,7 +1337,7 @@ class _FrontEndPlanningRisksScreenState
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(
@@ -1460,7 +1477,12 @@ class _FrontEndPlanningRisksScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Project Risks',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   _BottomOverlays(
                     onNext: _saveAndContinue,
                   ),
@@ -1792,7 +1814,7 @@ class _FrontEndPlanningRisksScreenState
                 borderRadius: BorderRadius.circular(10),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 10),
-              child: TextFormField(
+              child: VoiceTextFormField(
                 initialValue: row.mitigation,
                 minLines: 2,
                 maxLines: 3,
@@ -2542,7 +2564,7 @@ Widget _roundedField(
       border: Border.all(color: const Color(0xFFE4E7EC)),
     ),
     padding: const EdgeInsets.all(14),
-    child: TextField(
+    child: VoiceTextField(
       controller: controller,
       minLines: minLines,
       maxLines: maxLines,
@@ -2587,7 +2609,7 @@ class _LabeledField extends StatelessWidget {
             border: Border.all(color: const Color(0xFFE5E7EB)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: TextField(
+          child: VoiceTextField(
             controller: controller,
             autofocus: autofocus,
             enabled: enabled,

@@ -14,8 +14,11 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
-import 'package:ndu_project/providers/project_data_provider.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 // ─── Tab definitions ────────────────────────────────────────────────────────
 
 enum _ImTab {
@@ -100,12 +103,27 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Interface Management',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                         horizontal: horizontalPadding, vertical: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(
+                          title: 'Interface Management',
+                          showImportButton: false,
+                          showContentButton: false,
+                          onBack: () =>
+                              PlanningPhaseNavigation.goToPrevious(
+                                  context, 'interface_management'),
+                          onForward: () => PlanningPhaseNavigation.goToNext(
+                              context, 'interface_management'), onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopHeader(
                           onBack: () =>
                               PlanningPhaseNavigation.goToPrevious(
@@ -135,8 +153,26 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
                         const SizedBox(height: 24),
                         _buildTabBar(),
                         const SizedBox(height: 16),
+                        InnerPageNavigationHint(
+                          pageId: 'interface_management',
+                          pageTitle: 'Interface Management',
+                          sections: _ImTab.values.map((tab) => InnerPageSection(
+                            id: tab.name,
+                            label: tab.label,
+                            status: tab == _selectedTab
+                                ? InnerPageSectionStatus.current
+                                : InnerPageSectionStatus.available,
+                            stepNumber: _ImTab.values.indexOf(tab) + 1,
+                          )).toList(),
+                          currentSectionId: _selectedTab.name,
+                          onSectionTap: (sectionId) {
+                            final tab = _ImTab.values.firstWhere(
+                                (t) => t.name == sectionId);
+                            setState(() => _selectedTab = tab);
+                          },
+                        ),
                         _buildTabContent(),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         LaunchPhaseNavigation(
                           backLabel: PlanningPhaseNavigation.backLabel(
                               'interface_management'),
@@ -316,6 +352,21 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Interface Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_interface_management_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 // ─── Top Header ──────────────────────────────────────────────────────────────
@@ -344,6 +395,7 @@ class _TopHeader extends StatelessWidget {
               color: Color(0xFF111827)),
         ),
         const Spacer(),
+        const SizedBox(width: 12),
         const _UserChip(),
       ],
     );
@@ -554,7 +606,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
         children: [
           SizedBox(
             width: 220,
-            child: TextField(
+            child: VoiceTextField(
               onChanged: (v) => setState(() => _searchQuery = v),
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF9CA3AF)),
@@ -570,7 +622,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              value: _typeFilter,
+              initialValue: _typeFilter,
               decoration: InputDecoration(
                 labelText: 'Type',
                 labelStyle: const TextStyle(fontSize: 11),
@@ -588,7 +640,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              value: _statusFilter,
+              initialValue: _statusFilter,
               decoration: InputDecoration(
                 labelText: 'Status',
                 labelStyle: const TextStyle(fontSize: 11),
@@ -606,7 +658,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              value: _priorityFilter,
+              initialValue: _priorityFilter,
               decoration: InputDecoration(
                 labelText: 'Priority',
                 labelStyle: const TextStyle(fontSize: 11),
@@ -725,17 +777,17 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           const SizedBox(width: 12),
           const Expanded(flex: 3, child: Text('Boundary / Name', style: headerStyle)),
           const SizedBox(width: 12),
-          const SizedBox(width: 100, child: Text('Type', style: headerStyle)),
+          const SizedBox(width: 130, child: Text('Type', style: headerStyle)),
           const SizedBox(width: 12),
-          const SizedBox(width: 110, child: Text('Party A', style: headerStyle)),
+          const SizedBox(width: 130, child: Text('Party A', style: headerStyle)),
           const SizedBox(width: 12),
-          const SizedBox(width: 110, child: Text('Party B', style: headerStyle)),
+          const SizedBox(width: 130, child: Text('Party B', style: headerStyle)),
           const SizedBox(width: 12),
-          const SizedBox(width: 80, child: Text('Criticality', style: headerStyle, textAlign: TextAlign.center)),
+          const SizedBox(width: 110, child: Text('Criticality', style: headerStyle, textAlign: TextAlign.center)),
           const SizedBox(width: 12),
-          const SizedBox(width: 80, child: Text('Priority', style: headerStyle, textAlign: TextAlign.center)),
+          const SizedBox(width: 110, child: Text('Priority', style: headerStyle, textAlign: TextAlign.center)),
           const SizedBox(width: 12),
-          const SizedBox(width: 80, child: Text('Status', style: headerStyle, textAlign: TextAlign.center)),
+          const SizedBox(width: 110, child: Text('Status', style: headerStyle, textAlign: TextAlign.center)),
           const SizedBox(width: 12),
           const SizedBox(width: 80, child: Text('Actions', style: headerStyle, textAlign: TextAlign.center)),
         ],
@@ -863,12 +915,12 @@ class _InterfaceRegisterRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 100,
+            width: 130,
             child: _TypeBadge(type: entry.interfaceType),
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 110,
+            width: 130,
             child: Text(entry.partyA.trim(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -876,7 +928,7 @@ class _InterfaceRegisterRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 110,
+            width: 130,
             child: Text(entry.partyB.trim(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -884,17 +936,17 @@ class _InterfaceRegisterRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 80,
+            width: 110,
             child: _CriticalityBadge(criticality: entry.criticality),
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 80,
+            width: 110,
             child: _PriorityBadge(priority: entry.priority),
           ),
           const SizedBox(width: 12),
           SizedBox(
-            width: 80,
+            width: 110,
             child: _StatusBadge(label: entry.status),
           ),
           const SizedBox(width: 12),
@@ -1121,7 +1173,7 @@ class _InterfaceEntryDialogState extends State<_InterfaceEntryDialog> {
   Widget _field(String label, TextEditingController ctrl, {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: TextField(
+      child: VoiceTextField(
         controller: ctrl,
         maxLines: maxLines,
         decoration: InputDecoration(
@@ -1139,7 +1191,7 @@ class _InterfaceEntryDialogState extends State<_InterfaceEntryDialog> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: DropdownButtonFormField<String>(
-        value: items.contains(value) ? value : items.first,
+        initialValue: items.contains(value) ? value : items.first,
         decoration: InputDecoration(
           labelText: label,
           border:
@@ -1819,7 +1871,7 @@ class _RisksDecisionsSection extends StatelessWidget {
                                 ],
                               ),
                             );
-                          }).toList(),
+                          }),
                         ],
                       ),
               ),
@@ -2241,7 +2293,7 @@ class _AuditTrailSection extends StatelessWidget {
       final dt = DateTime.parse(iso);
       return '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} '
           '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    } catch (_) {
+    } catch (e) {
       return iso;
     }
   }
@@ -2287,7 +2339,7 @@ class _AuditTrailSection extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(flex: 2, child: Text('Interface', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
                 SizedBox(width: 12),
-                SizedBox(width: 110, child: Text('Action', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+                SizedBox(width: 130, child: Text('Action', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
                 SizedBox(width: 12),
                 Expanded(flex: 2, child: Text('Field', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
                 SizedBox(width: 12),

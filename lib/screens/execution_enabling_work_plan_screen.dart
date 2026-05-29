@@ -1,23 +1,31 @@
-import 'dart:async';
 import 'package:ndu_project/screens/execution_issue_management_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Enabling Work Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_enabling_work_plan_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionEnablingWorkPlanScreen extends StatelessWidget {
   const ExecutionEnablingWorkPlanScreen({super.key});
@@ -34,42 +42,30 @@ class ExecutionEnablingWorkPlanScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Enabling Work Plan',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Execution Enabling Work Plan'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(title: 'Execution Enabling Work Plan'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Enabling Work Plan',
+              hintText:
+                  'Capture enabling works, dependencies, and resourcing needs.',
+              noteKey: 'execution_enabling_work_plan',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(title: 'Execution Enabling Work Plan'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Enabling Work Plan',
-                      hintText:
-                          'Capture enabling works, dependencies, and resourcing needs.',
-                      noteKey: 'execution_enabling_work_plan',
-                    ),
-                    const SizedBox(height: 32),
-                    const _EnablingWorksPlanSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _EnablingWorksPlanSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
@@ -100,8 +96,53 @@ class _EnablingWorksPlanSection extends StatelessWidget {
         const SizedBox(height: 20),
         Align(
           alignment: Alignment.centerRight,
-          child: AddRowButton(
-              onPressed: () => _EnablingWorksPlanTable.showAddDialog(context)),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Enabling Works',
+                columns: [
+                  CsvColumnSpec(key: 'aspect', label: 'Enabling Work Aspect', required: true, sampleValue: 'Site Access'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Road construction to site'),
+                  CsvColumnSpec(key: 'duration', label: 'Duration', required: true, sampleValue: '2 weeks'),
+                  CsvColumnSpec(key: 'cost', label: 'Cost', required: true, sampleValue: '10000'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Must be completed first'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _EnablingWorksPlanTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createEnablingWork(
+                        projectId: projectId,
+                        aspect: row['aspect'] ?? '',
+                        description: row['description'] ?? '',
+                        duration: row['duration'] ?? '',
+                        cost: row['cost'] ?? '',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported enabling work(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                  onPressed: () => _EnablingWorksPlanTable.showAddDialog(context)),
+            ],
+          ),
         ),
         const SizedBox(height: 44),
         if (isMobile)
@@ -230,24 +271,24 @@ class _EnablingWorksPlanTable extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                   controller: aspectController,
                   decoration: const InputDecoration(labelText: 'Aspect *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: 'Description *'),
                   maxLines: 2),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: durationController,
                   decoration: const InputDecoration(labelText: 'Duration *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: costController,
                   decoration: const InputDecoration(labelText: 'Cost *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: commentsController,
                   decoration: const InputDecoration(labelText: 'Comments *'),
                   maxLines: 3),

@@ -20,10 +20,12 @@ import 'package:ndu_project/widgets/procurement_tables.dart';
 import 'package:ndu_project/widgets/procurement_dialogs.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // Layout Imports
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart'; // Added for AppBreakpoints
 
 /// Front End Planning – Contracting screen (formerly Contract & Vendor Quotes).
@@ -172,7 +174,22 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Contract & Vendor Quotes',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final projectData = ProjectDataHelper.getData(context);
@@ -363,10 +380,12 @@ class _FrontEndPlanningContractVendorQuotesScreenState
           snapshot = await _workflowCollection(projectId).get();
           break;
         } catch (e) {
-          final isAssertionError = e.toString().contains('INTERNAL ASSERTION') ||
-              e.toString().contains('Unexpected state');
+          final isAssertionError =
+              e.toString().contains('INTERNAL ASSERTION') ||
+                  e.toString().contains('Unexpected state');
           if (!isAssertionError || attempt == 3) rethrow;
-          await Future<void>.delayed(Duration(milliseconds: 500 * (1 << (attempt - 1))));
+          await Future<void>.delayed(
+              Duration(milliseconds: 500 * (1 << (attempt - 1))));
         }
       }
 
@@ -546,13 +565,13 @@ class _FrontEndPlanningContractVendorQuotesScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(labelText: 'Step Name'),
                   textCapitalization: TextCapitalization.sentences,
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: durationController,
                   decoration:
                       const InputDecoration(labelText: 'Duration (number)'),
@@ -1866,7 +1885,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                   ),
                                   SizedBox(
                                     width: 220,
-                                    child: TextFormField(
+                                    child: VoiceTextFormField(
                                       initialValue:
                                           item.projectPhase.trim().isEmpty
                                               ? 'Planning'
@@ -2351,8 +2370,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
               ),
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Remove',
-                    style: TextStyle(color: Colors.red)),
+                child:
+                    const Text('Remove', style: TextStyle(color: Colors.red)),
               ),
             ],
           ),
@@ -2419,21 +2438,21 @@ class _FrontEndPlanningContractVendorQuotesScreenState
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: scopeController,
                     decoration:
                         const InputDecoration(labelText: 'Contract Scope'),
                     textCapitalization: TextCapitalization.sentences,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: descriptionController,
                     decoration: const InputDecoration(labelText: 'Description'),
                     maxLines: 2,
                     textCapitalization: TextCapitalization.sentences,
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: contractorsController,
                     decoration: const InputDecoration(
                       labelText:
@@ -2459,7 +2478,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                         const InputDecoration(labelText: 'Contract Type'),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: valueController,
                     decoration: const InputDecoration(
                       labelText: 'Estimated Value (USD)',
@@ -2468,7 +2487,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                         const TextInputType.numberWithOptions(decimal: true),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: durationController,
                     decoration:
                         const InputDecoration(labelText: 'Estimated Duration'),
@@ -2776,7 +2795,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: controller,
                       decoration: const InputDecoration(
                         labelText: 'Or enter contractor name',
@@ -2901,9 +2920,9 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     Map<String, dynamic> notes,
   ) {
     return (notes[_trackingKeyForScope(scopeId)] ?? '')
-        .toString()
-        .trim()
-        .isEmpty
+            .toString()
+            .trim()
+            .isEmpty
         ? 'Not Started'
         : (notes[_trackingKeyForScope(scopeId)] ?? '').toString().trim();
   }
@@ -2947,7 +2966,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
             ),
             content: SizedBox(
               width: 560,
-              child: TextField(
+              child: VoiceTextField(
                 controller: controller,
                 maxLines: 8,
                 decoration: const InputDecoration(
@@ -3214,8 +3233,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     final approvedCount = contractors
         .where((vendor) => vendor.status.toLowerCase() == 'approved')
         .length;
-    final reports =
-        _loadContractingReports(ProjectDataHelper.getData(context));
+    final reports = _loadContractingReports(ProjectDataHelper.getData(context));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -3235,20 +3253,20 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   children: [
                     const Text(
                       'Contracting Summary',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w700),
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Started scopes: $startedCount',
-                      style:
-                          const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Approved contractors: $approvedCount',
-                      style:
-                          const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFF374151)),
                     ),
                   ],
                 ),
@@ -3424,7 +3442,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                           contractorName: name,
                           scopes: items,
                         ),
-                        icon: const Icon(Icons.assignment_ind_outlined, size: 18),
+                        icon:
+                            const Icon(Icons.assignment_ind_outlined, size: 18),
                         tooltip: 'Assign to scope',
                       ),
                       if (vendor == null)
@@ -3694,7 +3713,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      value: selected.id,
+                      initialValue: selected.id,
                       decoration: const InputDecoration(labelText: 'Scope'),
                       items: scopes
                           .map((scope) => DropdownMenuItem<String>(
@@ -3711,8 +3730,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                             orElse: () => scopes.first);
                         setState(() {
                           selected = match;
-                          final next =
-                              _trackingStatusForScope(match.id, notes);
+                          final next = _trackingStatusForScope(match.id, notes);
                           status = next == 'Not Started'
                               ? _trackingStatusOptions.first
                               : next;
@@ -3721,7 +3739,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: status,
+                      initialValue: status,
                       decoration:
                           const InputDecoration(labelText: 'Tracking Status'),
                       items: _trackingStatusOptions
@@ -3781,16 +3799,15 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      TextField(
+                      VoiceTextField(
                         controller: titleController,
                         decoration:
                             const InputDecoration(labelText: 'Report Title'),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: status,
-                        decoration:
-                            const InputDecoration(labelText: 'Status'),
+                        initialValue: status,
+                        decoration: const InputDecoration(labelText: 'Status'),
                         items: _reportStatusOptions
                             .map((option) => DropdownMenuItem<String>(
                                   value: option,
@@ -3803,16 +3820,14 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                         },
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: ownerController,
-                        decoration:
-                            const InputDecoration(labelText: 'Owner'),
+                        decoration: const InputDecoration(labelText: 'Owner'),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: summaryController,
-                        decoration:
-                            const InputDecoration(labelText: 'Summary'),
+                        decoration: const InputDecoration(labelText: 'Summary'),
                         maxLines: 4,
                       ),
                     ],
@@ -3838,8 +3853,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     final data = ProjectDataHelper.getData(context);
     final reports = _loadContractingReports(data);
     final entry = _ContractingReportEntry(
-      id: existing?.id ??
-          'report_${DateTime.now().microsecondsSinceEpoch}',
+      id: existing?.id ?? 'report_${DateTime.now().microsecondsSinceEpoch}',
       title: titleController.text.trim(),
       status: status,
       owner: ownerController.text.trim(),
@@ -3860,9 +3874,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(existing == null
-              ? 'Report added.'
-              : 'Report updated.')),
+          content:
+              Text(existing == null ? 'Report added.' : 'Report updated.')),
     );
   }
 
@@ -4925,7 +4938,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       if (trimmed.isNotEmpty) {
         try {
           decoded = jsonDecode(trimmed);
-        } catch (_) {
+        } catch (e) {
           decoded = null;
         }
       }
@@ -4981,7 +4994,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       final title = projectName.isNotEmpty ? projectName : solutionTitle;
       final subtitle = projectName.isNotEmpty ? solutionTitle : '';
       lines.add(
-        'Project: ${title}${subtitle.isNotEmpty ? ' — $subtitle' : ''}',
+        'Project: $title${subtitle.isNotEmpty ? ' — $subtitle' : ''}',
       );
     }
     if (sponsor.isNotEmpty || pm.isNotEmpty) {
@@ -5182,29 +5195,35 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                             StreamBuilder<List<ContractModel>>(
                               stream: _contractsStream,
                               builder: (context, contractSnapshot) {
-                                final contracts =
-                                    contractSnapshot.data ?? const <ContractModel>[];
-                                return StreamBuilder<List<ProcurementItemModel>>(
+                                final contracts = contractSnapshot.data ??
+                                    const <ContractModel>[];
+                                return StreamBuilder<
+                                    List<ProcurementItemModel>>(
                                   stream: _itemsStream,
                                   builder: (context, itemSnapshot) {
                                     final items = itemSnapshot.data ??
                                         const <ProcurementItemModel>[];
-                                    final notes = ProjectDataHelper.getData(context)
-                                        .planningNotes;
-                                    final startedCount = items.where(
-                                      (item) =>
-                                          _scopeManagementByScopeId[item.id]
-                                              ?.started ==
-                                          true,
-                                    ).length;
-                                    final trackingCount = items.where(
-                                      (item) =>
-                                          _trackingStatusForScope(
-                                            item.id,
-                                            notes,
-                                          ) !=
-                                          'Not Started',
-                                    ).length;
+                                    final notes =
+                                        ProjectDataHelper.getData(context)
+                                            .planningNotes;
+                                    final startedCount = items
+                                        .where(
+                                          (item) =>
+                                              _scopeManagementByScopeId[item.id]
+                                                  ?.started ==
+                                              true,
+                                        )
+                                        .length;
+                                    final trackingCount = items
+                                        .where(
+                                          (item) =>
+                                              _trackingStatusForScope(
+                                                item.id,
+                                                notes,
+                                              ) !=
+                                              'Not Started',
+                                        )
+                                        .length;
                                     final reportCount = _loadContractingReports(
                                             ProjectDataHelper.getData(context))
                                         .length;
@@ -5516,433 +5535,447 @@ class _FrontEndPlanningContractVendorQuotesScreenState
       backgroundColor: Colors.white,
       drawer: null,
       floatingActionButton: const KazAiChatBubble(positioned: false),
-      body: Stack(
-        children: [
-          Row(
-            children: [
-              DraggableSidebar(
-                openWidth: AppBreakpoints.sidebarWidth(context),
-                child:
-                    const InitiationLikeSidebar(activeItemLabel: 'Contracting'),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    FrontEndPlanningHeader(
-                      title: 'Contracting',
-                      scaffoldKey: _scaffoldKey,
-                    ),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          const AdminEditToggle(),
-                          SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 32, vertical: 24),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _ContractingTopBar(
-                                  onBack: _goToPreviousSection,
-                                  onForward: _navigateToProcurement,
-                                ),
-                                const SizedBox(height: 24),
-                                PlanningAiNotesCard(
-                                  title: 'Notes',
-                                  sectionLabel: 'Contracting',
-                                  noteKey: _contractingNotesKey,
-                                  checkpoint: 'fep_contract_vendor_quotes',
-                                  onChanged: _handleContractingNotesChanged,
-                                  fallbackText: _resolveContractingNotesFallback(
-                                    ProjectDataHelper.getData(context),
-                                  ),
-                                  description:
-                                      'Capture contracting priorities, package boundaries, and approval constraints.',
-                                ),
-                                const SizedBox(height: 16),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Wrap(
-                                    spacing: 12,
-                                    runSpacing: 8,
-                                    children: [
-                                      OutlinedButton.icon(
-                                        onPressed: _openApprovedContractorList,
-                                        icon: const Icon(
-                                          Icons.fact_check_outlined,
-                                          size: 16,
-                                        ),
-                                        label: const Text(
-                                          'Approved Contractor List',
-                                        ),
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor:
-                                              const Color(0xFF1E3A8A),
-                                          side: const BorderSide(
-                                              color: Color(0xFFBFDBFE)),
-                                          backgroundColor:
-                                              const Color(0xFFEFF6FF),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 10,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(10),
-                                          ),
-                                        ),
-                                      ),
-                                      PageRegenerateAllButton(
-                                        onRegenerateAll: () async {
-                                          final confirmed =
-                                              await showRegenerateAllConfirmation(
-                                                  context);
-                                          if (confirmed && mounted) {
-                                            await _regenerateAllContracts();
-                                          }
-                                        },
-                                        isLoading: _generating,
-                                        tooltip:
-                                            'Generate contracts and contractors',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                StreamBuilder<List<ContractModel>>(
-                                  stream: _contractsStream,
-                                  builder: (context, contractSnapshot) {
-                                    final contracts =
-                                        contractSnapshot.data ?? const <ContractModel>[];
-                                    return StreamBuilder<
-                                        List<ProcurementItemModel>>(
-                                      stream: _itemsStream,
-                                      builder: (context, itemSnapshot) {
-                                        final items = itemSnapshot.data ??
-                                            const <ProcurementItemModel>[];
-                                        final notes =
-                                            ProjectDataHelper.getData(context)
-                                                .planningNotes;
-                                        final startedCount = items.where(
-                                          (item) =>
-                                              _scopeManagementByScopeId[item.id]
-                                                  ?.started ==
-                                              true,
-                                        ).length;
-                                        final trackingCount = items.where(
-                                          (item) =>
-                                              _trackingStatusForScope(
-                                                item.id,
-                                                notes,
-                                              ) !=
-                                              'Not Started',
-                                        ).length;
-                                        final reportCount =
-                                            _loadContractingReports(
-                                                    ProjectDataHelper.getData(
-                                                        context))
-                                                .length;
-                                        return _buildContractingOverviewCard(
-                                          contractsCount: contracts.length,
-                                          scopeCount: items.length,
-                                          startedCount: startedCount,
-                                          trackingCount: trackingCount,
-                                          reportCount: reportCount,
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 32),
-
-                                // Contracts Section
-                                _SectionHeader(
-                                  title: 'Contracts',
-                                  subtitle:
-                                      'Define contract packages, owners, and delivery responsibilities aligned to execution milestones.',
-                                  actionLabel: 'Add Contract',
-                                  onAction: _openAddContractDialog,
-                                ),
-                                const SizedBox(height: 12),
-                                StreamBuilder<List<ContractModel>>(
-                                  stream: _contractsStream,
-                                  builder: (context, snapshot) {
-                                    if (snapshot.hasError) {
-                                      return _buildErrorState(
-                                          context, snapshot.error!);
-                                    }
-                                    if (_showAutoGenerationSpinner &&
-                                        !(snapshot.hasData &&
-                                            snapshot.data!.isNotEmpty)) {
-                                      return Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 40,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: const Color(0xFFE5E7EB)),
-                                        ),
-                                        child: const Column(
-                                          children: [
-                                            CircularProgressIndicator(),
-                                            SizedBox(height: 12),
-                                            Text(
-                                              'Generating initial contracts and contracting details...',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: Color(0xFF64748B),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-                                    if (!snapshot.hasData) {
-                                      return const Center(
-                                          child: CircularProgressIndicator());
-                                    }
-                                    final contracts = snapshot.data!;
-                                    if (_autoGenerationError != null &&
-                                        contracts.isEmpty) {
-                                      return Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 18,
-                                          vertical: 24,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                              color: const Color(0xFFE5E7EB)),
-                                        ),
-                                        child: Column(
-                                          children: [
-                                            Text(
-                                              _autoGenerationError!,
-                                              textAlign: TextAlign.center,
-                                              style: const TextStyle(
-                                                color: Color(0xFFB91C1C),
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            OutlinedButton.icon(
-                                              onPressed: _generating
-                                                  ? null
-                                                  : _regenerateAllContracts,
-                                              icon: const Icon(
-                                                  Icons.auto_awesome_rounded,
-                                                  size: 16),
-                                              label: const Text(
-                                                  'Generate with AI'),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    }
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        ContractsTable(
-                                          contracts: contracts,
-                                          onEdit: _openEditContractDialog,
-                                          onDelete: _deleteContract,
-                                        ),
-                                        if (contracts.length >=
-                                            _contractQueryLimit)
-                                          Align(
-                                            alignment: Alignment.centerRight,
-                                            child: TextButton.icon(
-                                              onPressed: _loadMoreContracts,
-                                              icon: const Icon(
-                                                Icons.unfold_more_rounded,
-                                                size: 16,
-                                              ),
-                                              label: Text(
-                                                'Load ${_loadMoreStep.toString()} more contracts',
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 48),
-
-                                // Contracting Scope Section
-                                _ScopeSectionModeSwitcher(
-                                  showDetails: _showScopeDetails,
-                                  onChanged: (showDetails) {
-                                    if (_showScopeDetails == showDetails) {
-                                      return;
-                                    }
-                                    setState(
-                                        () => _showScopeDetails = showDetails);
-                                  },
-                                ),
-                                const SizedBox(height: 14),
-                                _SectionHeader(
-                                  title: _showScopeDetails
-                                      ? 'Contract Details'
-                                      : 'Contracting Scope',
-                                  subtitle: _showScopeDetails
-                                      ? 'Card-based scope details sourced from the Contracting Scope table, including contractors and the stage where contracting should begin.'
-                                      : _contractingScopeSubtitle,
-                                  actionLabel: 'Add Scope',
-                                  onAction: _openAddItemDialog,
-                                ),
-                                const SizedBox(height: 12),
-                                StreamBuilder<List<ProcurementItemModel>>(
-                                  stream: _itemsStream,
-                                  builder: (context, snapshot) {
-                                    if (snapshot.hasError) {
-                                      return _buildErrorState(
-                                          context, snapshot.error!);
-                                    }
-                                    if (snapshot.connectionState ==
-                                        ConnectionState.waiting) {
-                                      return const Center(
-                                          child: CircularProgressIndicator());
-                                    }
-                                    final items = snapshot.data ??
-                                        const <ProcurementItemModel>[];
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _showScopeDetails
-                                            ? _ContractScopeDetailsBoard(
-                                                items: items,
-                                                stageOptions:
-                                                    _startStageOptions,
-                                                onEdit: _openEditItemDialog,
-                                                onDelete: _deleteItem,
-                                                onStageChanged:
-                                                    _setContractingStartStage,
-                                                onSavePotentialContractors:
-                                                    _savePotentialContractorsForScope,
-                                                onSuggestContractors:
-                                                    _suggestContractorsForScope,
-                                                onOpenApprovedContractorList:
-                                                    _openApprovedContractorList,
-                                              )
-                                            : _ContractingScopeTable(
-                                                items: items,
-                                                onEdit: _openEditItemDialog,
-                                                onDelete: _deleteItem,
-                                              ),
-                                        if (items.length >= _itemQueryLimit)
-                                          Align(
-                                            alignment: Alignment.centerRight,
-                                            child: TextButton.icon(
-                                              onPressed: _loadMoreItems,
-                                              icon: const Icon(
-                                                Icons.unfold_more_rounded,
-                                                size: 16,
-                                              ),
-                                              label: Text(
-                                                'Load ${_loadMoreStep.toString()} more scope items',
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 32),
-                                _SectionHeader(
-                                  title: 'Contracting Workflow',
-                                  subtitle:
-                                      'Use editable bidding cycle stages with preset durations. Apply one cycle to all scopes or customize it per contract scope.',
-                                  actionLabel: 'Reset Preset',
-                                  onAction: () async {
-                                    final items = await (_itemsStream?.first
-                                            .timeout(
-                                          const Duration(seconds: 6),
-                                          onTimeout: () =>
-                                              const <ProcurementItemModel>[],
-                                        ) ??
-                                        Future.value(
-                                            const <ProcurementItemModel>[]));
-                                    if (!mounted) return;
-                                    _resetWorkflowDraftToPreset(items);
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                StreamBuilder<List<ProcurementItemModel>>(
-                                  stream: _itemsStream,
-                                  builder: (context, snapshot) {
-                                    if (snapshot.hasError) {
-                                      return _buildErrorState(
-                                          context, snapshot.error!);
-                                    }
-                                    final items = snapshot.data ??
-                                        const <ProcurementItemModel>[];
-                                    return _buildContractingWorkflowSection(
-                                        items);
-                                  },
-                                ),
-                                const SizedBox(height: 32),
-                                _SectionHeader(
-                                  title: 'Contract Scope Management',
-                                  subtitle:
-                                      'Commence scope processes with role-based authority. Contracting Templates, Contract Tracking, and Reports remain locked until a scope process starts.',
-                                  actionLabel: 'Approved Contractors',
-                                  onAction: _openApprovedContractorList,
-                                ),
-                                const SizedBox(height: 12),
-                                StreamBuilder<List<ProcurementItemModel>>(
-                                  stream: _itemsStream,
-                                  builder: (context, snapshot) {
-                                    if (snapshot.hasError) {
-                                      return _buildErrorState(
-                                          context, snapshot.error!);
-                                    }
-                                    final items = snapshot.data ??
-                                        const <ProcurementItemModel>[];
-                                    return StreamBuilder<List<VendorModel>>(
-                                      stream: _contractorsStream,
-                                      builder: (context, contractorSnapshot) {
-                                        if (contractorSnapshot.hasError) {
-                                          return _buildErrorState(context,
-                                              contractorSnapshot.error!);
-                                        }
-                                        final contractors =
-                                            contractorSnapshot.data ??
-                                                const <VendorModel>[];
-                                        return _buildContractScopeManagementSection(
-                                          items,
-                                          contractors,
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-
-                                // Actions Footer
-                                const SizedBox(height: 40),
-                                const SizedBox(height: 120), // Bottom padding
-                              ],
-                            ),
-                          ),
-                        ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Row(
+              children: [
+                DraggableSidebar(
+                  openWidth: AppBreakpoints.sidebarWidth(context),
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'Contracting'),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      FrontEndPlanningHeader(
+                        title: 'Contracting',
+                        scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Contracting',
                       ),
                     ),
-                    _BottomOverlay(onNext: _navigateToProcurement),
-                  ],
+                            const AdminEditToggle(),
+                            SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 32, vertical: 24),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _ContractingTopBar(
+                                    onBack: _goToPreviousSection,
+                                    onForward: _navigateToProcurement,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  PlanningAiNotesCard(
+                                    title: 'Notes',
+                                    sectionLabel: 'Contracting',
+                                    noteKey: _contractingNotesKey,
+                                    checkpoint: 'fep_contract_vendor_quotes',
+                                    onChanged: _handleContractingNotesChanged,
+                                    fallbackText:
+                                        _resolveContractingNotesFallback(
+                                      ProjectDataHelper.getData(context),
+                                    ),
+                                    description:
+                                        'Capture contracting priorities, package boundaries, and approval constraints.',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: Wrap(
+                                      spacing: 12,
+                                      runSpacing: 8,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed:
+                                              _openApprovedContractorList,
+                                          icon: const Icon(
+                                            Icons.fact_check_outlined,
+                                            size: 16,
+                                          ),
+                                          label: const Text(
+                                            'Approved Contractor List',
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                const Color(0xFF1E3A8A),
+                                            side: const BorderSide(
+                                                color: Color(0xFFBFDBFE)),
+                                            backgroundColor:
+                                                const Color(0xFFEFF6FF),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
+                                            ),
+                                          ),
+                                        ),
+                                        PageRegenerateAllButton(
+                                          onRegenerateAll: () async {
+                                            final confirmed =
+                                                await showRegenerateAllConfirmation(
+                                                    context);
+                                            if (confirmed && mounted) {
+                                              await _regenerateAllContracts();
+                                            }
+                                          },
+                                          isLoading: _generating,
+                                          tooltip:
+                                              'Generate contracts and contractors',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  StreamBuilder<List<ContractModel>>(
+                                    stream: _contractsStream,
+                                    builder: (context, contractSnapshot) {
+                                      final contracts = contractSnapshot.data ??
+                                          const <ContractModel>[];
+                                      return StreamBuilder<
+                                          List<ProcurementItemModel>>(
+                                        stream: _itemsStream,
+                                        builder: (context, itemSnapshot) {
+                                          final items = itemSnapshot.data ??
+                                              const <ProcurementItemModel>[];
+                                          final notes =
+                                              ProjectDataHelper.getData(context)
+                                                  .planningNotes;
+                                          final startedCount = items
+                                              .where(
+                                                (item) =>
+                                                    _scopeManagementByScopeId[
+                                                            item.id]
+                                                        ?.started ==
+                                                    true,
+                                              )
+                                              .length;
+                                          final trackingCount = items
+                                              .where(
+                                                (item) =>
+                                                    _trackingStatusForScope(
+                                                      item.id,
+                                                      notes,
+                                                    ) !=
+                                                    'Not Started',
+                                              )
+                                              .length;
+                                          final reportCount =
+                                              _loadContractingReports(
+                                                      ProjectDataHelper.getData(
+                                                          context))
+                                                  .length;
+                                          return _buildContractingOverviewCard(
+                                            contractsCount: contracts.length,
+                                            scopeCount: items.length,
+                                            startedCount: startedCount,
+                                            trackingCount: trackingCount,
+                                            reportCount: reportCount,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 32),
+
+                                  // Contracts Section
+                                  _SectionHeader(
+                                    title: 'Contracts',
+                                    subtitle:
+                                        'Define contract packages, owners, and delivery responsibilities aligned to execution milestones.',
+                                    actionLabel: 'Add Contract',
+                                    onAction: _openAddContractDialog,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  StreamBuilder<List<ContractModel>>(
+                                    stream: _contractsStream,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasError) {
+                                        return _buildErrorState(
+                                            context, snapshot.error!);
+                                      }
+                                      if (_showAutoGenerationSpinner &&
+                                          !(snapshot.hasData &&
+                                              snapshot.data!.isNotEmpty)) {
+                                        return Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 40,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: const Color(0xFFE5E7EB)),
+                                          ),
+                                          child: const Column(
+                                            children: [
+                                              CircularProgressIndicator(),
+                                              SizedBox(height: 12),
+                                              Text(
+                                                'Generating initial contracts and contracting details...',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                      if (!snapshot.hasData) {
+                                        return const Center(
+                                            child: CircularProgressIndicator());
+                                      }
+                                      final contracts = snapshot.data!;
+                                      if (_autoGenerationError != null &&
+                                          contracts.isEmpty) {
+                                        return Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 18,
+                                            vertical: 24,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                                color: const Color(0xFFE5E7EB)),
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              Text(
+                                                _autoGenerationError!,
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  color: Color(0xFFB91C1C),
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 10),
+                                              OutlinedButton.icon(
+                                                onPressed: _generating
+                                                    ? null
+                                                    : _regenerateAllContracts,
+                                                icon: const Icon(
+                                                    Icons.auto_awesome_rounded,
+                                                    size: 16),
+                                                label: const Text(
+                                                    'Generate with AI'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                      }
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          ContractsTable(
+                                            contracts: contracts,
+                                            onEdit: _openEditContractDialog,
+                                            onDelete: _deleteContract,
+                                          ),
+                                          if (contracts.length >=
+                                              _contractQueryLimit)
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: TextButton.icon(
+                                                onPressed: _loadMoreContracts,
+                                                icon: const Icon(
+                                                  Icons.unfold_more_rounded,
+                                                  size: 16,
+                                                ),
+                                                label: Text(
+                                                  'Load ${_loadMoreStep.toString()} more contracts',
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 48),
+
+                                  // Contracting Scope Section
+                                  _ScopeSectionModeSwitcher(
+                                    showDetails: _showScopeDetails,
+                                    onChanged: (showDetails) {
+                                      if (_showScopeDetails == showDetails) {
+                                        return;
+                                      }
+                                      setState(() =>
+                                          _showScopeDetails = showDetails);
+                                    },
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _SectionHeader(
+                                    title: _showScopeDetails
+                                        ? 'Contract Details'
+                                        : 'Contracting Scope',
+                                    subtitle: _showScopeDetails
+                                        ? 'Card-based scope details sourced from the Contracting Scope table, including contractors and the stage where contracting should begin.'
+                                        : _contractingScopeSubtitle,
+                                    actionLabel: 'Add Scope',
+                                    onAction: _openAddItemDialog,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  StreamBuilder<List<ProcurementItemModel>>(
+                                    stream: _itemsStream,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasError) {
+                                        return _buildErrorState(
+                                            context, snapshot.error!);
+                                      }
+                                      if (snapshot.connectionState ==
+                                          ConnectionState.waiting) {
+                                        return const Center(
+                                            child: CircularProgressIndicator());
+                                      }
+                                      final items = snapshot.data ??
+                                          const <ProcurementItemModel>[];
+                                      return Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          _showScopeDetails
+                                              ? _ContractScopeDetailsBoard(
+                                                  items: items,
+                                                  stageOptions:
+                                                      _startStageOptions,
+                                                  onEdit: _openEditItemDialog,
+                                                  onDelete: _deleteItem,
+                                                  onStageChanged:
+                                                      _setContractingStartStage,
+                                                  onSavePotentialContractors:
+                                                      _savePotentialContractorsForScope,
+                                                  onSuggestContractors:
+                                                      _suggestContractorsForScope,
+                                                  onOpenApprovedContractorList:
+                                                      _openApprovedContractorList,
+                                                )
+                                              : _ContractingScopeTable(
+                                                  items: items,
+                                                  onEdit: _openEditItemDialog,
+                                                  onDelete: _deleteItem,
+                                                ),
+                                          if (items.length >= _itemQueryLimit)
+                                            Align(
+                                              alignment: Alignment.centerRight,
+                                              child: TextButton.icon(
+                                                onPressed: _loadMoreItems,
+                                                icon: const Icon(
+                                                  Icons.unfold_more_rounded,
+                                                  size: 16,
+                                                ),
+                                                label: Text(
+                                                  'Load ${_loadMoreStep.toString()} more scope items',
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: 32),
+                                  _SectionHeader(
+                                    title: 'Contracting Workflow',
+                                    subtitle:
+                                        'Use editable bidding cycle stages with preset durations. Apply one cycle to all scopes or customize it per contract scope.',
+                                    actionLabel: 'Reset Preset',
+                                    onAction: () async {
+                                      final items = await (_itemsStream?.first
+                                              .timeout(
+                                            const Duration(seconds: 6),
+                                            onTimeout: () =>
+                                                const <ProcurementItemModel>[],
+                                          ) ??
+                                          Future.value(
+                                              const <ProcurementItemModel>[]));
+                                      if (!mounted) return;
+                                      _resetWorkflowDraftToPreset(items);
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  StreamBuilder<List<ProcurementItemModel>>(
+                                    stream: _itemsStream,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasError) {
+                                        return _buildErrorState(
+                                            context, snapshot.error!);
+                                      }
+                                      final items = snapshot.data ??
+                                          const <ProcurementItemModel>[];
+                                      return _buildContractingWorkflowSection(
+                                          items);
+                                    },
+                                  ),
+                                  const SizedBox(height: 32),
+                                  _SectionHeader(
+                                    title: 'Contract Scope Management',
+                                    subtitle:
+                                        'Commence scope processes with role-based authority. Contracting Templates, Contract Tracking, and Reports remain locked until a scope process starts.',
+                                    actionLabel: 'Approved Contractors',
+                                    onAction: _openApprovedContractorList,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  StreamBuilder<List<ProcurementItemModel>>(
+                                    stream: _itemsStream,
+                                    builder: (context, snapshot) {
+                                      if (snapshot.hasError) {
+                                        return _buildErrorState(
+                                            context, snapshot.error!);
+                                      }
+                                      final items = snapshot.data ??
+                                          const <ProcurementItemModel>[];
+                                      return StreamBuilder<List<VendorModel>>(
+                                        stream: _contractorsStream,
+                                        builder: (context, contractorSnapshot) {
+                                          if (contractorSnapshot.hasError) {
+                                            return _buildErrorState(context,
+                                                contractorSnapshot.error!);
+                                          }
+                                          final contractors =
+                                              contractorSnapshot.data ??
+                                                  const <VendorModel>[];
+                                          return _buildContractScopeManagementSection(
+                                            items,
+                                            contractors,
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+
+                                  // Actions Footer
+                                  const SizedBox(height: 40),
+                                  const SizedBox(height: 120), // Bottom padding
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _BottomOverlay(onNext: _navigateToProcurement),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -6380,7 +6413,7 @@ class _ContractScopeDetailCardState extends State<_ContractScopeDetailCard> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Add Potential Contractors'),
-        content: TextField(
+        content: VoiceTextField(
           controller: controller,
           maxLines: 2,
           decoration: const InputDecoration(

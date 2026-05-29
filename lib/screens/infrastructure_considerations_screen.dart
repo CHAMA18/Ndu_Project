@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
 import 'package:ndu_project/widgets/business_case_header.dart';
 import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // Removed AppLogo from the top header for this screen per request
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
@@ -34,6 +35,7 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 enum _MissingInfrastructureAction { manual, autoFill, skip }
 
@@ -81,6 +83,30 @@ class _InfrastructureConsiderationsScreenState
       _solutions.add(AiSolutionItem(title: '', description: ''));
       _infraControllers.add(RichTextEditingController());
     });
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final infraRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
+      final title = _solutions[i].title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _solutions[i].title.trim();
+      final infra = _infraControllers[i].text.trim();
+      infraRows.add([title, infra.isEmpty ? 'No data recorded.' : infra]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Infrastructure Considerations',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Major Infrastructure by Solution',
+          headers: ['Solution', 'Infrastructure'],
+          rows: infraRows,
+        ),
+      ],
+    );
   }
 
   @override
@@ -288,23 +314,31 @@ class _InfrastructureConsiderationsScreenState
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(children: [
-            BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(
-                child: Row(children: [
-              DraggableSidebar(
-                openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(
-                    activeItemLabel: 'Infrastructure Considerations'),
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(children: [
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+              Expanded(
+                  child: Row(children: [
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'Infrastructure Considerations'),
+                ),
+                Expanded(child: _buildMainContent()),
+              ])),
+            ]),
+            MobileSidebarHamburger(
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Infrastructure Considerations',
               ),
-              Expanded(child: _buildMainContent()),
-            ])),
-          ]),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+            ),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -404,7 +438,7 @@ class _InfrastructureConsiderationsScreenState
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: const Color(0xFFDCE3EE)),
                       ),
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: _notesController,
                         minLines: 3,
                         maxLines: 6,
@@ -618,7 +652,7 @@ class _InfrastructureConsiderationsScreenState
                     ),
                   ],
                 ),
-                TextField(
+                VoiceTextField(
                   controller: _infraControllers[index],
                   minLines: 4,
                   maxLines: null,
@@ -869,8 +903,7 @@ class _InfrastructureConsiderationsScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -905,8 +938,7 @@ class _InfrastructureConsiderationsScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -945,8 +977,7 @@ class _InfrastructureConsiderationsScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -983,8 +1014,7 @@ class _InfrastructureConsiderationsScreenState
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1096,146 +1126,168 @@ class _InfrastructureConsiderationsScreenState
         controller: _reviewScrollController,
         padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          const EditableContentText(
-              contentKey: 'infrastructure_considerations_heading',
-              fallback: 'Infrastructure Considerations ',
-              category: 'business_case',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black)),
-          Expanded(
-            child: EditableContentText(
-                contentKey: 'infrastructure_considerations_description',
-                fallback:
-                    '(List major required infrastructure considerations for each Potential Solution.)',
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            const EditableContentText(
+                contentKey: 'infrastructure_considerations_heading',
+                fallback: 'Infrastructure Considerations ',
                 category: 'business_case',
-                style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          ),
-          // Page-level Regenerate All button
-          PageRegenerateAllButton(
-            onRegenerateAll: () async {
-              final confirmed = await showRegenerateAllConfirmation(context);
-              if (confirmed && mounted) {
-                await _regenerateAllInfrastructure();
-              }
-            },
-            isLoading: _isGeneratingInfra,
-            tooltip: 'Regenerate all infrastructure considerations',
-          ),
-        ]),
-        const SizedBox(height: 16),
-        const EditableContentText(
-          contentKey: 'infrastructure_considerations_notes_heading',
-          fallback: 'Notes',
-          category: 'business_case',
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.withOpacity(0.3))),
-          child: TextField(
-            controller: _notesController,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            decoration: InputDecoration(
-                hintText: 'Input your notes here...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero),
-            minLines: 1,
-            maxLines: null,
-          ),
-        ),
-        const SizedBox(height: 24),
-        if (isMobile) ...[
-          Text('Reminder: update text within each box.',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic)),
-          const SizedBox(height: 8),
-          Column(children: List.generate(_solutions.length, (i) => _row(i))),
-        ] else ...[
-          const Text(
-              'Main Infrastructure Consideration for each potential solution',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black)),
-          const SizedBox(height: 6),
-          Text('Reminder: update text within each box.',
-              style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontStyle: FontStyle.italic)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: const Row(children: [
-              Expanded(
-                  flex: 2,
-                  child: Center(
-                      child: Text('Potential Solution',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-              Expanded(
-                  flex: 3,
-                  child: Center(
-                      child: Text('Major Infrastructure',
-                          style: TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.w600)))),
-            ]),
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black)),
+            Expanded(
+              child: EditableContentText(
+                  contentKey: 'infrastructure_considerations_description',
+                  fallback:
+                      '(List major required infrastructure considerations for each Potential Solution.)',
+                  category: 'business_case',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+            ),
+            // Page-level Regenerate All button
+            PageRegenerateAllButton(
+              onRegenerateAll: () async {
+                final confirmed = await showRegenerateAllConfirmation(context);
+                if (confirmed && mounted) {
+                  await _regenerateAllInfrastructure();
+                }
+              },
+              isLoading: _isGeneratingInfra,
+              tooltip: 'Regenerate all infrastructure considerations',
+            ),
+          ]),
+          const SizedBox(height: 16),
+          const EditableContentText(
+            contentKey: 'infrastructure_considerations_notes_heading',
+            fallback: 'Notes',
+            category: 'business_case',
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
           ),
           const SizedBox(height: 8),
           Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: Column(
-                children: List.generate(_solutions.length, (i) => _row(i))),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.withOpacity(0.3))),
+            child: VoiceTextField(
+              controller: _notesController,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              decoration: InputDecoration(
+                  hintText: 'Input your notes here...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero),
+              minLines: 1,
+              maxLines: null,
+            ),
           ),
-        ],
-        if (_canUseAdminControls) ...[
-          const SizedBox(height: 16),
-          // Add Item button (admin-only)
-          Row(children: [
-            Tooltip(
-              message: 'Add a new infrastructure consideration entry manually',
-              child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: _addNewItem,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Item'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(width: 12),
-          ]),
           const SizedBox(height: 24),
-        ],
+          if (isMobile) ...[
+            Text('Reminder: update text within each box.',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic)),
+            const SizedBox(height: 8),
+            Column(children: List.generate(_solutions.length, (i) => _row(i))),
+          ] else ...[
+            const Text(
+                'Main Infrastructure Consideration for each potential solution',
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black)),
+            const SizedBox(height: 6),
+            Text('Reminder: update text within each box.',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FB),
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(8)),
+                  border: Border.all(color: const Color(0xFFE4E7EC))),
+              child: const Row(children: [
+                Expanded(
+                    flex: 2,
+                    child: Center(
+                        child: Text('Potential Solution',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
+                SizedBox(width: 16),
+                Expanded(
+                    flex: 3,
+                    child: Center(
+                        child: Text('Major Infrastructure',
+                            style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475467))))),
+              ]),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                      const BorderRadius.vertical(bottom: Radius.circular(8)),
+                  border: Border.all(color: const Color(0xFFE4E7EC))),
+              child: _solutions.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'No solutions added yet. Add solutions from the Potential Solutions page to generate infrastructure considerations.',
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[500]),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : Column(
+                      children:
+                          List.generate(_solutions.length, (i) => _row(i))),
+            ),
+          ],
+          if (_canUseAdminControls) ...[
+            const SizedBox(height: 16),
+            // Add Item button (admin-only)
+            Row(children: [
+              Tooltip(
+                message:
+                    'Add a new infrastructure consideration entry manually',
+                child:
+                    const Icon(Icons.lightbulb_outline, color: Colors.black87),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _addNewItem,
+                icon: const Icon(Icons.add),
+                label: const Text('Add Item'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ]),
+            const SizedBox(height: 24),
+          ],
 
-        // Navigation Buttons
+          // Navigation Buttons
           BusinessCaseNavigationButtons(
             currentScreen: 'Infrastructure Considerations',
             padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
@@ -1648,15 +1700,19 @@ class _InfrastructureConsiderationsScreenState
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
+    final isStriped = index.isOdd;
     // Handle cases where we have more controllers than initial solutions (user added items)
     final s = index < _solutions.length
         ? _solutions[index]
         : AiSolutionItem(title: '', description: '');
     return Container(
+      constraints: BoxConstraints(
+        minHeight: isMobile ? 0 : 168,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
+          color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
+          border: Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
       child: isMobile
           ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(
@@ -1692,7 +1748,7 @@ class _InfrastructureConsiderationsScreenState
                                       : s.title,
                                   style: const TextStyle(
                                       fontSize: 13,
-                                      color: Colors.black87,
+                                      color: Color(0xFF1F2937),
                                       fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -1701,7 +1757,7 @@ class _InfrastructureConsiderationsScreenState
                           const SizedBox(height: 6),
                           Text(s.description,
                               style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
+                                  fontSize: 12, color: Color(0xFF6B7280)),
                               maxLines: 5,
                               softWrap: true,
                               overflow: TextOverflow.ellipsis),
@@ -1772,6 +1828,7 @@ class _InfrastructureConsiderationsScreenState
         }
       },
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextFormattingToolbar(
@@ -1780,16 +1837,19 @@ class _InfrastructureConsiderationsScreenState
           ),
           const SizedBox(height: 8),
           Container(
+            constraints: const BoxConstraints(minHeight: 108),
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: Colors.grey.withOpacity(0.25))),
-            child: TextField(
+            child: VoiceTextField(
               controller: controller,
-              minLines: 2,
+              minLines: 4,
               maxLines: null,
-              textAlign: TextAlign.center,
+              textAlign: TextAlign.start,
+              textAlignVertical: TextAlignVertical.top,
               onChanged: (value) {
                 provider.addFieldToHistory(fieldKey, value,
                     isAiGenerated: true);
@@ -1802,7 +1862,11 @@ class _InfrastructureConsiderationsScreenState
                     'Enter main infrastructure considerations for Solution ${index + 1}...',
                 hintStyle: TextStyle(color: Colors.grey[400]),
               ),
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black87,
+                height: 1.45,
+              ),
             ),
           ),
         ],

@@ -6,13 +6,13 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/premium_edit_dialog.dart';
@@ -21,6 +21,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class TeamTrainingAndBuildingScreen extends StatefulWidget {
   const TeamTrainingAndBuildingScreen({super.key});
@@ -104,18 +107,65 @@ class _TeamTrainingAndBuildingScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
+
+    final header = PlanningPhaseHeader(
+      title: 'Training & Team Building',
+      breadcrumbPhase: 'Planning Phase',
+      breadcrumbTitle: 'Team Training',
+      onBack: () =>
+          PlanningPhaseNavigation.goToPrevious(context, 'team_training'),
+      onForward: () =>
+          PlanningPhaseNavigation.goToNext(context, 'team_training'), onExportPdf: _exportPdf);
+
+    // --- Mobile layout ---
+    if (isMobile) {
+      return Scaffold(
+        backgroundColor: Colors.grey[50],
+        drawer: Drawer(
+          width: sidebarWidth,
+          child: SafeArea(
+            child: InitiationLikeSidebar(
+              activeItemLabel: 'Team Training and Team Building',
+              showHeader: true,
+            ),
+          ),
+        ),
+        body: SafeArea(
+          top: true,
+          child: Column(
+            children: [
+              header,
+              Expanded(child: _buildMain(context)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // --- Desktop layout ---
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      body: Row(
-        children: [
-          DraggableSidebar(
-            openWidth: sidebarWidth,
-            child: const InitiationLikeSidebar(
-                activeItemLabel: 'Team Training and Team Building'),
-          ),
-          Expanded(child: _buildMain(context)),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Column(
+          children: [
+            header,
+            Expanded(
+              child: Row(
+                children: [
+                  DraggableSidebar(
+                    openWidth: sidebarWidth,
+                    child: const InitiationLikeSidebar(
+                        activeItemLabel: 'Team Training and Team Building'),
+                  ),
+                  Expanded(child: _buildMain(context)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -138,31 +188,6 @@ class _TeamTrainingAndBuildingScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                _circleIconButton(Icons.arrow_back_ios,
-                    onTap: () => PlanningPhaseNavigation.goToPrevious(
-                        context, 'team_training')),
-                const SizedBox(width: 12),
-                _circleIconButton(Icons.arrow_forward_ios,
-                    onTap: () => PlanningPhaseNavigation.goToNext(
-                        context, 'team_training')),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Center(
-                    child: Text(
-                      'Team Training and Team Building',
-                      style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF111827)),
-                    ),
-                  ),
-                ),
-                _profileCluster(context),
-              ],
-            ),
-            const SizedBox(height: 16),
             Row(
               children: [
                 const Spacer(),
@@ -342,8 +367,8 @@ class _TeamTrainingAndBuildingScreenState
             LaunchPhaseNavigation(
               backLabel: PlanningPhaseNavigation.backLabel('team_training'),
               nextLabel: PlanningPhaseNavigation.nextLabel('team_training'),
-              onBack: () =>
-                  PlanningPhaseNavigation.goToPrevious(context, 'team_training'),
+              onBack: () => PlanningPhaseNavigation.goToPrevious(
+                  context, 'team_training'),
               onNext: () =>
                   PlanningPhaseNavigation.goToNext(context, 'team_training'),
             ),
@@ -656,7 +681,7 @@ class _TeamTrainingAndBuildingScreenState
               ),
               const SizedBox(height: 16),
               PremiumEditDialog.fieldLabel('Template / Notes'),
-              TextField(
+              VoiceTextField(
                 controller: descriptionController,
                 maxLines: 8,
                 decoration: InputDecoration(
@@ -887,7 +912,7 @@ class _TeamTrainingAndBuildingScreenState
                 ),
               ],
               const SizedBox(height: 10),
-              TextField(
+              VoiceTextField(
                 controller: manualUrlController,
                 decoration: InputDecoration(
                   labelText: 'Or Paste Existing Download URL',
@@ -1001,7 +1026,7 @@ class _TeamTrainingAndBuildingScreenState
                       ),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    VoiceTextField(
                       controller: titleController,
                       decoration: InputDecoration(
                         labelText: 'Activity Title',
@@ -1046,7 +1071,7 @@ class _TeamTrainingAndBuildingScreenState
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: templateController,
                       maxLines: 14,
                       decoration: InputDecoration(
@@ -1216,7 +1241,7 @@ class _TeamTrainingAndBuildingScreenState
                       ),
                     ],
                     const SizedBox(height: 10),
-                    TextField(
+                    VoiceTextField(
                       controller: manualUrlController,
                       decoration: InputDecoration(
                         labelText: 'Or Paste Existing Download URL',
@@ -1234,7 +1259,7 @@ class _TeamTrainingAndBuildingScreenState
                     Row(
                       children: [
                         Expanded(
-                          child: TextField(
+                          child: VoiceTextField(
                             controller: dateController,
                             decoration: InputDecoration(
                               labelText: 'Date',
@@ -1250,7 +1275,7 @@ class _TeamTrainingAndBuildingScreenState
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: TextField(
+                          child: VoiceTextField(
                             controller: durationController,
                             decoration: InputDecoration(
                               labelText: 'Duration / Interval',
@@ -2094,105 +2119,17 @@ $notesText
     );
   }
 
-  Widget _circleIconButton(IconData icon, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            )
-          ],
-        ),
-        child: Icon(icon, size: 16, color: Colors.grey[700]),
-      ),
-    );
-  }
-
-  Widget _profileCluster(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName =
-        FirebaseAuthService.displayNameOrEmail(fallback: 'User');
-    final email = user?.email ?? '';
-    final name = displayName.isNotEmpty
-        ? displayName
-        : (email.isNotEmpty ? email : 'User');
-    final photoUrl = user?.photoURL ?? '';
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        StreamBuilder<bool>(
-          stream: UserService.watchAdminStatus(),
-          builder: (context, snapshot) {
-            final isAdmin = snapshot.data ?? UserService.isAdminEmail(email);
-            final role = isAdmin ? 'Admin' : 'Member';
-
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(26),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.blue[400],
-                    backgroundImage:
-                        photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                    child: photoUrl.isEmpty
-                        ? Text(
-                            name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                      Text(
-                        role,
-                        style:
-                            const TextStyle(fontSize: 10, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.keyboard_arrow_down,
-                      color: Colors.grey[700], size: 18),
-                ],
-              ),
-            );
-          },
-        ),
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Team Training & Building',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_team_training_building_notes'] ?? 'No data recorded.'),
       ],
     );
   }

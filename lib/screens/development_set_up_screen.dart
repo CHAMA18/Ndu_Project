@@ -1,20 +1,23 @@
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/technical_alignment_screen.dart';
 import 'package:ndu_project/screens/ui_ux_design_screen.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
-import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Development Set Up — CRUD-Enabled Overhaul
@@ -36,6 +39,14 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   // ── Methodology selection ──────────────────────────────────────────────
   String _selectedMethodology = 'Hybrid';
 
+  static const List<String> _methodologyOptions = [
+    'Hybrid', 'Agile', 'Waterfall',
+  ];
+
+  static const List<String> _qualityStatusOptions = [
+    'Planned', 'Not Started', 'In Progress', 'Active', 'Completed', 'Waived',
+  ];
+
   // ── Filter chips ───────────────────────────────────────────────────────
   final Set<String> _selectedFilters = {'All registers'};
 
@@ -50,6 +61,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   final _Debouncer _saveDebounce = _Debouncer();
   bool _isLoading = false;
   bool _suspendSave = false;
+  bool _frameworkGuideExpanded = false;
 
   @override
   void initState() {
@@ -495,56 +507,48 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     return ResponsiveScaffold(
       activeItemLabel: 'Development Set Up',
       floatingActionButton: const KazAiChatBubble(positioned: false),
-      body: Column(
-        children: [
-          const PlanningPhaseHeader(
-            title: 'Development Set Up',
-            showImportButton: false,
-            showContentButton: false,
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(padding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-                  if (_isLoading) const SizedBox(height: 16),
-                  _buildHeroHeader(isMobile: isMobile),
-                  const SizedBox(height: 24),
-                  _buildMethodologySelector(),
-                  const SizedBox(height: 24),
-                  _buildMethodologyComparisonTable(),
-                  const SizedBox(height: 24),
-                  _buildFilterChips(),
-                  const SizedBox(height: 20),
-                  _buildStatsRow(),
-                  const SizedBox(height: 20),
-                  _buildFrameworkGuidePanel(),
-                  const SizedBox(height: 24),
-                  _buildEnvProvisionRegister(),
-                  const SizedBox(height: 20),
-                  _buildCicdPipelineRegister(),
-                  const SizedBox(height: 20),
-                  _buildDevToolsRegister(),
-                  const SizedBox(height: 20),
-                  _buildQualityGatesRegister(),
-                  const SizedBox(height: 20),
-                  _buildSecurityBaselineRegister(),
-                  const SizedBox(height: 20),
-                  _buildApprovalGatesPanel(),
-                  const SizedBox(height: 32),
-                  LaunchPhaseNavigation(
-                    backLabel: 'Back: Technical Alignment',
-                    nextLabel: 'Next: UI/UX Design',
-                    onBack: _navigateToTechnicalAlignment,
-                    onNext: _navigateToUiUxDesign,
-                  ),
-                ],
-              ),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(padding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+            if (_isLoading) const SizedBox(height: 16),
+            PlanningPhaseHeader(
+              title: 'Development Set Up',
+              showImportButton: false,
+              showContentButton: false, onExportPdf: _exportPdf),
+            const SizedBox(height: 16),
+            _buildHeroHeader(isMobile: isMobile),
+            const SizedBox(height: 24),
+            _buildMethodologySelector(),
+            const SizedBox(height: 24),
+            _buildFilterChips(),
+            const SizedBox(height: 20),
+            _buildStatsRow(),
+            const SizedBox(height: 20),
+            _buildFrameworkGuidePanel(),
+            const SizedBox(height: 24),
+            _buildEnvProvisionRegister(),
+            const SizedBox(height: 20),
+            _buildCicdPipelineRegister(),
+            const SizedBox(height: 20),
+            _buildDevToolsRegister(),
+            const SizedBox(height: 20),
+            _buildQualityGatesRegister(),
+            const SizedBox(height: 20),
+            _buildSecurityBaselineRegister(),
+            const SizedBox(height: 20),
+            _buildApprovalGatesPanel(),
+            const SizedBox(height: 24),
+            LaunchPhaseNavigation(
+              backLabel: 'Back: Technical Alignment',
+              nextLabel: 'Next: UI/UX Design',
+              onBack: _navigateToTechnicalAlignment,
+              onNext: _navigateToUiUxDesign,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -849,74 +853,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     );
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // METHODOLOGY COMPARISON TABLE
-  // ══════════════════════════════════════════════════════════════════════════
 
-  Widget _buildMethodologyComparisonTable() {
-    return _PanelShell(
-      title: 'Methodology Comparison Matrix',
-      subtitle: 'Industry-standard comparison of Development Setup requirements across Waterfall, Hybrid, and Agile methodologies. Based on PMBOK 7th Ed., ISO/IEC 12207, and SAFe 6.0 frameworks.',
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildComparisonHeader(),
-              const SizedBox(height: 8),
-              _buildComparisonRow(dimension: 'Environment Provisioning', waterfall: 'Complete all environments before development starts', hybrid: 'Core environments upfront; dev env evolves', agile: 'Minimal viable environment for Sprint 1'),
-              _buildComparisonRow(dimension: 'CI/CD Pipeline', waterfall: 'Full pipeline with phase-gate approvals', hybrid: 'Basic CI upfront; CD matures iteratively', agile: 'Fast CI from day 1; CD per sprint'),
-              _buildComparisonRow(dimension: 'Tooling & Licensing', waterfall: 'All tools licensed and configured upfront', hybrid: 'Critical tools first; others staged', agile: 'Essential tools for Sprint 1; expand as needed'),
-              _buildComparisonRow(dimension: 'Quality Gates', waterfall: 'Phase entry/exit criteria with formal sign-off', hybrid: 'Phase gates for infra; DoD for features', agile: 'Definition of Ready and Definition of Done'),
-              _buildComparisonRow(dimension: 'Security & Compliance', waterfall: 'Full security audit before development', hybrid: 'Compliance baseline upfront; iterative hardening', agile: 'Shift-left security in CI pipeline'),
-              _buildComparisonRow(dimension: 'Branching Strategy', waterfall: 'Strict branching per phase', hybrid: 'GitFlow with release trains', agile: 'Trunk-based with feature flags'),
-              _buildComparisonRow(dimension: 'Rollback Approach', waterfall: 'CCB-approved rollback with documented criteria', hybrid: 'Formal rollback for infra; feature flags for code', agile: 'Automated rollback with feature flags and canary'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildComparisonHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(14)),
-      child: const Row(
-        children: [
-          SizedBox(width: 180, child: Text('DIMENSION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF334155), letterSpacing: 0.7))),
-          SizedBox(width: 10),
-          Expanded(child: Text('WATERFALL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF2563EB), letterSpacing: 0.7))),
-          SizedBox(width: 10),
-          Expanded(child: Text('HYBRID', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF7C3AED), letterSpacing: 0.7))),
-          SizedBox(width: 10),
-          Expanded(child: Text('AGILE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF16A34A), letterSpacing: 0.7))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildComparisonRow({required String dimension, required String waterfall, required String hybrid, required String agile}) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE2E8F0))),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(width: 180, child: Text(dimension, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
-          const SizedBox(width: 10),
-          Expanded(child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF2563EB).withOpacity(0.05), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.15))), child: Text(waterfall, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155), height: 1.4)))),
-          const SizedBox(width: 10),
-          Expanded(child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF7C3AED).withOpacity(0.05), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.15))), child: Text(hybrid, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155), height: 1.4)))),
-          const SizedBox(width: 10),
-          Expanded(child: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: const Color(0xFF16A34A).withOpacity(0.05), borderRadius: BorderRadius.circular(10), border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.15))), child: Text(agile, style: const TextStyle(fontSize: 12.5, color: Color(0xFF334155), height: 1.4)))),
-        ],
-      ),
-    );
-  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // FILTER CHIPS
@@ -1017,7 +954,6 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
 
   Widget _buildFrameworkGuidePanel() {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -1027,22 +963,55 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Development setup best practices', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in PMI PMBOK Resource Management (9), Quality Management (8), and SAFe 6.0 CALMR approach. '
-            'Effective development setup ensures that environments, pipelines, tooling, quality gates, and security baselines '
-            'are provisioned and validated before development execution begins.',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+          // Clickable header row
+          InkWell(
+            onTap: () => setState(() => _frameworkGuideExpanded = !_frameworkGuideExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text('Development setup best practices', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+                  ),
+                  AnimatedRotation(
+                    duration: const Duration(milliseconds: 200),
+                    turns: _frameworkGuideExpanded ? 0.5 : 0,
+                    child: Icon(Icons.expand_more, size: 22, color: const Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(height: 18),
-          _buildGuideCard(Icons.dns_outlined, 'Environment First', 'Provision and validate all environments before onboarding the team. Each environment should mirror its target configuration to prevent late-stage surprises.', const Color(0xFF0EA5E9)),
-          const SizedBox(height: 12),
-          _buildGuideCard(Icons.play_circle_outline, 'Pipeline Automation', 'Automate build, test, and deployment from day one. Fast feedback loops catch issues early and reduce manual coordination overhead.', const Color(0xFF10B981)),
-          const SizedBox(height: 12),
-          _buildGuideCard(Icons.handyman_outlined, 'License Governance', 'Track tool licenses, assigned users, and expiry dates. Expired licenses block the team and create compliance risk.', const Color(0xFFF59E0B)),
-          const SizedBox(height: 12),
-          _buildGuideCard(Icons.shield_outlined, 'Shift-Left Security', 'Integrate security scanning (SAST/DAST) in the CI pipeline from the start. Security debt compounds rapidly if deferred to later phases.', const Color(0xFFEF4444)),
+          // Collapsible content
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Grounded in PMI PMBOK Resource Management (9), Quality Management (8), and SAFe 6.0 CALMR approach. '
+                    'Effective development setup ensures that environments, pipelines, tooling, quality gates, and security baselines '
+                    'are provisioned and validated before development execution begins.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF6B7280), height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  _buildGuideCard(Icons.dns_outlined, 'Environment First', 'Provision and validate all environments before onboarding the team. Each environment should mirror its target configuration to prevent late-stage surprises.', const Color(0xFF0EA5E9)),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(Icons.play_circle_outline, 'Pipeline Automation', 'Automate build, test, and deployment from day one. Fast feedback loops catch issues early and reduce manual coordination overhead.', const Color(0xFF10B981)),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(Icons.handyman_outlined, 'License Governance', 'Track tool licenses, assigned users, and expiry dates. Expired licenses block the team and create compliance risk.', const Color(0xFFF59E0B)),
+                  const SizedBox(height: 12),
+                  _buildGuideCard(Icons.shield_outlined, 'Shift-Left Security', 'Integrate security scanning (SAST/DAST) in the CI pipeline from the start. Security debt compounds rapidly if deferred to later phases.', const Color(0xFFEF4444)),
+                ],
+              ),
+            ),
+            crossFadeState: _frameworkGuideExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+            sizeCurve: Curves.easeInOut,
+          ),
         ],
       ),
     );
@@ -1093,11 +1062,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
             child: const Row(
               children: [
                 Expanded(flex: 4, child: Text('ENVIRONMENT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('TYPE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('TYPE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 Expanded(flex: 3, child: Text('ACCESS URL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 SizedBox(width: 60, child: Text('', style: TextStyle(fontSize: 10))),
               ],
             ),
@@ -1119,11 +1088,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
       child: Row(
         children: [
           Expanded(flex: 4, child: Text(item.environment, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
-          SizedBox(width: 80, child: Text(item.type, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-          SizedBox(width: 90, child: _buildStatusTag(item.status, color)),
+          SizedBox(width: 110, child: Text(item.type, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 120, child: _buildStatusTag(item.status, color)),
           Expanded(flex: 3, child: Text(item.accessUrl, style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF2563EB)), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 90, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
-          SizedBox(width: 80, child: Text(item.targetDate, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+          SizedBox(width: 120, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
+          SizedBox(width: 110, child: Text(item.targetDate, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
           SizedBox(
             width: 60,
             child: Row(
@@ -1211,11 +1180,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
             child: const Row(
               children: [
                 Expanded(flex: 3, child: Text('STAGE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 100, child: Text('TOOL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 130, child: Text('TOOL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 Expanded(flex: 3, child: Text('TRIGGER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 Expanded(flex: 3, child: Text('GATE CRITERIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 100, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 130, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 SizedBox(width: 60, child: Text('', style: TextStyle(fontSize: 10))),
               ],
             ),
@@ -1237,11 +1206,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
       child: Row(
         children: [
           Expanded(flex: 3, child: Text(item.stage, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
-          SizedBox(width: 100, child: Text(item.tool, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-          SizedBox(width: 90, child: _buildStatusTag(item.status, color)),
+          SizedBox(width: 130, child: Text(item.tool, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 120, child: _buildStatusTag(item.status, color)),
           Expanded(flex: 3, child: Text(item.trigger, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)), overflow: TextOverflow.ellipsis)),
           Expanded(flex: 3, child: Text(item.gateCriteria, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 100, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
+          SizedBox(width: 130, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
           SizedBox(
             width: 60,
             child: Row(
@@ -1326,12 +1295,12 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
             child: const Row(
               children: [
                 Expanded(flex: 3, child: Text('TOOL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('CATEGORY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('LICENSE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('USERS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('CATEGORY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('LICENSE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('USERS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 SizedBox(width: 70, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('EXPIRY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('EXPIRY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 SizedBox(width: 60, child: Text('', style: TextStyle(fontSize: 10))),
               ],
             ),
@@ -1353,12 +1322,12 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
       child: Row(
         children: [
           Expanded(flex: 3, child: Text(item.tool, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
-          SizedBox(width: 90, child: Text(item.category, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-          SizedBox(width: 80, child: Text(item.license, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-          SizedBox(width: 80, child: Text(item.assignedUsers, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 120, child: Text(item.category, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 110, child: Text(item.license, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 110, child: Text(item.assignedUsers, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
           SizedBox(width: 70, child: _buildStatusTag(item.status, color)),
-          SizedBox(width: 80, child: Text(item.expiry, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
-          SizedBox(width: 90, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
+          SizedBox(width: 110, child: Text(item.expiry, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+          SizedBox(width: 120, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
           SizedBox(
             width: 60,
             child: Row(
@@ -1447,10 +1416,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
               children: [
                 Expanded(flex: 3, child: Text('GATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 Expanded(flex: 4, child: Text('CRITERIA', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('METHOD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 110, child: Text('APPROVER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('METHOD', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 130, child: Text('APPROVER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 SizedBox(width: 60, child: Text('', style: TextStyle(fontSize: 10))),
               ],
             ),
@@ -1473,10 +1442,10 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
         children: [
           Expanded(flex: 3, child: Text(item.gate, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
           Expanded(flex: 4, child: Text(item.criteria, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 90, child: Text(item.methodology, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-          SizedBox(width: 80, child: _buildStatusTag(item.status, color)),
-          SizedBox(width: 110, child: Text(item.approver, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
-          SizedBox(width: 90, child: Text(item.targetDate, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
+          SizedBox(width: 120, child: Text(item.methodology, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 110, child: _buildStatusTag(item.status, color)),
+          SizedBox(width: 130, child: Text(item.approver, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
+          SizedBox(width: 120, child: Text(item.targetDate, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)))),
           SizedBox(
             width: 60,
             child: Row(
@@ -1495,46 +1464,127 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
     final isEdit = existing != null;
     final gateCtrl = TextEditingController(text: existing?.gate ?? '');
     final critCtrl = TextEditingController(text: existing?.criteria ?? '');
-    final methCtrl = TextEditingController(text: existing?.methodology ?? 'Hybrid');
-    final statusCtrl = TextEditingController(text: existing?.status ?? 'Planned');
+    var selectedMethodology = _methodologyOptions.contains(existing?.methodology)
+        ? existing!.methodology
+        : _methodologyOptions.first;
+    var selectedStatus = _qualityStatusOptions.contains(existing?.status)
+        ? existing!.status
+        : _qualityStatusOptions.first;
     final apprCtrl = TextEditingController(text: existing?.approver ?? '');
-    final dateCtrl = TextEditingController(text: existing?.targetDate ?? '');
+    DateTime? selectedTargetDate;
+    if (existing?.targetDate != null && existing!.targetDate.isNotEmpty) {
+      selectedTargetDate = DateFormat('MMM dd, yyyy').tryParse(existing.targetDate) ??
+          DateFormat('yyyy-MM-dd').tryParse(existing.targetDate);
+    }
+
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isEdit ? 'Edit Quality Gate' : 'Add Quality Gate'),
-        content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          _dialogField('Gate', gateCtrl),
-          _dialogField('Criteria', critCtrl),
-          _dialogField('Methodology', methCtrl, hint: 'Agile / Waterfall / Hybrid'),
-          _dialogField('Status', statusCtrl, hint: 'Active / Planned / Not Started'),
-          _dialogField('Approver', apprCtrl),
-          _dialogField('Target Date', dateCtrl),
-        ])),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () {
-            final item = _QualityGateItem(
-              id: existing?.id ?? _newId(),
-              gate: gateCtrl.text.trim(),
-              criteria: critCtrl.text.trim(),
-              methodology: methCtrl.text.trim(),
-              status: statusCtrl.text.trim(),
-              approver: apprCtrl.text.trim(),
-              targetDate: dateCtrl.text.trim(),
-            );
-            setState(() {
-              if (isEdit) {
-                final idx = _qualityItems.indexWhere((e) => e.id == item.id);
-                if (idx >= 0) _qualityItems[idx] = item;
-              } else {
-                _qualityItems.add(item);
-              }
-            });
-            _scheduleSave();
-            Navigator.pop(ctx);
-          }, child: Text(isEdit ? 'Save' : 'Add')),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(isEdit ? 'Edit Quality Gate' : 'Add Quality Gate'),
+          content: SizedBox(
+            width: 560,
+            child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              _dialogField('Gate', gateCtrl, hint: 'e.g. Sprint Review Gate'),
+              const SizedBox(height: 4),
+              _dialogField('Criteria', critCtrl, hint: 'e.g. All acceptance tests pass'),
+              const SizedBox(height: 4),
+              DropdownButtonFormField<String>(
+                value: selectedMethodology,
+                decoration: const InputDecoration(
+                  labelText: 'Methodology',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: _methodologyOptions
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 12))))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setDialogState(() => selectedMethodology = value);
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: selectedStatus,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+                items: _qualityStatusOptions
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setDialogState(() => selectedStatus = value);
+                },
+              ),
+              const SizedBox(height: 16),
+              _dialogField('Approver', apprCtrl, hint: 'e.g. QA Lead'),
+              const SizedBox(height: 4),
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedTargetDate ?? DateTime.now().add(const Duration(days: 30)),
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(2040),
+                  );
+                  if (picked != null) {
+                    setDialogState(() => selectedTargetDate = picked);
+                  }
+                },
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Target Date',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    suffixIcon: Icon(Icons.calendar_today, size: 18),
+                  ),
+                  child: Text(
+                    selectedTargetDate != null
+                        ? DateFormat('MMM dd, yyyy').format(selectedTargetDate!)
+                        : 'Select date',
+                    style: TextStyle(
+                      color: selectedTargetDate != null ? null : Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ])),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () {
+              final item = _QualityGateItem(
+                id: existing?.id ?? _newId(),
+                gate: gateCtrl.text.trim(),
+                criteria: critCtrl.text.trim(),
+                methodology: selectedMethodology,
+                status: selectedStatus,
+                approver: apprCtrl.text.trim(),
+                targetDate: selectedTargetDate != null
+                    ? DateFormat('MMM dd, yyyy').format(selectedTargetDate!)
+                    : '',
+              );
+              setState(() {
+                if (isEdit) {
+                  final idx = _qualityItems.indexWhere((e) => e.id == item.id);
+                  if (idx >= 0) _qualityItems[idx] = item;
+                } else {
+                  _qualityItems.add(item);
+                }
+              });
+              _scheduleSave();
+              Navigator.pop(ctx);
+            }, child: Text(isEdit ? 'Save' : 'Add')),
+          ],
+        ),
       ),
     );
   }
@@ -1561,11 +1611,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
             child: const Row(
               children: [
                 Expanded(flex: 3, child: Text('CONTROL', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('FRAMEWORK', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 90, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('FRAMEWORK', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 120, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 Expanded(flex: 3, child: Text('EVIDENCE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 110, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                SizedBox(width: 80, child: Text('REVIEW', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 130, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
+                SizedBox(width: 110, child: Text('REVIEW', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                 SizedBox(width: 60, child: Text('', style: TextStyle(fontSize: 10))),
               ],
             ),
@@ -1587,11 +1637,11 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
       child: Row(
         children: [
           Expanded(flex: 3, child: Text(item.control, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
-          SizedBox(width: 90, child: Text(item.framework, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
-          SizedBox(width: 90, child: _buildStatusTag(item.status, color)),
+          SizedBox(width: 120, child: Text(item.framework, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
+          SizedBox(width: 120, child: _buildStatusTag(item.status, color)),
           Expanded(flex: 3, child: Text(item.evidence, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)), overflow: TextOverflow.ellipsis)),
-          SizedBox(width: 110, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
-          SizedBox(width: 80, child: Text(item.reviewDate, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+          SizedBox(width: 130, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
+          SizedBox(width: 110, child: Text(item.reviewDate, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
           SizedBox(
             width: 60,
             child: Row(
@@ -1808,7 +1858,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
   Widget _dialogField(String label, TextEditingController controller, {String? hint}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
+      child: VoiceTextField(
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
@@ -1818,6 +1868,21 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Development Set-Up',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_development_set_up_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

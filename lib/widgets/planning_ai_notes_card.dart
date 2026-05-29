@@ -9,6 +9,9 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
+
 class PlanningAiNotesCard extends StatefulWidget {
   const PlanningAiNotesCard({
     super.key,
@@ -18,7 +21,6 @@ class PlanningAiNotesCard extends StatefulWidget {
     required this.checkpoint,
     this.description,
     this.fieldKey,
-    this.errorText,
     this.onChanged,
     this.fallbackText,
     this.hintText = 'Capture the key decisions and details for this section...',
@@ -32,7 +34,6 @@ class PlanningAiNotesCard extends StatefulWidget {
   final String checkpoint;
   final String? description;
   final Key? fieldKey;
-  final String? errorText;
   final ValueChanged<String>? onChanged;
   final String? fallbackText;
   final String hintText;
@@ -141,9 +142,7 @@ class _PlanningAiNotesCardState extends State<PlanningAiNotesCard> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Regenerate failed: ${e.toString()}')),
-      );
+      showAiErrorDialog(context, error: e, onRetry: _regenerate);
     } finally {
       if (mounted) setState(() => _generating = false);
     }
@@ -184,16 +183,13 @@ class _PlanningAiNotesCardState extends State<PlanningAiNotesCard> {
   @override
   Widget build(BuildContext context) {
     final savedAt = _lastSavedAt;
-    final hasError = (widget.errorText ?? '').trim().isNotEmpty;
-    final borderColor =
-        hasError ? const Color(0xFFEF4444) : const Color(0xFFE5E7EB);
     return Container(
       key: widget.fieldKey,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: const [
           BoxShadow(
               color: Color(0x0F000000), blurRadius: 18, offset: Offset(0, 12)),
@@ -269,7 +265,7 @@ class _PlanningAiNotesCardState extends State<PlanningAiNotesCard> {
             },
           ),
           const SizedBox(height: 10),
-          TextField(
+          VoiceTextField(
             controller: _controller,
             onChanged: _handleChanged,
             maxLines: 6,
@@ -277,38 +273,26 @@ class _PlanningAiNotesCardState extends State<PlanningAiNotesCard> {
               hintText: widget.hintText,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: borderColor),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(color: borderColor),
+                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: hasError
-                      ? const Color(0xFFEF4444)
-                      : const Color(0xFFFFD700),
+                borderSide: const BorderSide(
+                  color: Color(0xFFFFD700),
                   width: 1.6,
                 ),
               ),
               filled: true,
               fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
             ),
             style: const TextStyle(fontSize: 14),
           ),
-          if (hasError) ...[
-            const SizedBox(height: 6),
-            Text(
-              widget.errorText!,
-              style: const TextStyle(
-                color: Color(0xFFDC2626),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
         ],
       ),
     );

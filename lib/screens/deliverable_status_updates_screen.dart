@@ -15,6 +15,9 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 /// Dedicated screen for tracking deliverable status updates across the
 /// execution phase. Follows project management conventions from PMI's PMBOK
@@ -57,7 +60,7 @@ class _DeliverableStatusUpdatesScreenState
     try {
       final provider = ProjectDataInherited.maybeOf(context);
       return provider?.projectData.projectId;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -161,61 +164,6 @@ class _DeliverableStatusUpdatesScreenState
     });
   }
 
-  Future<void> _addAiDrafts() async {
-    if (_isAutoGenerating) return;
-    setState(() => _isAutoGenerating = true);
-    try {
-      final generated = await ExecutionPhaseAiSeed.generateEntries(
-        context: context,
-        section: 'Deliverable Status Updates',
-        sections: const {
-          'deliverables': 'Key execution deliverables to track and update',
-        },
-        itemsPerSection: 2,
-      );
-
-      if (!mounted) return;
-      setState(() {
-        _deliverables = [
-          ..._deliverables,
-          ...(generated['deliverables'] ?? const [])
-              .map((entry) => DeliverableRow(
-                    title: entry.title,
-                    description: entry.details,
-                    owner: 'Project Lead',
-                    status: entry.status?.toString().isNotEmpty == true
-                        ? entry.status!
-                        : 'Not Started',
-                  )),
-        ];
-      });
-      _persistChanges();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('AI draft deliverables added.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to generate AI drafts: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isAutoGenerating = false);
-    }
-  }
-
-  void _addBlankItem() {
-    setState(() {
-      _deliverables = [
-        DeliverableRow(title: '', description: '', owner: '', status: 'Not Started'),
-        ..._deliverables,
-      ];
-    });
-    _persistChanges();
-  }
-
   void _handleDeliverablesChanged(List<DeliverableRow> updated) {
     setState(() => _deliverables = updated);
     _persistChanges();
@@ -229,6 +177,7 @@ class _DeliverableStatusUpdatesScreenState
     return ResponsiveScaffold(
       activeItemLabel: 'Deliverable Status Updates',
       backgroundColor: const Color(0xFFF5F7FB),
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
           horizontal: horizontalPadding,
@@ -239,15 +188,12 @@ class _DeliverableStatusUpdatesScreenState
           children: [
             if (_loading) const LinearProgressIndicator(minHeight: 2),
             if (_loading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Deliverable Status Updates',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
-          _buildHeader(),
-            const SizedBox(height: 20),
             _buildInfoPanel(),
             const SizedBox(height: 20),
             if (_loading)
@@ -262,7 +208,7 @@ class _DeliverableStatusUpdatesScreenState
                 deliverables: _deliverables,
                 onDeliverablesChanged: _handleDeliverablesChanged,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
               LaunchPhaseNavigation(
                 backLabel: 'Back: Progress Tracking',
                 nextLabel: 'Next: Recurring Deliverables',
@@ -277,35 +223,6 @@ class _DeliverableStatusUpdatesScreenState
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'Execution · Deliverables',
-      title: 'Deliverable Status Updates',
-      description:
-          'Track, update, and control project deliverables through their lifecycle. '
-          'Each deliverable is monitored against acceptance criteria, ownership, and due-date adherence. '
-          'Use the status workflow (Not Started → In Progress → Completed / At Risk / Blocked) '
-          'to maintain real-time visibility and drive accountability across the execution phase.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: 'Add deliverable',
-            icon: Icons.add,
-            tone: ExecutionActionTone.primary,
-            onPressed: _loading ? null : _addBlankItem,
-          ),
-          ExecutionActionItem(
-            label: 'Add AI draft',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isAutoGenerating,
-            onPressed: _loading ? null : _addAiDrafts,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildInfoPanel() {
     return ExecutionPanelShell(
       title: 'Deliverable management best practices',
@@ -316,7 +233,7 @@ class _DeliverableStatusUpdatesScreenState
           'become blockers. Status reports should flow from deliverable data to maintain '
           'consistency between execution tracking and stakeholder communication.',
       collapsible: true,
-      initiallyExpanded: true,
+      initiallyExpanded: false,
       headerIcon: Icons.lightbulb_outline_rounded,
       headerIconColor: const Color(0xFFF59E0B),
       child: Column(
@@ -392,6 +309,21 @@ class _DeliverableStatusUpdatesScreenState
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Deliverable Status Updates',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_deliverable_status_updates_notes'] ?? 'No data recorded.'),
       ],
     );
   }

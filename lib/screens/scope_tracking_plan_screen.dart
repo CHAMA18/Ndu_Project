@@ -17,7 +17,10 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/scope_tracking_table_widget.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum _ScopeTab { overview, registry, traceability, baseline }
 
 const List<String> _tabLabels = [
@@ -56,7 +59,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
     try {
       final provider = ProjectDataInherited.maybeOf(context);
       return provider?.projectData.projectId;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -76,6 +79,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
   Future<void> _loadData() async {
     final projectId = _projectId;
     if (projectId == null) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
     try {
@@ -147,6 +151,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
   Future<void> _regenerateAllFromAi() async {
     final projectId = _projectId;
     if (projectId == null) return;
+    if (!mounted) return;
 
     setState(() => _isAutoGenerating = true);
     try {
@@ -308,6 +313,8 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Scope Tracking Plan', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _ScopeTrackingHeader(
                           onBack: () =>
                               PlanningPhaseNavigation.goToPrevious(
@@ -339,7 +346,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                           )
                         else
                           _buildTabContent(),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
                         LaunchPhaseNavigation(
                           backLabel: PlanningPhaseNavigation.backLabel(
                               'scope_tracking_plan'),
@@ -355,7 +362,12 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Scope Tracking Plan',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -976,7 +988,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: nameCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Scope Item',
@@ -988,7 +1000,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: 'predictive',
+                initialValue: 'predictive',
                 decoration: const InputDecoration(
                   labelText: 'Scope Type',
                   border: OutlineInputBorder(),
@@ -1018,7 +1030,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: 'Not Started',
+                initialValue: 'Not Started',
                 decoration: const InputDecoration(
                   labelText: 'Status',
                   border: OutlineInputBorder(),
@@ -1053,7 +1065,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                 fieldViewBuilder:
                     (context, controller, focusNode, onSubmitted) {
                   ownerCtrl.text = controller.text;
-                  return TextField(
+                  return VoiceTextField(
                     controller: controller,
                     focusNode: focusNode,
                     decoration: const InputDecoration(
@@ -1155,6 +1167,21 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
     }
     if (items != null) walk(items);
     return result;
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Scope Tracking Plan',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_scope_tracking_plan_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 
@@ -1459,6 +1486,7 @@ class _ScopeTrackingHeader extends StatelessWidget {
                 ),
               ),
             ),
+          const SizedBox(width: 8),
           const _PlanStatusPill(label: 'Active'),
         ],
       ),

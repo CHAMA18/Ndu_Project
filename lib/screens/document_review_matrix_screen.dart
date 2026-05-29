@@ -7,7 +7,11 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 const Color _kBackground = Color(0xFFF7F8FC);
 const Color _kAccent = Color(0xFFFFC812);
 const Color _kHeadline = Color(0xFF1A1D1F);
@@ -131,7 +135,12 @@ class _DocumentReviewMatrixScreenState extends State<DocumentReviewMatrixScreen>
               ],
             ),
           ),
-          const KazAiChatBubble(),
+          MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Document Review Matrix',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
         ],
       ),
     );
@@ -140,6 +149,19 @@ class _DocumentReviewMatrixScreenState extends State<DocumentReviewMatrixScreen>
   Widget _buildContent() {
     return Column(
       children: [
+        PlanningPhaseHeader(
+          title: 'Document Review Matrix',
+          showImportButton: false,
+          showContentButton: false,
+          onBack: () => PlanningPhaseNavigation.goToPrevious(
+            context,
+            'document_review_matrix',
+          ),
+          onForward: () => PlanningPhaseNavigation.goToNext(
+            context,
+            'document_review_matrix',
+          ), onExportPdf: _exportPdf),
+        const SizedBox(height: 16),
         _buildHeader(),
         if (_statistics != null) _buildStatisticsBar(),
         Expanded(
@@ -279,7 +301,7 @@ class _DocumentReviewMatrixScreenState extends State<DocumentReviewMatrixScreen>
     return Row(
       children: [
         Expanded(
-          child: TextField(
+          child: VoiceTextField(
             decoration: InputDecoration(
               hintText: 'Search documents...',
               prefixIcon: const Icon(Icons.search),
@@ -878,7 +900,7 @@ class _DocumentReviewMatrixScreenState extends State<DocumentReviewMatrixScreen>
           children: [
             Text('Document: ${doc.documentName}'),
             const SizedBox(height: 16),
-            TextField(
+            VoiceTextField(
               controller: controller,
               maxLines: 4,
               decoration: InputDecoration(
@@ -920,6 +942,21 @@ class _DocumentReviewMatrixScreenState extends State<DocumentReviewMatrixScreen>
     fontSize: 14,
     color: Color(0xFF374151),
   );
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Document Review Matrix',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_document_review_matrix_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _DocumentPreviewDialog extends StatelessWidget {
@@ -1233,7 +1270,7 @@ class _AssignReviewerDialogState extends State<_AssignReviewerDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           DropdownButtonFormField<ReviewerRole>(
-            value: _selectedRole,
+            initialValue: _selectedRole,
             decoration: const InputDecoration(
               labelText: 'Role',
               border: OutlineInputBorder(),
@@ -1248,7 +1285,7 @@ class _AssignReviewerDialogState extends State<_AssignReviewerDialog> {
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _selectedUserId.isEmpty ? null : _selectedUserId,
+            initialValue: _selectedUserId.isEmpty ? null : _selectedUserId,
             decoration: const InputDecoration(
               labelText: 'Team Member',
               border: OutlineInputBorder(),

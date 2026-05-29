@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -119,7 +121,7 @@ class _AgileTeamStructureScreenState
         _teams = rows;
         _isLoading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
@@ -140,7 +142,7 @@ class _AgileTeamStructureScreenState
           const SnackBar(content: Text('Saved'), duration: Duration(seconds: 1)),
         );
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
     if (mounted) setState(() => _isSaving = false);
     if (_pendingSave) { _pendingSave = false; _performSave(); }
   }
@@ -235,7 +237,7 @@ class _AgileTeamStructureScreenState
           skills: (m['skills'] ?? '').toString(),
         );
       }).toList();
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
@@ -259,6 +261,11 @@ class _AgileTeamStructureScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Team Structure',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                     child: Column(
@@ -266,11 +273,12 @@ class _AgileTeamStructureScreenState
                       children: [
                         PlanningPhaseHeader(
                           title: 'Agile Team Structure',
+                          showImportButton: false,
+                          showContentButton: false,
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'agile_team_structure'),
                           onForward: () => PlanningPhaseNavigation.goToNext(
-                              context, 'agile_team_structure'),
-                        ),
+                              context, 'agile_team_structure'), onExportPdf: _exportPdf),
                         const SizedBox(height: 32),
                         Row(
                           children: [
@@ -392,7 +400,7 @@ class _AgileTeamStructureScreenState
             Row(
               children: [
                 Expanded(
-                  child: TextField(
+                  child: VoiceTextField(
                     decoration: const InputDecoration(
                       labelText: 'Squad / Team Name',
                       border: OutlineInputBorder(),
@@ -405,7 +413,7 @@ class _AgileTeamStructureScreenState
                 const SizedBox(width: 12),
                 SizedBox(
                   width: 80,
-                  child: TextField(
+                  child: VoiceTextField(
                     decoration: const InputDecoration(
                       labelText: 'Count',
                       border: OutlineInputBorder(),
@@ -424,7 +432,7 @@ class _AgileTeamStructureScreenState
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               decoration: const InputDecoration(
                 labelText: 'Primary Role / Focus',
                 border: OutlineInputBorder(),
@@ -434,7 +442,7 @@ class _AgileTeamStructureScreenState
               onChanged: (_) => _scheduleAutoSave(),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               decoration: const InputDecoration(
                 labelText: 'Key Skills / Cross-functional coverage',
                 border: OutlineInputBorder(),
@@ -461,7 +469,7 @@ class _AgileTeamStructureScreenState
                 fontWeight: FontWeight.w600,
                 color: _kHeadline)),
         const SizedBox(height: 8),
-        TextField(
+        VoiceTextField(
           controller: _noteControllers['notes'],
           decoration: const InputDecoration(
             hintText: 'Team location, timezone overlaps, RACI notes...',
@@ -500,6 +508,21 @@ class _AgileTeamStructureScreenState
         child: Text(message,
             style: TextStyle(color: _kMuted, fontSize: 15)),
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Team Structure',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_team_structure_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

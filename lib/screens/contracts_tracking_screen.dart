@@ -20,6 +20,9 @@ import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 class ContractsTrackingScreen extends StatefulWidget {
   const ContractsTrackingScreen({super.key});
 
@@ -35,7 +38,6 @@ class ContractsTrackingScreen extends StatefulWidget {
 }
 
 class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
-  final Set<String> _selectedFilters = {'All contracts'};
   final _Debouncer _saveDebouncer = _Debouncer();
   bool _isLoading = false;
   bool _suspendSave = false;
@@ -366,7 +368,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
 
     return ResponsiveScaffold(
@@ -380,19 +381,12 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
             if (_isLoading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Contracts Tracking',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
-          const SizedBox(height: 16),
-          _buildHeader(isNarrow),
-            const SizedBox(height: 16),
-            _buildFilterChips(),
-            const SizedBox(height: 20),
-            _buildStatsRow(isNarrow),
-            const SizedBox(height: 20),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
+          const SizedBox(height: 24),
             _buildContractManagementGuide(),
             const SizedBox(height: 24),
             Column(
@@ -415,280 +409,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isNarrow) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFC812),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'CONTRACT CONTROL',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Contracts Tracking',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Track renewals, approvals, risk signals, and compliance milestones for critical vendor contracts. '
-                  'Aligned with PMI PMBOK Conduct Procurements and Control Procurements processes, '
-                  'this register ensures contract scope, value, and obligations remain visible and actionable throughout execution.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add contract',
-            onPressed: () => _showAddContractDialog(context)),
-        _actionButton(Icons.upload_outlined, 'Upload addendum', onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Upload addendum is available from each contract record edit dialog.')),
-          );
-        }),
-        _actionButton(Icons.description_outlined, 'Export register',
-            onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Export register is queued. Use the contracts table while export tools are finalized.')),
-          );
-        }),
-        _primaryButton('Start renewal review'),
-      ],
-    );
-  }
-
-  Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
-    return OutlinedButton.icon(
-      onPressed: onPressed ?? () {},
-      icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
-      label: Text(label,
-          style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF64748B))),
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _primaryButton(String label) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        setState(() {
-          _selectedFilters
-            ..clear()
-            ..add('Needs review');
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Renewal review started. Filter set to contracts that need review.')),
-        );
-      },
-      icon: const Icon(Icons.play_arrow, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  Widget _buildFilterChips() {
-    const filters = [
-      'All contracts',
-      'Renewal due',
-      'At risk',
-      'Pending sign-off',
-      'Archived'
-    ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(
-            filter,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(
-            side: BorderSide(color: const Color(0xFFE5E7EB)),
-          ),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All contracts') {
-                  _selectedFilters
-                    ..clear()
-                    ..add(filter);
-                } else {
-                  _selectedFilters
-                    ..remove('All contracts')
-                    ..add(filter);
-                }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters.add('All contracts');
-                }
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildStatsRow(bool isNarrow) {
-    final contractsStream = _contractStreamForProject();
-    if (contractsStream == null) {
-      return const SizedBox.shrink();
-    }
-
-    return StreamBuilder<List<ContractModel>>(
-      stream: contractsStream,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const SizedBox.shrink();
-        }
-
-        final contracts = snapshot.data!;
-        final activeCount = contracts.where((c) => c.status == 'Active').length;
-        final renewalDue = contracts.where((c) {
-          final endDate = c.endDate;
-          if (endDate == null) return false;
-          final daysUntilRenewal = endDate.difference(DateTime.now()).inDays;
-          return daysUntilRenewal <= 30 && daysUntilRenewal > 0;
-        }).length;
-        final totalValue =
-            contracts.fold<double>(0.0, (total, c) => total + c.estimatedValue);
-        final atRiskCount =
-            contracts.where((c) => c.status == 'At risk').length;
-
-        final stats = [
-          _StatCardData('Active Contracts', '$activeCount',
-              '${contracts.length} total', const Color(0xFF0EA5E9)),
-          _StatCardData(
-              'Total Committed Value',
-              '\$${(totalValue / 1000000).toStringAsFixed(1)}M',
-              'FY spend',
-              const Color(0xFF10B981)),
-          _StatCardData('Upcoming Renewals', '$renewalDue', 'Next 30-60 days',
-              const Color(0xFFF97316)),
-          _StatCardData(
-              'At Risk',
-              '$atRiskCount',
-              atRiskCount > 0 ? 'Require attention' : 'All stable',
-              const Color(0xFF6366F1)),
-        ];
-
-        return Column(
-          children: [
-            for (int i = 0; i < stats.length; i++) ...[
-              SizedBox(
-                  width: double.infinity, child: _buildStatCard(stats[i])),
-              if (i < stats.length - 1) const SizedBox(height: 12),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 6),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
-        ],
       ),
     );
   }
@@ -837,7 +557,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     return _PanelShell(
       title: 'Contract register',
       subtitle: 'Track scope, owners, and renewal milestones',
-      trailing: _actionButton(Icons.filter_list, 'Filter'),
       child: StreamBuilder<List<ContractModel>>(
         stream: contractsStream,
         builder: (context, snapshot) {
@@ -859,9 +578,8 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           }
 
           final contracts = snapshot.data ?? [];
-          final filteredContracts = _filterContracts(contracts);
 
-          if (filteredContracts.isEmpty) {
+          if (contracts.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -882,7 +600,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           }
 
           return ContractsTableWidget(
-            contracts: filteredContracts,
+            contracts: contracts,
             onContractUpdated: (updated) async {
               await _updateContract(updated);
             },
@@ -893,34 +611,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
         },
       ),
     );
-  }
-
-  List<ContractModel> _filterContracts(List<ContractModel> contracts) {
-    if (_selectedFilters.contains('All contracts')) return contracts;
-    return contracts.where((c) {
-      if (_selectedFilters.contains('Renewal due')) {
-        final endDate = c.endDate;
-        if (endDate == null) return false;
-        final daysUntilRenewal = endDate.difference(DateTime.now()).inDays;
-        return daysUntilRenewal <= 60 && daysUntilRenewal > 0;
-      }
-      if (_selectedFilters.contains('At risk')) {
-        final endDate = c.endDate;
-        if (endDate == null) return false;
-        final daysUntilRenewal = endDate.difference(DateTime.now()).inDays;
-        return daysUntilRenewal <= 30 &&
-            daysUntilRenewal > 0 &&
-            c.status != 'Expired';
-      }
-      if (_selectedFilters.contains('Pending sign-off') &&
-          c.status == 'Draft') {
-        return true;
-      }
-      if (_selectedFilters.contains('Archived') && c.status == 'Expired') {
-        return true;
-      }
-      return false;
-    }).toList();
   }
 
   Widget _buildRenewalPanel() {
@@ -1028,13 +718,13 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
               child: const Row(
                 children: [
                   Expanded(flex: 4, child: Text('CONTRACT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                  SizedBox(width: 100, child: Text('TYPE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 100, child: Text('EXPIRY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 110, child: Text('URGENCY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 100, child: Text('ACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 100, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('TYPE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('EXPIRY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('URGENCY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('ACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
                   Expanded(flex: 2, child: Text('OWNER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 90, child: Text('VALUE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 120, child: Text('VALUE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
                   SizedBox(width: 60, child: Text('', style: TextStyle(fontSize: 10))),
                 ],
               ),
@@ -1208,10 +898,10 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                 children: [
                   Expanded(flex: 5, child: Text('APPROVAL GATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
                   Expanded(flex: 3, child: Text('APPROVER', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8))),
-                  SizedBox(width: 100, child: Text('DEPT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 90, child: Text('PRIORITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 110, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
-                  SizedBox(width: 100, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('DEPT', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 120, child: Text('PRIORITY', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('STATUS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
+                  SizedBox(width: 130, child: Text('TARGET', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
                   SizedBox(width: 60, child: Text('ACTION', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFF6B7280), letterSpacing: 0.8), textAlign: TextAlign.center)),
                 ],
               ),
@@ -1471,15 +1161,22 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     'Completed',
   ];
 
+  static const List<int> _daysLeftOptions = [
+    0, 7, 14, 21, 30, 45, 60, 90, 120, 180, 270, 365,
+  ];
+
   Future<void> _showRenewalEntryEditor({_RenewalLaneData? entry}) async {
     final isEdit = entry != null;
     final nameController = TextEditingController(text: entry?.contractName ?? '');
     var selectedType = _contractTypeOptions.contains(entry?.contractType)
         ? entry!.contractType
         : _contractTypeOptions.first;
-    final expiryController = TextEditingController(text: entry?.expiryDate ?? '');
-    final daysController = TextEditingController(
-        text: entry?.daysUntilExpiry?.toString() ?? '');
+    DateTime? selectedExpiryDate;
+    if (entry?.expiryDate != null && entry!.expiryDate.isNotEmpty) {
+      selectedExpiryDate = DateFormat('MMM dd, yyyy').tryParse(entry.expiryDate) ??
+          DateFormat('yyyy-MM-dd').tryParse(entry.expiryDate);
+    }
+    var selectedDaysLeft = entry?.daysUntilExpiry ?? 30;
     var selectedAction = _renewalActionOptions.contains(entry?.renewalAction)
         ? (entry?.renewalAction ?? 'Renew')
         : 'Renew';
@@ -1504,7 +1201,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      VoiceTextField(
                         controller: nameController,
                         decoration: const InputDecoration(
                           labelText: 'Contract / Vendor name *',
@@ -1554,26 +1251,53 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
-                              controller: expiryController,
-                              decoration: const InputDecoration(
-                                labelText: 'Expiry date',
-                                hintText: 'e.g. Mar 15, 2025',
-                                isDense: true,
+                            child: GestureDetector(
+                              onTap: () async {
+                                final picked = await showDatePicker(
+                                  context: context,
+                                  initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 90)),
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime(2040),
+                                );
+                                if (picked != null) {
+                                  setDialogState(() => selectedExpiryDate = picked);
+                                }
+                              },
+                              child: InputDecorator(
+                                decoration: const InputDecoration(
+                                  labelText: 'Expiry date',
+                                  isDense: true,
+                                  suffixIcon: Icon(Icons.calendar_today, size: 18),
+                                ),
+                                child: Text(
+                                  selectedExpiryDate != null
+                                      ? DateFormat('MMM dd, yyyy').format(selectedExpiryDate!)
+                                      : 'Select date',
+                                  style: TextStyle(
+                                    color: selectedExpiryDate != null ? null : Colors.grey,
+                                    fontSize: 14,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
-                          SizedBox(
-                            width: 120,
-                            child: TextField(
-                              controller: daysController,
+                          Expanded(
+                            child: DropdownButtonFormField<int>(
+                              value: _daysLeftOptions.contains(selectedDaysLeft) ? selectedDaysLeft : null,
                               decoration: const InputDecoration(
                                 labelText: 'Days left',
-                                hintText: 'e.g. 42',
                                 isDense: true,
                               ),
-                              keyboardType: TextInputType.number,
+                              items: _daysLeftOptions
+                                  .map((d) => DropdownMenuItem(
+                                        value: d,
+                                        child: Text(d == 0 ? 'Expired' : '$d days', style: const TextStyle(fontSize: 12)),
+                                      ))
+                                  .toList(),
+                              onChanged: (value) {
+                                if (value != null) setDialogState(() => selectedDaysLeft = value);
+                              },
                             ),
                           ),
                         ],
@@ -1582,7 +1306,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
+                            child: VoiceTextField(
                               controller: ownerController,
                               decoration: const InputDecoration(
                                 labelText: 'Renewal owner',
@@ -1593,7 +1317,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: TextField(
+                            child: VoiceTextField(
                               controller: valueController,
                               decoration: const InputDecoration(
                                 labelText: 'Committed value',
@@ -1620,7 +1344,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: notesController,
                         decoration: const InputDecoration(
                           labelText: 'Notes',
@@ -1651,8 +1375,10 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         id: entry?.id ?? _newId(),
                         contractName: nameController.text.trim(),
                         contractType: selectedType,
-                        expiryDate: expiryController.text.trim(),
-                        daysUntilExpiry: int.tryParse(daysController.text.trim()),
+                        expiryDate: selectedExpiryDate != null
+                            ? DateFormat('MMM dd, yyyy').format(selectedExpiryDate!)
+                            : '',
+                        daysUntilExpiry: selectedDaysLeft,
                         renewalAction: selectedAction,
                         owner: ownerController.text.trim(),
                         status: selectedStatus,
@@ -1671,8 +1397,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
     );
 
     nameController.dispose();
-    expiryController.dispose();
-    daysController.dispose();
     ownerController.dispose();
     valueController.dispose();
     notesController.dispose();
@@ -1745,7 +1469,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: titleController,
                         decoration: const InputDecoration(
                           labelText: 'Signal title',
@@ -1759,7 +1483,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         },
                       ),
                       const SizedBox(height: 12),
-                      TextFormField(
+                      VoiceTextFormField(
                         controller: detailController,
                         decoration: const InputDecoration(
                           labelText: 'Why it matters',
@@ -1773,7 +1497,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
+                            child: VoiceTextFormField(
                               controller: ownerController,
                               decoration: const InputDecoration(
                                 labelText: 'Owner',
@@ -1947,7 +1671,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextField(
+                      VoiceTextField(
                         controller: gateController,
                         decoration: const InputDecoration(
                           labelText: 'Approval gate name *',
@@ -1957,7 +1681,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: descController,
                         decoration: const InputDecoration(
                           labelText: 'Description',
@@ -1972,7 +1696,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: TextField(
+                            child: VoiceTextField(
                               controller: approverController,
                               decoration: const InputDecoration(
                                 labelText: 'Approver *',
@@ -2042,7 +1766,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         ],
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: targetDateController,
                         decoration: const InputDecoration(
                           labelText: 'Target date',
@@ -2051,7 +1775,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
+                      VoiceTextField(
                         controller: notesController,
                         decoration: const InputDecoration(
                           labelText: 'Notes',
@@ -2250,7 +1974,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Vendor/Party Name *',
@@ -2258,7 +1982,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(
                     labelText: 'Description *',
@@ -2295,7 +2019,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: paymentTypeController,
                   decoration: const InputDecoration(
                     labelText: 'Payment Type *',
@@ -2326,7 +2050,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: estimatedValueController,
                   decoration: const InputDecoration(
                     labelText: 'Total Value *',
@@ -2365,7 +2089,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: scopeController,
                   decoration: const InputDecoration(
                     labelText: 'Key Terms',
@@ -2375,7 +2099,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                   maxLines: 5,
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: disciplineController,
                   decoration: const InputDecoration(
                     labelText: 'Discipline',
@@ -2385,7 +2109,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                 const SizedBox(height: 12),
                 TextFormattingToolbar(controller: notesController),
                 const SizedBox(height: 6),
-                TextField(
+                VoiceTextField(
                   controller: notesController,
                   decoration: const InputDecoration(
                     labelText: 'Contract Notes',
@@ -2557,6 +2281,21 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Contracts Tracking',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_contracts_tracking_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }
@@ -2777,7 +2516,7 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                 ),
                 // Department
                 SizedBox(
-                  width: 100,
+                  width: 130,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -2800,7 +2539,7 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                 ),
                 // Priority
                 SizedBox(
-                  width: 90,
+                  width: 120,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -2835,7 +2574,7 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                 ),
                 // Status
                 SizedBox(
-                  width: 110,
+                  width: 130,
                   child: Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -2866,7 +2605,7 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                 ),
                 // Target date
                 SizedBox(
-                  width: 100,
+                  width: 130,
                   child: Center(
                     child: Text(
                       c.targetDate.trim().isEmpty ? '—' : c.targetDate,
@@ -3065,7 +2804,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 ),
                 // Type
                 SizedBox(
-                  width: 80,
+                  width: 110,
                   child: Center(
                     child: Container(
                       padding:
@@ -3090,7 +2829,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 ),
                 // Expiry date
                 SizedBox(
-                  width: 90,
+                  width: 120,
                   child: Center(
                     child: Text(
                       e.expiryDate.trim().isEmpty ? '—' : e.expiryDate,
@@ -3104,7 +2843,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 ),
                 // Urgency window
                 SizedBox(
-                  width: 100,
+                  width: 130,
                   child: Center(
                     child: Container(
                       padding:
@@ -3143,7 +2882,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 ),
                 // Action
                 SizedBox(
-                  width: 100,
+                  width: 130,
                   child: Center(
                     child: Container(
                       padding:
@@ -3166,7 +2905,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 ),
                 // Status
                 SizedBox(
-                  width: 100,
+                  width: 130,
                   child: Center(
                     child: Container(
                       padding:
@@ -3199,7 +2938,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 ),
                 // Owner
                 SizedBox(
-                  width: 90,
+                  width: 120,
                   child: Center(
                     child: Text(
                       e.owner.trim().isEmpty ? 'Unassigned' : e.owner,
@@ -3546,11 +3285,4 @@ class _Debouncer {
   }
 }
 
-class _StatCardData {
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
 
-  final String label;
-  final String value;
-  final String supporting;
-  final Color color;
-}

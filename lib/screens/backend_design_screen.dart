@@ -15,6 +15,10 @@ import 'package:ndu_project/screens/ui_ux_design_screen.dart';
 import 'package:ndu_project/screens/engineering_design_screen.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/file_upload_helper.dart';
+import 'package:ndu_project/widgets/execution_phase_ui.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class BackendDesignScreen extends StatefulWidget {
   const BackendDesignScreen({super.key});
 
@@ -45,7 +49,6 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   final List<_DbField> _fields = [];
 
   final _Debouncer _saveDebounce = _Debouncer();
-  final Set<String> _selectedFilters = {'All systems'};
   bool _isLoading = false;
   bool _suspendSave = false;
   bool _didSeedDefaults = false;
@@ -121,7 +124,21 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Backend Design',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['backend_design_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _architectureSummaryController.dispose();
     _databaseSummaryController.dispose();
@@ -292,29 +309,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
     final padding = AppBreakpoints.pagePadding(context);
-    final projectData = ProjectDataHelper.getData(context);
-    final snapshot = _BackendInfrastructureSnapshot.from(
-      projectData: projectData,
-      architectureWorkspace: _architectureWorkspace,
-      architectureSummary: _architectureSummaryController.text,
-      databaseSummary: _databaseSummaryController.text,
-      components: _components,
-      dataFlows: _dataFlows,
-      documents: _designDocuments,
-      entities: _entities,
-      fields: _fields,
-    );
-
-    final showArchitecture = _selectedFilters.contains('All systems') ||
-        _selectedFilters.contains('Architecture');
-    final showDataLayer = _selectedFilters.contains('All systems') ||
-        _selectedFilters.contains('Data layer');
-    final showInterfaceContracts = _selectedFilters.contains('All systems');
-    final showDocumentsSecurity = _selectedFilters.contains('All systems') ||
-        _selectedFilters.contains('Security') ||
-        _selectedFilters.contains('Documents');
 
     return ResponsiveScaffold(
       activeItemLabel: 'Backend Design',
@@ -327,37 +322,22 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
             if (_isLoading) const SizedBox(height: 16),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Backend Design',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
-            _buildHeader(isNarrow),
-            const SizedBox(height: 16),
-            _buildFilterChips(),
-            const SizedBox(height: 20),
-            _buildStatsRow(isNarrow, snapshot),
-            const SizedBox(height: 20),
             _buildBackendFrameworkGuide(),
             const SizedBox(height: 24),
-            if (showArchitecture) ...[
-              _buildSystemArchitectureRegister(),
-              const SizedBox(height: 20),
-            ],
-            if (showDataLayer) ...[
-              _buildDataArchitectureRegister(),
-              const SizedBox(height: 20),
-            ],
-            if (showInterfaceContracts) ...[
-              _buildInterfaceContractsPanel(),
-              const SizedBox(height: 20),
-            ],
-            if (showDocumentsSecurity) ...[
-              _buildDocumentsSecurityPanel(),
-              const SizedBox(height: 20),
-            ],
+            _buildSystemArchitectureRegister(),
+            const SizedBox(height: 20),
+            _buildDataArchitectureRegister(),
+            const SizedBox(height: 20),
+            _buildInterfaceContractsPanel(),
+            const SizedBox(height: 20),
+            _buildDocumentsSecurityPanel(),
+            const SizedBox(height: 24),
             LaunchPhaseNavigation(
               backLabel: 'Back: UI/UX Design',
               nextLabel: 'Next: Engineering',
@@ -376,87 +356,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     );
   }
 
-  // ─── Header ────────────────────────────────────────────────────────────────
-
-  Widget _buildHeader(bool isNarrow) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFC812),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: const Text(
-            'BACKEND ARCHITECTURE',
-            style: TextStyle(
-                fontSize: 11, fontWeight: FontWeight.w700, color: Colors.black),
-          ),
-        ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = isNarrow || constraints.maxWidth < 1040;
-            final titleBlock = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Backend Design',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF111827)),
-                ),
-                SizedBox(height: 6),
-                Text(
-                  'Design the invisible infrastructure and operational logic that powers every visible experience. '
-                  'This hub captures system topology, data movement, interface contracts, security architecture, '
-                  'business rules, operational load, vendor integrations, and deployment pipelines \u2014 the backbone your project stands on.',
-                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                ),
-              ],
-            );
-
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  titleBlock,
-                  const SizedBox(height: 12),
-                  _buildHeaderActions(),
-                ],
-              );
-            }
-
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: titleBlock),
-                const SizedBox(width: 20),
-                Flexible(child: _buildHeaderActions()),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeaderActions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _actionButton(Icons.add, 'Add component', onPressed: _addComponent),
-        _actionButton(Icons.swap_horiz, 'Add data flow',
-            onPressed: _addDataFlow),
-        _actionButton(Icons.description_outlined, 'Add document',
-            onPressed: _addDesignDocument),
-        _primaryButton('Review architecture'),
-      ],
-    );
-  }
+  // ─── Framework Guide ───────────────────────────────────────────────────────
 
   Widget _actionButton(IconData icon, String label,
       {VoidCallback? onPressed}) {
@@ -476,198 +376,21 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     );
   }
 
-  Widget _primaryButton(String label) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        setState(() {
-          _selectedFilters
-            ..clear()
-            ..add('Architecture');
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Architecture review started. Filter set to Architecture view.')),
-        );
-      },
-      icon: const Icon(Icons.architecture, size: 18),
-      label: Text(label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  // ─── Filter Chips ──────────────────────────────────────────────────────────
-
-  Widget _buildFilterChips() {
-    const filters = [
-      'All systems',
-      'Architecture',
-      'Data layer',
-      'Security',
-      'Documents',
-      'Deprecated'
-    ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return ChoiceChip(
-          label: Text(
-            filter,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : const Color(0xFF475569),
-            ),
-          ),
-          selected: selected,
-          selectedColor: const Color(0xFF111827),
-          backgroundColor: Colors.white,
-          shape: StadiumBorder(
-            side: BorderSide(color: const Color(0xFFE5E7EB)),
-          ),
-          onSelected: (value) {
-            setState(() {
-              if (value) {
-                if (filter == 'All systems') {
-                  _selectedFilters
-                    ..clear()
-                    ..add(filter);
-                } else {
-                  _selectedFilters
-                    ..remove('All systems')
-                    ..add(filter);
-                }
-              } else {
-                _selectedFilters.remove(filter);
-                if (_selectedFilters.isEmpty) {
-                  _selectedFilters.add('All systems');
-                }
-              }
-            });
-          },
-        );
-      }).toList(),
-    );
-  }
-
-  // ─── Stats Row ─────────────────────────────────────────────────────────────
-
-  Widget _buildStatsRow(bool isNarrow, _BackendInfrastructureSnapshot snapshot) {
-    final stats = [
-      _StatCardData(
-        'Architecture Nodes',
-        '${snapshot.systemNodes.length}',
-        '${_components.length} registered',
-        const Color(0xFF0EA5E9),
-      ),
-      _StatCardData(
-        'Data Entities',
-        '${snapshot.dataEntities.length}',
-        '${_entities.length} tables',
-        const Color(0xFF10B981),
-      ),
-      _StatCardData(
-        'Interface Contracts',
-        '${snapshot.interfaceContracts.length}',
-        '${_dataFlows.length} data flows',
-        const Color(0xFF6366F1),
-      ),
-      _StatCardData(
-        'Vendor Dependencies',
-        '${snapshot.vendorDependencies.length}',
-        'External services',
-        const Color(0xFFF97316),
-      ),
-    ];
-
-    if (isNarrow) {
-      return Column(
-        children: [
-          for (int i = 0; i < stats.length; i++) ...[
-            SizedBox(width: double.infinity, child: _buildStatCard(stats[i])),
-            if (i < stats.length - 1) const SizedBox(height: 12),
-          ],
-        ],
-      );
-    }
-
-    return Row(
-      children: stats
-          .map((s) => Expanded(child: Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: _buildStatCard(s),
-              )))
-          .toList(),
-    );
-  }
-
-  Widget _buildStatCard(_StatCardData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(data.value,
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: data.color)),
-          const SizedBox(height: 6),
-          Text(data.label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          const SizedBox(height: 6),
-          Text(data.supporting,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: data.color)),
-        ],
-      ),
-    );
-  }
-
-  // ─── Framework Guide ───────────────────────────────────────────────────────
-
   Widget _buildBackendFrameworkGuide() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
+    return ExecutionPanelShell(
+      title: 'Backend design framework',
+      subtitle:
+          'Grounded in cloud-native architecture principles, microservice design patterns, '
+          'domain-driven design, and infrastructure-as-code conventions.',
+      collapsible: true,
+      initiallyExpanded: false,
+      headerIcon: Icons.dns_outlined,
+      headerIconColor: const Color(0xFF2563EB),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Backend design framework',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF111827)),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Grounded in cloud-native architecture principles, microservice design patterns, '
-            'domain-driven design, and infrastructure-as-code conventions. Effective backend design '
+            'Effective backend design '
             'ensures that system topology, data flows, security boundaries, and deployment pipelines '
             'are documented, reviewable, and operationally sound.',
             style: TextStyle(
@@ -786,77 +509,6 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           ),
           const SizedBox(height: 16),
           _buildComponentsTable(),
-          const SizedBox(height: 18),
-          _buildInlineComposerCard(
-            icon: Icons.add_business_rounded,
-            accent: const Color(0xFF2563EB),
-            title: 'Quick add architecture component',
-            subtitle: 'Capture a new service, integration, or infrastructure block directly in the architecture view.',
-            child: Column(
-              children: [
-                _buildComposerTextField(
-                  controller: _quickComponentNameController,
-                  label: 'Component name',
-                  hint: 'e.g. Access Control Service',
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildComposerDropdown(
-                        label: 'Type',
-                        value: _quickComponentType,
-                        items: _componentTypes,
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() => _quickComponentType = value);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildComposerDropdown(
-                        label: 'Status',
-                        value: _quickComponentStatus,
-                        items: _componentStatuses,
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() => _quickComponentStatus = value);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildComposerDropdown(
-                  label: 'Owner',
-                  value: _quickComponentOwner,
-                  items: ownerOptions,
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _quickComponentOwner = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildComposerTextField(
-                  controller: _quickComponentResponsibilityController,
-                  label: 'Responsibility',
-                  hint: 'Describe what this component owns or enables.',
-                  minLines: 2,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _addQuickArchitectureComponent,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add Component'),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -966,63 +618,6 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           ),
           const SizedBox(height: 10),
           _buildFieldsTable(),
-          const SizedBox(height: 18),
-          _buildInlineComposerCard(
-            icon: Icons.dataset_linked_rounded,
-            accent: const Color(0xFF10B981),
-            title: 'Quick add data entity',
-            subtitle: 'Add the next entity and its core key from the information flow panel itself.',
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildComposerTextField(
-                        controller: _quickEntityNameController,
-                        label: 'Entity name',
-                        hint: 'e.g. DispatchLedger',
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildComposerTextField(
-                        controller: _quickEntityPrimaryKeyController,
-                        label: 'Primary key',
-                        hint: 'e.g. dispatch_id',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _buildComposerDropdown(
-                  label: 'Owner',
-                  value: _quickEntityOwner,
-                  items: ownerOptions,
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _quickEntityOwner = value);
-                  },
-                ),
-                const SizedBox(height: 12),
-                _buildComposerTextField(
-                  controller: _quickEntityDescriptionController,
-                  label: 'Description',
-                  hint: 'Summarize the entity purpose and operational flow.',
-                  minLines: 2,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 14),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: _addQuickDataEntity,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Add Entity'),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -1078,6 +673,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _dataFlows[i].source,
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Expanded(
@@ -1091,6 +688,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _dataFlows[i].destination,
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Expanded(
@@ -1098,6 +697,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _dataFlows[i].notes,
                       style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.45),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
                     ),
                   ),
                   SizedBox(
@@ -1180,6 +781,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Text(
                       _designDocuments[i].title,
                       style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
                   ),
                   Expanded(
@@ -1188,6 +791,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                       child: Text(
                         _designDocuments[i].owner,
                         style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
                       ),
                     ),
                   ),
@@ -1202,9 +807,27 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                   ),
                   Expanded(
                     flex: 3,
-                    child: Text(
-                      _designDocuments[i].location,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    child: Row(
+                      children: [
+                        if (_designDocuments[i].hasUploadedFile) ...[
+                          const Icon(Icons.attach_file, size: 14, color: Color(0xFF10B981)),
+                          const SizedBox(width: 4),
+                        ],
+                        Expanded(
+                          child: Text(
+                            _designDocuments[i].hasUploadedFile
+                                ? _designDocuments[i].uploadedFileName!
+                                : _designDocuments[i].location,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _designDocuments[i].hasUploadedFile
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFF64748B),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   SizedBox(
@@ -1254,6 +877,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
 
   Widget _buildStatusBadge(String label, Color color) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 140),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
@@ -1262,6 +886,8 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       ),
       child: Text(
         label,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w800,
@@ -1360,7 +986,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
           controller: controller,
           minLines: minLines,
           maxLines: maxLines,
@@ -1412,7 +1038,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          initialValue: value,
+          value: value,
           items: items
               .map(
                 (item) => DropdownMenuItem<String>(
@@ -1736,7 +1362,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            VoiceTextField(
               controller: nameController,
               decoration: const InputDecoration(
                 labelText: 'Component name',
@@ -1745,7 +1371,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: type,
+              value: type,
               items: _componentTypes
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -1760,7 +1386,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: responsibilityController,
               minLines: 2,
               maxLines: 4,
@@ -1771,7 +1397,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: owner,
+              value: owner,
               items: ownerOptions
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -1787,7 +1413,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: status,
+              value: status,
               items: _componentStatuses
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -1847,7 +1473,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            VoiceTextField(
               controller: sourceController,
               decoration: const InputDecoration(
                 labelText: 'Source',
@@ -1855,7 +1481,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: destinationController,
               decoration: const InputDecoration(
                 labelText: 'Destination',
@@ -1864,7 +1490,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: protocol,
+              value: protocol,
               items: _protocolOptions
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -1879,7 +1505,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: notesController,
               minLines: 2,
               maxLines: 4,
@@ -1928,13 +1554,17 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         ? existing!.owner
         : ownerOptions.first;
     String status = existing?.status ?? _documentStatuses.first;
+    String? uploadedFileName = existing?.uploadedFileName;
+    String? uploadedFileUrl = existing?.uploadedFileUrl;
+    String? uploadedStoragePath = existing?.uploadedStoragePath;
+    bool isUploading = false;
     final saved = await _showBackendDialog(
       title: existing == null ? 'Add design document' : 'Edit design document',
       content: StatefulBuilder(
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            VoiceTextField(
               controller: titleController,
               decoration: const InputDecoration(
                 labelText: 'Document title',
@@ -1942,7 +1572,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: descriptionController,
               minLines: 2,
               maxLines: 4,
@@ -1953,7 +1583,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: owner,
+              value: owner,
               items: ownerOptions
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -1969,7 +1599,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: status,
+              value: status,
               items: _documentStatuses
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -1984,11 +1614,118 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: locationController,
               decoration: const InputDecoration(
                 labelText: 'Link or location',
                 border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // File upload area
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: uploadedFileName != null
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFE2E8F0),
+                ),
+              ),
+              child: Column(
+                children: [
+                  if (uploadedFileName != null) ...[
+                    Row(
+                      children: [
+                        const Icon(Icons.check_circle,
+                            size: 20, color: Color(0xFF10B981)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(uploadedFileName!,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF111827)),
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close,
+                              size: 16, color: Color(0xFFEF4444)),
+                          onPressed: () => setDialogState(() {
+                            uploadedFileName = null;
+                            uploadedFileUrl = null;
+                            uploadedStoragePath = null;
+                          }),
+                          padding: EdgeInsets.zero,
+                          constraints:
+                              const BoxConstraints(minWidth: 28, minHeight: 28),
+                        ),
+                      ],
+                    ),
+                  ] else ...[
+                    Icon(Icons.cloud_upload_outlined,
+                        size: 36, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text('Click to upload a document',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.grey.shade600)),
+                    const SizedBox(height: 4),
+                    Text(
+                        'PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV, PNG, JPG',
+                        style: TextStyle(
+                            fontSize: 11, color: Colors.grey.shade500)),
+                  ],
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: isUploading
+                          ? null
+                          : () async {
+                              setDialogState(() => isUploading = true);
+                              final projectId = _projectId();
+                              if (projectId == null || projectId.isEmpty) {
+                                setDialogState(() => isUploading = false);
+                                return;
+                              }
+                              final result =
+                                  await FileUploadHelper.pickAndUpload(
+                                folder: 'backend-design-documents',
+                                projectId: projectId,
+                                allowedExtensions:
+                                    FileUploadHelper.documentExtensions,
+                              );
+                              if (result != null) {
+                                setDialogState(() {
+                                  uploadedFileName = result.fileName;
+                                  uploadedFileUrl = result.downloadUrl;
+                                  uploadedStoragePath = result.storagePath;
+                                  isUploading = false;
+                                });
+                              } else {
+                                setDialogState(() => isUploading = false);
+                              }
+                            },
+                      icon: isUploading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.attach_file, size: 18),
+                      label:
+                          Text(isUploading ? 'Uploading...' : 'Choose File'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF10B981),
+                        side: const BorderSide(color: Color(0xFF10B981)),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -2005,6 +1742,9 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       owner: owner,
       status: status,
       location: locationController.text.trim(),
+      uploadedFileName: uploadedFileName,
+      uploadedFileUrl: uploadedFileUrl,
+      uploadedStoragePath: uploadedStoragePath,
     );
     setState(() {
       if (existing == null) {
@@ -2040,7 +1780,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            VoiceTextField(
               controller: nameController,
               decoration: const InputDecoration(
                 labelText: 'Entity / collection',
@@ -2048,7 +1788,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: primaryKeyController,
               decoration: const InputDecoration(
                 labelText: 'Primary key',
@@ -2057,7 +1797,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              initialValue: owner,
+              value: owner,
               items: ownerOptions
                   .map((option) =>
                       DropdownMenuItem(value: option, child: Text(option)))
@@ -2072,7 +1812,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
+            VoiceTextField(
               controller: descriptionController,
               minLines: 2,
               maxLines: 4,
@@ -2122,7 +1862,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          TextField(
+          VoiceTextField(
             controller: tableController,
             decoration: const InputDecoration(
               labelText: 'Entity / table',
@@ -2130,7 +1870,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: fieldController,
             decoration: const InputDecoration(
               labelText: 'Field name',
@@ -2138,7 +1878,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: typeController,
             decoration: const InputDecoration(
               labelText: 'Type',
@@ -2146,7 +1886,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: constraintsController,
             decoration: const InputDecoration(
               labelText: 'Constraints',
@@ -2154,7 +1894,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: notesController,
             minLines: 2,
             maxLines: 4,
@@ -2436,17 +2176,6 @@ class _PanelShell extends StatelessWidget {
       ),
     );
   }
-}
-
-// ─── Stat Card Data ──────────────────────────────────────────────────────────
-
-class _StatCardData {
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
-
-  final String label;
-  final String value;
-  final String supporting;
-  final Color color;
 }
 
 // ─── Snapshot & Data Model Classes ───────────────────────────────────────────
@@ -3088,7 +2817,7 @@ class _LabeledTextArea extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF374151))),
         const SizedBox(height: 6),
-        TextField(
+        VoiceTextField(
           controller: controller,
           maxLines: 3,
           decoration: InputDecoration(
@@ -3247,7 +2976,7 @@ class _TextCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return VoiceTextFormField(
       key: ValueKey(fieldKey),
       initialValue: value,
       maxLines: maxLines,
@@ -3283,7 +3012,7 @@ class _DropdownCell extends StatelessWidget {
     final resolved = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      initialValue: resolved,
+      value: resolved,
       items: options
           .map((option) => DropdownMenuItem(value: option, child: Text(option)))
           .toList(),
@@ -3507,6 +3236,9 @@ class _DesignDocument {
     required this.owner,
     required this.status,
     required this.location,
+    this.uploadedFileName,
+    this.uploadedFileUrl,
+    this.uploadedStoragePath,
   });
 
   final String id;
@@ -3515,6 +3247,12 @@ class _DesignDocument {
   final String owner;
   final String status;
   final String location;
+  final String? uploadedFileName;
+  final String? uploadedFileUrl;
+  final String? uploadedStoragePath;
+
+  bool get hasUploadedFile =>
+      uploadedFileName != null && uploadedFileName!.isNotEmpty;
 
   _DesignDocument copyWith({
     String? title,
@@ -3522,6 +3260,9 @@ class _DesignDocument {
     String? owner,
     String? status,
     String? location,
+    String? uploadedFileName,
+    String? uploadedFileUrl,
+    String? uploadedStoragePath,
   }) {
     return _DesignDocument(
       id: id,
@@ -3530,6 +3271,10 @@ class _DesignDocument {
       owner: owner ?? this.owner,
       status: status ?? this.status,
       location: location ?? this.location,
+      uploadedFileName: uploadedFileName ?? this.uploadedFileName,
+      uploadedFileUrl: uploadedFileUrl ?? this.uploadedFileUrl,
+      uploadedStoragePath:
+          uploadedStoragePath ?? this.uploadedStoragePath,
     );
   }
 
@@ -3541,6 +3286,9 @@ class _DesignDocument {
       'owner': owner,
       'status': status,
       'location': location,
+      'uploadedFileName': uploadedFileName,
+      'uploadedFileUrl': uploadedFileUrl,
+      'uploadedStoragePath': uploadedStoragePath,
     };
   }
 
@@ -3556,6 +3304,9 @@ class _DesignDocument {
         owner: data['owner']?.toString() ?? '',
         status: data['status']?.toString() ?? 'Draft',
         location: data['location']?.toString() ?? '',
+        uploadedFileName: data['uploadedFileName']?.toString(),
+        uploadedFileUrl: data['uploadedFileUrl']?.toString(),
+        uploadedStoragePath: data['uploadedStoragePath']?.toString(),
       );
     }).toList();
   }

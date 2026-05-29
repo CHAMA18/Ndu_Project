@@ -315,7 +315,7 @@ class ExecutionMetricsGrid extends StatelessWidget {
   const ExecutionMetricsGrid({
     super.key,
     required this.metrics,
-    this.minTileWidth = 220,
+    this.minTileWidth = 160,
   });
 
   final List<ExecutionMetricData> metrics;
@@ -328,28 +328,82 @@ class ExecutionMetricsGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final double width = constraints.maxWidth;
-        final int columns = width >= 1180
-            ? 4
-            : width >= 860
-                ? 3
-                : width >= 540
-                    ? 2
-                    : 1;
-        final double spacing = 16;
+        final int count = metrics.length;
+        final double spacing = 12;
+
+        // Wide screens: single row with equal-width Expanded cards
+        if (width >= 900) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: metrics
+                  .map((metric) => Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: metrics.indexOf(metric) == 0 ? 0 : spacing / 2,
+                            right: metrics.indexOf(metric) == metrics.length - 1
+                                ? 0
+                                : spacing / 2,
+                          ),
+                          child: ExecutionMetricCard(metric: metric),
+                        ),
+                      ))
+                  .toList(),
+            ),
+          );
+        }
+
+        // Medium / narrow: use Wrap with uniform widths + IntrinsicHeight per row
+        int columns;
+        if (width >= 600) {
+          columns = (count / 2).ceil().clamp(1, 4);
+        } else if (width >= 400) {
+          columns = 2;
+        } else {
+          columns = 1;
+        }
         final double tileWidth =
             (width - (spacing * (columns - 1))) / columns;
 
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: metrics
-              .map(
-                (metric) => SizedBox(
-                  width: tileWidth.clamp(minTileWidth, width).toDouble(),
-                  child: ExecutionMetricCard(metric: metric),
-                ),
-              )
-              .toList(),
+        // Build rows of cards so IntrinsicHeight can equalise each row
+        final List<Widget> rows = [];
+        for (int i = 0; i < count; i += columns) {
+          final rowMetrics = metrics.sublist(
+            i,
+            (i + columns).clamp(0, count),
+          );
+          rows.add(
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: rowMetrics
+                    .map((metric) => SizedBox(
+                          width: tileWidth.clamp(minTileWidth, width)
+                              .toDouble(),
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: rowMetrics.indexOf(metric) == 0
+                                  ? 0
+                                  : spacing / 2,
+                              right: rowMetrics.indexOf(metric) ==
+                                      rowMetrics.length - 1
+                                  ? 0
+                                  : spacing / 2,
+                            ),
+                            child: ExecutionMetricCard(metric: metric),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+          );
+          if (i + columns < count) {
+            rows.add(SizedBox(height: spacing));
+          }
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: rows,
         );
       },
     );
@@ -367,69 +421,84 @@ class ExecutionMetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: metric.emphasisColor.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(14),
+          Text(
+            metric.label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF64748B),
+              letterSpacing: 0.2,
             ),
-            child: Icon(metric.icon, size: 20, color: metric.emphasisColor),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  metric.label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF64748B),
-                    letterSpacing: 0.2,
-                  ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: metric.emphasisColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  metric.value,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
-                    height: 1.0,
-                  ),
-                ),
-                if (metric.helper != null && metric.helper!.trim().isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      metric.helper!,
+                child: Icon(metric.icon, size: 20, color: metric.emphasisColor),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      metric.value,
                       style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF6B7280),
-                        height: 1.4,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                        height: 1.0,
                       ),
                     ),
-                  ),
-              ],
-            ),
+                    // Always reserve space for helper line so cards are same height
+                    if (metric.helper != null &&
+                        metric.helper!.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          metric.helper!,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF6B7280),
+                            height: 1.3,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      )
+                    else
+                      const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

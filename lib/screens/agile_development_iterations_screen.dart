@@ -21,6 +21,8 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class AgileDevelopmentIterationsScreen extends StatefulWidget {
   const AgileDevelopmentIterationsScreen({super.key});
 
@@ -166,7 +168,6 @@ class _AgileDevelopmentIterationsScreenState
   Widget build(BuildContext context) {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 18 : 32;
-    final isNarrow = MediaQuery.sizeOf(context).width < 980;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
@@ -191,27 +192,27 @@ class _AgileDevelopmentIterationsScreenState
                         if (_isLoading)
                           const LinearProgressIndicator(minHeight: 2),
                         if (_isLoading) const SizedBox(height: 16),
-                        const PlanningPhaseHeader(
+                        PlanningPhaseHeader(
             title: 'Agile Development Iterations',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
           _buildPageHeader(context),
                         const SizedBox(height: 20),
                         _buildFilterChips(context),
                         const SizedBox(height: 24),
-                        _buildStatsRow(isNarrow),
-                        const SizedBox(height: 24),
                         _buildIterationTable(),
-                        const SizedBox(height: 24),
-                        _buildFooterNavigation(context),
                         const SizedBox(height: 48),
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Development Iterations',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -353,7 +354,7 @@ class _AgileDevelopmentIterationsScreenState
             designComponents: componentNames,
           );
           updated.add(task.copyWith(taskDescription: breakdown));
-        } catch (_) {
+        } catch (e) {
           updated.add(task);
         }
       }
@@ -568,7 +569,7 @@ class _AgileDevelopmentIterationsScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     key: userStoryFieldKey,
                     controller: userStoryController,
                     onChanged: (_) {
@@ -660,7 +661,7 @@ class _AgileDevelopmentIterationsScreenState
                   const SizedBox(height: 12),
                   TextFormattingToolbar(controller: taskDescriptionController),
                   const SizedBox(height: 6),
-                  TextField(
+                  VoiceTextField(
                     controller: taskDescriptionController,
                     decoration:
                         const InputDecoration(labelText: 'Task Description'),
@@ -670,7 +671,7 @@ class _AgileDevelopmentIterationsScreenState
                   TextFormattingToolbar(
                       controller: acceptanceCriteriaController),
                   const SizedBox(height: 6),
-                  TextField(
+                  VoiceTextField(
                     controller: acceptanceCriteriaController,
                     decoration: const InputDecoration(
                         labelText: 'Acceptance Criteria (use "." bullets)'),
@@ -679,7 +680,7 @@ class _AgileDevelopmentIterationsScreenState
                   const SizedBox(height: 12),
                   TextFormattingToolbar(controller: iterationNotesController),
                   const SizedBox(height: 6),
-                  TextField(
+                  VoiceTextField(
                     controller: iterationNotesController,
                     decoration: const InputDecoration(
                         labelText: 'Iteration Notes (manual input only)'),
@@ -774,6 +775,21 @@ class _AgileDevelopmentIterationsScreenState
       nextLabel: 'Next: Scope Tracking Implementation',
       onBack: () => DetailedDesignScreen.open(context),
       onNext: () => ScopeTrackingImplementationScreen.open(context),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Development Iterations',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_development_iterations_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

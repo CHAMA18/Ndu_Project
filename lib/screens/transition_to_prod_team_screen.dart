@@ -1,10 +1,14 @@
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
+
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/contract_close_out_screen.dart';
 import 'package:ndu_project/screens/deliver_project_closure_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
@@ -13,7 +17,6 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 class TransitionToProdTeamScreen extends StatefulWidget {
   const TransitionToProdTeamScreen({super.key});
@@ -38,8 +41,10 @@ class _TransitionToProdTeamScreenState
 
   bool _isLoading = true;
   bool _isGenerating = false;
+  bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
   void initState() {
@@ -66,15 +71,44 @@ class _TransitionToProdTeamScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Transition to Production Team',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
+            Row(
+              children: [
+                const Spacer(),
+                ExecutionActionBar(
+                  actions: [
+                    ExecutionActionItem(
+                      label: _isExporting ? 'Exporting…' : 'Export PDF',
+                      icon: Icons.picture_as_pdf_outlined,
+                      tone: ExecutionActionTone.secondary,
+                      isLoading: _isExporting,
+                      onPressed: _isExporting ? null : _exportPdf,
+                    ),
+                    ExecutionActionItem(
+                      label: _selectedView == 'full' ? 'Summary View' : 'Full View',
+                      icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
+                      tone: ExecutionActionTone.secondary,
+                      onPressed: () => setState(() {
+                        _selectedView = _selectedView == 'full' ? 'summary' : 'full';
+                      }),
+                    ),
+                    ExecutionActionItem(
+                      label: _isGenerating ? 'Generating…' : 'AI Assist',
+                      icon: Icons.auto_awesome_outlined,
+                      tone: ExecutionActionTone.ai,
+                      isLoading: _isGenerating,
+                      onPressed: _isGenerating ? null : _populateFromAi,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildTeamRosterPanel(),
@@ -98,25 +132,7 @@ class _TransitionToProdTeamScreenState
     );
   }
 
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Transition to Production Team',
-      description:
-          'Hand over deliverables, documentation, and system access to the operations team. Track sign-offs and knowledge transfer.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildMetricsRow() {
     final active = _teamRoster.where((m) => m.releaseStatus == 'Active').length;
@@ -165,9 +181,20 @@ class _TransitionToProdTeamScreenState
     return LaunchDataTable(
       title: 'Production Team Roster',
       subtitle: 'Members receiving the handover from the project team.',
-      columns: const ['Name', 'Role', 'Contact', 'Start Date', 'Status'],
+      columns: const [LaunchColumn(label: 'Name', flexible: true, fieldType: LaunchFieldType.text, hint: 'Name'), LaunchColumn(label: 'Role', width: 120, fieldType: LaunchFieldType.text, hint: 'Role'), LaunchColumn(label: 'Contact', width: 120, fieldType: LaunchFieldType.text, hint: 'Contact'), LaunchColumn(label: 'Start Date', width: 130, fieldType: LaunchFieldType.date, hint: 'Start'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Active', 'Transitioning', 'Released'])],
       rowCount: _teamRoster.length,
-      onAdd: _addMember,
+      onAddValues: (values) {
+        setState(() {
+          _teamRoster.add(LaunchTeamMember(
+            name: values['Name'] ?? '',
+            role: values['Role'] ?? '',
+            contact: values['Contact'] ?? '',
+            startDate: values['Start Date'] ?? '',
+            releaseStatus: values['Status'] ?? 'Active',
+          ));
+        });
+        _scheduleSave();
+      },
       importLabel: 'Import from Staffing',
       onImport: _importStaffing,
       emptyMessage:
@@ -234,9 +261,20 @@ class _TransitionToProdTeamScreenState
       title: 'Handover Checklist',
       subtitle:
           'Structured items to transfer to production: docs, access, monitoring, training, runbooks.',
-      columns: const ['Category', 'Item', 'Owner', 'Due', 'Status'],
+      columns: const [LaunchColumn(label: 'Category', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: LaunchHandoverItem.categories), LaunchColumn(label: 'Item', flexible: true, fieldType: LaunchFieldType.text, hint: 'Item'), LaunchColumn(label: 'Owner', width: 120, fieldType: LaunchFieldType.text, hint: 'Owner'), LaunchColumn(label: 'Due', width: 130, fieldType: LaunchFieldType.date, hint: 'Due'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'In Progress', 'Complete'])],
       rowCount: _handoverChecklist.length,
-      onAdd: _addHandoverItem,
+      onAddValues: (values) {
+        setState(() {
+          _handoverChecklist.add(LaunchHandoverItem(
+            category: values['Category'] ?? 'Documentation',
+            item: values['Item'] ?? '',
+            owner: values['Owner'] ?? '',
+            dueDate: values['Due'] ?? '',
+            status: values['Status'] ?? 'Pending',
+          ));
+        });
+        _scheduleSave();
+      },
       emptyMessage:
           'No handover items. Add items to track the production handover.',
       cellBuilder: (context, idx) {
@@ -301,9 +339,20 @@ class _TransitionToProdTeamScreenState
     return LaunchDataTable(
       title: 'Knowledge Transfer',
       subtitle: 'Track sessions, artifacts, and owners for knowledge capture.',
-      columns: const ['Topic', 'From', 'To', 'Method', 'Status'],
+      columns: const [LaunchColumn(label: 'Topic', flexible: true, fieldType: LaunchFieldType.text, hint: 'Topic'), LaunchColumn(label: 'From', width: 130, fieldType: LaunchFieldType.text, hint: 'From'), LaunchColumn(label: 'To', width: 130, fieldType: LaunchFieldType.text, hint: 'To'), LaunchColumn(label: 'Method', width: 130, fieldType: LaunchFieldType.text, hint: 'Method'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'Scheduled', 'Complete'])],
       rowCount: _knowledgeTransfers.length,
-      onAdd: _addKnowledgeTransfer,
+      onAddValues: (values) {
+        setState(() {
+          _knowledgeTransfers.add(LaunchKnowledgeTransfer(
+            topic: values['Topic'] ?? '',
+            fromPerson: values['From'] ?? '',
+            toPerson: values['To'] ?? '',
+            method: values['Method'] ?? '',
+            status: values['Status'] ?? 'Pending',
+          ));
+        });
+        _scheduleSave();
+      },
       emptyMessage:
           'No knowledge transfers. Track knowledge handoff from project team to operations.',
       cellBuilder: (context, idx) {
@@ -368,9 +417,20 @@ class _TransitionToProdTeamScreenState
     return LaunchDataTable(
       title: 'Ops & Client Sign-Offs',
       subtitle: 'Track who needs to approve the handover and their status.',
-      columns: const ['Stakeholder', 'Role', 'Status', 'Date', 'Notes'],
+      columns: const [LaunchColumn(label: 'Stakeholder', flexible: true, fieldType: LaunchFieldType.text, hint: 'Name'), LaunchColumn(label: 'Role', width: 120, fieldType: LaunchFieldType.text, hint: 'Role'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'Approved', 'Rejected']), LaunchColumn(label: 'Date', width: 130, fieldType: LaunchFieldType.date, hint: 'Date'), LaunchColumn(label: 'Notes', flexible: true, fieldType: LaunchFieldType.text, hint: 'Notes')],
       rowCount: _signOffs.length,
-      onAdd: _addApproval,
+      onAddValues: (values) {
+        setState(() {
+          _signOffs.add(LaunchApproval(
+            stakeholder: values['Stakeholder'] ?? '',
+            role: values['Role'] ?? '',
+            status: values['Status'] ?? 'Pending',
+            date: values['Date'] ?? '',
+            notes: values['Notes'] ?? '',
+          ));
+        });
+        _scheduleSave();
+      },
       emptyMessage:
           'No sign-offs yet. Capture who needs to approve the handover.',
       cellBuilder: (context, idx) {
@@ -428,26 +488,6 @@ class _TransitionToProdTeamScreenState
         );
       },
     );
-  }
-
-  void _addMember() {
-    setState(() => _teamRoster.add(LaunchTeamMember()));
-    _scheduleSave();
-  }
-
-  void _addHandoverItem() {
-    setState(() => _handoverChecklist.add(LaunchHandoverItem()));
-    _scheduleSave();
-  }
-
-  void _addKnowledgeTransfer() {
-    setState(() => _knowledgeTransfers.add(LaunchKnowledgeTransfer()));
-    _scheduleSave();
-  }
-
-  void _addApproval() {
-    setState(() => _signOffs.add(LaunchApproval()));
-    _scheduleSave();
   }
 
   Future<void> _deleteTeamMember(int idx) async {
@@ -645,9 +685,9 @@ class _TransitionToProdTeamScreenState
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> generated = {};
+    LaunchAiResult? result;
     try {
-      generated = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Transition to Production Team',
         sections: const {
@@ -665,6 +705,19 @@ class _TransitionToProdTeamScreenState
     }
 
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasExisting = _teamRoster.isNotEmpty ||
         _handoverChecklist.isNotEmpty ||
         _knowledgeTransfers.isNotEmpty ||
@@ -682,6 +735,121 @@ class _TransitionToProdTeamScreenState
       _isGenerating = false;
     });
     await _persistData();
+  }
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName ?? 'Project';
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final filename = 'transition_to_prod_${projectName.replaceAll(' ', '_')}_$stamp.pdf';
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => [
+            pw.Text('Transition to Production Team', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+            pw.SizedBox(height: 4),
+            pw.Text('$projectName — Generated ${now.toLocal().toIso8601String()}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+            pw.SizedBox(height: 16),
+
+            // Team Roster
+            _pdfSectionTitle('Production Team Roster'),
+            pw.SizedBox(height: 6),
+            if (_teamRoster.isEmpty)
+              _pdfCell('No team members recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Name', 'Role', 'Contact', 'Status'],
+                data: _teamRoster.map((m) => [m.name, m.role, m.contact, m.releaseStatus]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Handover Checklist
+            _pdfSectionTitle('Handover Checklist'),
+            pw.SizedBox(height: 6),
+            if (_handoverChecklist.isEmpty)
+              _pdfCell('No handover items recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Category', 'Item', 'Owner', 'Status'],
+                data: _handoverChecklist.map((h) => [h.category, h.item, h.owner, h.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Knowledge Transfers
+            _pdfSectionTitle('Knowledge Transfer'),
+            pw.SizedBox(height: 6),
+            if (_knowledgeTransfers.isEmpty)
+              _pdfCell('No knowledge transfers recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Topic', 'From', 'To', 'Method', 'Status'],
+                data: _knowledgeTransfers.map((k) => [k.topic, k.fromPerson, k.toPerson, k.method, k.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+            pw.SizedBox(height: 14),
+
+            // Sign-Offs
+            _pdfSectionTitle('Ops & Client Sign-Offs'),
+            pw.SizedBox(height: 6),
+            if (_signOffs.isEmpty)
+              _pdfCell('No sign-offs recorded.')
+            else
+              pw.Table.fromTextArray(
+                headers: ['Stakeholder', 'Role', 'Status'],
+                data: _signOffs.map((s) => [s.stakeholder, s.role, s.status]).toList(),
+                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellPadding: const pw.EdgeInsets.all(6),
+              ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (!mounted) return;
+      final blob = html.Blob([bytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PDF export failed: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold));
+  }
+
+  pw.Widget _pdfHeaderCell(String text) {
+    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)));
+  }
+
+  pw.Widget _pdfCell(String text) {
+    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: const pw.TextStyle(fontSize: 9)));
   }
 
   List<LaunchTeamMember> _mapMembers(List<Map<String, dynamic>>? raw) {

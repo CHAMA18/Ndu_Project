@@ -10,6 +10,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
 import 'package:ndu_project/services/contract_service.dart'
     as planning_contracts;
+import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/services/planning_contracting_service.dart';
 import 'package:ndu_project/services/procurement_seeding_service.dart';
 import 'package:ndu_project/services/procurement_service.dart';
@@ -31,6 +32,8 @@ import 'package:ndu_project/widgets/procurement/procurement_timeline_view.dart';
 import 'package:ndu_project/widgets/procurement/procurement_vendor_management.dart';
 import 'package:ndu_project/widgets/procurement/procurement_workflow_builder.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class PlanningProcurementV2Screen extends StatefulWidget {
   const PlanningProcurementV2Screen({super.key});
@@ -191,6 +194,8 @@ class _PlanningProcurementV2ScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              PlanningPhaseHeader(title: 'Procurement', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                              const SizedBox(height: 16),
                               _buildHeader(context),
                               const SizedBox(height: 24),
                               _buildTabBar(),
@@ -203,7 +208,12 @@ class _PlanningProcurementV2ScreenState
                       ),
                     ],
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Planning Procurement',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                   const AdminEditToggle(),
                 ],
               ),
@@ -268,6 +278,7 @@ class _PlanningProcurementV2ScreenState
               ),
             ),
             const SizedBox(width: 16),
+            const SizedBox(width: 8),
             OutlinedButton.icon(
               onPressed: () => PlanningContractingScreen.open(context),
               icon: const Icon(Icons.arrow_back),
@@ -878,7 +889,7 @@ class _PlanningProcurementV2ScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: nameController,
                 decoration: const InputDecoration(
                   labelText: 'Vendor or Contact Name (Optional)',
@@ -887,7 +898,7 @@ class _PlanningProcurementV2ScreenState
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email Address',
@@ -1770,7 +1781,7 @@ class _PlanningProcurementV2ScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Step name',
@@ -1781,7 +1792,7 @@ class _PlanningProcurementV2ScreenState
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: durationController,
                         keyboardType: TextInputType.number,
                         decoration:
@@ -1968,6 +1979,21 @@ class _PlanningProcurementV2ScreenState
         setState(() => _workflowSaving = false);
       }
     }
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Planning Procurement',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_procurement_v2_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
 

@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 /// Front End Planning – Allowance screen
 /// Refactored to support structured "Program-Aware Financial Inputs".
 ///
@@ -65,7 +67,7 @@ class _FrontEndPlanningAllowanceScreenState
           .doc('initialization_flags')
           .get();
       return doc.data()?[flagKey] == true;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -80,7 +82,7 @@ class _FrontEndPlanningAllowanceScreenState
           .collection('planning_meta')
           .doc('initialization_flags')
           .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   @override
@@ -110,7 +112,22 @@ class _FrontEndPlanningAllowanceScreenState
     });
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Allowance',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void dispose() {
     _notes.removeListener(_syncNotesToProvider);
     _notes.dispose();
@@ -385,7 +402,7 @@ class _FrontEndPlanningAllowanceScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   fieldLabel('Name'),
-                  TextField(
+                  VoiceTextField(
                     controller: nameController,
                     decoration: fieldDecoration(hintText: 'Allowance name'),
                   ),
@@ -411,7 +428,7 @@ class _FrontEndPlanningAllowanceScreenState
                   ),
                   const SizedBox(height: 12),
                   fieldLabel('Amount'),
-                  TextField(
+                  VoiceTextField(
                     controller: amountController,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -446,7 +463,7 @@ class _FrontEndPlanningAllowanceScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             fieldLabel('Released Amount'),
-                            TextField(
+                            VoiceTextField(
                               controller: releasedAmountController,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
@@ -464,7 +481,7 @@ class _FrontEndPlanningAllowanceScreenState
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             fieldLabel('Actual Amount'),
-                            TextField(
+                            VoiceTextField(
                               controller: actualAmountController,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
@@ -480,21 +497,21 @@ class _FrontEndPlanningAllowanceScreenState
                   ),
                   const SizedBox(height: 12),
                   fieldLabel('Applies To'),
-                  TextField(
+                  VoiceTextField(
                     controller: appliesToController,
                     decoration: fieldDecoration(
                         hintText: 'Estimate, Schedule, Training'),
                   ),
                   const SizedBox(height: 12),
                   fieldLabel('Assigned To'),
-                  TextField(
+                  VoiceTextField(
                     controller: assignedToController,
                     decoration:
                         fieldDecoration(hintText: 'Role or person name'),
                   ),
                   const SizedBox(height: 12),
                   fieldLabel('Notes'),
-                  TextField(
+                  VoiceTextField(
                     controller: notesController,
                     maxLines: 4,
                     decoration:
@@ -879,7 +896,7 @@ class _FrontEndPlanningAllowanceScreenState
                   const AdminEditToggle(),
                   Column(
                     children: [
-                      const FrontEndPlanningHeader(),
+                      FrontEndPlanningHeader(onExportPdf: _exportPdf),
                       Expanded(
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.symmetric(
@@ -1054,7 +1071,12 @@ class _FrontEndPlanningAllowanceScreenState
                       _saveAndNavigateToNextStep();
                     },
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Allowance',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -1265,7 +1287,7 @@ Widget _roundedField(
       border: Border.all(color: const Color(0xFFE4E7EC)),
     ),
     padding: const EdgeInsets.all(14),
-    child: TextField(
+    child: VoiceTextField(
       controller: controller,
       minLines: minLines,
       maxLines: null,

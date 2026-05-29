@@ -19,7 +19,10 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/s_curve_chart.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/services/forecast_service.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
 
@@ -57,7 +60,7 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
           .doc('initialization_flags')
           .get();
       return doc.data()?[flagKey] == true;
-    } catch (_) {
+    } catch (e) {
       return false;
     }
   }
@@ -72,7 +75,7 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
           .collection('planning_meta')
           .doc('initialization_flags')
           .set({flagKey: true, '${flagKey}_at': FieldValue.serverTimestamp()}, SetOptions(merge: true));
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
   }
 
   _CostView _activeView = _CostView.indirect;
@@ -192,6 +195,8 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Cost Estimate', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _TopUtilityBar(
                           onBack: () => PlanningPhaseNavigation.goToPrevious(
                               context, 'cost_estimate'),
@@ -278,7 +283,12 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
                       ],
                     ),
                   ),
-                  const KazAiChatBubble(),
+                  MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Cost Estimate',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
                 ],
               ),
             ),
@@ -2546,6 +2556,21 @@ Current Cost Items: ${pd.costEstimateItems.map((e) => "${e.title} (${e.costType}
         return 'forecast';
     }
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Cost Estimate',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_cost_estimate_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _TopUtilityBar extends StatelessWidget {
@@ -2578,6 +2603,7 @@ class _TopUtilityBar extends StatelessWidget {
                 color: Color(0xFF111827)),
           ),
           const Spacer(),
+          const SizedBox(width: 8),
           const _UserChip(name: '', role: ''),
         ],
       ),
@@ -5954,7 +5980,7 @@ class _OverheadConfigCard extends StatelessWidget {
               SizedBox(
                 width: 80,
                 height: 36,
-                child: TextField(
+                child: VoiceTextField(
                   controller: TextEditingController(
                     text: ratePercent > 0 ? ratePercent.toStringAsFixed(1) : '',
                   )
@@ -6433,7 +6459,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         const SizedBox(height: 16),
                         _DialogLabel(label: 'Cost item'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _titleController,
                           decoration: _inputDecoration(
                               'e.g., Vendor integration services'),
@@ -6502,7 +6528,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         const SizedBox(height: 16),
                         _DialogLabel(label: 'Estimated amount'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _amountController,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
@@ -6542,7 +6568,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         const SizedBox(height: 16),
                         _DialogLabel(label: 'Estimating basis'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _estimatingBasisController,
                           minLines: 2,
                           maxLines: 3,
@@ -6553,14 +6579,14 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         const SizedBox(height: 16),
                         _DialogLabel(label: 'Scope / BOE (optional)'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _scopeIncludedController,
                           minLines: 2,
                           maxLines: 3,
                           decoration: _inputDecoration('Scope included'),
                         ),
                         const SizedBox(height: 10),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _scopeExcludedController,
                           minLines: 2,
                           maxLines: 3,
@@ -6610,7 +6636,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _designMaturityNoteController,
                           decoration: _inputDecoration('Design maturity note (optional)'),
                         ),
@@ -6618,7 +6644,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _quantityController,
                                 keyboardType: TextInputType.number,
                                 decoration: _inputDecoration('Quantity'),
@@ -6626,7 +6652,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _unitRateController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
@@ -6637,7 +6663,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _unitOfMeasureController,
                                 decoration: _inputDecoration('Unit of measure'),
                               ),
@@ -6648,7 +6674,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _contingencyPercentController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
@@ -6658,7 +6684,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _contingencyAmountController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
@@ -6677,7 +6703,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _rangeLowController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
@@ -6690,7 +6716,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _rangeHighController,
                                 keyboardType:
                                     const TextInputType.numberWithOptions(
@@ -6707,14 +6733,14 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _quoteReferenceController,
                                 decoration: _inputDecoration('Quote reference'),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: TextFormField(
+                              child: VoiceTextFormField(
                                 controller: _contractReferenceController,
                                 decoration: _inputDecoration(
                                     'Contract / commercial reference'),
@@ -6725,7 +6751,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
                         const SizedBox(height: 16),
                         _DialogLabel(label: 'Notes (optional)'),
                         const SizedBox(height: 8),
-                        TextFormField(
+                        VoiceTextFormField(
                           controller: _notesController,
                           minLines: 2,
                           maxLines: 4,
@@ -7418,8 +7444,10 @@ class _AiSuggestionsDialogState extends State<_AiSuggestionsDialog> {
     });
 
     try {
+      final projectData = ProjectDataHelper.getData(context);
       final items = await _service.generateCostEstimateSuggestions(
-          context: widget.projectContext);
+          context: widget.projectContext,
+          currency: projectData.costBenefitCurrency);
       if (mounted) {
         setState(() {
           _suggestions = items;

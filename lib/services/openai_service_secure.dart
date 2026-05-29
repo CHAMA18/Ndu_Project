@@ -11,7 +11,76 @@ import 'package:ndu_project/models/meeting_row.dart';
 // Remove markdown bold markers commonly produced by the model (e.g. *text* or **text**)
 String _stripAsterisks(String s) => s.replaceAll('*', '');
 
+/// Approximate USD-to-target exchange rates for AI prompt hints.
+/// These are rough mid-2025 rates used ONLY to instruct the AI model to
+/// convert values — they are NOT used for client-side conversion.
+const Map<String, double> _usdToCurrencyRates = {
+  'USD': 1.0,
+  'EUR': 0.92,
+  'GBP': 0.79,
+  'JPY': 155.0,
+  'CNY': 7.25,
+  'CAD': 1.37,
+  'AUD': 1.53,
+  'CHF': 0.89,
+  'INR': 83.5,
+  'KRW': 1360.0,
+  'BRL': 5.05,
+  'MXN': 17.2,
+  'ZAR': 18.5,
+  'SGD': 1.35,
+  'HKD': 7.82,
+  'NOK': 10.8,
+  'SEK': 10.6,
+  'DKK': 6.88,
+  'PLN': 4.02,
+  'RUB': 92.0,
+  'TRY': 32.5,
+  'AED': 3.67,
+  'SAR': 3.75,
+  'THB': 36.2,
+  'IDR': 15900.0,
+  'MYR': 4.72,
+  'PHP': 58.5,
+  'VND': 25200.0,
+  'NGN': 1550.0,
+  'EGP': 48.5,
+  'ILS': 3.72,
+  'CZK': 23.2,
+  'HUF': 365.0,
+  'NZD': 1.68,
+  'ZMW': 27.5,
+  'PKR': 278.0,
+};
+
+/// Returns a human-readable USD-to-currency rate hint for AI prompts.
+String _usdRateHint(String currency) {
+  final rate = _usdToCurrencyRates[currency.toUpperCase()] ?? 1.0;
+  if (rate >= 100) return rate.toStringAsFixed(0);
+  if (rate >= 10) return rate.toStringAsFixed(1);
+  return rate.toStringAsFixed(2);
+}
+
+/// Returns a rough converted value hint for AI prompts.
+String _convertHint(double usdAmount, String currency) {
+  final rate = _usdToCurrencyRates[currency.toUpperCase()] ?? 1.0;
+  final converted = usdAmount * rate;
+  if (converted >= 1000000) return '${(converted / 1000000).toStringAsFixed(1)}M';
+  if (converted >= 1000) return converted.toStringAsFixed(0);
+  return converted.toStringAsFixed(converted % 1 == 0 ? 0 : 2);
+}
+
+/// Generates a currency conversion instruction block for AI prompts.
+/// When the currency is not USD, tells the AI to convert all values.
+String _currencyConversionInstruction(String currency) {
+  if (currency.toUpperCase() == 'USD') return '';
+  final rate = _usdToCurrencyRates[currency.toUpperCase()] ?? 1.0;
+  return '\n- All monetary amounts MUST be expressed in $currency. Convert from USD equivalents using realistic exchange rates (1 USD ≈ ${_usdRateHint(currency)} $currency). Do NOT simply reuse USD numerical values — $currency has a different purchasing power and exchange rate. For example, if USD amount would be 10,000, the amount in $currency should be approximately ${_convertHint(10000, currency)}. Apply this conversion to every monetary amount in your response.';
+}
+
 enum _AiProjectType { physical, digital, hybrid, service, unknown }
+
+enum _AiProjectScale { small, medium, large }
 
 class _ResponseFormatUnsupportedException implements Exception {
   const _ResponseFormatUnsupportedException();
@@ -55,6 +124,9 @@ Rules for every response:
 11. If exact product/version currency is uncertain, prefer widely adopted latest-stable practices rather than outdated or end-of-life specifics.
 12. Calibrate scope, timeline, and cost realism to project scale and context.
 13. Make assumptions explicit when context is incomplete.
+14. FINANCIAL REALISM IS CRITICAL: All monetary values, costs, benefits, staffing rates, and savings figures MUST be grounded in real-world market data for the detected project scale and geography. Small/local businesses (barbershops, salons, food trucks) have total monthly revenues of \$2K-\$15K — any suggested benefit exceeding 15% of that is unrealistic. Mid-size enterprises have department budgets of \$50K-\$200K. Large enterprises handle \$500K-\$5M+ per initiative. NEVER suggest values that would be impossible or absurd for the business size. When in doubt, err on the conservative side.
+15. STAFFING REALISM: Monthly staff costs must reflect actual market rates. For small businesses in Africa: \$800-\$3,000/mo per role. For mid-size: \$2,000-\$8,000/mo. For large enterprises: \$5,000-\$15,000/mo for senior roles. Do NOT suggest \$10,000/mo for a barbershop staff member.
+16. TIMELINE REALISM: Small projects take weeks to 3 months. Medium projects take 3-9 months. Large projects take 9-24+ months. Do NOT suggest a 12-month timeline for a simple booking app or a 2-week timeline for an enterprise ERP.
 
 Your current specialist role: $specialistRole.
 $strictJsonRule
@@ -414,10 +486,10 @@ class OpenAiServiceSecure {
         'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
       };
 
-      final body = jsonEncode({
+      final body = jsonEncode(OpenAiConfig.wrapBody({
         'model': OpenAiConfig.model,
         'temperature': temperature,
-        'max_tokens': maxTokens,
+        'max_completion_tokens': maxTokens,
         'messages': [
           {
             'role': 'system',
@@ -430,7 +502,7 @@ class OpenAiServiceSecure {
           },
           {'role': 'user', 'content': trimmedPrompt},
         ],
-      });
+      }));
 
       final response = await _client
           .post(uri, headers: headers, body: body)
@@ -469,10 +541,10 @@ class OpenAiServiceSecure {
     };
 
     final prompt = _fepSectionPrompt(section: section, context: trimmedContext);
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -488,7 +560,7 @@ class OpenAiServiceSecure {
           'content': prompt,
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -545,10 +617,10 @@ class OpenAiServiceSecure {
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -562,7 +634,7 @@ class OpenAiServiceSecure {
               _qualitySeedPrompt(section: section, context: trimmedContext),
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -890,10 +962,10 @@ class OpenAiServiceSecure {
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -906,7 +978,7 @@ class OpenAiServiceSecure {
           'content': 'Project Context:\n$trimmedContext',
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -953,10 +1025,10 @@ class OpenAiServiceSecure {
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -969,7 +1041,7 @@ class OpenAiServiceSecure {
           'content': 'Project Context:\n$trimmedContext',
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1038,10 +1110,10 @@ class OpenAiServiceSecure {
 
     final prompt = _buildMitigationPrompt(trimmedRisks, context);
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1054,7 +1126,7 @@ class OpenAiServiceSecure {
           'content': prompt,
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1142,10 +1214,10 @@ class OpenAiServiceSecure {
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1158,7 +1230,7 @@ class OpenAiServiceSecure {
           'content': 'Project Context:\n$trimmedContext',
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1238,10 +1310,10 @@ Rules:
 - For "Constraints": lists budget, timeline, or resource limitations.
 ''';
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1256,7 +1328,7 @@ Rules:
         },
         {'role': 'user', 'content': prompt}
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1327,10 +1399,10 @@ $trimmedContext
 Return ONLY valid JSON: {"objective": "..." }
 ''';
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1340,7 +1412,7 @@ Return ONLY valid JSON: {"objective": "..." }
         },
         {'role': 'user', 'content': prompt},
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1402,10 +1474,10 @@ Project Context:
 $trimmedContext
 ''';
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1420,7 +1492,7 @@ $trimmedContext
         },
         {'role': 'user', 'content': prompt},
       ],
-    });
+    }));
 
     String normalize(dynamic value) {
       if (value == null) return '';
@@ -1807,10 +1879,10 @@ $trimmedContext
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1830,7 +1902,7 @@ Use concise professional language. Status should use In progress, Pending, In re
         },
         {'role': 'user', 'content': 'Project Context:\n$trimmedContext'}
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1896,10 +1968,10 @@ Use concise professional language. Status should use In progress, Pending, In re
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1917,7 +1989,7 @@ Use concise professional language. Status must be one of: Approved, Aligned, Rea
         },
         {'role': 'user', 'content': 'Project Context:\n$trimmedContext'}
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -1955,10 +2027,10 @@ Use concise professional language. Status must be one of: Approved, Aligned, Rea
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -1974,7 +2046,7 @@ Return JSON with:
         },
         {'role': 'user', 'content': 'Project Context:\n$trimmedContext'}
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -2158,10 +2230,10 @@ Return JSON with:
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -2174,7 +2246,7 @@ Return JSON with:
           'content': _projectFrameworkPrompt(trimmedContext),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -2225,10 +2297,10 @@ Return JSON with:
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.55,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -2246,7 +2318,7 @@ Return JSON with:
           'content': _opportunitiesPrompt(trimmed),
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -2458,13 +2530,14 @@ $c
 
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
-    final projectType = _detectProjectType(
-      '$trimmed $description $assumptions $contextNotes',
-    );
+    final combinedContext = '$trimmed $description $assumptions $contextNotes';
+    final projectType = _detectProjectType(combinedContext);
+    final projectScale = _detectProjectScale(combinedContext);
     final budgetAnchor = _extractLargestCurrencyAnchor(contextNotes);
     final domainHints = _financialDomainHints(
-      context: '$trimmed $description $assumptions $contextNotes',
+      context: combinedContext,
     );
+    final scaleConstraints = _scaleFinancialConstraints(projectScale);
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -2483,12 +2556,13 @@ $c
       estimationMode: estimationMode,
       basisFrequency: basisFrequency,
       domainHints: domainHints,
+      scaleConstraints: scaleConstraints,
     );
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.35,
-      'max_tokens': 300,
+      'max_completion_tokens': 300,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -2506,7 +2580,7 @@ $c
           'content': prompt,
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -2552,7 +2626,8 @@ $c
         return 0;
       }
 
-      return _normalizeEstimatedCost(estimated);
+      // Post-processing: clamp to scale-appropriate maximum
+      return _clampCostValue(estimated, projectScale);
     } catch (e) {
       rethrow;
     }
@@ -2671,6 +2746,7 @@ $c
     required String estimationMode,
     required String basisFrequency,
     required String domainHints,
+    String scaleConstraints = '',
   }) {
     final safeName = _escape(itemName);
     final safeDesc = _escape(description);
@@ -2690,6 +2766,7 @@ $c
 - If context is not enough for a reliable unit value, return estimated_cost as 0 and needs_more_context as true.
 '''
         : '';
+    final currencyInstruction = _currencyConversionInstruction(currency);
     return '''
 Estimate a realistic one-off cost for a single project line item in $currency.
 
@@ -2708,7 +2785,7 @@ Rules:
 - If confidence is low, return estimated_cost as 0 and needs_more_context as true.
 - For physical projects, avoid software lifecycle assumptions (MVP, sprint, API integration) unless explicitly stated.
 - Keep the estimate realistic for the project stage and starting point.
-$unitModeRules
+$unitModeRules$currencyInstruction
 
 Item: "$safeName"
 Description: "$safeDesc"
@@ -2719,18 +2796,23 @@ Largest numeric anchor found in context: "$budgetNote $currency"
 Estimation mode: "$mode"
 Domain guardrails:
 $domainHints
+
+$scaleConstraints
 ''';
   }
 
   // SUGGESTIONS
   Future<List<CostEstimateItem>> generateCostEstimateSuggestions({
     required String context,
+    String currency = 'USD',
   }) async {
     final trimmed = context.trim();
     if (trimmed.isEmpty) throw Exception('No context provided');
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
     final projectType = _detectProjectType(trimmed);
+    final projectScale = _detectProjectScale(trimmed);
     final domainHints = _financialDomainHints(context: trimmed);
+    final scaleConstraints = _scaleFinancialConstraints(projectScale);
 
     final uri = OpenAiConfig.chatUri();
     final headers = {
@@ -2738,10 +2820,10 @@ $domainHints
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -2760,10 +2842,12 @@ $domainHints
             trimmed,
             projectType: projectType,
             domainHints: domainHints,
+            scaleConstraints: scaleConstraints,
+            currency: currency,
           ),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -2805,6 +2889,7 @@ $domainHints
       return _sanitizeCostEstimateSuggestions(
         list,
         projectType: projectType,
+        projectScale: projectScale,
       );
     } catch (e) {
       rethrow;
@@ -2824,10 +2909,10 @@ $domainHints
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -2845,7 +2930,7 @@ $domainHints
           'content': _allowancesPrompt(trimmed),
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -2937,9 +3022,12 @@ $c
     String context, {
     required _AiProjectType projectType,
     required String domainHints,
+    String scaleConstraints = '',
+    String currency = 'USD',
   }) {
     final c = _escape(context);
     final typeLabel = _projectTypeLabel(projectType);
+    final currencyInstruction = _currencyConversionInstruction(currency);
     return '''
 Based on the project context below, suggest 3-5 realistic cost estimate items (mix of direct and indirect costs if appropriate).
 
@@ -2962,6 +3050,9 @@ Rules:
 - If context is insufficient, return {"items": []}.
 - For physical projects, do not output software phases such as Discovery and Planning, MVP Build, Integration, or Data.
 - Do not use SaaS-only metrics or terms (CAC/LTV/churn/MRR) unless the context explicitly indicates a SaaS/digital business model.
+- All amounts in the JSON must be in $currency.$currencyInstruction
+
+$scaleConstraints
 
 Project Context:
 """
@@ -2976,6 +3067,7 @@ $domainHints
   List<CostEstimateItem> _sanitizeCostEstimateSuggestions(
     List<CostEstimateItem> items, {
     required _AiProjectType projectType,
+    _AiProjectScale projectScale = _AiProjectScale.medium,
   }) {
     final seen = <String>{};
     final filtered = <CostEstimateItem>[];
@@ -3000,7 +3092,7 @@ $domainHints
       filtered.add(
         CostEstimateItem(
           title: title,
-          amount: _normalizeEstimatedCost(amount),
+          amount: _clampCostValue(amount, projectScale),
           notes: item.notes.trim(),
           costType: normalizedType,
         ),
@@ -3095,10 +3187,10 @@ $domainHints
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.7,
-      'max_tokens': 1000,
+      'max_completion_tokens': 1000,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -3119,7 +3211,7 @@ $domainHints
           )
         },
       ],
-    });
+    }));
 
     final response = await _client
         .post(uri, headers: headers, body: body)
@@ -3159,10 +3251,10 @@ $domainHints
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -3177,7 +3269,7 @@ $domainHints
         },
         {'role': 'user', 'content': _risksPrompt(solutions, contextNotes)},
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -3340,7 +3432,7 @@ $domainHints
     final payload = {
       'model': OpenAiConfig.model,
       'temperature': 0.7,
-      'max_tokens': 2000,
+      'max_completion_tokens': 2000,
       'messages': [
         {
           'role': 'system',
@@ -3360,7 +3452,7 @@ $domainHints
     }
 
     final response = await _client
-        .post(uri, headers: headers, body: jsonEncode(payload))
+        .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode == 429) {
       throw Exception('API quota exceeded. Please check your OpenAI billing.');
@@ -3509,10 +3601,10 @@ $domainHints
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -3530,7 +3622,7 @@ $domainHints
           'content': _technologiesPrompt(solutions, contextNotes)
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -3602,10 +3694,10 @@ $domainHints
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.45,
-      'max_tokens': 1400,
+      'max_completion_tokens': 1400,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -3628,7 +3720,7 @@ $domainHints
           )
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -3828,11 +3920,22 @@ $domainHints
     String contextNotes = '',
   }) {
     final type = _detectProjectTypeForSolution(solution, contextNotes);
+    final combinedContext = '${solution.title} ${solution.description} $contextNotes';
+    final projectScale = _detectProjectScale(combinedContext);
     final templates = _fallbackCostTemplatesForType(type);
     final seed =
         _stableHash('${solution.title}|${solution.description}|$contextNotes');
     final titleScale = 0.88 + ((seed % 35) / 100);
     final indexScale = 1 + (index * 0.08);
+
+    // Scale cost items proportionally to project scale.
+    // Small projects should have much lower costs than the template defaults.
+    final scaleCostFactor = switch (projectScale) {
+      _AiProjectScale.small => 0.08,  // ~8% of template cost for small projects
+      _AiProjectScale.medium => 1.0,  // full template cost for medium projects
+      _AiProjectScale.large => 1.5,   // 1.5x template cost for large projects
+    };
+
     final items = <AiCostItem>[];
 
     for (int i = 0; i < templates.length; i++) {
@@ -3841,7 +3944,7 @@ $domainHints
       final baseRoi = (template['roi'] as num).toDouble();
       final variation = 0.94 + (((seed + (i * 17)) % 13) / 100);
       final estimate = _normalizeEstimatedCost(
-          baseCost * titleScale * indexScale * variation);
+          baseCost * titleScale * indexScale * variation * scaleCostFactor);
       final roi = _clampDouble(
         baseRoi + ((((seed + i) % 7) - 3) * 0.6),
         6,
@@ -4103,6 +4206,7 @@ $domainHints
       );
       return '{"title": "${_escape(s.title)}", "description": "${_escape(s.description)}", "project_type_hint": "$typeHint"}';
     }).join(',');
+    final currencyInstruction = _currencyConversionInstruction(currency);
     return '''
 For each solution below, provide a cost breakdown with up to 20 items (aim for 8-20 when possible).
 Each item must include: item, description, estimated_cost (number in $currency), roi_percent (number), and npv_by_years (keys "3_years", "5_years", "10_years" with numeric values in $currency).
@@ -4114,6 +4218,7 @@ Rules:
 - Ensure solutions are distinct: avoid identical item lists and identical costs across different solutions.
 - If confidence is low for a specific line item, omit it instead of inventing a generic entry.
 - Be detailed and specific: do not use "etc.", "and similar", or vague groupings.
+- All monetary values (estimated_cost, npv_by_years) must be in $currency.$currencyInstruction
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -4226,8 +4331,19 @@ $domainHints
     final combined = '$context\n$solutionContext'.trim();
     final detectedType = _detectProjectType(combined);
     final typeLabel = _projectTypeLabel(detectedType);
+    final detectedScale = _detectProjectScale(combined);
+    final scaleLabel = _projectScaleLabel(detectedScale);
     final startingPoint = _detectDeliveryStartingPoint(combined, detectedType);
     final focus = _financialMetricFocusForType(detectedType);
+
+    final scaleGuidance = switch (detectedScale) {
+      _AiProjectScale.small =>
+        'Project scale is SMALL (local business, small team). All financial estimates must be proportionally small — e.g., barbershop/salon monthly benefits in the hundreds, not thousands.',
+      _AiProjectScale.medium =>
+        'Project scale is MEDIUM (department/mid-size business). Financial estimates should reflect mid-range values.',
+      _AiProjectScale.large =>
+        'Project scale is LARGE (enterprise/infrastructure). Financial estimates can reflect larger values consistent with enterprise scope.',
+    };
 
     final guardrails = switch (detectedType) {
       _AiProjectType.physical =>
@@ -4244,6 +4360,8 @@ $domainHints
 
     return '''
 Detected project type: $typeLabel
+Detected project scale: $scaleLabel
+Scale guidance: $scaleGuidance
 Detected starting point: $startingPoint
 Domain metric focus: $focus
 Domain guardrail: $guardrails
@@ -4450,6 +4568,224 @@ Domain guardrail: $guardrails
     return false;
   }
 
+  /// Detects the scale of a project based on contextual clues such as
+  /// business type, budget indicators, team size hints, and scope keywords.
+  /// Small = barbershop, salon, small retail, sole proprietor (budget < $50K)
+  /// Medium = department-level, mid-size business (budget $50K–$200K)
+  /// Large = enterprise, infrastructure, multi-site (budget $200K+)
+  _AiProjectScale _detectProjectScale(String text) {
+    final normalized = text.toLowerCase();
+    if (normalized.trim().isEmpty) return _AiProjectScale.medium;
+
+    // --- Small-scale indicators ---
+    final smallIndicators = <String>[
+      'barbershop', 'barber shop', 'salon', 'hair salon', 'nail salon',
+      'small business', 'small retail', 'sole proprietor', 'mom and pop',
+      'local shop', 'local store', 'boutique', 'freelance', 'solo',
+      'micro business', 'home-based', 'pop-up', 'food truck', 'food cart',
+      'corner store', 'kiosk', 'stall', 'personal brand',
+      'pet grooming', 'dog walking', 'tutoring', 'cleaning service',
+      'lawn care', 'small clinic', 'dental practice', 'yoga studio',
+      'gym studio', 'personal training', 'craft', 'artisan',
+      'personal app', 'portfolio app', 'booking app', 'appointment app',
+    ];
+    int smallScore = 0;
+    for (final term in smallIndicators) {
+      if (normalized.contains(term)) smallScore += 3;
+    }
+    // Budget hints for small scale
+    if (_containsAnyKeywords(normalized, [
+      'under 50k', '<50k', '< 50,000', 'under \$50', 'budget of \$10',
+      'budget of \$15', 'budget of \$20', 'budget of \$25', 'budget of \$30',
+      'budget of \$35', 'budget of \$40', 'budget of \$45',
+    ])) {
+      smallScore += 4;
+    }
+    // Team size hints for small scale
+    if (_containsAnyKeywords(normalized, [
+      '1-3 people', '1-3 team', '2-5 team', 'solo developer',
+      'small team', 'tiny team',
+    ])) {
+      smallScore += 3;
+    }
+
+    // --- Large-scale indicators ---
+    final largeIndicators = <String>[
+      'enterprise', 'corporation', 'multi-site', 'multi-site',
+      'infrastructure', 'government', 'municipal', 'federal',
+      'hospital', 'university', 'campus', 'city-wide', 'nationwide',
+      'global', 'regional', 'district', 'province', 'state-wide',
+      'construction project', 'civil works', 'industrial',
+      'manufacturing plant', 'power plant', 'data center', 'data centre',
+      'oil and gas', 'mining', 'pipeline', 'railway', 'airport',
+      'large-scale', 'large scale', 'multi-phase', 'multi-year',
+      'multi-million', 'enterprise resource planning', 'erp implementation',
+      'digital transformation',
+    ];
+    int largeScore = 0;
+    for (final term in largeIndicators) {
+      if (normalized.contains(term)) largeScore += 3;
+    }
+    // Budget hints for large scale
+    if (_containsAnyKeywords(normalized, [
+      'over 200k', '>200k', '> 200,000', 'over \$200', 'budget of \$500',
+      'budget of \$1m', 'budget of \$2m', 'million', 'multi-million',
+    ])) {
+      largeScore += 4;
+    }
+    // Team size hints for large scale
+    if (_containsAnyKeywords(normalized, [
+      '50+ people', '100+ team', 'large team', 'enterprise team',
+      'cross-functional team', 'multiple teams',
+    ])) {
+      largeScore += 3;
+    }
+
+    // --- Decision logic ---
+    if (smallScore >= 3 && largeScore < 3) return _AiProjectScale.small;
+    if (largeScore >= 3 && smallScore < 3) return _AiProjectScale.large;
+    if (smallScore >= 3 && smallScore > largeScore) return _AiProjectScale.small;
+    if (largeScore >= 3 && largeScore > smallScore) return _AiProjectScale.large;
+    // Default to medium when no strong signal
+    return _AiProjectScale.medium;
+  }
+
+  String _projectScaleLabel(_AiProjectScale scale) {
+    switch (scale) {
+      case _AiProjectScale.small:
+        return 'small';
+      case _AiProjectScale.medium:
+        return 'medium';
+      case _AiProjectScale.large:
+        return 'large';
+    }
+  }
+
+  // ── Financial value clamping ──────────────────────────────────────────
+  // Post-processing guardrails that clamp AI-generated values to
+  // scale-appropriate ranges.  These run AFTER the model response is
+  // parsed so that even if the model ignores prompt instructions the
+  // values presented to users remain realistic.
+
+  /// Maximum realistic monthly benefit unit value for the given project scale.
+  double _maxMonthlyBenefitUnitValue(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 1500,
+        _AiProjectScale.medium => 8000,
+        _AiProjectScale.large => 40000,
+      };
+
+  /// Maximum realistic one-off cost for a single line item at the given scale.
+  double _maxSingleItemCost(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 25000,
+        _AiProjectScale.medium => 150000,
+        _AiProjectScale.large => 1000000,
+      };
+
+  /// Maximum realistic monthly staffing cost per role at the given scale.
+  double _maxMonthlyStaffCost(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 3000,
+        _AiProjectScale.medium => 8000,
+        _AiProjectScale.large => 15000,
+      };
+
+  /// Minimum realistic monthly staffing cost per role at the given scale.
+  double _minMonthlyStaffCost(_AiProjectScale scale) => switch (scale) {
+        _AiProjectScale.small => 500,
+        _AiProjectScale.medium => 1500,
+        _AiProjectScale.large => 3000,
+      };
+
+  /// Clamp a benefit unit value to the scale-appropriate maximum.
+  double _clampBenefitValue(double value, _AiProjectScale scale) {
+    final maxVal = _maxMonthlyBenefitUnitValue(scale);
+    if (value > maxVal) return maxVal;
+    if (value <= 0) return 0;
+    return value;
+  }
+
+  /// Clamp a single cost estimate to the scale-appropriate range.
+  double _clampCostValue(double value, _AiProjectScale scale) {
+    final maxVal = _maxSingleItemCost(scale);
+    if (value > maxVal) return maxVal;
+    if (value <= 0) return 0;
+    return _normalizeEstimatedCost(value);
+  }
+
+  /// Clamp a monthly staffing cost to the scale-appropriate range.
+  double _clampStaffCost(double value, _AiProjectScale scale) {
+    final minVal = _minMonthlyStaffCost(scale);
+    final maxVal = _maxMonthlyStaffCost(scale);
+    if (value < minVal) return minVal;
+    if (value > maxVal) return maxVal;
+    return value;
+  }
+
+  /// Clamp a projected savings value relative to the total benefit value.
+  double _clampSavingsValue(double value, double totalBenefit) {
+    if (value <= 0) return 0;
+    // Savings cannot exceed 30% of total benefit (optimistic upper bound)
+    final maxSavings = totalBenefit * 0.30;
+    if (value > maxSavings) return maxSavings;
+    return value;
+  }
+
+  /// Returns a scale-specific prompt fragment for financial realism.
+  String _scaleFinancialConstraints(_AiProjectScale scale) {
+    return switch (scale) {
+      _AiProjectScale.small =>
+        'CRITICAL SCALE CONSTRAINT: This is a SMALL-SCALE project (local business, small team). '
+        'Monthly benefit unit values MUST NOT exceed \$1,500. '
+        'Monthly staffing costs MUST be \$500-\$3,000 per role. '
+        'Total project budget is likely under \$50K. '
+        'Any value suggesting \$5,000+/mo benefit for a single category is UNREALISTIC and will be rejected. '
+        'A barbershop making \$8K/mo cannot realize \$3K/mo in new revenue from one app feature.',
+      _AiProjectScale.medium =>
+        'SCALE CONSTRAINT: This is a MEDIUM-SCALE project (department/mid-size business). '
+        'Monthly benefit unit values should range \$1,000-\$8,000. '
+        'Monthly staffing costs should be \$1,500-\$8,000 per role. '
+        'Total project budget is likely \$50K-\$200K.',
+      _AiProjectScale.large =>
+        'SCALE CONSTRAINT: This is a LARGE-SCALE project (enterprise/infrastructure). '
+        'Monthly benefit unit values can range \$5,000-\$40,000. '
+        'Monthly staffing costs can be \$3,000-\$15,000 per role for senior positions. '
+        'Total project budget is likely \$200K+.',
+    };
+  }
+
+  /// Returns scale-specific duration guidance for schedule activities.
+  String _scaleDurationGuidance(_AiProjectScale scale) {
+    return switch (scale) {
+      _AiProjectScale.small =>
+        'TIMELINE CONSTRAINT: This is a SMALL project. Total project duration should be 1-12 weeks. '
+        'Individual activities should be 1-10 working days. Do NOT suggest multi-month phases. '
+        'A simple booking app does not need 6 months of development.',
+      _AiProjectScale.medium =>
+        'TIMELINE CONSTRAINT: This is a MEDIUM project. Total duration should be 3-9 months. '
+        'Individual activities should be 3-30 working days. Phases can span 1-3 months.',
+      _AiProjectScale.large =>
+        'TIMELINE CONSTRAINT: This is a LARGE project. Total duration can be 9-24+ months. '
+        'Individual activities should be 5-60 working days. Phases can span 2-6 months.',
+    };
+  }
+
+  /// Returns scale-specific staffing cost guidance.
+  String _scaleStaffingCostGuidance(_AiProjectScale scale) {
+    return switch (scale) {
+      _AiProjectScale.small =>
+        'STAFFING COST CONSTRAINT: Small/local business in Africa — monthly cost per role MUST be \$500-\$3,000. '
+        'A barbershop manager earns ~\$800-\$2,000/mo, a part-time developer ~\$1,000-\$2,500/mo. '
+        'Do NOT suggest \$8,000/mo for any single role in a small business context.',
+      _AiProjectScale.medium =>
+        'STAFFING COST GUIDANCE: Mid-size enterprise — monthly cost per role typically \$1,500-\$8,000. '
+        'Project managers: \$3,000-\$6,000/mo. Senior developers: \$4,000-\$8,000/mo. '
+        'Business analysts: \$2,000-\$5,000/mo.',
+      _AiProjectScale.large =>
+        'STAFFING COST GUIDANCE: Large enterprise — monthly cost per role typically \$3,000-\$15,000. '
+        'Program managers: \$6,000-\$12,000/mo. Solution architects: \$8,000-\$15,000/mo. '
+        'Senior engineers: \$5,000-\$10,000/mo.',
+    };
+  }
+
   _AiProjectType _detectProjectTypeForSolution(
     AiSolutionItem solution,
     String contextNotes,
@@ -4604,6 +4940,19 @@ Domain guardrail: $guardrails
     return value;
   }
 
+  /// Clamps an AI-returned estimated project value to a realistic maximum
+  /// based on the detected project scale. Only caps from above — never
+  /// inflates a value that the AI intentionally set lower.
+  double _clampToProjectScale(double value, _AiProjectScale scale) {
+    if (!value.isFinite || value <= 0) return value;
+    final maxAllowed = switch (scale) {
+      _AiProjectScale.small => 30000.0,
+      _AiProjectScale.medium => 150000.0,
+      _AiProjectScale.large => 500000.0,
+    };
+    return value > maxAllowed ? _normalizeEstimatedCost(maxAllowed) : value;
+  }
+
   int _stableHash(String input) {
     var hash = 0;
     for (final codeUnit in input.codeUnits) {
@@ -4616,9 +4965,10 @@ Domain guardrail: $guardrails
     List<AiSolutionItem> solutions, {
     String contextNotes = '',
   }) async {
-    final detectedType = _detectProjectType(
-      '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
-    );
+    final combinedText =
+        '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
+    final detectedType = _detectProjectType(combinedText);
+    final detectedScale = _detectProjectScale(combinedText);
     final domainHints =
         _financialDomainHints(context: contextNotes, solutions: solutions);
     if (!OpenAiConfig.isConfigured) {
@@ -4628,15 +4978,16 @@ Domain guardrail: $guardrails
       );
     }
 
+    final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.4,
-      'max_tokens': 900,
+      'max_completion_tokens': 900,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -4646,7 +4997,7 @@ Domain guardrail: $guardrails
                 'financial analyst preparing a solution-specific cost-benefit analysis',
             strictJson: true,
             extraRules:
-                'Focus on the exact solution context provided in the request and estimate direct financial value, ROI, cost savings, revenue potential, and quantifiable benefits for that solution only. Do not output SaaS metrics for non-digital projects, and do not output construction assumptions for purely digital projects. Follow these domain guardrails:\n$domainHints',
+                'Focus on the exact solution context provided in the request and estimate direct financial value, ROI, cost savings, revenue potential, and quantifiable benefits for that solution only. Do not output SaaS metrics for non-digital projects, and do not output construction assumptions for purely digital projects. The detected project scale is $scaleHint — you MUST scale all financial estimates to match this scale. Small projects should have small benefit numbers, NOT enterprise-level figures. Follow these domain guardrails:\n$domainHints',
           )
         },
         {
@@ -4655,10 +5006,11 @@ Domain guardrail: $guardrails
             solutions,
             contextNotes,
             domainHints: domainHints,
+            projectScale: detectedScale,
           )
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -4696,6 +5048,19 @@ Domain guardrail: $guardrails
           contextNotes: contextNotes,
         );
       }
+
+      // Clamp AI-returned estimated value to realistic range for the detected scale
+      final clampedValue = _clampToProjectScale(
+        insights.estimatedProjectValue,
+        detectedScale,
+      );
+      if (clampedValue < insights.estimatedProjectValue) {
+        return AiProjectValueInsights(
+          estimatedProjectValue: clampedValue,
+          benefits: insights.benefits,
+        );
+      }
+
       return insights;
     } catch (e) {
       if (kDebugMode) debugPrint('generateProjectValueInsights failed: $e');
@@ -4716,18 +5081,44 @@ Domain guardrail: $guardrails
     final combinedContext =
         '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
     final type = _detectProjectType(combinedContext);
+    final projectScale = _detectProjectScale(combinedContext);
     final seed = _stableHash(combinedContext);
-    final baseline = switch (type) {
-      _AiProjectType.physical => 265000.0,
-      _AiProjectType.digital => 210000.0,
-      _AiProjectType.hybrid => 315000.0,
-      _AiProjectType.service => 185000.0,
-      _AiProjectType.unknown => 200000.0,
+
+    // Scale-aware baseline values: small projects ($5K–$30K), medium ($30K–$150K), large ($150K–$500K)
+    final baseline = switch (projectScale) {
+      _AiProjectScale.small => switch (type) {
+          _AiProjectType.physical => 22000.0,
+          _AiProjectType.digital => 15000.0,
+          _AiProjectType.hybrid => 25000.0,
+          _AiProjectType.service => 12000.0,
+          _AiProjectType.unknown => 18000.0,
+        },
+      _AiProjectScale.medium => switch (type) {
+          _AiProjectType.physical => 85000.0,
+          _AiProjectType.digital => 55000.0,
+          _AiProjectType.hybrid => 95000.0,
+          _AiProjectType.service => 45000.0,
+          _AiProjectType.unknown => 60000.0,
+        },
+      _AiProjectScale.large => switch (type) {
+          _AiProjectType.physical => 350000.0,
+          _AiProjectType.digital => 250000.0,
+          _AiProjectType.hybrid => 400000.0,
+          _AiProjectType.service => 200000.0,
+          _AiProjectType.unknown => 300000.0,
+        },
     };
     final variation = 0.9 + ((seed % 26) / 100);
-    final scale =
+    final scaleMultiplier =
         1 + ((solutions.length > 1 ? solutions.length - 1 : 0) * 0.07);
-    final estimated = _normalizeEstimatedCost(baseline * variation * scale);
+    final estimated = _normalizeEstimatedCost(baseline * variation * scaleMultiplier);
+
+    // Scale-aware floor: prevent small projects from getting inflated fallbacks
+    final floor = switch (projectScale) {
+      _AiProjectScale.small => 5000.0,
+      _AiProjectScale.medium => 30000.0,
+      _AiProjectScale.large => 150000.0,
+    };
 
     Map<String, String> benefitNarrativesForType() {
       switch (type) {
@@ -4840,7 +5231,7 @@ Domain guardrail: $guardrails
     }
 
     return AiProjectValueInsights(
-      estimatedProjectValue: estimated > 0 ? estimated : 185000,
+      estimatedProjectValue: estimated > 0 ? estimated : floor,
       benefits: benefitNarrativesForType(),
     );
   }
@@ -4849,13 +5240,32 @@ Domain guardrail: $guardrails
     List<AiSolutionItem> solutions,
     String notes, {
     required String domainHints,
+    _AiProjectScale projectScale = _AiProjectScale.medium,
   }) {
     final list = solutions
         .map((s) =>
             '{"title": "${_escape(s.title)}", "description": "${_escape(s.description)}"}')
         .join(',');
+    final scaleLabel = _projectScaleLabel(projectScale);
+    final scaleGuidance = switch (projectScale) {
+      _AiProjectScale.small =>
+        'This is a SMALL-SCALE project (e.g., barbershop, salon, local shop, small business tool). '
+        'Estimated annual benefit should be \$5,000–\$30,000. '
+        'A single-location small business cannot generate \$100K+ in annual benefit from one app or tool. '
+        'Be realistic: a barbershop making \$150K/year in revenue cannot realize \$283K in project benefit.',
+      _AiProjectScale.medium =>
+        'This is a MEDIUM-SCALE project (department-level, mid-size business). '
+        'Estimated annual benefit should be \$30,000–\$150,000. '
+        'Scale proportionally to the organisation size and budget.',
+      _AiProjectScale.large =>
+        'This is a LARGE-SCALE project (enterprise, infrastructure, multi-site). '
+        'Estimated annual benefit should be \$150,000–\$500,000. '
+        'Scale proportionally to the organisation size and budget.',
+    };
     return '''
 Based on the following project cost-benefit analysis data, estimate direct financial value and provide category-specific benefit narratives.
+
+Detected project scale: $scaleLabel
 
 Primary focus:
 1. Direct revenue impact
@@ -4873,10 +5283,22 @@ Rules:
 - For service projects, prefer service capacity, response time, quality consistency, utilisation, and staffing efficiency metrics.
 - Return ONLY valid JSON with the exact key schema below.
 
+CRITICAL REALISM RULES FOR estimated_value:
+- The estimated_value represents the ANNUAL projected benefit in the given currency.
+- $scaleGuidance
+- For a small/local business project (e.g., barbershop, salon, small retail): estimated_value should be \$5,000-\$30,000.
+- For a mid-size enterprise project: estimated_value should be \$30,000-\$150,000.
+- For a large infrastructure project: estimated_value should be \$150,000-\$500,000.
+- For a small digital/app project for a local business: estimated_value should be \$5,000-\$25,000.
+- Do NOT suggest \$50,000+ for a small business app — that is unrealistic and unhelpful.
+- Consider the actual revenue potential of the business type when estimating.
+- A project's benefit should NEVER exceed 2-3x the business's annual revenue.
+- Scale benefit values proportionally to the project's budget and scope.
+
 Return ONLY valid JSON with this exact structure:
 {
   "project_value": {
-    "estimated_value": 123456,
+    "estimated_value": 45000,
     "benefits": {
       "revenue": "...",
       "cost_saving": "...",
@@ -4912,10 +5334,10 @@ $domainHints
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'messages': [
         {
           'role': 'system',
@@ -4934,7 +5356,7 @@ Include: problem statement, proposed solution, benefits, risks, success metrics,
 Return plain text only.'''
         }
       ],
-    });
+    }));
 
     final response = await _client
         .post(uri, headers: headers, body: body)
@@ -4956,9 +5378,10 @@ Return plain text only.'''
     String currency = 'USD',
     int count = 6,
   }) async {
-    final detectedType = _detectProjectType(
-      '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
-    );
+    final combinedText =
+        '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
+    final detectedType = _detectProjectType(combinedText);
+    final detectedScale = _detectProjectScale(combinedText);
     final domainHints =
         _financialDomainHints(context: contextNotes, solutions: solutions);
     if (solutions.isEmpty || estimatedProjectValue <= 0) return [];
@@ -4972,6 +5395,7 @@ Return plain text only.'''
       );
     }
 
+    final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
@@ -4981,10 +5405,10 @@ Return plain text only.'''
         .map((s) =>
             '{"title":"${_escape(s.title)}","description":"${_escape(s.description)}"}')
         .join(',');
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -4994,7 +5418,7 @@ Return plain text only.'''
                 'financial analyst generating monetised benefit line items for project value modelling',
             strictJson: true,
             extraRules:
-                'Return strict JSON for benefit line items. Use only these category keys: revenue, cost_saving, ops_efficiency, productivity, regulatory_compliance, process_improvement, brand_image, stakeholder_commitment, other. Do not use SaaS-only terms for non-digital projects. Do not use construction-only assumptions for purely digital projects. Follow these domain guardrails:\n$domainHints',
+                'Return strict JSON for benefit line items. Use only these category keys: revenue, cost_saving, ops_efficiency, productivity, regulatory_compliance, process_improvement, brand_image, stakeholder_commitment, other. Do not use SaaS-only terms for non-digital projects. Do not use construction-only assumptions for purely digital projects. The detected project scale is $scaleHint — you MUST scale all financial values to match this scale. Small projects get small numbers. Follow these domain guardrails:\n$domainHints',
           )
         },
         {
@@ -5006,10 +5430,11 @@ Return plain text only.'''
             contextNotes,
             count,
             domainHints: domainHints,
+            projectScale: detectedScale,
           ),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -5051,8 +5476,10 @@ Return plain text only.'''
                 _looksTooGenericFinancialText(notes)) {
               notes = _fallbackBenefitNotesForCategory(category, detectedType);
             }
-            final unitValue =
+            final unitValueRaw =
                 _toDouble(item['unit_value'] ?? item['unitValue']);
+            // Post-processing: clamp unit value to scale-appropriate maximum
+            final unitValue = _clampBenefitValue(unitValueRaw, detectedScale);
             final unitsRaw = _toDouble(item['units'] ?? 1);
             final units = unitsRaw > 0 ? unitsRaw : 1.0;
             final key =
@@ -5098,16 +5525,42 @@ Return plain text only.'''
       String currency,
       String contextNotes,
       int count,
-      {required String domainHints}) {
+      {required String domainHints,
+      _AiProjectScale projectScale = _AiProjectScale.medium}) {
     final notes = contextNotes.trim().isEmpty
         ? 'No additional context supplied.'
         : contextNotes.trim();
+    final scaleLabel = _projectScaleLabel(projectScale);
+    final scaleUnitRange = switch (projectScale) {
+      _AiProjectScale.small =>
+        '\$100-\$1,500/mo for small local businesses (e.g., barbershop, salon). '
+        'A barbershop generating \$10K/mo in revenue cannot realize \$5K/mo in benefit from a single app.',
+      _AiProjectScale.medium =>
+        '\$1,000-\$8,000/mo for mid-size enterprises or department-level projects.',
+      _AiProjectScale.large =>
+        '\$5,000-\$40,000/mo for large enterprises, infrastructure, or multi-site deployments.',
+    };
+    final currencyInstruction = _currencyConversionInstruction(currency);
     return '''
 We are preparing benefit line items for a project portfolio.
+Detected project scale: $scaleLabel
 Target total value: $currency ${estimatedProjectValue.toStringAsFixed(0)}.
 Provide $count items across these exact category keys:
 ["revenue","cost_saving","ops_efficiency","productivity","regulatory_compliance","process_improvement","brand_image","stakeholder_commitment","other"].
 Each line item must be domain-specific to the project context and must include a practical, non-generic title.
+
+IMPORTANT REALISM RULES:
+- Unit values must be realistic per-month amounts, NOT lump-sum annual totals.
+- For this $scaleLabel-scale project, monthly unit values should typically range: $scaleUnitRange
+- Units should typically be 12 (months) for recurring benefits, or 1 for one-time benefits.
+- Total value per item (unit_value * units) should sum to approximately the target total value.
+- For a small/local business project (barbershop, salon, etc.): monthly unit values typically range \$100-\$1,500.
+- For a mid-size enterprise project: monthly unit values typically range \$1,000-\$8,000.
+- For a large infrastructure project: monthly unit values typically range \$5,000-\$40,000.
+- Do NOT suggest \$3,000+ per month for a small business app like a barbershop; that is unrealistic.
+- Revenue benefits should be the largest; stakeholder_commitment and other should be smallest.
+- Scale ALL values proportionally to the project's budget and business size.
+- All monetary values (unit_value, target total) must be in $currency.$currencyInstruction
 
 Return strict JSON:
 {
@@ -5115,7 +5568,7 @@ Return strict JSON:
     {
       "category_key": "revenue",
       "title": "Domain-specific monetised benefit title",
-      "unit_value": 5000,
+      "unit_value": 1500,
       "units": 12,
       "notes": "Monthly impact"
     }
@@ -5124,6 +5577,7 @@ Return strict JSON:
 
 Solutions: [$solutionsJson]
 Context notes: $notes
+${_scaleFinancialConstraints(projectScale)}
 Domain guardrails:
 $domainHints
 Return ONLY JSON.
@@ -5137,10 +5591,17 @@ Return ONLY JSON.
     String contextNotes = '',
     int count = 6,
   }) {
-    final total = estimatedProjectValue > 0 ? estimatedProjectValue : 150000;
-    final type = _detectProjectType(
-      '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}',
-    );
+    final combinedContext =
+        '$contextNotes ${solutions.map((s) => '${s.title} ${s.description}').join(' ')}';
+    final scale = _detectProjectScale(combinedContext);
+    // Use a realistic annual total scaled to project size; avoid inflated defaults
+    final scaleDefault = switch (scale) {
+      _AiProjectScale.small => 15000.0,
+      _AiProjectScale.medium => 45000.0,
+      _AiProjectScale.large => 250000.0,
+    };
+    final total = estimatedProjectValue > 0 ? estimatedProjectValue : scaleDefault;
+    final type = _detectProjectType(combinedContext);
     final allocations = <MapEntry<String, double>>[
       const MapEntry('revenue', 0.24),
       const MapEntry('cost_saving', 0.20),
@@ -5156,14 +5617,16 @@ Return ONLY JSON.
         ? 1
         : (count > allocations.length ? allocations.length : count);
     return allocations.take(cappedCount).map((entry) {
-      final value = total * entry.value;
+      // Distribute annual total across 12 months for realistic per-month unit values
+      final annualValue = total * entry.value;
+      final monthlyUnitValue = annualValue / 12;
       final title =
           _fallbackBenefitTitleForCategory(entry.key, type, solutions);
       return BenefitLineItemInput(
         category: entry.key,
         title: title,
-        unitValue: value,
-        units: 1,
+        unitValue: monthlyUnitValue,
+        units: 12,
         notes: _fallbackBenefitNotesForCategory(entry.key, type),
       );
     }).toList();
@@ -5295,10 +5758,14 @@ Return ONLY JSON.
   }) async {
     final contextFromItems =
         items.map((e) => '${e.category} ${e.title} ${e.notes}').join(' ');
-    final detectedType = _detectProjectType('$contextNotes $contextFromItems');
+    final combinedContext = '$contextNotes $contextFromItems';
+    final detectedType = _detectProjectType(combinedContext);
+    final detectedScale = _detectProjectScale(combinedContext);
     final domainHints = _financialDomainHints(
-      context: '$contextNotes $contextFromItems',
+      context: combinedContext,
     );
+    final scaleConstraints = _scaleFinancialConstraints(detectedScale);
+    final totalBenefit = items.fold<double>(0, (sum, item) => sum + item.total);
     if (items.isEmpty) return [];
     if (!OpenAiConfig.isConfigured) {
       return _fallbackSavingsSuggestions(
@@ -5313,10 +5780,10 @@ Return ONLY JSON.
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.4,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -5337,10 +5804,11 @@ Return ONLY JSON.
             savingsTargetPercent,
             contextNotes,
             domainHints: domainHints,
+            scaleConstraints: scaleConstraints,
           ),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -5364,8 +5832,20 @@ Return ONLY JSON.
           (data['choices'] as List).first['message']['content'] as String;
       final parsed = jsonDecode(content) as Map<String, dynamic>;
       final scenarios = (parsed['savings_scenarios'] as List? ?? [])
-          .map((e) => AiBenefitSavingsSuggestion.fromMap(
-              (e ?? {}) as Map<String, dynamic>))
+          .map((e) {
+            final raw = AiBenefitSavingsSuggestion.fromMap(
+                (e ?? {}) as Map<String, dynamic>);
+            // Post-processing: clamp projected savings to realistic range
+            final clampedSavings = _clampSavingsValue(raw.projectedSavings, totalBenefit);
+            return AiBenefitSavingsSuggestion(
+              lever: raw.lever,
+              recommendation: raw.recommendation,
+              projectedSavings: clampedSavings,
+              timeframe: raw.timeframe,
+              confidence: raw.confidence,
+              rationale: raw.rationale,
+            );
+          })
           .where((e) {
         if (e.lever.isEmpty) return false;
         if (e.projectedSavings <= 0) return false;
@@ -5400,7 +5880,7 @@ Return ONLY JSON.
 
   String _benefitSavingsPrompt(List<BenefitLineItemInput> items,
       String currency, double? savingsTargetPercent, String contextNotes,
-      {required String domainHints}) {
+      {required String domainHints, String scaleConstraints = ''}) {
     final target = savingsTargetPercent != null && savingsTargetPercent > 0
         ? 'Aim for at least ${savingsTargetPercent.toStringAsFixed(1)}% savings against total monetised benefits.'
         : 'If no explicit savings target is provided, surface high-impact opportunities.';
@@ -5408,6 +5888,7 @@ Return ONLY JSON.
     final notes = contextNotes.trim().isEmpty
         ? 'No additional context supplied.'
         : contextNotes.trim();
+    final currencyInstruction = _currencyConversionInstruction(currency);
     return '''
 These are the financial benefit line items currently modelled (currency: $currency):
 $payload
@@ -5417,6 +5898,9 @@ Respond with 2-4 concise savings scenarios that resemble spreadsheet-style lever
 Extra notes for context: $notes
 Do not suggest SaaS-only levers (CAC/LTV/churn/MRR) unless the project context clearly indicates SaaS/digital subscription.
 Do not suggest construction-only levers for purely digital projects.
+Projected savings for each scenario MUST NOT exceed 30% of the total benefit value across all items.
+- All monetary values (projected_savings) must be in $currency.$currencyInstruction
+$scaleConstraints
 Domain guardrails:
 $domainHints
 
@@ -5511,10 +5995,10 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -5532,7 +6016,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
           'content': _infrastructurePrompt(solutions, contextNotes)
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -5698,10 +6182,10 @@ Context notes (optional): $notes
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 2000,
+      'max_completion_tokens': 2000,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -5714,7 +6198,7 @@ Context notes (optional): $notes
           'content': _stakeholdersPrompt(solutions, contextNotes)
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6078,10 +6562,10 @@ Context notes (optional): $notes
         ? 'None yet'
         : existingRisks.map((r) => '- $r').join('\n');
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.7,
-      'max_tokens': 600,
+      'max_completion_tokens': 600,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6112,7 +6596,7 @@ Make each suggestion:
 '''
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6207,10 +6691,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6223,7 +6707,7 @@ $escaped
           'content': _ssherSummaryPrompt(trimmedContext),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6271,10 +6755,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6287,7 +6771,7 @@ $escaped
           'content': _ssherEntriesPrompt(trimmedContext, itemsPerCategory),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6321,7 +6805,7 @@ $escaped
     required String context,
     required Map<String, String> sections,
     int itemsPerSection = 2,
-    int maxTokens = 900,
+    int maxTokens = 1600,
     double temperature = 0.5,
   }) async {
     final trimmedContext = context.trim();
@@ -6336,10 +6820,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6358,7 +6842,7 @@ $escaped
               trimmedContext, sections, itemsPerSection),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6410,10 +6894,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6432,7 +6916,7 @@ $escaped
               _staffingRoleSuggestionsPrompt(trimmedContext, maxSuggestions),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6523,16 +7007,19 @@ $escaped
       return _fallbackStaffingRows(trimmedContext, maxRows);
     }
 
+    final projectScale = _detectProjectScale(trimmedContext);
+    final staffingGuidance = _scaleStaffingCostGuidance(projectScale);
+
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6547,10 +7034,10 @@ $escaped
         },
         {
           'role': 'user',
-          'content': _staffingRowsPrompt(trimmedContext, maxRows),
+          'content': _staffingRowsPrompt(trimmedContext, maxRows, staffingGuidance),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6569,7 +7056,7 @@ $escaped
         final content = (firstMessage['content'] as String?)?.trim() ?? '';
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
-          final rows = _parseStaffingRows(parsed, maxRows);
+          final rows = _parseStaffingRows(parsed, maxRows, projectScale);
           if (rows.isNotEmpty) return rows;
         }
       }
@@ -6580,7 +7067,7 @@ $escaped
     return _fallbackStaffingRows(trimmedContext, maxRows);
   }
 
-  String _staffingRowsPrompt(String context, int maxRows) {
+  String _staffingRowsPrompt(String context, int maxRows, String staffingGuidance) {
     final escaped = _escape(context);
     return '''
 Generate up to $maxRows staffing rows for the execution phase based on the project context.
@@ -6606,6 +7093,9 @@ Guidelines:
 - Keep roles specific to the project context.
 - Use realistic quantities (1-4) and durations (1-12 months).
 - Provide concise, actionable descriptions and 2-4 skill requirements.
+- MONTHLY COSTS MUST be realistic for the project's scale and market. See constraints below.
+
+$staffingGuidance
 
 Project context:
 """
@@ -6615,7 +7105,8 @@ $escaped
   }
 
   List<StaffingRow> _parseStaffingRows(
-      Map<String, dynamic> parsed, int maxRows) {
+      Map<String, dynamic> parsed, int maxRows,
+      [_AiProjectScale projectScale = _AiProjectScale.medium]) {
     final rowsRaw = parsed['staffingRows'] ??
         parsed['rows'] ??
         parsed['staffing'] ??
@@ -6645,9 +7136,15 @@ $escaped
       final startDate = (map['startDate'] ?? map['start'] ?? '').toString();
       final duration =
           (map['durationMonths'] ?? map['duration'] ?? '').toString();
-      final monthlyCost =
+      final monthlyCostRaw =
           (map['monthlyCost'] ?? map['monthlyRate'] ?? map['cost'] ?? '')
               .toString();
+      // Clamp monthly cost to scale-appropriate range
+      final monthlyCostParsed = double.tryParse(
+            monthlyCostRaw.replaceAll(RegExp(r'[^0-9.]'), ''),
+          ) ?? 0;
+      final monthlyCostClamped = _clampStaffCost(monthlyCostParsed, projectScale);
+      final monthlyCost = monthlyCostClamped.toStringAsFixed(0);
       final description =
           (map['roleDescription'] ?? map['description'] ?? map['summary'] ?? '')
               .toString();
@@ -6737,10 +7234,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6759,7 +7256,7 @@ $escaped
               _meetingRowsPrompt(trimmedContext, availableRoles, maxRows),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -6923,10 +7420,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -6945,7 +7442,7 @@ $escaped
               trimmedContext, maxRoles, maxPermissions),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -7143,10 +7640,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -7160,7 +7657,7 @@ $escaped
               trimmedContext, meetingType, participantRoles),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -7380,21 +7877,26 @@ $escaped
     return '''
 You are a senior project management analyst preparing Launch Phase deliverables.
 The project has progressed through Initiation → Front End Planning → Planning → Design → Execution → Launch.
-Use ALL the prior phase data below to generate entries that are specific, realistic, and consistent with the project context.
 
-Rules:
-- Reference actual project names, team members, vendors, contracts, milestones, and risks wherever possible.
-- Derive entries from prior phase outputs (e.g., if a contract exists in Execution, reference it in Contract Close Out).
-- Generate $itemsPerSection entries per section.
-- Each entry must include a concise title, relevant details, and a realistic status.
+CRITICAL CONTINUITY RULES:
+1. CONTINUITY IS KEY: Every entry MUST directly reference and derive from actual prior-phase data provided below.
+   - If the context mentions specific team members, vendors, contracts, milestones, or risks, those EXACT names and details MUST appear in your generated entries.
+   - Do NOT invent new names, vendors, or team members that are not mentioned in the context.
+   - If a contract exists in Execution Phase, reference THAT EXACT contract in Contract Close Out.
+   - If team members are listed in Execution staffing, use THOSE EXACT names in Demobilize Team and Transition to Production.
+   - If budget figures exist, carry those EXACT figures forward into Gap Analysis and Commerce Viability.
+2. NO FABRICATION: If the context does not contain enough specific data for a section, generate fewer entries rather than fabricating content. It is better to return 1 accurate entry than 3 generic ones.
+3. SPECIFIC OVER GENERIC: Every "title" and "details" field must contain specific references to actual data from the context — project names, person names, contract names, dollar amounts, dates, risk titles, etc.
+4. DERIVE, DON'T CREATE: Your job is to carry forward and restructure existing project data into the Launch Phase format, not to create new project content from scratch.
+5. Generate up to $itemsPerSection entries per section (fewer is acceptable if context is thin).
 
 Return ONLY valid JSON with this exact structure:
 {
   "sections": {
     "section_key": [
       {
-        "title": "Short item title",
-        "details": "Supporting details referencing prior phase data",
+        "title": "Short item title referencing actual prior-phase data",
+        "details": "Supporting details that trace back to specific prior-phase entries",
         "status": "Realistic status value"
       }
     ]
@@ -7406,7 +7908,7 @@ Sections:
   $sectionJson
 }
 
-Project context (includes data from ALL prior phases):
+Project context (includes data from ALL prior phases — USE THIS DATA DIRECTLY):
 """
 $escaped
 """
@@ -8504,10 +9006,10 @@ Context notes (optional): $notes
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
-      'max_tokens': 2000,
+      'max_completion_tokens': 2000,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -8544,7 +9046,7 @@ Return JSON in this format:
 }'''
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -8607,10 +9109,10 @@ Return JSON in this format:
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1500,
+      'max_completion_tokens': 1500,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -8631,7 +9133,7 @@ Return JSON in this format:
           )
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -8763,16 +9265,19 @@ Additional Context: $contextNotes
       return _fallbackScheduleActivities(wbsItems);
     }
 
+    final projectScale = _detectProjectScale(trimmedContext);
+    final durationGuidance = _scaleDurationGuidance(projectScale);
+
     final uri = OpenAiConfig.chatUri();
     final headers = {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -8782,10 +9287,10 @@ Additional Context: $contextNotes
         },
         {
           'role': 'user',
-          'content': _scheduleActivitiesPrompt(trimmedContext, wbsItems),
+          'content': _scheduleActivitiesPrompt(trimmedContext, wbsItems, durationGuidance),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -8822,7 +9327,7 @@ Additional Context: $contextNotes
   }
 
   String _scheduleActivitiesPrompt(
-      String context, List<Map<String, String>> wbsItems) {
+      String context, List<Map<String, String>> wbsItems, String durationGuidance) {
     final escaped = _escape(context);
     final itemsJson = jsonEncode(wbsItems);
     return '''
@@ -8834,6 +9339,8 @@ Rules:
 - Duration is in working days (integer).
 - If something is a milestone, set durationDays to 0 and isMilestone true.
 - Provide logical predecessorIds for sequencing.
+
+$durationGuidance
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -8894,10 +9401,10 @@ $escaped
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
-      'max_tokens': 800,
+      'max_completion_tokens': 800,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -8916,7 +9423,7 @@ $escaped
               _vendorPrompt(projectName, solutionTitle, category, contextNotes)
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -9039,10 +9546,10 @@ Return ONLY valid JSON.
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
-      'max_tokens': 1000,
+      'max_completion_tokens': 1000,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -9061,7 +9568,7 @@ Return ONLY valid JSON.
               projectName, solutionTitle, category, contextNotes)
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -9221,10 +9728,10 @@ Return ONLY valid JSON.
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.45,
-      'max_tokens': 2200,
+      'max_completion_tokens': 2200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -9250,7 +9757,7 @@ Return ONLY valid JSON.
           ),
         },
       ],
-    });
+    }));
 
     String clean(dynamic value) =>
         _stripAsterisks(value?.toString() ?? '').trim();
@@ -9710,10 +10217,10 @@ Return ONLY valid JSON in this exact structure:
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -9735,7 +10242,7 @@ Context: $contextNotes
 Return ONLY JSON: {"items":[...]}'''
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -9768,10 +10275,10 @@ Return ONLY JSON: {"items":[...]}'''
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1200,
+      'max_completion_tokens': 1200,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -9793,7 +10300,7 @@ Context: $contextNotes
 Return ONLY JSON: {"items":[...]}'''
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -9826,10 +10333,10 @@ Return ONLY JSON: {"items":[...]}'''
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
     };
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_tokens': 1400,
+      'max_completion_tokens': 1400,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -9850,7 +10357,7 @@ Context: $contextNotes
 Return ONLY JSON: {"items":[...]}'''
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -9964,10 +10471,10 @@ Return ONLY JSON: {"items":[...]}'''
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -9985,7 +10492,7 @@ Return ONLY JSON: {"items":[...]}'''
           ),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10141,10 +10648,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10163,7 +10670,7 @@ $escaped
           ),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10269,10 +10776,10 @@ $escaped
 
     final tasksText = completedTasks.join('\n');
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10285,7 +10792,7 @@ $escaped
           'content': _weeklyWinsPrompt(trimmedContext, tasksText),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10368,10 +10875,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10384,7 +10891,7 @@ $escaped
           'content': _contractKeyTermsPrompt(trimmedContext, contractType),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10473,10 +10980,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10489,7 +10996,7 @@ $escaped
           'content': _vendorSLATermsPrompt(trimmedContext, vendorCategory),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10579,10 +11086,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10596,7 +11103,7 @@ $escaped
               trimmedContext, componentName, category),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10688,10 +11195,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10710,7 +11217,7 @@ $escaped
               _taskBreakdownPrompt(trimmedContext, userStory, designComponents),
         },
       ],
-    });
+    }));
 
     try {
       final response = await http.post(uri, headers: headers, body: body);
@@ -10795,10 +11302,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10817,7 +11324,7 @@ $escaped
               trimmedContext, scopeItem, designComponents),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -10909,10 +11416,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -10925,7 +11432,7 @@ $escaped
           'content': _acceptanceCriteriaPrompt(trimmedContext, requirementText),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -11019,10 +11526,10 @@ $escaped
       'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
     };
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -11047,7 +11554,7 @@ $escaped
           ),
         },
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -11173,10 +11680,10 @@ Requirements:
 
 Return only the title, no additional text.''';
 
-    final body = jsonEncode({
+    final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
-      'max_tokens': maxTokens,
+      'max_completion_tokens': maxTokens,
       'messages': [
         {
           'role': 'system',
@@ -11188,7 +11695,7 @@ Return only the title, no additional text.''';
           'content': prompt,
         }
       ],
-    });
+    }));
 
     try {
       final response = await _client
@@ -11270,10 +11777,10 @@ IMPORTANT RULES:
         'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
       };
 
-      final body = jsonEncode({
+      final body = jsonEncode(OpenAiConfig.wrapBody({
         'model': OpenAiConfig.model,
         'temperature': 0.5,
-        'max_tokens': maxTokens,
+        'max_completion_tokens': maxTokens,
         'response_format': {'type': 'json_object'},
         'messages': [
           {
@@ -11283,7 +11790,7 @@ IMPORTANT RULES:
           },
           {'role': 'user', 'content': prompt},
         ],
-      });
+      }));
 
       final response = await _client
           .post(uri, headers: headers, body: body)

@@ -34,6 +34,9 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 enum _MissingStakeholderAction { manual, autoFill, skip }
 
@@ -81,6 +84,39 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   TextEditingController _createStakeholderController({String text = ''}) {
     return RichAutoBulletTextController(text: text);
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final stakeholderRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length; i++) {
+      final title = _solutions[i].title.trim().isEmpty
+          ? 'Solution ${i + 1}'
+          : _solutions[i].title.trim();
+      final internal = i < _internalStakeholderControllers.length
+          ? _internalStakeholderControllers[i].text.trim()
+          : '';
+      final external = i < _externalStakeholderControllers.length
+          ? _externalStakeholderControllers[i].text.trim()
+          : '';
+      stakeholderRows.add([
+        title,
+        internal.isEmpty ? 'No data recorded.' : internal,
+        external.isEmpty ? 'No data recorded.' : external,
+      ]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Core Stakeholders',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Stakeholders by Solution',
+          headers: ['Solution', 'Internal Stakeholders', 'External Stakeholders'],
+          rows: stakeholderRows,
+        ),
+      ],
+    );
   }
 
   // ignore: unused_field
@@ -243,23 +279,31 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: isMobile ? _buildMobileDrawer() : null,
-      body: Stack(
-        children: [
-          Column(children: [
-            BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(
-                child: Row(children: [
-              DraggableSidebar(
-                openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(
-                    activeItemLabel: 'Core Stakeholders'),
-              ),
-              Expanded(child: _buildMainContent()),
-            ])),
-          ]),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(children: [
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+              Expanded(
+                  child: Row(children: [
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'Core Stakeholders'),
+                ),
+                Expanded(child: _buildMainContent()),
+              ])),
+            ]),
+            MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Core Stakeholders',
+                      ),
+                    ),
+                    const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -428,8 +472,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -465,8 +508,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -500,8 +542,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -540,8 +581,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -578,8 +618,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -683,277 +722,384 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     );
   }
 
+  // ==================== REDESIGNED UI METHODS ====================
+
   Widget _buildMainContent() {
-    final isMobile = AppBreakpoints.isMobile(context);
-    return ScrollIndicatorOverlay(
-      controller: _reviewScrollController,
-      child: SingleChildScrollView(
-        controller: _reviewScrollController,
-        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(
-            child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              const EditableContentText(
-                  contentKey: 'core_stakeholders_heading',
-                  fallback: 'Core Stakeholders ',
-                  category: 'business_case',
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black)),
-              EditableContentText(
-                  contentKey: 'core_stakeholders_description',
-                  fallback:
-                      '(Identify key stakeholders especially if External, Regulatory, Governmental, etc.)',
-                  category: 'business_case',
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-            ]),
-          ),
-          // Page-level Regenerate All button
-          PageRegenerateAllButton(
-            onRegenerateAll: () async {
-              final confirmed = await showRegenerateAllConfirmation(context);
-              if (confirmed && mounted) {
-                await _regenerateAllStakeholders();
-              }
-            },
-            isLoading: _isGenerating,
-            tooltip: 'Regenerate all stakeholders',
-          ),
-        ]),
-        const SizedBox(height: 16),
-        const EditableContentText(
-          contentKey: 'core_stakeholders_notes_heading',
-          fallback: 'Notes',
-          category: 'business_case',
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-        ),
-        const SizedBox(height: 8),
-        if (_error != null) ...[
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.red.withOpacity(0.3))),
-            child: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Text(_error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis)),
-              TextButton(
-                  onPressed: _isGenerating ? null : _generateStakeholders,
-                  child: const Text('Retry')),
-            ]),
-          ),
-        ],
-        if (_isGenerating) const LinearProgressIndicator(minHeight: 2),
-        const SizedBox(height: 8),
-        TextFormattingToolbar(
-          controller: _notesController,
-          onBeforeUndo: () {
-            _saveCoreStakeholdersData();
-          },
-        ),
-        const SizedBox(height: 8),
+    const brandYellow = Color(0xFFFFC107);
+    const gray50 = Color(0xFFF9FAFB);
+    const gray200 = Color(0xFFE5E7EB);
+    const gray500 = Color(0xFF6B7280);
+    const gray700 = Color(0xFF374151);
+    const gray900 = Color(0xFF111827);
+
+    return Column(
+      children: [
+        // Breadcrumbs bar
         Container(
           width: double.infinity,
-          constraints: const BoxConstraints(minHeight: 120),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.withOpacity(0.3))),
-          child: TextField(
-            controller: _notesController,
-            keyboardType: TextInputType.multiline,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            decoration: InputDecoration(
-                hintText: 'Input your notes here...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero),
-            minLines: 4,
-            maxLines: null,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(bottom: BorderSide(color: gray200, width: 1)),
+          ),
+          child: Row(
+            children: [
+              Text('Initiation Phase',
+                  style: TextStyle(fontSize: 13, color: gray500)),
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right, size: 16, color: gray500),
+              const SizedBox(width: 6),
+              Text('Business Case',
+                  style: TextStyle(fontSize: 13, color: gray500)),
+              const SizedBox(width: 6),
+              Icon(Icons.chevron_right, size: 16, color: gray500),
+              const SizedBox(width: 6),
+              const Text('Core Stakeholders',
+                  style: TextStyle(
+                      fontSize: 13,
+                      color: brandYellow,
+                      fontWeight: FontWeight.w600)),
+            ],
           ),
         ),
-        const SizedBox(height: 24),
-        const EditableContentText(
-            contentKey: 'core_stakeholders_table_heading',
-            fallback: 'Core Stakeholders',
-            category: 'business_case',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.black)),
-        const SizedBox(height: 6),
-        Text('Reminder: update text within each box.',
-            style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic)),
-        const SizedBox(height: 12),
-        // External (moved to top)
-        const EditableContentText(
-            contentKey: 'external_stakeholders_subheading',
-            fallback: 'External',
-            category: 'business_case',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87)),
-        const SizedBox(height: 12),
-        if (isMobile) ...[
-          Column(
-              children: List.generate(
-                  _solutions.length, (i) => _buildExternalRow(i))),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: const Row(children: [
-              Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: EditableContentText(
-                        contentKey: 'stakeholders_table_header_solution',
-                        fallback: 'Potential Solution',
-                        category: 'business_case',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                  )),
-              Expanded(
-                  flex: 3,
-                  child: Center(
-                    child: EditableContentText(
-                        contentKey: 'stakeholders_table_header_external',
-                        fallback: 'External Stakeholders',
-                        category: 'business_case',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                  )),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: Column(
-                children: List.generate(
-                    _solutions.length, (i) => _buildExternalRow(i))),
-          ),
-        ],
-        const SizedBox(height: 32),
-        // Internal (moved to bottom)
-        const EditableContentText(
-            contentKey: 'internal_stakeholders_subheading',
-            fallback: 'Internal',
-            category: 'business_case',
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87)),
-        const SizedBox(height: 12),
-        if (isMobile) ...[
-          Column(
-              children: List.generate(
-                  _solutions.length, (i) => _buildInternalRow(i))),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: const Row(children: [
-              Expanded(
-                  flex: 2,
-                  child: Center(
-                    child: EditableContentText(
-                        contentKey: 'stakeholders_table_header_solution',
-                        fallback: 'Potential Solution',
-                        category: 'business_case',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                  )),
-              Expanded(
-                  flex: 3,
-                  child: Center(
-                    child: EditableContentText(
-                        contentKey: 'stakeholders_table_header_internal',
-                        fallback: 'Internal Stakeholders',
-                        category: 'business_case',
-                        style: TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.w600)),
-                  )),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withOpacity(0.35))),
-            child: Column(
-                children: List.generate(
-                    _solutions.length, (i) => _buildInternalRow(i))),
-          ),
-        ],
-        const SizedBox(height: 16),
-        // Add Item button
-        Row(children: [
-          Tooltip(
-            message: 'Add a new stakeholder entry manually',
-            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-          ),
-          const SizedBox(width: 8),
-          // Only show Add Item button to admins (admin host only)
-          if (_canUseAdminControls)
-            ElevatedButton.icon(
-              onPressed: _addNewItem,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Item'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          const SizedBox(width: 12),
-        ]),
-        const SizedBox(height: 24),
+        // Scrollable content area
+        Expanded(
+          child: Stack(
+            children: [
+              ScrollIndicatorOverlay(
+                controller: _reviewScrollController,
+                child: SingleChildScrollView(
+                  controller: _reviewScrollController,
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Page Header row with title + regenerate button
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const EditableContentText(
+                                  contentKey: 'core_stakeholders_heading',
+                                  fallback: 'Core Stakeholders',
+                                  category: 'business_case',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                    color: gray900,
+                                    letterSpacing: -0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                EditableContentText(
+                                  contentKey: 'core_stakeholders_description',
+                                  fallback:
+                                      'Identify key stakeholders especially if External, Regulatory, Governmental, etc.',
+                                  category: 'business_case',
+                                  style:
+                                      TextStyle(fontSize: 14, color: gray500),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Page-level Regenerate All button
+                          PageRegenerateAllButton(
+                            onRegenerateAll: () async {
+                              final confirmed =
+                                  await showRegenerateAllConfirmation(context);
+                              if (confirmed && mounted) {
+                                await _regenerateAllStakeholders();
+                              }
+                            },
+                            isLoading: _isGenerating,
+                            tooltip: 'Regenerate all stakeholders',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
 
-        // Navigation Buttons
-          BusinessCaseNavigationButtons(
-            currentScreen: 'Core Stakeholders',
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-            onNext: _handleNextPressed,
-            isNextEnabled: _reviewConfirmed,
-            showReviewGate: true,
-            reviewConfirmed: _reviewConfirmed,
-            onReviewChanged: (value) {
-              setState(() => _reviewConfirmed = value);
-            },
-            reviewScrollController: _reviewScrollController,
+                      // Error display
+                      if (_error != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.08),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                  color: Colors.red.withOpacity(0.3))),
+                          child: Row(children: [
+                            const Icon(Icons.error_outline,
+                                color: Colors.red, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                                child: Text(_error!,
+                                    style: const TextStyle(
+                                        color: Colors.red, fontSize: 12),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis)),
+                            TextButton(
+                                onPressed: _isGenerating
+                                    ? null
+                                    : _generateStakeholders,
+                                child: const Text('Retry')),
+                          ]),
+                        ),
+                      ],
+                      if (_isGenerating)
+                        const LinearProgressIndicator(minHeight: 2),
+
+                      const SizedBox(height: 20),
+
+                      // Notes Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: gray50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: gray200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Notes heading + Format button
+                            Row(
+                              children: [
+                                const EditableContentText(
+                                  contentKey: 'core_stakeholders_notes_heading',
+                                  fallback: 'Notes',
+                                  category: 'business_case',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: gray900,
+                                  ),
+                                ),
+                                const Spacer(),
+                                // Format button
+                                TextFormattingToolbar(
+                                  controller: _notesController,
+                                  onBeforeUndo: () {
+                                    _saveCoreStakeholdersData();
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            // Notes textarea
+                            Container(
+                              width: double.infinity,
+                              constraints: const BoxConstraints(minHeight: 100),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: gray200),
+                              ),
+                              child: VoiceTextField(
+                                controller: _notesController,
+                                keyboardType: TextInputType.multiline,
+                                style: TextStyle(
+                                    fontSize: 14, color: gray700, height: 1.5),
+                                decoration: InputDecoration(
+                                    hintText: 'Input your notes here...',
+                                    hintStyle:
+                                        TextStyle(color: Colors.grey[400]),
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero),
+                                minLines: 4,
+                                maxLines: null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+
+                      // CORE STAKEHOLDERS Container
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Uppercase heading
+                          const Text(
+                            'CORE STAKEHOLDERS',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: gray700,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Reminder: update text within each box.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: gray500,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+
+                          // External Section
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.only(bottom: 20),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: gray200, width: 1),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: brandYellow,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const EditableContentText(
+                                      contentKey:
+                                          'external_stakeholders_subheading',
+                                      fallback: 'External',
+                                      category: 'business_case',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: gray900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                // External cards
+                                ...List.generate(
+                                  _solutions.length,
+                                  (i) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _buildExternalRow(i),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Internal Section
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.only(bottom: 20),
+                            decoration: const BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(color: gray200, width: 1),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      width: 4,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        color: brandYellow,
+                                        borderRadius: BorderRadius.circular(2),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const EditableContentText(
+                                      contentKey:
+                                          'internal_stakeholders_subheading',
+                                      fallback: 'Internal',
+                                      category: 'business_case',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: gray900,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                // Internal cards
+                                ...List.generate(
+                                  _solutions.length,
+                                  (i) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: _buildInternalRow(i),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // Add Item button
+                          if (_canUseAdminControls)
+                            Row(children: [
+                              Tooltip(
+                                message: 'Add a new stakeholder entry manually',
+                                child: const Icon(Icons.lightbulb_outline,
+                                    color: Colors.black87),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton.icon(
+                                onPressed: _addNewItem,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Add Item'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: brandYellow,
+                                  foregroundColor: Colors.black,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ]),
+
+                          const SizedBox(height: 24),
+
+                          // Navigation Buttons
+                          BusinessCaseNavigationButtons(
+                            currentScreen: 'Core Stakeholders',
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 0, vertical: 24),
+                            onNext: _handleNextPressed,
+                            isNextEnabled: _reviewConfirmed,
+                            showReviewGate: true,
+                            reviewConfirmed: _reviewConfirmed,
+                            onReviewChanged: (value) {
+                              setState(() => _reviewConfirmed = value);
+                            },
+                            reviewScrollController: _reviewScrollController,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ]),
-      ),
+        ),
+      ],
     );
   }
 
@@ -1437,93 +1583,132 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     );
   }
 
+  // ==================== REDESIGNED: Card layout with yellow ring badge ====================
   Widget _buildStakeholderRow(
       int index, TextEditingController controller, String hintText,
       {bool isInternal = true}) {
-    final isMobile = AppBreakpoints.isMobile(context);
+    const gray200 = Color(0xFFE5E7EB);
+    const gray500 = Color(0xFF6B7280);
+    const gray900 = Color(0xFF111827);
+
     // Handle cases where we have more controllers than initial solutions (user added items)
     final s = index < _solutions.length
         ? _solutions[index]
         : AiSolutionItem(title: '', description: '');
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-          border: Border(
-              top: BorderSide(color: Colors.grey.withOpacity(0.25)))),
-      child: isMobile
-          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _numberBadge(index + 1),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(s.title.isEmpty ? 'Potential Solution' : s.title,
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w600)),
-                ),
-              ]),
-              if (s.description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(s.description,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-              const SizedBox(height: 10),
-              _stakeholderTextArea(controller, hintText, index, isInternal),
-            ])
-          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: gray200),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.1),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top row: badge + title + format button
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Yellow ring badge
+              _numberBadge(index + 1),
+              const SizedBox(width: 12),
+              // Title and description
               Expanded(
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _numberBadge(index + 1),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                    s.title.isEmpty
-                                        ? 'Potential Solution'
-                                        : s.title,
-                                    style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.black87,
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                            ]),
-                        if (s.description.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(s.description,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
-                              maxLines: 5,
-                              softWrap: true,
-                              overflow: TextOverflow.ellipsis),
-                        ]
-                      ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      s.title.isEmpty
+                          ? 'Proposed Solution ${index + 1}'
+                          : s.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: gray900,
+                      ),
+                    ),
+                    if (s.description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        s.description,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: gray500,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                  flex: 3,
-                  child: _stakeholderTextArea(
-                      controller, hintText, index, isInternal)),
-            ]),
+              // Format icon button (3 lines icon)
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  border: Border.all(color: gray200),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Icon(
+                  Icons.format_line_spacing,
+                  size: 16,
+                  color: gray500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Uppercase stakeholder type label
+          Text(
+            isInternal ? 'INTERNAL STAKEHOLDERS' : 'EXTERNAL STAKEHOLDERS',
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: gray500,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Stakeholder text area with HoverableFieldControls
+          _stakeholderTextArea(controller, hintText, index, isInternal),
+        ],
+      ),
     );
   }
 
+  // ==================== REDESIGNED: Yellow ring badge ====================
   Widget _numberBadge(int number) {
-    final primary = Theme.of(context).colorScheme.primary;
+    const brandYellow = Color(0xFFFFC107);
     return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(color: primary, shape: BoxShape.circle),
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: brandYellow.withOpacity(0.2),
+        shape: BoxShape.circle,
+        border: Border.all(color: brandYellow, width: 2),
+      ),
       alignment: Alignment.center,
-      child: Text('$number',
-          style: const TextStyle(
-              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(
+        '$number',
+        style: const TextStyle(
+          color: brandYellow,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
@@ -1538,8 +1723,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     );
   }
 
+  // ==================== REDESIGNED: Updated visual styling ====================
   Widget _stakeholderTextArea(TextEditingController controller, String hintText,
       int index, bool isInternal) {
+    const gray200 = Color(0xFFE5E7EB);
+    const gray700 = Color(0xFF374151);
+
     final provider = ProjectDataHelper.getProvider(context);
     final solutionTitle =
         index < _solutions.length ? _solutions[index].title : '';
@@ -1577,15 +1766,17 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: Colors.grey.withOpacity(0.25))),
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: gray200),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextFormattingToolbar(controller: controller),
             const SizedBox(height: 8),
-            TextField(
+            // Build bullet list with yellow dots from controller text
+            VoiceTextField(
               controller: controller,
               minLines: 2,
               maxLines: null,
@@ -1594,12 +1785,13 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                     isAiGenerated: true);
               },
               decoration: InputDecoration(
-                  hintText: hintText,
-                  hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero),
-              style: const TextStyle(fontSize: 12, color: Colors.black87),
+                hintText: hintText,
+                hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+              ),
+              style: const TextStyle(fontSize: 12, color: gray700, height: 1.5),
             ),
           ],
         ),

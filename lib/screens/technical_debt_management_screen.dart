@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 class TechnicalDebtManagementScreen extends StatefulWidget {
   const TechnicalDebtManagementScreen({super.key});
 
@@ -75,12 +77,11 @@ class _TechnicalDebtManagementScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
             title: 'Technical Debt Management',
             showImportButton: false,
             showContentButton: false,
-            showNavigationButtons: false,
-          ),
+            showNavigationButtons: false, onExportPdf: _exportPdf),
           const SizedBox(height: 16),
                         _buildHeader(isNarrow),
             const SizedBox(height: 16),
@@ -1150,22 +1151,22 @@ class _TechnicalDebtManagementScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: idController,
                   decoration: const InputDecoration(labelText: 'ID *'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: titleController,
                   decoration: const InputDecoration(labelText: 'Item *'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: areaController,
                   decoration: const InputDecoration(labelText: 'Area'),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: ownerController,
                   decoration: const InputDecoration(labelText: 'Owner'),
                 ),
@@ -1198,7 +1199,7 @@ class _TechnicalDebtManagementScreenState
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: targetController,
                   decoration: const InputDecoration(labelText: 'Target / Due'),
                 ),
@@ -1309,7 +1310,7 @@ class _TechnicalDebtManagementScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: labelController,
                     decoration: const InputDecoration(
                       labelText: 'Priority lane *',
@@ -1318,7 +1319,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: secondaryController,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -1327,7 +1328,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: exitCriteriaController,
                     maxLines: 3,
                     decoration: const InputDecoration(
@@ -1337,7 +1338,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: evidenceController,
                     maxLines: 3,
                     decoration: const InputDecoration(
@@ -1346,7 +1347,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: ownerCadenceController,
                     decoration: const InputDecoration(
                       labelText: 'Accountability / cadence',
@@ -1470,13 +1471,13 @@ class _TechnicalDebtManagementScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: titleController,
                     decoration:
                         const InputDecoration(labelText: 'Signal cluster *'),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: subtitleController,
                     maxLines: 3,
                     decoration: const InputDecoration(
@@ -1486,7 +1487,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: evidenceController,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -1495,7 +1496,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: controlController,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -1506,7 +1507,7 @@ class _TechnicalDebtManagementScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedTier,
+                    initialValue: selectedTier,
                     decoration: const InputDecoration(labelText: 'Risk tier'),
                     items: const [
                       DropdownMenuItem(
@@ -1516,13 +1517,14 @@ class _TechnicalDebtManagementScreenState
                       DropdownMenuItem(value: 'Low', child: Text('Low')),
                     ],
                     onChanged: (value) {
-                      if (value != null)
+                      if (value != null) {
                         setDialogState(() => selectedTier = value);
+                      }
                     },
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    value: selectedColorValue,
+                    initialValue: selectedColorValue,
                     decoration:
                         const InputDecoration(labelText: 'Severity color'),
                     items: _governanceColorOptions
@@ -1532,8 +1534,9 @@ class _TechnicalDebtManagementScreenState
                             ))
                         .toList(),
                     onChanged: (value) {
-                      if (value != null)
+                      if (value != null) {
                         setDialogState(() => selectedColorValue = value);
+                      }
                     },
                   ),
                 ],
@@ -1626,13 +1629,13 @@ class _TechnicalDebtManagementScreenState
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextField(
+                  VoiceTextField(
                     controller: ownerController,
                     decoration:
                         const InputDecoration(labelText: 'Accountable owner *'),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: workstreamController,
                     decoration: const InputDecoration(
                       labelText: 'Workstream',
@@ -1641,7 +1644,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: scopeController,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -1651,14 +1654,14 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: countController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                         labelText: 'Number of accountable roles'),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: coverageController,
                     maxLines: 3,
                     decoration: const InputDecoration(
@@ -1667,7 +1670,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: reviewController,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -1676,7 +1679,7 @@ class _TechnicalDebtManagementScreenState
                     ),
                   ),
                   const SizedBox(height: 16),
-                  TextField(
+                  VoiceTextField(
                     controller: escalationController,
                     maxLines: 2,
                     decoration: const InputDecoration(
@@ -1686,7 +1689,7 @@ class _TechnicalDebtManagementScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    value: selectedColorValue,
+                    initialValue: selectedColorValue,
                     decoration:
                         const InputDecoration(labelText: 'Workstream color'),
                     items: _governanceColorOptions
@@ -1696,8 +1699,9 @@ class _TechnicalDebtManagementScreenState
                             ))
                         .toList(),
                     onChanged: (value) {
-                      if (value != null)
+                      if (value != null) {
                         setDialogState(() => selectedColorValue = value);
+                      }
                     },
                   ),
                 ],
@@ -2084,6 +2088,21 @@ class _TechnicalDebtManagementScreenState
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Technical Debt Management',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_technical_debt_management_notes'] ?? 'No data recorded.'),
+      ],
     );
   }
 }

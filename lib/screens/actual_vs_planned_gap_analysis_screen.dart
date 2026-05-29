@@ -1,19 +1,23 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/commerce_viability_screen.dart';
 import 'package:ndu_project/screens/project_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
+import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class ActualVsPlannedGapAnalysisScreen extends StatefulWidget {
   const ActualVsPlannedGapAnalysisScreen({super.key});
@@ -40,8 +44,10 @@ class _ActualVsPlannedGapAnalysisScreenState
 
   bool _isLoading = true;
   bool _isGenerating = false;
+  bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
   void initState() {
@@ -68,15 +74,12 @@ class _ActualVsPlannedGapAnalysisScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Actual vs Planned Gap Analysis',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildScopeGapsPanel(),
@@ -98,32 +101,6 @@ class _ActualVsPlannedGapAnalysisScreenState
             const SizedBox(height: 48),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Actual vs Planned Gap Analysis',
-      description:
-          'Compare planned deliverables, milestones, and budgets against actual outcomes. Data is auto-populated from execution phase records.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: 'Auto-Populate',
-            icon: Icons.autorenew_outlined,
-            tone: ExecutionActionTone.secondary,
-            onPressed: _autoPopulateFromPriorPhases,
-          ),
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
       ),
     );
   }
@@ -166,10 +143,34 @@ class _ActualVsPlannedGapAnalysisScreenState
     return LaunchDataTable(
       title: 'Scope Gap Analysis',
       subtitle: 'Compare planned deliverables vs actual outcomes.',
-      columns: const ['Planned', 'Actual', 'Gap', 'Status'],
+      columns: const [LaunchColumn(label: 'Planned', flexible: true, fieldType: LaunchFieldType.text, hint: 'Planned'), LaunchColumn(label: 'Actual', flexible: true, fieldType: LaunchFieldType.text, hint: 'Actual'), LaunchColumn(label: 'Gap', flexible: true, fieldType: LaunchFieldType.text, hint: 'Gap'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: LaunchGapItem.gapStatuses, hint: 'Status')],
       rowCount: _scopeGaps.length,
-      onAdd: () {
-        setState(() => _scopeGaps.add(LaunchGapItem()));
+      onAddValues: (values) {
+        setState(() => _scopeGaps.add(LaunchGapItem(
+          planned: values['Planned'] ?? '',
+          actual: values['Actual'] ?? '',
+          gapDescription: values['Gap'] ?? '',
+          gapStatus: values['Status'] ?? 'Met',
+        )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'planned', label: 'Planned', sampleValue: 'User portal deployment'),
+        CsvColumnSpec(key: 'actual', label: 'Actual', sampleValue: 'Deployed with minor gaps'),
+        CsvColumnSpec(key: 'gap', label: 'Gap', sampleValue: 'Missing SSO integration'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Partial', allowedValues: ['Met', 'Partial', 'Missed', 'Exceeded']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _scopeGaps.add(LaunchGapItem(
+              planned: row['planned'] ?? '',
+              actual: row['actual'] ?? '',
+              gapDescription: row['gap'] ?? '',
+              gapStatus: row['status'] ?? 'Missed',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Add items to compare planned vs actual.',
@@ -232,10 +233,37 @@ class _ActualVsPlannedGapAnalysisScreenState
     return LaunchDataTable(
       title: 'Milestone Variance',
       subtitle: 'Compare planned vs actual milestone dates.',
-      columns: const ['Milestone', 'Planned', 'Actual', 'Variance', 'Status'],
+      columns: const [LaunchColumn(label: 'Milestone', flexible: true, fieldType: LaunchFieldType.text, hint: 'Milestone'), LaunchColumn(label: 'Planned', width: 130, fieldType: LaunchFieldType.date, hint: 'Planned'), LaunchColumn(label: 'Actual', width: 130, fieldType: LaunchFieldType.date, hint: 'Actual'), LaunchColumn(label: 'Variance', width: 130, fieldType: LaunchFieldType.text, hint: 'Days'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['On Track', 'Delayed', 'Missed', 'Early'], hint: 'Status')],
       rowCount: _milestoneVariances.length,
-      onAdd: () {
-        setState(() => _milestoneVariances.add(LaunchMilestoneVariance()));
+      onAddValues: (values) {
+        setState(() => _milestoneVariances.add(LaunchMilestoneVariance(
+          milestone: values['Milestone'] ?? '',
+          plannedDate: values['Planned'] ?? '',
+          actualDate: values['Actual'] ?? '',
+          varianceDays: values['Variance'] ?? '',
+          status: values['Status'] ?? 'On Track',
+        )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'milestone', label: 'Milestone', sampleValue: 'Go-live'),
+        CsvColumnSpec(key: 'planned', label: 'Planned', sampleValue: '2025-01-15'),
+        CsvColumnSpec(key: 'actual', label: 'Actual', sampleValue: '2025-01-18'),
+        CsvColumnSpec(key: 'variance', label: 'Variance', sampleValue: '+3 days'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'On Track', allowedValues: ['On Track', 'Delayed', 'Missed', 'Early']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _milestoneVariances.add(LaunchMilestoneVariance(
+              milestone: row['milestone'] ?? '',
+              plannedDate: row['planned'] ?? '',
+              actualDate: row['actual'] ?? '',
+              varianceDays: row['variance'] ?? '',
+              status: row['status'] ?? 'On Track',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Track planned vs actual milestone dates.',
@@ -305,10 +333,37 @@ class _ActualVsPlannedGapAnalysisScreenState
     return LaunchDataTable(
       title: 'Budget Variance',
       subtitle: 'Compare planned vs actual costs by category.',
-      columns: const ['Category', 'Planned', 'Actual', 'Variance', '%'],
+      columns: const [LaunchColumn(label: 'Category', flexible: true, fieldType: LaunchFieldType.text, hint: 'Category'), LaunchColumn(label: 'Planned', width: 130, fieldType: LaunchFieldType.text, hint: 'Planned'), LaunchColumn(label: 'Actual', width: 130, fieldType: LaunchFieldType.text, hint: 'Actual'), LaunchColumn(label: 'Variance', width: 130, fieldType: LaunchFieldType.text, hint: 'Variance'), LaunchColumn(label: '%', width: 110, fieldType: LaunchFieldType.text, hint: '%')],
       rowCount: _budgetVariances.length,
-      onAdd: () {
-        setState(() => _budgetVariances.add(LaunchBudgetVariance()));
+      onAddValues: (values) {
+        setState(() => _budgetVariances.add(LaunchBudgetVariance(
+          category: values['Category'] ?? '',
+          plannedAmount: values['Planned'] ?? '',
+          actualAmount: values['Actual'] ?? '',
+          variance: values['Variance'] ?? '',
+          variancePercent: values['%'] ?? '',
+        )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Infrastructure'),
+        CsvColumnSpec(key: 'planned', label: 'Planned', sampleValue: '\$100,000'),
+        CsvColumnSpec(key: 'actual', label: 'Actual', sampleValue: '\$115,000'),
+        CsvColumnSpec(key: 'variance', label: 'Variance', sampleValue: '-\$15,000'),
+        CsvColumnSpec(key: 'percent', label: '%', sampleValue: '15%'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _budgetVariances.add(LaunchBudgetVariance(
+              category: row['category'] ?? '',
+              plannedAmount: row['planned'] ?? '',
+              actualAmount: row['actual'] ?? '',
+              variance: row['variance'] ?? '',
+              variancePercent: row['percent'] ?? '',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Track planned vs actual budget by category.',
@@ -336,7 +391,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             LaunchEditableCell(
               value: b.plannedAmount,
               hint: 'Planned',
-              width: 100,
+              width: 130,
               onChanged: (s) {
                 _budgetVariances[i] = b.copyWith(plannedAmount: s);
                 _save();
@@ -345,7 +400,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             LaunchEditableCell(
               value: b.actualAmount,
               hint: 'Actual',
-              width: 100,
+              width: 130,
               onChanged: (s) {
                 _budgetVariances[i] = b.copyWith(actualAmount: s);
                 _save();
@@ -354,7 +409,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             LaunchEditableCell(
               value: b.variance,
               hint: 'Variance',
-              width: 90,
+              width: 120,
               onChanged: (s) {
                 _budgetVariances[i] = b.copyWith(variance: s);
                 _save();
@@ -380,10 +435,37 @@ class _ActualVsPlannedGapAnalysisScreenState
       title: 'Root Cause Analysis',
       subtitle:
           'For major gaps: identify root cause, impact, and corrective action.',
-      columns: const ['Gap', 'Root Cause', 'Impact', 'Action', 'Status'],
+      columns: const [LaunchColumn(label: 'Gap', flexible: true, fieldType: LaunchFieldType.text, hint: 'Gap'), LaunchColumn(label: 'Root Cause', flexible: true, fieldType: LaunchFieldType.text, hint: 'Cause'), LaunchColumn(label: 'Impact', width: 120, fieldType: LaunchFieldType.text, hint: 'Impact'), LaunchColumn(label: 'Action', flexible: true, fieldType: LaunchFieldType.text, hint: 'Action'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Open', 'In Progress', 'Resolved'], hint: 'Status')],
       rowCount: _rootCauses.length,
-      onAdd: () {
-        setState(() => _rootCauses.add(LaunchRootCauseItem()));
+      onAddValues: (values) {
+        setState(() => _rootCauses.add(LaunchRootCauseItem(
+          gap: values['Gap'] ?? '',
+          rootCause: values['Root Cause'] ?? '',
+          impact: values['Impact'] ?? '',
+          correctiveAction: values['Action'] ?? '',
+          status: values['Status'] ?? 'Open',
+        )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'gap', label: 'Gap', sampleValue: 'Budget overrun'),
+        CsvColumnSpec(key: 'rootCause', label: 'Root Cause', sampleValue: 'Scope creep'),
+        CsvColumnSpec(key: 'impact', label: 'Impact', sampleValue: 'High'),
+        CsvColumnSpec(key: 'action', label: 'Action', sampleValue: 'Rebase budget'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Open', 'In Progress', 'Resolved']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _rootCauses.add(LaunchRootCauseItem(
+              gap: row['gap'] ?? '',
+              rootCause: row['rootCause'] ?? '',
+              impact: row['impact'] ?? '',
+              correctiveAction: row['action'] ?? '',
+              status: row['status'] ?? 'Open',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'Analyze why major gaps occurred.',
@@ -455,10 +537,34 @@ class _ActualVsPlannedGapAnalysisScreenState
     return LaunchDataTable(
       title: 'Follow-Up Actions',
       subtitle: 'Items requiring post-project attention.',
-      columns: const ['Action', 'Details', 'Owner', 'Status'],
+      columns: const [LaunchColumn(label: 'Action', flexible: true, fieldType: LaunchFieldType.text, hint: 'Action'), LaunchColumn(label: 'Details', flexible: true, fieldType: LaunchFieldType.text, hint: 'Details'), LaunchColumn(label: 'Owner', width: 120, fieldType: LaunchFieldType.text, hint: 'Owner'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Open', 'In Progress', 'Complete'], hint: 'Status')],
       rowCount: _followUpActions.length,
-      onAdd: () {
-        setState(() => _followUpActions.add(LaunchFollowUpItem()));
+      onAddValues: (values) {
+        setState(() => _followUpActions.add(LaunchFollowUpItem(
+          title: values['Action'] ?? '',
+          details: values['Details'] ?? '',
+          owner: values['Owner'] ?? '',
+          status: values['Status'] ?? 'Open',
+        )));
+        _save();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'action', label: 'Action', sampleValue: 'Monitor SLA compliance'),
+        CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'Track vendor SLA adherence'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Ops Manager'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Open', 'In Progress', 'Complete']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _followUpActions.add(LaunchFollowUpItem(
+              title: row['action'] ?? '',
+              details: row['details'] ?? '',
+              owner: row['owner'] ?? '',
+              status: row['status'] ?? 'Open',
+            ));
+          });
+        }
         _save();
       },
       emptyMessage: 'List items requiring attention after project closure.',
@@ -495,7 +601,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             LaunchEditableCell(
               value: f.owner,
               hint: 'Owner',
-              width: 100,
+              width: 130,
               onChanged: (s) {
                 _followUpActions[i] = f.copyWith(owner: s);
                 _save();
@@ -705,9 +811,9 @@ class _ActualVsPlannedGapAnalysisScreenState
   Future<void> _populateFromAi() async {
     if (_isGenerating) return;
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Actual vs Planned Gap Analysis',
         sections: const {
@@ -723,6 +829,19 @@ class _ActualVsPlannedGapAnalysisScreenState
       debugPrint('Gap analysis AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _scopeGaps.isNotEmpty ||
         _milestoneVariances.isNotEmpty ||
         _budgetVariances.isNotEmpty ||
@@ -733,7 +852,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       return;
     }
     setState(() {
-      _scopeGaps = (gen['scope_gaps'] ?? [])
+      _scopeGaps = (generated['scope_gaps'] ?? [])
           .map((m) => LaunchGapItem(
               planned: _s(m['planned']),
               actual: _s(m['actual']),
@@ -741,7 +860,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               gapStatus: _ns(m['gap_status'], 'Missed')))
           .where((i) => i.planned.isNotEmpty)
           .toList();
-      _milestoneVariances = (gen['milestone_variances'] ?? [])
+      _milestoneVariances = (generated['milestone_variances'] ?? [])
           .map((m) => LaunchMilestoneVariance(
               milestone: _s(m['milestone']),
               plannedDate: _s(m['planned_date']),
@@ -750,7 +869,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               status: _ns(m['status'], 'On Track')))
           .where((i) => i.milestone.isNotEmpty)
           .toList();
-      _budgetVariances = (gen['budget_variances'] ?? [])
+      _budgetVariances = (generated['budget_variances'] ?? [])
           .map((m) => LaunchBudgetVariance(
               category: _s(m['category']),
               plannedAmount: _s(m['planned_amount']),
@@ -759,7 +878,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               variancePercent: _s(m['variance_percent'])))
           .where((i) => i.category.isNotEmpty)
           .toList();
-      _rootCauses = (gen['root_causes'] ?? [])
+      _rootCauses = (generated['root_causes'] ?? [])
           .map((m) => LaunchRootCauseItem(
               gap: _s(m['gap']),
               rootCause: _s(m['root_cause']),
@@ -768,7 +887,7 @@ class _ActualVsPlannedGapAnalysisScreenState
               status: _ns(m['status'], 'Open')))
           .where((i) => i.gap.isNotEmpty)
           .toList();
-      _followUpActions = (gen['follow_up_actions'] ?? [])
+      _followUpActions = (generated['follow_up_actions'] ?? [])
           .map((m) => LaunchFollowUpItem(
               title: _s(m['title']),
               details: _s(m['details']),
@@ -783,4 +902,243 @@ class _ActualVsPlannedGapAnalysisScreenState
 
   String _s(dynamic v) => (v ?? '').toString().trim();
   String _ns(dynamic v, String fb) => _s(v).isEmpty ? fb : _s(v);
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName;
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final filename =
+          'gap_analysis_${projectName.replaceAll(' ', '_')}_$stamp.pdf';
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => [
+            pw.Text(
+              'Actual vs Planned Gap Analysis',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              '$projectName — Generated ${now.toLocal().toIso8601String()}',
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+            ),
+            pw.SizedBox(height: 16),
+            _pdfSectionTitle('Scope Gap Analysis'),
+            pw.SizedBox(height: 6),
+            if (_scopeGaps.isEmpty)
+              pw.Text('No scope gaps.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const ['Planned', 'Actual', 'Gap', 'Status'],
+                data: _scopeGaps
+                    .map((g) => [
+                          _pc(g.planned),
+                          _pc(g.actual),
+                          _pc(g.gapDescription),
+                          _pc(g.gapStatus),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Milestone Variance'),
+            pw.SizedBox(height: 6),
+            if (_milestoneVariances.isEmpty)
+              pw.Text('No milestone variances.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const [
+                  'Milestone',
+                  'Planned',
+                  'Actual',
+                  'Variance',
+                  'Status'
+                ],
+                data: _milestoneVariances
+                    .map((m) => [
+                          _pc(m.milestone),
+                          _pc(m.plannedDate),
+                          _pc(m.actualDate),
+                          _pc(m.varianceDays),
+                          _pc(m.status),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Budget Variance'),
+            pw.SizedBox(height: 6),
+            if (_budgetVariances.isEmpty)
+              pw.Text('No budget variances.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const [
+                  'Category',
+                  'Planned',
+                  'Actual',
+                  'Variance',
+                  '%'
+                ],
+                data: _budgetVariances
+                    .map((b) => [
+                          _pc(b.category),
+                          _pc(b.plannedAmount),
+                          _pc(b.actualAmount),
+                          _pc(b.variance),
+                          _pc(b.variancePercent),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Root Cause Analysis'),
+            pw.SizedBox(height: 6),
+            if (_rootCauses.isEmpty)
+              pw.Text('No root cause items.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const [
+                  'Gap',
+                  'Root Cause',
+                  'Impact',
+                  'Action',
+                  'Status'
+                ],
+                data: _rootCauses
+                    .map((r) => [
+                          _pc(r.gap),
+                          _pc(r.rootCause),
+                          _pc(r.impact),
+                          _pc(r.correctiveAction),
+                          _pc(r.status),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Follow-Up Actions'),
+            pw.SizedBox(height: 6),
+            if (_followUpActions.isEmpty)
+              pw.Text('No follow-up actions.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const [
+                  'Action',
+                  'Details',
+                  'Owner',
+                  'Status'
+                ],
+                data: _followUpActions
+                    .map((f) => [
+                          _pc(f.title),
+                          _pc(f.details),
+                          _pc(f.owner),
+                          _pc(f.status),
+                        ])
+                    .toList(),
+              ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (kIsWeb) {
+        download_helper.downloadFile(bytes, filename,
+            mimeType: 'application/pdf');
+      } else {
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF exported: $filename')),
+        );
+      }
+    } catch (e) {
+      debugPrint('PDF export error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate PDF: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _isExporting = false);
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: const pw.BoxDecoration(
+        color: PdfColor(0.06, 0.27, 0.45),
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Text(title,
+          style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white)),
+    );
+  }
+
+  String _pc(String v) => v.trim().isEmpty ? '-' : v.trim();
 }

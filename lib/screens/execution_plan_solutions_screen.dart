@@ -1,23 +1,31 @@
-import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_details_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/csv_table_import_button.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+
+Future<void> _exportPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Execution Plan Solutions',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_solutions_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanSolutionsScreen extends StatelessWidget {
   const ExecutionPlanSolutionsScreen({super.key});
@@ -33,72 +41,104 @@ class ExecutionPlanSolutionsScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Executive Plan Strategy',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel: 'Executive Plan Strategy'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(title: 'Executive Plan Strategy'),
+            const SizedBox(height: 28),
+            ExecutionPlanForm(
+              title: 'Executive Plan Strategy',
+              hintText: 'Input your notes here...',
+              noteKey: 'execution_plan_strategy',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(title: 'Executive Plan Strategy'),
-                    const SizedBox(height: 28),
-                    ExecutionPlanForm(
-                      title: 'Executive Plan Strategy',
-                      hintText: 'Input your notes here...',
-                      noteKey: 'execution_plan_strategy',
-                    ),
-                    const SizedBox(height: 28),
-                    const _ExecutionPlanTable(),
-                    const SizedBox(height: 20),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: AddSolutionButton(
-                          onPressed: () =>
-                              _ExecutionPlanTable.showAddDialog(context)),
-                    ),
-                    const SizedBox(height: 44),
-                    Wrap(
-                      spacing: 20,
-                      runSpacing: 16,
-                      alignment: WrapAlignment.spaceBetween,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const InfoBadge(),
-                        Wrap(
-                          spacing: 16,
-                          runSpacing: 12,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          alignment: WrapAlignment.end,
-                          children: [
-                            const AiTipCard(),
-                            YellowActionButton(
-                              label: 'Next',
-                              onPressed: () =>
-                                  ExecutionPlanDetailsScreen.open(context),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 56),
-                  ],
-                ),
+            const SizedBox(height: 28),
+            const _ExecutionPlanTable(),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CsvTableImportButton(
+                    tableTitle: 'Execution Tools',
+                    columns: [
+                      CsvColumnSpec(key: 'tool', label: 'Tool', required: true, sampleValue: 'Hammer Drill'),
+                      CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Heavy-duty drilling tool'),
+                      CsvColumnSpec(key: 'source', label: 'Source', required: true, sampleValue: 'Vendor A'),
+                      CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Required for Phase 1'),
+                    ],
+                    onImport: (rows) async {
+                      final projectId = _ExecutionPlanTable._getProjectIdStatic(context);
+                      if (projectId == null) return;
+                      var imported = 0;
+                      for (final row in rows) {
+                        try {
+                          await ExecutionService.createTool(
+                            projectId: projectId,
+                            tool: row['tool'] ?? '',
+                            description: row['description'] ?? '',
+                            source: row['source'] ?? '',
+                            cost: null,
+                            comments: row['comments'] ?? '',
+                          );
+                          imported++;
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error importing row: $e')),
+                            );
+                          }
+                        }
+                      }
+                      if (context.mounted && imported > 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Imported $imported tool(s) successfully')),
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 12),
+                  AddSolutionButton(
+                      onPressed: () =>
+                          _ExecutionPlanTable.showAddDialog(context)),
+                ],
               ),
             ),
+            const SizedBox(height: 44),
+            Wrap(
+              spacing: 20,
+              runSpacing: 16,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const InfoBadge(),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    const AiTipCard(),
+                    YellowActionButton(
+                      label: 'Next',
+                      onPressed: () =>
+                          ExecutionPlanDetailsScreen.open(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 56),
           ],
         ),
       ),
@@ -222,25 +262,25 @@ class _ExecutionPlanTable extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                   controller: toolController,
                   decoration: const InputDecoration(labelText: 'Tool *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: descriptionController,
                   decoration: const InputDecoration(labelText: 'Description *'),
                   maxLines: 2),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: sourceController,
                   decoration: const InputDecoration(labelText: 'Source *')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: costController,
                   decoration: const InputDecoration(
                       labelText: 'Cost', hintText: 'Optional')),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                   controller: commentsController,
                   decoration: const InputDecoration(labelText: 'Comments *'),
                   maxLines: 3),

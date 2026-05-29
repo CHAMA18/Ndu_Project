@@ -234,7 +234,7 @@ class ControlAccountService {
       if (wpEv == 0) continue;
 
       // Determine the period key from WP dates or current month
-      final periodKey = _derivePeriodKey(wp.startDate, wp.dueDate);
+      final periodKey = _derivePeriodKey(wp.plannedStart, wp.plannedEnd);
       result[periodKey] = (result[periodKey] ?? 0) + wpEv;
     }
 

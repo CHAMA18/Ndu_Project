@@ -8,10 +8,19 @@ import '../theme.dart';
 import '../widgets/responsive.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
-class ContractDetailsDashboardScreen extends StatelessWidget {
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+class ContractDetailsDashboardScreen extends StatefulWidget {
   const ContractDetailsDashboardScreen({super.key});
 
+  @override
+  State<ContractDetailsDashboardScreen> createState() => _ContractDetailsDashboardScreenState();
+}
+
+class _ContractDetailsDashboardScreenState extends State<ContractDetailsDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
@@ -45,6 +54,8 @@ class ContractDetailsDashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        PlanningPhaseHeader(title: 'Contract Details', showImportButton: false, showContentButton: false, onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
                         _Header(
                           isMobile: isMobile,
                           onAddContract: () {
@@ -92,8 +103,25 @@ class ContractDetailsDashboardScreen extends StatelessWidget {
         ),
       ),
     );
+  
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Contract Details Dashboard',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_contract_details_dashboard_notes'] ?? 'No data recorded.'),
+      ],
+    );
   }
 }
+
 
 class _Header extends StatelessWidget {
   const _Header({required this.isMobile, required this.onAddContract});
@@ -499,7 +527,7 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return VoiceTextField(
       decoration: InputDecoration(
         hintText: 'Search contracts...',
         prefixIcon: const Icon(Icons.search),

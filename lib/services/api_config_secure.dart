@@ -12,7 +12,37 @@ class SecureAPIConfig {
       'https://us-central1-ndu-d3f60.cloudfunctions.net/openaiProxy';
 
   // Default model used across OpenAI requests.
-  static const String model = 'gpt-4o-mini';
+  // Using o3 — the highest-performance model available (May 2026).
+  // o3 supports Chat Completions API and reasoning capabilities.
+  // Note: o3 only supports temperature=1 (default); non-default values
+  // cause a 400 error. The wrapBody() helper strips temperature for
+  // reasoning models automatically.
+  static const String model = 'o3';
+
+  /// Whether the current model is an OpenAI reasoning model (o1, o3, o4, etc.)
+  /// Reasoning models only support temperature=1 (default) and the wrapBody()
+  /// helper strips non-default temperature values automatically.
+  static bool get isReasoningModel =>
+      model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+
+  /// Returns model parameters for API requests.
+  /// The Chat Completions API now requires `max_completion_tokens` for
+  /// reasoning models (o3, o4). The legacy `max_tokens` parameter causes
+  /// a 400 error, so we always use `max_completion_tokens`.
+  static Map<String, dynamic> modelParams({int? maxTokens, double? temperature}) {
+    final params = <String, dynamic>{
+      'model': model,
+    };
+    if (maxTokens != null) {
+      // All models use max_completion_tokens (required for o3/o4 reasoning models)
+      params['max_completion_tokens'] = maxTokens;
+    }
+    // Reasoning models (o3, o4) only support temperature=1; omit it for them.
+    // The wrapBody() helper handles this automatically, but we avoid adding
+    // it here for reasoning models to keep the params clean.
+    if (temperature != null && !isReasoningModel) params['temperature'] = temperature;
+    return params;
+  }
 
   // Default OpenAI Agent Builder workflow used by the Firebase OpenAI proxy.
   static const String workflowId =

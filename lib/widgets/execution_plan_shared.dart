@@ -1,20 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/ai_diagram_panel.dart';
-import 'package:ndu_project/providers/project_data_provider.dart';
-import 'package:ndu_project/services/project_navigation_service.dart';
-import 'package:ndu_project/services/execution_service.dart';
 import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 const Map<String, String> executionCheckpointAlias = {
   'execution_plan_outline': 'execution_plan',
@@ -43,59 +38,216 @@ String resolveExecutionCheckpoint(String key) {
 }
 
 class ExecutionPlanHeader extends StatelessWidget {
-  const ExecutionPlanHeader({required this.onBack, this.onNext});
+  const ExecutionPlanHeader({
+    super.key,
+    required this.onBack,
+    this.onNext,
+    this.breadcrumbPhase,
+    this.breadcrumbTitle,
+    this.showImportButton = true,
+    this.showContentButton = true,
+    this.showExportPdf = true,
+    this.showAiAssist = true,
+    this.onImportPressed,
+    this.onContentPressed,
+    this.onExportPdf,
+    this.onAiAssist,
+  });
 
   final VoidCallback onBack;
   final VoidCallback? onNext;
+  final String? breadcrumbPhase;
+  final String? breadcrumbTitle;
+
+  /// Show Import button in the action row.
+  final bool showImportButton;
+
+  /// Show Content button in the action row.
+  final bool showContentButton;
+
+  /// Show Export PDF button in the action row.
+  final bool showExportPdf;
+
+  /// Show AI Assist button in the action row.
+  final bool showAiAssist;
+
+  /// Callback for Import button.
+  final VoidCallback? onImportPressed;
+
+  /// Callback for Content button.
+  final VoidCallback? onContentPressed;
+
+  /// Callback for Export PDF button.
+  final VoidCallback? onExportPdf;
+
+  /// Callback for AI Assist button.
+  final VoidCallback? onAiAssist;
+
+  void _defaultExportPdf(BuildContext context) {
+    final title = breadcrumbTitle ?? 'Execution Plan';
+    PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: title,
+      sections: [
+        PdfSection.text(title, 'Project section export from Ndu Project.'),
+      ],
+    );
+  }
+
+  void _defaultAiAssist(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('AI Assist will generate content for this section.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x0F000000), blurRadius: 12, offset: Offset(0, 6)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              CircleIconButton(
-                  icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
-              const SizedBox(width: 12),
-              CircleIconButton(
-                  icon: Icons.arrow_forward_ios_rounded, onTap: onNext),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  'Execution Plan',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827),
+    final isMobile = AppBreakpoints.isMobile(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        UnifiedPhaseHeader(
+          title: 'Execution Plan',
+          breadcrumbPhase: breadcrumbPhase,
+          breadcrumbTitle: breadcrumbTitle,
+          showDrawerButton: true,
+          onBackPressed: onBack,
+          onForwardPressed: onNext,
+          showActivityLogAction: true,
+        ),
+        if (showImportButton || showContentButton || showExportPdf || showAiAssist) ...[
+          if (isMobile)
+            const SizedBox(height: 12)
+          else
+            const SizedBox(height: 16),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                if (showImportButton)
+                  _YellowButton(
+                    label: 'Import',
+                    icon: Icons.upload_outlined,
+                    onPressed: onImportPressed ?? () {},
                   ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              const CurrentUserProfileChip(),
-            ],
+                if (showContentButton)
+                  _WhiteButton(
+                    label: 'Content',
+                    icon: Icons.download_outlined,
+                    onPressed: onContentPressed ?? () {},
+                  ),
+                if (showExportPdf)
+                  _WhiteButton(
+                    label: 'Export PDF',
+                    icon: Icons.picture_as_pdf_outlined,
+                    onPressed: onExportPdf ?? () => _defaultExportPdf(context),
+                  ),
+                if (showAiAssist)
+                  _AiAssistButton(
+                    label: 'AI Assist',
+                    icon: Icons.auto_awesome,
+                    onPressed: onAiAssist ?? () => _defaultAiAssist(context),
+                  ),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
         ],
+      ],
+    );
+  }
+}
+
+class _YellowButton extends StatelessWidget {
+  const _YellowButton(
+      {required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFFFFD700),
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _WhiteButton extends StatelessWidget {
+  const _WhiteButton({required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        side: const BorderSide(color: Color(0xFFE5E7EB)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
+class _AiAssistButton extends StatelessWidget {
+  const _AiAssistButton(
+      {required this.label, required this.icon, this.onPressed});
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF4154F1),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      icon: Icon(icon, size: 18),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
   }
 }
 
 class CircleIconButton extends StatelessWidget {
-  const CircleIconButton({required this.icon, this.onTap});
+  const CircleIconButton({super.key, required this.icon, this.onTap});
 
   final IconData icon;
   final VoidCallback? onTap;
@@ -124,7 +276,7 @@ class CircleIconButton extends StatelessWidget {
 }
 
 class CurrentUserProfileChip extends StatelessWidget {
-  const CurrentUserProfileChip();
+  const CurrentUserProfileChip({super.key});
 
   String _initials(String text) {
     final trimmed = text.trim();
@@ -203,7 +355,7 @@ class CurrentUserProfileChip extends StatelessWidget {
 }
 
 class SectionIntro extends StatelessWidget {
-  const SectionIntro({this.title = 'Executive Plan Outline'});
+  const SectionIntro({super.key, this.title = 'Executive Plan Outline'});
 
   final String title;
 
@@ -236,7 +388,7 @@ class SectionIntro extends StatelessWidget {
 }
 
 class ExecutionPlanForm extends StatefulWidget {
-  const ExecutionPlanForm({
+  const ExecutionPlanForm({super.key, 
     this.title = 'Executive Plan Outline',
     required this.hintText,
     this.noteKey,
@@ -370,7 +522,7 @@ class _ExecutionPlanFormState extends State<ExecutionPlanForm> {
 }
 
 class InfoBadge extends StatelessWidget {
-  const InfoBadge();
+  const InfoBadge({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -387,7 +539,7 @@ class InfoBadge extends StatelessWidget {
 }
 
 class AiTipCard extends StatelessWidget {
-  const AiTipCard({this.text});
+  const AiTipCard({super.key, this.text});
 
   final String? text;
 
@@ -422,7 +574,7 @@ class AiTipCard extends StatelessWidget {
 }
 
 class AiBadge extends StatelessWidget {
-  const AiBadge();
+  const AiBadge({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +604,7 @@ class AiBadge extends StatelessWidget {
 }
 
 class AddRowButton extends StatelessWidget {
-  const AddRowButton({required this.onPressed});
+  const AddRowButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -480,7 +632,7 @@ class AddRowButton extends StatelessWidget {
 }
 
 class AddSolutionButton extends StatelessWidget {
-  const AddSolutionButton({required this.onPressed});
+  const AddSolutionButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -508,7 +660,7 @@ class AddSolutionButton extends StatelessWidget {
 }
 
 class CrossReferenceNote extends StatelessWidget {
-  const CrossReferenceNote({required this.standalonePage, this.standaloneLabel});
+  const CrossReferenceNote({super.key, required this.standalonePage, this.standaloneLabel});
 
   final String standalonePage;
   final String? standaloneLabel;
@@ -543,7 +695,7 @@ class CrossReferenceNote extends StatelessWidget {
 }
 
 class YellowActionButton extends StatelessWidget {
-  const YellowActionButton({required this.label, required this.onPressed});
+  const YellowActionButton({super.key, required this.label, required this.onPressed});
 
   final String label;
   final VoidCallback onPressed;

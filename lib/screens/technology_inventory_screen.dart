@@ -4,9 +4,12 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
+import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 class TechnologyInventoryScreen extends StatefulWidget {
   const TechnologyInventoryScreen({super.key});
 
@@ -130,9 +133,9 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
       builder: (c) => AlertDialog(
         title: const Text('Add technology'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
-          TextField(controller: category, decoration: const InputDecoration(labelText: 'Category')),
-          TextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
+          VoiceTextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
+          VoiceTextField(controller: category, decoration: const InputDecoration(labelText: 'Category')),
+          VoiceTextField(controller: notes, decoration: const InputDecoration(labelText: 'Notes')),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.of(c).pop(), child: const Text('Cancel')),
@@ -152,13 +155,17 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return ResponsiveScaffold(
       activeItemLabel: 'Technology Inventory',
+      appBarTitle: 'Technology Inventory',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (!isMobile)
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Technology Inventory', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
                   Row(children: [
@@ -177,6 +184,19 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
                     const SizedBox(width: 8),
                     ElevatedButton(onPressed: _openAddDialog, child: const Text('Add')),
                   ])
+                ]),
+                if (isMobile)
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  AiRegenerateUndoButtons(
+                    isLoading: _seeding,
+                    canUndo: _undoBeforeAi != null,
+                    canRedo: _redoAfterUndo != null,
+                    onRegenerate: _seedFromAi,
+                    onUndo: () { _undoSeed(); },
+                    onRedo: () { _redoSeed(); },
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(onPressed: _openAddDialog, child: const Text('Add')),
                 ]),
                 const SizedBox(height: 12),
                 Expanded(

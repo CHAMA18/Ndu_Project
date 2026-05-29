@@ -27,7 +27,10 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Color(0xFFF9FAFC);
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -92,7 +95,7 @@ class _AgileProjectBaselineScreenState
   String? get _projectId {
     try {
       return ProjectDataInherited.maybeOf(context)?.projectData.projectId;
-    } catch (_) {
+    } catch (e) {
       return null;
     }
   }
@@ -273,7 +276,7 @@ class _AgileProjectBaselineScreenState
           source: 'Company Members',
         );
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('Error: $e'); }
 
     options.sort((a, b) =>
         a.displayLabel.toLowerCase().compareTo(b.displayLabel.toLowerCase()));
@@ -303,7 +306,7 @@ class _AgileProjectBaselineScreenState
         }
       }
       return _RiskSummary(totalCount: total, highCount: high);
-    } catch (_) {
+    } catch (e) {
       return const _RiskSummary(totalCount: 0, highCount: 0);
     }
   }
@@ -369,7 +372,7 @@ class _AgileProjectBaselineScreenState
         _isSaving = false;
         _lastSavedAt = DateTime.now();
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
     }
@@ -619,6 +622,11 @@ class _AgileProjectBaselineScreenState
             Expanded(
               child: Stack(
                 children: [
+                    MobileSidebarHamburger(
+                      sidebar: const InitiationLikeSidebar(
+                        activeItemLabel: 'Agile Wireframe - Project Baseline',
+                      ),
+                    ),
                   SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
                       horizontal: horizontalPadding,
@@ -633,6 +641,16 @@ class _AgileProjectBaselineScreenState
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            PlanningPhaseHeader(
+                              title: 'Agile Project Baseline',
+                              showImportButton: false,
+                              showContentButton: false,
+                              onBack: () =>
+                                  PlanningPhaseNavigation.goToPrevious(
+                                      context, 'agile_project_baseline'),
+                              onForward: () => PlanningPhaseNavigation.goToNext(
+                                  context, 'agile_project_baseline'), onExportPdf: _exportPdf),
+                            const SizedBox(height: 16),
                             _TopHeader(
                               status: _selectedStatus,
                               isSaving: _isSaving,
@@ -729,7 +747,7 @@ class _AgileProjectBaselineScreenState
                                 ],
                               ),
                             ],
-                            const SizedBox(height: 28),
+                            const SizedBox(height: 24),
                             LaunchPhaseNavigation(
                               backLabel: PlanningPhaseNavigation.backLabel(
                                   'agile_project_baseline'),
@@ -801,7 +819,7 @@ class _AgileProjectBaselineScreenState
               ),
               SizedBox(
                 width: 220,
-                child: TextField(
+                child: VoiceTextField(
                   controller: _releaseLabelController,
                   decoration: const InputDecoration(
                     labelText: 'Release Label',
@@ -812,7 +830,7 @@ class _AgileProjectBaselineScreenState
               ),
               SizedBox(
                 width: 220,
-                child: TextField(
+                child: VoiceTextField(
                   controller: _capacityController,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
@@ -875,7 +893,7 @@ class _AgileProjectBaselineScreenState
           const SizedBox(height: 8),
           TextFormattingToolbar(controller: _approvalNotesController),
           const SizedBox(height: 8),
-          TextField(
+          VoiceTextField(
             controller: _approvalNotesController,
             minLines: 4,
             maxLines: 8,
@@ -1100,6 +1118,21 @@ class _AgileProjectBaselineScreenState
       ),
     );
   }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Project Baseline',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text('Notes', projectData.planningNotes['planning_agile_project_baseline_notes'] ?? 'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _TopHeader extends StatelessWidget {
@@ -1174,6 +1207,7 @@ class _TopHeader extends StatelessWidget {
           style: const TextStyle(fontSize: 12, color: _kMuted),
         ),
         const SizedBox(width: 16),
+        const SizedBox(width: 12),
         const _UserChip(),
       ],
     );
@@ -1319,7 +1353,7 @@ class _MetricsRow extends StatelessWidget {
         ),
         _MetricCard(
           label: 'Epic Story Points',
-          value: '${epicTotalPoints.toStringAsFixed(0)}',
+          value: epicTotalPoints.toStringAsFixed(0),
           accent: const Color(0xFF8B5CF6),
         ),
         _MetricCard(
@@ -1459,7 +1493,7 @@ class _RichTextCard extends StatelessWidget {
         children: [
           TextFormattingToolbar(controller: controller),
           const SizedBox(height: 8),
-          TextField(
+          VoiceTextField(
             controller: controller,
             minLines: 8,
             maxLines: 12,
@@ -1706,7 +1740,7 @@ class _AssumptionEditor extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          TextField(
+          VoiceTextField(
             controller: row.textController,
             minLines: 2,
             maxLines: 4,
@@ -1783,7 +1817,7 @@ class _ApproverAutocomplete extends StatelessWidget {
         }
       },
       fieldViewBuilder: (context, ctrl, fNode, onSubmitted) {
-        return TextFormField(
+        return VoiceTextFormField(
           controller: ctrl,
           focusNode: fNode,
           decoration: const InputDecoration(

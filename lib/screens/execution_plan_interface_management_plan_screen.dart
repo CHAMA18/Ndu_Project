@@ -1,23 +1,30 @@
 import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_interface_management_overview_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import 'package:ndu_project/services/firebase_auth_service.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
-import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
-import 'package:ndu_project/services/user_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-import 'package:ndu_project/models/project_data_model.dart';
-import 'package:ndu_project/utils/planning_phase_navigation.dart';
-import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+Future<void> _exportInterfaceManagementPlanPdf(BuildContext context) async {
+  final projectData = ProjectDataHelper.getData(context);
+  await PdfExportHelper.exportScreenPdf(
+    context: context,
+    screenTitle: 'Interface Management Plan',
+    sections: [
+      PdfSection.keyValue('Project Info', [
+        {'Project Name': projectData.projectName ?? 'N/A'},
+      ]),
+      PdfSection.text('Notes', projectData.planningNotes['execution_plan_interface_management_plan_screen'] ?? 'No data recorded.'),
+    ],
+  );
+}
 
 class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
   const ExecutionPlanInterfaceManagementPlanScreen({super.key});
@@ -34,48 +41,35 @@ class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
     final bool isMobile = AppBreakpoints.isMobile(context);
     final double horizontalPadding = isMobile ? 20 : 40;
 
-    return Scaffold(
+    return ResponsiveScaffold(
+      activeItemLabel: 'Execution Interface Management Plan',
       backgroundColor: const Color(0xFFF9FAFC),
-      body: SafeArea(
-        child: Row(
+      floatingActionButton: const KazAiChatBubble(positioned: false),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding, vertical: 32),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DraggableSidebar(
-              openWidth: AppBreakpoints.sidebarWidth(context),
-              child: const InitiationLikeSidebar(
-                  activeItemLabel:
-                      'Execution Interface Management Plan'),
+            ExecutionPlanHeader(
+                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportInterfaceManagementPlanPdf(context)),
+            const SizedBox(height: 32),
+            const SectionIntro(
+                title: 'Execution Interface Management Plan'),
+                                const SizedBox(height: 16),
+            const CrossReferenceNote(standalonePage: 'Interface Management'),
+            const SizedBox(height: 24),
+            const ExecutionPlanForm(
+              title: 'Execution Interface Management Plan',
+              hintText:
+                  'Summarize interface management plan objectives and control points.',
+              noteKey: 'execution_interface_management_plan',
             ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                    horizontal: horizontalPadding, vertical: 32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ExecutionPlanHeader(
-                        onBack: () => Navigator.maybePop(context)),
-                    const SizedBox(height: 32),
-                    const SectionIntro(
-                        title: 'Execution Interface Management Plan'),
-                                        const SizedBox(height: 16),
-                    const CrossReferenceNote(standalonePage: 'Interface Management'),
-                    const SizedBox(height: 24),
-                    const ExecutionPlanForm(
-                      title: 'Execution Interface Management Plan',
-                      hintText:
-                          'Summarize interface management plan objectives and control points.',
-                      noteKey: 'execution_interface_management_plan',
-                    ),
-                    const SizedBox(height: 32),
-                    const _InterfaceManagementPlanForm(),
-                    const SizedBox(height: 48),
-                    const _InterfaceManagementPlanSection(),
-                    const SizedBox(height: 56),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 32),
+            const _InterfaceManagementPlanForm(),
+            const SizedBox(height: 48),
+            const _InterfaceManagementPlanSection(),
+            const SizedBox(height: 56),
           ],
         ),
       ),
@@ -93,6 +87,20 @@ class _InterfaceManagementPlanForm extends StatefulWidget {
 
 class _InterfaceManagementPlanFormState
     extends State<_InterfaceManagementPlanForm> {
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Interface Management Plan',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', projectData.planningNotes['execution_plan_interface_management_plan_screen'] ?? 'No data recorded.'),
+        ],
+      );
+  }
+
   final _responsibilityMatrixController = TextEditingController();
   final _escalationProceduresController = TextEditingController();
   final _coordinationMeetingsController = TextEditingController();
@@ -183,7 +191,7 @@ class _InterfaceManagementPlanFormState
           ),
         ),
         const SizedBox(height: 20),
-        TextField(
+        VoiceTextField(
           controller: _responsibilityMatrixController,
           decoration: const InputDecoration(
             labelText: 'Responsibility Matrix',
@@ -194,7 +202,7 @@ class _InterfaceManagementPlanFormState
           onChanged: (_) => _scheduleSave(),
         ),
         const SizedBox(height: 16),
-        TextField(
+        VoiceTextField(
           controller: _escalationProceduresController,
           decoration: const InputDecoration(
             labelText: 'Escalation Procedures',
@@ -205,7 +213,7 @@ class _InterfaceManagementPlanFormState
           onChanged: (_) => _scheduleSave(),
         ),
         const SizedBox(height: 16),
-        TextField(
+        VoiceTextField(
           controller: _coordinationMeetingsController,
           decoration: const InputDecoration(
             labelText: 'Coordination Meeting Schedule',

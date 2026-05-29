@@ -3,9 +3,12 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
+import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/ai_regenerate_undo_buttons.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 class ExternalIntegrationsScreen extends StatefulWidget {
   const ExternalIntegrationsScreen({super.key});
   static void open(BuildContext context) => Navigator.of(context).push(
@@ -115,7 +118,7 @@ class _ExternalIntegrationsScreenState
       context: context,
       builder: (c) => AlertDialog(
         title: const Text('Add integration'),
-        content: TextField(
+        content: VoiceTextField(
             controller: name,
             decoration: const InputDecoration(labelText: 'Name')),
         actions: [
@@ -139,13 +142,17 @@ class _ExternalIntegrationsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
     return ResponsiveScaffold(
       activeItemLabel: 'External Integrations',
+      appBarTitle: 'External Integrations',
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: _loading
             ? const Center(child: CircularProgressIndicator())
             : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                if (!isMobile)
                 Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -170,6 +177,19 @@ class _ExternalIntegrationsScreenState
                             onPressed: _openAdd, child: const Text('Add')),
                       ])
                     ]),
+                if (isMobile)
+                Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+                  AiRegenerateUndoButtons(
+                    isLoading: _seeding,
+                    canUndo: _undoBeforeAi != null,
+                    canRedo: _redoAfterUndo != null,
+                    onRegenerate: _seed,
+                    onUndo: () { _undoSeed(); },
+                    onRedo: () { _redoSeed(); },
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(onPressed: _openAdd, child: const Text('Add')),
+                ]),
                 const SizedBox(height: 12),
                 Expanded(
                   child: Card(

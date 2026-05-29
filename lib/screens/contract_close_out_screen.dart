@@ -1,19 +1,23 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
 import 'package:ndu_project/screens/vendor_account_close_out_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
-import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
+import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
-import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class ContractCloseOutScreen extends StatefulWidget {
   const ContractCloseOutScreen({super.key});
@@ -36,8 +40,10 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
 
   bool _isLoading = true;
   bool _isGenerating = false;
+  bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
   void initState() {
@@ -64,15 +70,12 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading) const LinearProgressIndicator(minHeight: 2),
-            const PlanningPhaseHeader(
+            PlanningPhaseHeader(
               title: 'Contract Close Out',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false,
-            ),
+              showNavigationButtons: false, onExportPdf: _exportPdf),
             const SizedBox(height: 16),
-            _buildHeader(),
-            const SizedBox(height: 20),
             _buildMetricsRow(),
             const SizedBox(height: 20),
             _buildFinancialSummaryPanel(),
@@ -92,32 +95,6 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             const SizedBox(height: 48),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return ExecutionPageHeader(
-      badge: 'LAUNCH PHASE',
-      title: 'Contract Close Out',
-      description:
-          'Formally close all project contracts, confirm deliverables accepted, and settle financial obligations.',
-      trailing: ExecutionActionBar(
-        actions: [
-          ExecutionActionItem(
-            label: 'Import Contracts',
-            icon: Icons.download_outlined,
-            tone: ExecutionActionTone.secondary,
-            onPressed: _importContracts,
-          ),
-          ExecutionActionItem(
-            label: _isGenerating ? 'Generating…' : 'AI Assist',
-            icon: Icons.auto_awesome_outlined,
-            tone: ExecutionActionTone.ai,
-            isLoading: _isGenerating,
-            onPressed: _isGenerating ? null : _populateFromAi,
-          ),
-        ],
       ),
     );
   }
@@ -171,10 +148,33 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
     return LaunchDataTable(
       title: 'Financial Summary',
       subtitle: 'Key financial metrics for contract close-out.',
-      columns: const ['Metric', 'Value', 'Notes'],
+      columns: const [LaunchColumn(label: 'Metric', flexible: true, fieldType: LaunchFieldType.text, hint: 'Metric'), LaunchColumn(label: 'Value', width: 120, fieldType: LaunchFieldType.text, hint: 'Value'), LaunchColumn(label: 'Notes', flexible: true, fieldType: LaunchFieldType.text, hint: 'Notes')],
       rowCount: _financialSummary.length,
-      onAdd: () {
-        setState(() => _financialSummary.add(LaunchFinancialMetric()));
+      onAddValues: (values) {
+        setState(() {
+          _financialSummary.add(LaunchFinancialMetric(
+            label: values['Metric'] ?? '',
+            value: values['Value'] ?? '',
+            notes: values['Notes'] ?? '',
+          ));
+        });
+        _scheduleSave();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'metric', label: 'Metric', sampleValue: 'Total Contract Value'),
+        CsvColumnSpec(key: 'value', label: 'Value', sampleValue: '\$500,000'),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'From execution contracts'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _financialSummary.add(LaunchFinancialMetric(
+              label: row['metric'] ?? '',
+              value: row['value'] ?? '',
+              notes: row['notes'] ?? '',
+            ));
+          });
+        }
         _scheduleSave();
       },
       emptyMessage:
@@ -229,10 +229,39 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       title: 'Contracts Status',
       subtitle:
           'All contracts requiring close-out. Import from execution or add manually.',
-      columns: const ['Contract', 'Vendor', 'Ref', 'Value', 'Status'],
+      columns: const [LaunchColumn(label: 'Contract', flexible: true, fieldType: LaunchFieldType.text, hint: 'Contract'), LaunchColumn(label: 'Vendor', width: 130, fieldType: LaunchFieldType.text, hint: 'Vendor'), LaunchColumn(label: 'Ref', width: 130, fieldType: LaunchFieldType.text, hint: 'Ref'), LaunchColumn(label: 'Value', width: 130, fieldType: LaunchFieldType.text, hint: 'Value'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: LaunchContractItem.closeOutStatuses)],
       rowCount: _contracts.length,
-      onAdd: () {
-        setState(() => _contracts.add(LaunchContractItem()));
+      onAddValues: (values) {
+        setState(() {
+          _contracts.add(LaunchContractItem(
+            contractName: values['Contract'] ?? '',
+            vendor: values['Vendor'] ?? '',
+            contractRef: values['Ref'] ?? '',
+            value: values['Value'] ?? '',
+            closeOutStatus: values['Status'] ?? 'Open',
+          ));
+        });
+        _scheduleSave();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'contract', label: 'Contract', sampleValue: 'Cloud Services Agreement'),
+        CsvColumnSpec(key: 'vendor', label: 'Vendor', sampleValue: 'Acme Corp'),
+        CsvColumnSpec(key: 'ref', label: 'Ref', sampleValue: 'CTR-001'),
+        CsvColumnSpec(key: 'value', label: 'Value', sampleValue: '\$100,000'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Open', 'In Progress', 'Closed', 'Disputed']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _contracts.add(LaunchContractItem(
+              contractName: row['contract'] ?? '',
+              vendor: row['vendor'] ?? '',
+              contractRef: row['ref'] ?? '',
+              value: row['value'] ?? '',
+              closeOutStatus: row['status'] ?? 'Open',
+            ));
+          });
+        }
         _scheduleSave();
       },
       importLabel: 'Import',
@@ -270,7 +299,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             LaunchEditableCell(
               value: item.contractRef,
               hint: 'Ref',
-              width: 80,
+              width: 130,
               onChanged: (v) {
                 _contracts[idx] = item.copyWith(contractRef: v);
                 _scheduleSave();
@@ -279,7 +308,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             LaunchEditableCell(
               value: item.value,
               hint: 'Value',
-              width: 80,
+              width: 130,
               onChanged: (v) {
                 _contracts[idx] = item.copyWith(value: v);
                 _scheduleSave();
@@ -305,10 +334,36 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
     return LaunchDataTable(
       title: 'Close-Out Steps',
       subtitle: 'Standardized steps to verify each contract is fully closed.',
-      columns: const ['Step', 'Contract Ref', 'Status', 'Notes'],
+      columns: const [LaunchColumn(label: 'Step', flexible: true, fieldType: LaunchFieldType.text, hint: 'Step'), LaunchColumn(label: 'Contract Ref', width: 120, fieldType: LaunchFieldType.text, hint: 'Ref'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'In Progress', 'Complete']), LaunchColumn(label: 'Notes', flexible: true, fieldType: LaunchFieldType.text, hint: 'Notes')],
       rowCount: _closeOutSteps.length,
-      onAdd: () {
-        setState(() => _closeOutSteps.add(LaunchCloseOutStep()));
+      onAddValues: (values) {
+        setState(() {
+          _closeOutSteps.add(LaunchCloseOutStep(
+            step: values['Step'] ?? '',
+            contractRef: values['Contract Ref'] ?? '',
+            status: values['Status'] ?? 'Pending',
+            notes: values['Notes'] ?? '',
+          ));
+        });
+        _scheduleSave();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'step', label: 'Step', sampleValue: 'Verify deliverables accepted'),
+        CsvColumnSpec(key: 'contractRef', label: 'Contract Ref', sampleValue: 'CTR-001'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'In Progress', 'Complete']),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'Awaiting vendor confirmation'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _closeOutSteps.add(LaunchCloseOutStep(
+              step: row['step'] ?? '',
+              contractRef: row['contractRef'] ?? '',
+              status: row['status'] ?? 'Pending',
+              notes: row['notes'] ?? '',
+            ));
+          });
+        }
         _scheduleSave();
       },
       emptyMessage:
@@ -337,7 +392,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             LaunchEditableCell(
               value: item.contractRef,
               hint: 'Ref',
-              width: 100,
+              width: 130,
               onChanged: (v) {
                 _closeOutSteps[idx] = item.copyWith(contractRef: v);
                 _scheduleSave();
@@ -372,10 +427,39 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
     return LaunchDataTable(
       title: 'Financial & Compliance Sign-Off',
       subtitle: 'Track approvals from finance, legal, and compliance.',
-      columns: const ['Approver', 'Role', 'Status', 'Date', 'Notes'],
+      columns: const [LaunchColumn(label: 'Approver', flexible: true, fieldType: LaunchFieldType.text, hint: 'Name'), LaunchColumn(label: 'Role', width: 120, fieldType: LaunchFieldType.text, hint: 'Role'), LaunchColumn(label: 'Status', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Pending', 'Approved', 'Rejected']), LaunchColumn(label: 'Date', width: 130, fieldType: LaunchFieldType.date, hint: 'Date'), LaunchColumn(label: 'Notes', flexible: true, fieldType: LaunchFieldType.text, hint: 'Notes')],
       rowCount: _signOffs.length,
-      onAdd: () {
-        setState(() => _signOffs.add(LaunchApproval()));
+      onAddValues: (values) {
+        setState(() {
+          _signOffs.add(LaunchApproval(
+            stakeholder: values['Approver'] ?? '',
+            role: values['Role'] ?? '',
+            status: values['Status'] ?? 'Pending',
+            date: values['Date'] ?? '',
+            notes: values['Notes'] ?? '',
+          ));
+        });
+        _scheduleSave();
+      },
+      csvColumns: const [
+        CsvColumnSpec(key: 'approver', label: 'Approver', sampleValue: 'Jane Smith'),
+        CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Finance Director'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'Approved', 'Rejected']),
+        CsvColumnSpec(key: 'date', label: 'Date', sampleValue: '2025-01-15'),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'Under review'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _signOffs.add(LaunchApproval(
+              stakeholder: row['approver'] ?? '',
+              role: row['role'] ?? '',
+              status: row['status'] ?? 'Pending',
+              date: row['date'] ?? '',
+              notes: row['notes'] ?? '',
+            ));
+          });
+        }
         _scheduleSave();
       },
       emptyMessage: 'Track finance and compliance approval status.',
@@ -421,7 +505,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             LaunchDateCell(
               value: item.date,
               hint: 'Date',
-              width: 90,
+              width: 130,
               onChanged: (v) {
                 _signOffs[idx] = item.copyWith(date: v);
                 _scheduleSave();
@@ -608,9 +692,9 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
     if (_isGenerating) return;
 
     setState(() => _isGenerating = true);
-    Map<String, List<Map<String, dynamic>>> gen = {};
+    LaunchAiResult? result;
     try {
-      gen = await LaunchPhaseAiSeed.generateEntries(
+      result = await LaunchPhaseAiSeed.generateEntries(
         context: context,
         sectionLabel: 'Contract Close Out',
         sections: const {
@@ -626,6 +710,19 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       debugPrint('Contract AI error: $e');
     }
     if (!mounted) return;
+
+    // Show insufficient context dialog if context is insufficient
+    if (result != null && !result.isContextSufficient) {
+      setState(() => _isGenerating = false);
+      await LaunchPhaseAiSeed.showInsufficientContextDialog(
+        context,
+        missingAreas: result.missingAreas,
+      );
+      return;
+    }
+
+    final generated = result?.entries ?? {};
+
     final hasData = _contracts.isNotEmpty ||
         _closeOutSteps.isNotEmpty ||
         _signOffs.isNotEmpty ||
@@ -635,10 +732,10 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       return;
     }
     setState(() {
-      _financialSummary = _mapMetrics(gen['financial_summary']);
-      _contracts = _mapContracts(gen['contracts']);
-      _closeOutSteps = _mapSteps(gen['closeout_steps']);
-      _signOffs = _mapApprovals(gen['signoffs']);
+      _financialSummary = _mapMetrics(generated['financial_summary']);
+      _contracts = _mapContracts(generated['contracts']);
+      _closeOutSteps = _mapSteps(generated['closeout_steps']);
+      _signOffs = _mapApprovals(generated['signoffs']);
       _isGenerating = false;
     });
     await _persistData();
@@ -676,4 +773,196 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       .toList();
   String _ns(dynamic v, String fb) =>
       (v ?? '').toString().trim().isEmpty ? fb : v.toString().trim();
+
+  Future<void> _exportPdf() async {
+    setState(() => _isExporting = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final projectName = projectData.projectName;
+      final now = DateTime.now();
+      final stamp =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+      final filename =
+          'contract_close_out_${projectName.replaceAll(' ', '_')}_$stamp.pdf';
+
+      final doc = pw.Document();
+
+      doc.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (_) => [
+            pw.Text(
+              'Contract Close Out',
+              style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 4),
+            pw.Text(
+              '$projectName — Generated ${now.toLocal().toIso8601String()}',
+              style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+            ),
+            pw.SizedBox(height: 16),
+            _pdfSectionTitle('Financial Summary'),
+            pw.SizedBox(height: 6),
+            if (_financialSummary.isEmpty)
+              pw.Text('No financial metrics.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const ['Metric', 'Value', 'Notes'],
+                data: _financialSummary
+                    .map((m) => [
+                          _pc(m.label),
+                          _pc(m.value),
+                          _pc(m.notes),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Contracts Status'),
+            pw.SizedBox(height: 6),
+            if (_contracts.isEmpty)
+              pw.Text('No contracts.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const ['Contract', 'Vendor', 'Ref', 'Value', 'Status'],
+                data: _contracts
+                    .map((c) => [
+                          _pc(c.contractName),
+                          _pc(c.vendor),
+                          _pc(c.contractRef),
+                          _pc(c.value),
+                          _pc(c.closeOutStatus),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Close-Out Steps'),
+            pw.SizedBox(height: 6),
+            if (_closeOutSteps.isEmpty)
+              pw.Text('No close-out steps.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const ['Step', 'Contract Ref', 'Status', 'Notes'],
+                data: _closeOutSteps
+                    .map((s) => [
+                          _pc(s.step),
+                          _pc(s.contractRef),
+                          _pc(s.status),
+                          _pc(s.notes),
+                        ])
+                    .toList(),
+              ),
+            pw.SizedBox(height: 20),
+            _pdfSectionTitle('Financial & Compliance Sign-Off'),
+            pw.SizedBox(height: 6),
+            if (_signOffs.isEmpty)
+              pw.Text('No sign-off records.',
+                  style:
+                      const pw.TextStyle(fontSize: 9, color: PdfColors.grey500))
+            else
+              pw.TableHelper.fromTextArray(
+                headerStyle:
+                    pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+                headerDecoration:
+                    const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+                cellStyle: const pw.TextStyle(fontSize: 8.5),
+                cellAlignment: pw.Alignment.topLeft,
+                headerAlignment: pw.Alignment.centerLeft,
+                cellPadding:
+                    const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                headers: const [
+                  'Approver',
+                  'Role',
+                  'Status',
+                  'Date',
+                  'Notes'
+                ],
+                data: _signOffs
+                    .map((s) => [
+                          _pc(s.stakeholder),
+                          _pc(s.role),
+                          _pc(s.status),
+                          _pc(s.date),
+                          _pc(s.notes),
+                        ])
+                    .toList(),
+              ),
+          ],
+        ),
+      );
+
+      final bytes = await doc.save();
+      if (kIsWeb) {
+        download_helper.downloadFile(bytes, filename,
+            mimeType: 'application/pdf');
+      } else {
+        await Printing.sharePdf(bytes: bytes, filename: filename);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PDF exported: $filename')),
+        );
+      }
+    } catch (e) {
+      debugPrint('PDF export error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate PDF: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _isExporting = false);
+  }
+
+  pw.Widget _pdfSectionTitle(String title) {
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: const pw.BoxDecoration(
+        color: PdfColor(0.06, 0.27, 0.45),
+        borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
+      ),
+      child: pw.Text(title,
+          style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white)),
+    );
+  }
+
+  String _pc(String v) => v.trim().isEmpty ? '-' : v.trim();
 }

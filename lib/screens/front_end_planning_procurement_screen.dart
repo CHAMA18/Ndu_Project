@@ -31,6 +31,9 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/procurement/procurement_items_list_view.dart';
 import 'package:ndu_project/widgets/procurement/procurement_vendor_management.dart';
 
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 enum ProcurementScreenMode { fep, planning }
 
 enum _MissingProcurementAction {
@@ -285,10 +288,12 @@ class _FrontEndPlanningProcurementScreenState
           snapshot = await _workflowCollection(projectId).get();
           break;
         } catch (e) {
-          final isAssertionError = e.toString().contains('INTERNAL ASSERTION') ||
-              e.toString().contains('Unexpected state');
+          final isAssertionError =
+              e.toString().contains('INTERNAL ASSERTION') ||
+                  e.toString().contains('Unexpected state');
           if (!isAssertionError || attempt == 3) rethrow;
-          await Future<void>.delayed(Duration(milliseconds: 500 * (1 << (attempt - 1))));
+          await Future<void>.delayed(
+              Duration(milliseconds: 500 * (1 << (attempt - 1))));
         }
       }
 
@@ -537,7 +542,7 @@ class _FrontEndPlanningProcurementScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Step name',
@@ -548,7 +553,7 @@ class _FrontEndPlanningProcurementScreenState
                 Row(
                   children: [
                     Expanded(
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: durationController,
                         keyboardType: TextInputType.number,
                         decoration:
@@ -782,7 +787,22 @@ class _FrontEndPlanningProcurementScreenState
     _scheduleProjectBootstrap();
   }
 
-  @override
+  
+  Future<void> _exportPdf() async {
+      final projectData = ProjectDataHelper.getData(context);
+      final fep = projectData.frontEndPlanning;
+      await PdfExportHelper.exportScreenPdf(
+        context: context,
+        screenTitle: 'Procurement',
+        sections: [
+          PdfSection.keyValue('Project Info', [
+            {'Project Name': projectData.projectName ?? 'N/A'},
+          ]),
+          PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+        ],
+      );
+  }
+@override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _scheduleProjectBootstrap();
@@ -1963,7 +1983,7 @@ class _FrontEndPlanningProcurementScreenState
           if (parsedIso != null) return parsedIso;
           try {
             return DateFormat('yyyy-MM-dd').parseStrict(trimmed);
-          } catch (_) {
+          } catch (e) {
             return fallback;
           }
         }
@@ -2165,7 +2185,7 @@ class _FrontEndPlanningProcurementScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
+              VoiceTextField(
                 controller: nameController,
                 decoration: const InputDecoration(
                   labelText: 'Vendor or Contact Name (Optional)',
@@ -2174,7 +2194,7 @@ class _FrontEndPlanningProcurementScreenState
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 12),
-              TextField(
+              VoiceTextField(
                 controller: emailController,
                 decoration: const InputDecoration(
                   labelText: 'Email Address',
@@ -4078,7 +4098,7 @@ class _FrontEndPlanningProcurementScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: titleController,
                   decoration: const InputDecoration(
                     labelText: 'Strategy Name',
@@ -4087,7 +4107,7 @@ class _FrontEndPlanningProcurementScreenState
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: categoryController,
                   decoration: const InputDecoration(
                     labelText: 'Category',
@@ -4113,7 +4133,7 @@ class _FrontEndPlanningProcurementScreenState
                   },
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: itemCountController,
                   decoration: const InputDecoration(
                     labelText: 'Number of Items (Optional)',
@@ -5289,18 +5309,17 @@ class _FrontEndPlanningProcurementScreenState
         Column(
           children: [
             FrontEndPlanningHeader(
-              scaffoldKey: isMobile ? _scaffoldKey : null,
-            ),
+              scaffoldKey: isMobile ? _scaffoldKey : null, onExportPdf: _exportPdf),
             Expanded(
               child: Container(
                 color: const Color(0xFFF5F6FA),
                 child: SingleChildScrollView(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Removed duplicate top bar to avoid a second app header.
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Removed duplicate top bar to avoid a second app header.
                       _buildStreamErrorBanner(),
                       const SizedBox(height: 24),
                       PlanningAiNotesCard(
@@ -5309,7 +5328,6 @@ class _FrontEndPlanningProcurementScreenState
                         noteKey: _procurementNotesKey,
                         checkpoint: _checkpointId,
                         fieldKey: _notesFieldKey,
-                        errorText: _validationErrors['procurement_notes'],
                         onChanged: _handleNotesChanged,
                         fallbackText: ProjectDataHelper.getData(context)
                             .frontEndPlanning
@@ -5353,6 +5371,37 @@ class _FrontEndPlanningProcurementScreenState
                         onSelected: _handleTabSelected,
                         tabsWithErrors: _tabsWithErrors,
                         disabledTabs: _tabsWithRestrictedAccess,
+                      ),
+                      const SizedBox(height: 16),
+                      InnerPageNavigationHint(
+                        pageId: _isPlanningMode
+                            ? 'planning_procurement'
+                            : 'fep_procurement',
+                        pageTitle: 'Procurement',
+                        description: 'Navigate between procurement sections',
+                        currentSectionId: _selectedTab.name,
+                        onSectionTap: (sectionId) {
+                          final tab = _ProcurementTab.values.firstWhere(
+                            (t) => t.name == sectionId,
+                            orElse: () => _selectedTab,
+                          );
+                          _handleTabSelected(tab);
+                        },
+                        sections: _ProcurementTab.values.map((tab) {
+                          final isRestricted =
+                              _tabsWithRestrictedAccess.contains(tab);
+                          final isCurrent = tab == _selectedTab;
+                          return InnerPageSection(
+                            id: tab.name,
+                            label: tab.label,
+                            stepNumber: _ProcurementTab.values.indexOf(tab) + 1,
+                            status: isRestricted
+                                ? InnerPageSectionStatus.locked
+                                : isCurrent
+                                    ? InnerPageSectionStatus.current
+                                    : InnerPageSectionStatus.available,
+                          );
+                        }).toList(),
                       ),
                       const SizedBox(height: 24),
                       AnimatedSwitcher(
@@ -6202,7 +6251,6 @@ class _PlanHeader extends StatelessWidget {
 
 class _ItemsListView extends StatelessWidget {
   const _ItemsListView({
-    super.key,
     required this.items,
     required this.trackableItems,
     required this.selectedIndex,
@@ -6457,7 +6505,7 @@ class _SearchField extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: const TextField(
+      child: const VoiceTextField(
         decoration: InputDecoration(
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Color(0xFF94A3B8)),
@@ -8325,7 +8373,6 @@ class _PriorityPill extends StatelessWidget {
 
 class _VendorManagementView extends StatelessWidget {
   const _VendorManagementView({
-    super.key,
     required this.vendors,
     required this.allVendors,
     required this.selectedVendorIds,
@@ -10736,7 +10783,7 @@ class _TrackingAlertsCard extends StatelessWidget {
     if (parsedIso != null) return parsedIso;
     try {
       return DateFormat('MMM d, yyyy').parseLoose(raw);
-    } catch (_) {
+    } catch (e) {
       return DateTime.now();
     }
   }

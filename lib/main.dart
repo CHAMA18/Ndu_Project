@@ -206,16 +206,19 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      body: SafeArea(
+        top: true,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              const Text('You have pushed the button this many times:'),
+              Text(
+                '$_counter',
+                style: Theme.of(context).textTheme.headlineMedium,
+              ),
+            ],
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
@@ -240,71 +243,75 @@ class _FriendlyErrorScreen extends StatelessWidget {
     final theme = Theme.of(context);
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.warning_amber_rounded,
-                            color: theme.colorScheme.error, size: 36),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(title, style: theme.textTheme.titleLarge),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(message, style: theme.textTheme.bodyMedium),
-                    if (stack != null) ...[
-                      const SizedBox(height: 12),
-                      ExpansionTile(
-                        leading:
-                            const Icon(Icons.bug_report, color: Colors.red),
-                        title: const Text('Technical details'),
+      body: SafeArea(
+        top: true,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Text(
-                              stack!,
-                              style: theme.textTheme.bodySmall,
-                            ),
+                          Icon(Icons.warning_amber_rounded,
+                              color: theme.colorScheme.error, size: 36),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child:
+                                Text(title, style: theme.textTheme.titleLarge),
                           ),
                         ],
                       ),
-                    ],
-                    const SizedBox(height: 16),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: FilledButton.icon(
-                        onPressed: () {
-                          // Try to navigate back safely, or do nothing if Navigator isn't available
-                          try {
-                            final nav =
-                                Navigator.maybeOf(context, rootNavigator: true);
-                            if (nav != null && nav.canPop()) {
-                              nav.pop();
-                            } else {
-                              debugPrint(
-                                  'No Navigator available or cannot pop. Please refresh the app manually.');
+                      const SizedBox(height: 8),
+                      Text(message, style: theme.textTheme.bodyMedium),
+                      if (stack != null) ...[
+                        const SizedBox(height: 12),
+                        ExpansionTile(
+                          leading:
+                              const Icon(Icons.bug_report, color: Colors.red),
+                          title: const Text('Technical details'),
+                          children: [
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Text(
+                                stack!,
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            // Try to navigate back safely, or do nothing if Navigator isn't available
+                            try {
+                              final nav = Navigator.maybeOf(context,
+                                  rootNavigator: true);
+                              if (nav != null && nav.canPop()) {
+                                nav.pop();
+                              } else {
+                                debugPrint(
+                                    'No Navigator available or cannot pop. Please refresh the app manually.');
+                              }
+                            } catch (e) {
+                              debugPrint('Error during retry: $e');
                             }
-                          } catch (e) {
-                            debugPrint('Error during retry: $e');
-                          }
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
-                      ),
-                    )
-                  ],
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      )
+                    ],
+                  ),
                 ),
               ),
             ),

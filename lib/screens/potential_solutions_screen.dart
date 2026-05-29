@@ -13,6 +13,7 @@ import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -31,6 +32,9 @@ import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
+
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class PotentialSolutionsScreen extends StatefulWidget {
   const PotentialSolutionsScreen({super.key});
@@ -83,6 +87,32 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
 
   TextEditingController _createDescriptionController({String text = ''}) {
     return RichTextEditingController(text: text);
+  }
+
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final solutionRows = <List<String>>[];
+    for (int i = 0; i < _solutions.length; i++) {
+      final solution = _solutions[i];
+      final title = solution.titleController.text.trim();
+      final description = solution.descriptionController.text.trim();
+      solutionRows.add([
+        title.isEmpty ? 'Solution ${i + 1}' : title,
+        description.isEmpty ? 'No description provided.' : description,
+      ]);
+    }
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Potential Solutions',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.table(
+          'Solutions',
+          headers: ['Title', 'Description'],
+          rows: solutionRows,
+        ),
+      ],
+    );
   }
 
   @override
@@ -283,9 +313,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to regenerate notes: $e')),
-      );
+      showAiErrorDialog(context, error: e, onRetry: _regenerateNotesField);
     }
   }
 
@@ -383,31 +411,39 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Top Header
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                child: Row(
-                  children: [
-                    DraggableSidebar(
-                      openWidth: sidebarWidth,
-                      child: const InitiationLikeSidebar(
-                          activeItemLabel: 'Potential Solutions'),
-                    ),
-                    Expanded(
-                      child: _buildMainContent(),
-                    ),
-                  ],
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Top Header
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                Expanded(
+                  child: Row(
+                    children: [
+                      DraggableSidebar(
+                        openWidth: sidebarWidth,
+                        child: const InitiationLikeSidebar(
+                            activeItemLabel: 'Potential Solutions'),
+                      ),
+                      Expanded(
+                        child: _buildMainContent(),
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            MobileSidebarHamburger(
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Potential Solutions',
               ),
-            ],
-          ),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-        ],
+            ),
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+          ],
+        ),
       ),
     );
   }
@@ -677,7 +713,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
             ),
           ),
           const SizedBox(height: 4),
-          TextField(
+          VoiceTextField(
             controller: solution.titleController,
             onChanged: (_) => _saveSolutions(),
             decoration: InputDecoration(
@@ -707,7 +743,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
           const SizedBox(height: 4),
           TextFormattingToolbar(controller: solution.descriptionController),
           const SizedBox(height: 6),
-          TextField(
+          VoiceTextField(
             controller: solution.descriptionController,
             minLines: 3,
             maxLines: 5,
@@ -992,8 +1028,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1031,8 +1066,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1070,8 +1104,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1111,8 +1144,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1338,7 +1370,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: TextField(
+                      child: VoiceTextField(
                         controller: _notesController,
                         keyboardType: TextInputType.multiline,
                         style:
@@ -1468,7 +1500,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       children: [
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey[200],
+            color: const Color(0xFFF5F7FB),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(8),
               topRight: Radius.circular(8),
@@ -1485,7 +1517,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: Color(0xFF475467),
                     ),
                   ),
                 ),
@@ -1498,7 +1530,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                      color: Color(0xFF475467),
                     ),
                   ),
                 ),
@@ -2032,9 +2064,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoadingSolutions = false);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Failed to regenerate solutions: $e')),
-      );
+      showAiErrorDialog(context, error: e, onRetry: _regenerateAllSolutions);
     }
   }
 
@@ -2081,8 +2111,11 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       );
     } catch (e) {
       if (!mounted) return;
-      messenger.showSnackBar(
-          SnackBar(content: Text('Failed to regenerate field: $e')));
+      showAiErrorDialog(
+        context,
+        error: e,
+        onRetry: () => _regenerateSolutionField(solution, fieldName),
+      );
     }
   }
 
@@ -2168,7 +2201,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                 TextFormattingToolbar(controller: controller),
                 const SizedBox(height: 6),
                 if (isMobile)
-                  TextField(
+                  VoiceTextField(
                     controller: controller,
                     decoration: InputDecoration(
                       hintText: hintText,
@@ -2183,7 +2216,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                     },
                   )
                 else
-                  TextField(
+                  VoiceTextField(
                     controller: controller,
                     style: const TextStyle(
                       fontSize: 14,
@@ -2237,7 +2270,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
               ],
             )
           : isMobile
-              ? TextField(
+              ? VoiceTextField(
                   controller: controller,
                   decoration: InputDecoration(
                     hintText: hintText,
@@ -2250,7 +2283,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                   onChanged: (value) =>
                       _recordSolutionFieldEdit(solution, fieldName, value),
                 )
-              : TextField(
+              : VoiceTextField(
                   controller: controller,
                   style: const TextStyle(
                     fontSize: 14,

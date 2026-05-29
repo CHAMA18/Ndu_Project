@@ -13,6 +13,8 @@ import 'package:ndu_project/widgets/responsive.dart';
 import '../widgets/content_text.dart';
 import '../services/auth_nav.dart';
 import '../openai/openai_config.dart';
+import 'package:ndu_project/widgets/ai_error_dialog.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 // Removed AppLogo from header per request
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/risk_identification_screen.dart';
@@ -36,6 +38,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
+import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 class InitiationPhaseScreen extends StatefulWidget {
   final bool scrollToBusinessCase;
@@ -139,9 +142,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   List<String> _notesSuggestions = [];
   List<String> _businessSuggestions = [];
 
-  // ignore: unused_field
-  String? _notesSuggestionError;
-  String? _businessSuggestionError;
+  bool _suggestionErrorNotified = false;
 
   String _notesLastQuery = '';
   String _businessLastQuery = '';
@@ -258,7 +259,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       setState(() {
         _notesSuggestions = [];
         _notesSuggestLoading = false;
-        _notesSuggestionError = null;
         _notesLastQuery = '';
       });
       return;
@@ -276,7 +276,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       setState(() {
         _businessSuggestions = [];
         _businessSuggestLoading = false;
-        _businessSuggestionError = null;
         _businessLastQuery = '';
       });
       return;
@@ -297,7 +296,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
     setState(() {
       _notesSuggestLoading = true;
-      _notesSuggestionError = null;
     });
 
     try {
@@ -313,22 +311,17 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         _notesSuggestLoading = false;
         _notesLastQuery = text;
       });
-    } on OpenAiNotConfiguredException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _notesSuggestions = [];
-        _notesSuggestLoading = false;
-        _notesSuggestionError = _formatSuggestionError(e);
-        _notesLastQuery = text;
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _notesSuggestions = [];
         _notesSuggestLoading = false;
-        _notesSuggestionError = _formatSuggestionError(e);
         _notesLastQuery = text;
       });
+      if (!_suggestionErrorNotified) {
+        _suggestionErrorNotified = true;
+        showAiErrorDialog(context, error: e);
+      }
     }
   }
 
@@ -344,7 +337,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
     setState(() {
       _businessSuggestLoading = true;
-      _businessSuggestionError = null;
     });
 
     try {
@@ -360,22 +352,17 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         _businessSuggestLoading = false;
         _businessLastQuery = text;
       });
-    } on OpenAiNotConfiguredException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _businessSuggestions = [];
-        _businessSuggestLoading = false;
-        _businessSuggestionError = _formatSuggestionError(e);
-        _businessLastQuery = text;
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _businessSuggestions = [];
         _businessSuggestLoading = false;
-        _businessSuggestionError = _formatSuggestionError(e);
         _businessLastQuery = text;
       });
+      if (!_suggestionErrorNotified) {
+        _suggestionErrorNotified = true;
+        showAiErrorDialog(context, error: e);
+      }
     }
   }
 
@@ -471,12 +458,15 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     setState(() {});
   }
 
-  // ignore: unused_element
-  void _retryNotesSuggestions() =>
-      _fetchNotesSuggestions(_notesController.text.trim());
+  void _retryNotesSuggestions() {
+    _suggestionErrorNotified = false;
+    _fetchNotesSuggestions(_notesController.text.trim());
+  }
 
-  void _retryBusinessSuggestions() =>
-      _fetchBusinessSuggestions(_businessCaseController.text.trim());
+  void _retryBusinessSuggestions() {
+    _suggestionErrorNotified = false;
+    _fetchBusinessSuggestions(_businessCaseController.text.trim());
+  }
 
   Future<void> _handleNextPressed() async {
     final notes = _notesController.text.trim();
@@ -600,14 +590,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       } catch (e) {
         if (!mounted) return;
         setState(() => _isGeneratingAI = false);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate Business Case: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 4),
-          ),
-        );
+        showAiErrorDialog(context, error: e, onRetry: _handleSkipPressed);
         return;
       }
     }
@@ -849,7 +832,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      TextField(
+                      VoiceTextField(
                         decoration: InputDecoration(
                             labelText: 'Project name',
                             errorText: nameError,
@@ -1000,6 +983,19 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
   }
 
+  Future<void> _exportPdf() async {
+    final notes = _notesController.text.trim();
+    final businessCase = _businessCaseController.text.trim();
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Business Case',
+      sections: [
+        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+        PdfSection.text('Business Case', businessCase.isEmpty ? 'No data recorded.' : businessCase),
+      ],
+    );
+  }
+
   String _formatSuggestionError(Object error) {
     if (error is OpenAiNotConfiguredException) {
       return 'Add your OpenAI API key to enable AI suggestions.';
@@ -1042,9 +1038,8 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       return const SizedBox.shrink();
     }
 
-    final borderColor = hasError
-        ? Colors.red.withOpacity(0.2)
-        : Colors.grey.withOpacity(0.2);
+    final borderColor =
+        hasError ? const Color(0xFFFCD34D) : Colors.grey.withOpacity(0.2);
     final canRefresh = !loading && OpenAiConfig.isConfigured;
 
     return Container(
@@ -1111,11 +1106,30 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               ),
             ),
           if (!loading && hasError)
-            Text(
-              error!,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.red[600],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline,
+                      size: 16, color: Color(0xFFD97706)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      error!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF92400E),
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           if (!loading && hasSuggestions) ...[
@@ -1243,54 +1257,62 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       key: _scaffoldKey,
       backgroundColor: Colors.white,
       drawer: null,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              // Top Header
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                child: Row(
-                  children: [
-                    DraggableSidebar(
-                      openWidth: sidebarWidth,
-                      child: const InitiationLikeSidebar(
-                          activeItemLabel: 'Business Case Detail'),
-                    ),
-                    Expanded(child: _buildMainContent()),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const KazAiChatBubble(),
-          const AdminEditToggle(),
-          // Loading overlay for AI generation
-          if (_isGeneratingAI)
-            Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Generating Business Case with AI...',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+      body: SafeArea(
+        top: true,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Top Header
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                Expanded(
+                  child: Row(
+                    children: [
+                      DraggableSidebar(
+                        openWidth: sidebarWidth,
+                        child: const InitiationLikeSidebar(
+                            activeItemLabel: 'Business Case Detail'),
                       ),
-                    ),
-                  ],
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            MobileSidebarHamburger(
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Business Case Detail',
               ),
             ),
-        ],
+            const KazAiChatBubble(),
+            const AdminEditToggle(),
+            // Loading overlay for AI generation
+            if (_isGeneratingAI)
+              Container(
+                color: Colors.black.withOpacity(0.5),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'Generating Business Case with AI...',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1306,8 +1328,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          right: BorderSide(
-              color: Colors.grey.withOpacity(0.25), width: 0.8),
+          right: BorderSide(color: Colors.grey.withOpacity(0.25), width: 0.8),
         ),
       ),
       child: Column(
@@ -1626,7 +1647,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: TextField(
+          child: VoiceTextField(
             controller: _notesController,
             focusNode: _notesFocusNode,
             minLines: 3,
@@ -1669,7 +1690,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 color: _businessInvalid ? Colors.red : const Color(0xFFE2E8F0)),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: TextField(
+          child: VoiceTextField(
             controller: _businessCaseController,
             focusNode: _businessFocusNode,
             minLines: 6,
@@ -1729,7 +1750,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                 onBeforeUndo: _saveBeforeUndo,
               ),
               const SizedBox(height: 8),
-              TextField(
+              VoiceTextField(
                 controller: _businessCaseController,
                 focusNode: _businessFocusNode,
                 minLines: 6,
@@ -1866,8 +1887,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1911,8 +1931,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.10) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1958,8 +1977,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color:
-                isActive ? primary.withOpacity(0.12) : Colors.transparent,
+            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -2030,7 +2048,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                         ? Colors.red
                         : Colors.grey.withOpacity(0.3)),
               ),
-              child: TextField(
+              child: VoiceTextField(
                 controller: _notesController,
                 focusNode: _notesFocusNode,
                 style: TextStyle(
@@ -2102,7 +2120,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                         ? Colors.red
                         : Colors.grey.withOpacity(0.3)),
               ),
-              child: TextField(
+              child: VoiceTextField(
                 controller: _businessCaseController,
                 focusNode: _businessFocusNode,
                 style: TextStyle(
@@ -2139,11 +2157,10 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               child: _buildSuggestionPanel(
                 show: _businessFocusNode.hasFocus ||
                     _businessSuggestLoading ||
-                    _businessSuggestions.isNotEmpty ||
-                    (_businessSuggestionError?.trim().isNotEmpty ?? false),
+                    _businessSuggestions.isNotEmpty,
                 loading: _businessSuggestLoading,
                 suggestions: _businessSuggestions,
-                error: _businessSuggestionError,
+                error: null,
                 label: 'AI suggestions for the business case',
                 onRefresh: _retryBusinessSuggestions,
                 onUndo: _businessUndoStack.isEmpty
