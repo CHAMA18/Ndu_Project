@@ -102,6 +102,13 @@ class OpenAiConfig {
       // Sending any other value causes a 400 error:
       // "'temperature' does not support X with this model. Only the default (1) value is supported."
       result.remove('temperature');
+
+      // o1 models do not support response_format; o3 and o4 do support it.
+      // Strip it defensively for o1 to prevent 400 errors.
+      final model = SecureAPIConfig.model;
+      if (model.startsWith('o1') && result.containsKey('response_format')) {
+        result.remove('response_format');
+      }
     }
 
     return result;

@@ -118,17 +118,49 @@ function stripWorkflowFields(payload) {
 
 /**
  * Strip parameters that are not supported by the target OpenAI model.
- * The 'reasoning' parameter is only valid for o-series reasoning models
- * (o1, o3, etc.) and causes a 400 error with gpt-4o / gpt-4o-mini.
+ * - 'reasoning' is only valid for o-series reasoning models (o1, o3, etc.)
+ *   and causes a 400 error with gpt-4o / gpt-4o-mini.
+ * - 'max_tokens' is deprecated in favor of 'max_completion_tokens' and
+ *   causes a 400 error with o-series reasoning models (o3, o4, etc.).
+ * - 'max_output_tokens' is not a valid parameter for any Chat Completions
+ *   model and causes a 400 "Unknown parameter" error.
+ * - 'temperature' is not supported by reasoning models (o1, o3, o4) and
+ *   causes a 400 error — only the default value of 1 is accepted.
  */
 function stripInvalidModelParams(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return payload;
   }
-  const { reasoning, ...rest } = payload;
+  const { reasoning, max_tokens, max_output_tokens, ...rest } = payload;
   if (reasoning) {
     console.log('Stripped unsupported "reasoning" parameter from request payload.');
   }
+  if (max_tokens) {
+    console.log('Stripped deprecated "max_tokens" parameter — use "max_completion_tokens" instead.');
+    // Promote to the correct parameter if max_completion_tokens is not already set
+    if (!rest.max_completion_tokens) {
+      rest.max_completion_tokens = max_tokens;
+    }
+  }
+  if (max_output_tokens) {
+    console.log('Stripped unsupported "max_output_tokens" parameter — use "max_completion_tokens" instead.');
+  }
+
+  // Strip temperature for reasoning models (o1, o3, o4, etc.)
+  const model = String(rest.model || '').trim();
+  const isReasoningModel = model.startsWith('o1') || model.startsWith('o3') || model.startsWith('o4');
+  if (isReasoningModel && rest.temperature !== undefined) {
+    console.log(`Stripped unsupported "temperature" parameter for reasoning model "${model}".`);
+    delete rest.temperature;
+  }
+
+  // o1 models do not support response_format; o3 and o4 do support it.
+  // Strip it defensively for o1 to prevent 400 errors.
+  if (model.startsWith('o1') && rest.response_format !== undefined) {
+    console.log(`Stripped unsupported "response_format" parameter for o1 model.`);
+    delete rest.response_format;
+  }
+
   return rest;
 }
 

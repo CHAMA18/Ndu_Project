@@ -2349,37 +2349,38 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
     });
   }
 
-  // --- AI Suggestion Helper (now in dialog state) ---
+  // --- AI Suggestion Helper (routed through Firebase proxy) ---
   Future<String> fetchOpenAiSuggestion(String field) async {
-    // Replace with your actual OpenAI API key and endpoint
-    const apiKey = 'YOUR_OPENAI_API_KEY';
-    const endpoint = 'https://api.openai.com/v1/chat/completions';
+    if (!OpenAiConfig.isConfigured) return '';
 
     final prompt = _buildPromptForField(field);
-    final response = await http.post(
-      Uri.parse(endpoint),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
-      body: jsonEncode(OpenAiConfig.wrapBody({
-        'model': OpenAiConfig.model,
-        'messages': [
-          {
-            'role': 'system',
-            'content': 'You are an expert HR assistant for software teams.'
-          },
-          {'role': 'user', 'content': prompt},
-        ],
-        'max_completion_tokens': 60,
-        'temperature': 0.7,
-      })),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final suggestion = data['choices'][0]['message']['content']?.trim();
-      return suggestion ?? '';
-    } else {
+    try {
+      final response = await http.post(
+        OpenAiConfig.chatUri(),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
+        },
+        body: jsonEncode(OpenAiConfig.wrapBody({
+          'model': OpenAiConfig.model,
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are an expert HR assistant for software teams.'
+            },
+            {'role': 'user', 'content': prompt},
+          ],
+          'max_completion_tokens': 60,
+        })),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final content = data['choices']?[0]?['message']?['content'];
+        return content?.toString().trim() ?? '';
+      }
+      return '';
+    } catch (_) {
       return '';
     }
   }
