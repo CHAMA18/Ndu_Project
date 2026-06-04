@@ -162,3 +162,43 @@ Stage Summary:
 - Import handles duplicates gracefully (skips existing entries)
 - Export generates properly escaped CSV files downloaded via browser
 - Build verified: successful compilation with no errors
+---
+Task ID: 1
+Agent: Main Agent
+Task: Add persistent animation when PROJECT MANAGER is unassigned to draw user attention
+
+Work Log:
+- Analyzed uploaded screenshot showing the Project Manager meta info card with "Assign Manager" text
+- Identified all locations where PM unassigned state is displayed across the codebase
+- Modified `lib/screens/project_charter_sections.dart` with two key changes:
+
+1. **CharterDashboardStats (dark stats bar)**: When PM is unassigned (both charterProjectManagerName and charterProjectSponsorName are empty), the "PROJECT MANAGER" stat item uses a new `_PulsingStatItem` widget instead of the static `_buildStatItem`. The pulsing stat features:
+   - Warning icon next to the "PROJECT MANAGER" label with pulsing amber color
+   - Error icon next to "Not Assigned" value with pulsing amber-to-red color transition
+   - Subtle scale pulse (5%) on the value text
+   - Color shifts from amber to orange-red as the pulse peaks
+   - 1500ms duration with easeInOut curve, repeating reverse
+
+2. **CharterMetaInfoScroll (meta info card)**: The `_MetaInfoCard` for Project Manager now has an `isUnassigned` flag. When unassigned:
+   - Converted from StatelessWidget to StatefulWidget with animation controller
+   - Amber pulsing glow border that intensifies (1.5→2.5px width, growing shadow blur)
+   - Pulsing amber border with spreading glow shadow effect
+   - Icon circle transitions to amber with pulsing border
+   - "Assign Manager" text shows in orange-red with an error_outline icon
+   - Subtle 1.2% scale pulse on the entire card
+   - Animation auto-starts when unassigned, auto-stops when PM is assigned
+   - `didUpdateWidget` handles the transition from unassigned→assigned gracefully
+
+3. Added `isUnassigned` field to `_MetaInfoItem` class (default false)
+
+- Fixed compilation error: `MainAxisSize.center` doesn't exist, replaced with `MainAxisSize.min` + `MainAxisAlignment.center`
+- Build verified successfully: `flutter build web --release --no-tree-shake-icons --base-href "/"`
+- NOT deployed to GitHub per user's explicit instruction
+
+Stage Summary:
+- Two persistent pulsing animations added for unassigned PM state
+- Dark stats bar: amber-to-red pulsing "Not Assigned" with warning/error icons
+- Meta info card: amber glow border, pulsing icon circle, orange-red "Assign Manager" text
+- Both animations are continuous (repeat reverse) and stop automatically when PM is assigned
+- Build compiles successfully
+- No deployment pushed
