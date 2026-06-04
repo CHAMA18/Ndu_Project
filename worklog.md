@@ -133,3 +133,32 @@ Stage Summary:
 - Import handles duplicates gracefully (skips existing contractor names)
 - Export includes all 8 columns with proper CSV escaping
 - Build verified: successful compilation with no errors
+
+---
+Task ID: 6
+Agent: Main Agent
+Task: Add CSV import/export to Security Roles and Permissions tables
+
+Work Log:
+- Analyzed uploaded screenshot: Security page with "Security Roles" and "Permissions" tables
+- Identified the screen: front_end_planning_security.dart
+- Modified _buildSecurityCrudSection() to accept optional CSV import/export callbacks
+- Added compact blue CSV Import button (CsvTableImportButton) next to "Add" button
+- Added compact green CSV Export button (download icon) next to import button
+- Created _rolesCsvColumns spec: Role (required), Description
+- Created _permissionsCsvColumns spec: Resource (required), Scope
+- Created _importRolesFromCsv() with duplicate name detection
+- Created _importPermissionsFromCsv() with duplicate resource+scope detection
+- Created _exportRolesCsv() that downloads security_roles.csv
+- Created _exportPermissionsCsv() that downloads security_permissions.csv
+- Created _escapeCsvField() for proper RFC 4180 CSV escaping
+- Updated both _buildSecurityRolesSection() and _buildSecurityPermissionsSection() to pass CSV params
+- Built successfully with flutter build web — no compilation errors
+- NOT deployed to GitHub per user's explicit instruction
+
+Stage Summary:
+- Security Roles table: CSV Import + Export buttons added (Role, Description columns)
+- Permissions table: CSV Import + Export buttons added (Resource, Scope columns)
+- Import handles duplicates gracefully (skips existing entries)
+- Export generates properly escaped CSV files downloaded via browser
+- Build verified: successful compilation with no errors
