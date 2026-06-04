@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://openai.com/index/introducing-o3-and-o4-mini",
+    "name": "Introducing OpenAI o3 and o4-mini",
+    "snippet": "OpenAI o4-mini is a smaller model optimized for fast, cost-efficient reasoning—it achieves remarkable performance for its size and cost, ...",
+    "host_name": "openai.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/guides/reasoning-best-practices",
+    "name": "Reasoning best practices | OpenAI API",
+    "snippet": "OpenAI offers two types of models: reasoning models (o3 and o4-mini, for example) and GPT models (like GPT-4.1). These model families behave differently.",
+    "host_name": "developers.openai.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/nlplanet/openai-releases-o3-o4-mini-and-gpt-4-1-weekly-ai-newsletter-april-21st-2025-acb7609bae84",
+    "name": "OpenAI releases o3, o4-mini, and GPT 4.1 — Weekly AI Newsletter",
+    "snippet": "OpenAI introduced o3 and o4-mini models, replacing o1 and o3-mini, with enhanced reasoning capabilities and tool access. These models improve ...",
+    "host_name": "medium.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cdn.openai.com/pdf/2221c875-02dc-4789-800b-e7758f3722c1/o3-and-o4-mini-system-card.pdf",
+    "name": "[PDF] OpenAI o3 and o4-mini System Card",
+    "snippet": "Generally, we notice that o3 and o4-mini tend to be perceived as more safe than o1, and any of the reasoning models tend to be preferred over ...",
+    "host_name": "cdn.openai.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.university-365.com/post/how-to-pick-the-right-openai-model-without-the-headache-in-may-2025",
+    "name": "How to Pick the Right OpenAI Model Without the Headache in May",
+    "snippet": "Confused by GPT-4o, 4.1, 4.5, o3 & friends? This lecture shows you exactly which model to choose for every task in May 2025, if you decide to use OpenAI ...",
+    "host_name": "www.university-365.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.openai.com/t/more-detailed-information-about-models/1373598",
+    "name": "More detailed information about models - Feedback",
+    "snippet": "Regarding: List models get https://api.openai.com/v1/models Could you please extend this with friendly name, model characteristics etc?",
+    "host_name": "community.openai.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.datacamp.com/blog/o4-mini",
+    "name": "O4-Mini: Tests, Features, O3 Comparison, Benchmarks & More",
+    "snippet": "O4-mini is OpenAI's most recent small-scale reasoning model in the o-series. It's optimized for speed, affordability, and tool-augmented reasoning.",
+    "host_name": "www.datacamp.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/evolutionunleashedai/posts/9395714870476180",
+    "name": "OpenAI's Strategic Shift: o3 and o4-mini Models Replace GPT-5",
+    "snippet": "GPT‑4.5 (2025) - OpenAI's largest, most expensive model yet. ... 4o Mini and o3 reasoning models can do far more than today's products expose.",
+    "host_name": "www.facebook.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure",
+    "name": "Foundry Models sold by Azure - Microsoft Learn",
+    "snippet": "Reasoning models with advanced problem solving and increased focus and capability. GPT-4o, GPT-4o mini, and GPT-4 Turbo, Capable Azure OpenAI models with ...",
+    "host_name": "learn.microsoft.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://openai.com/api/pricing",
+    "name": "API Pricing - OpenAI",
+    "snippet": "Explore OpenAI API pricing for GPT-5.5, multimodal models, and tools. Compare token costs, realtime, image, and video pricing, plus service tiers.",
+    "host_name": "openai.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

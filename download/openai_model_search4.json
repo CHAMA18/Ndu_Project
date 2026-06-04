@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://openai.com/index/introducing-gpt-5-5",
+    "name": "Introducing GPT-5.5 - OpenAI",
+    "snippet": "Update on April 24, 2026: GPT‑5.5 and GPT‑5.5 Pro are now available in the API. The system card has also been updated to describe the ...",
+    "host_name": "openai.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/models/gpt-5.5",
+    "name": "GPT-5.5 Model | OpenAI API",
+    "snippet": "GPT-5.5 is our newest frontier model for the most complex professional work. Learn more in our latest model guide. Reasoning.effort supports: none, low, ...",
+    "host_name": "developers.openai.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/models/all",
+    "name": "All models | OpenAI API",
+    "snippet": "Version of GPT-5.5 that produces smarter and more precise responses. GPT-5.4. A more affordable model for coding and professional work.",
+    "host_name": "developers.openai.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/models",
+    "name": "Models | OpenAI API",
+    "snippet": "Start with gpt-5.5 for complex reasoning and coding, or choose gpt-5.4-mini and gpt-5.4-nano for lower-latency, lower-cost workloads. View all. Compare models.",
+    "host_name": "developers.openai.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.openai.com/t/temperature-in-gpt-5-models/1337133",
+    "name": "Temperature in GPT-5 models - API - OpenAI Developer Community",
+    "snippet": "After some digging and testing, I realized that GPT-5 does not support “temperature” at all, and it performs awfully at storytelling. However, ...",
+    "host_name": "community.openai.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://inworld.ai/models/openai-gpt-5-4-2026-03-05",
+    "name": "GPT 5.4 2026 03 05 by OpenAI - Inworld AI",
+    "snippet": "GPT 5.4 2026 03 05 is a reasoning model by OpenAI with vision, function calling, prompt caching, structured output — designed for complex, ...",
+    "host_name": "inworld.ai",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.mindstudio.ai/blog/what-is-gpt-5-5-openai-flagship-model-explained",
+    "name": "What Is GPT-5.5? OpenAI's New Flagship Model Explained",
+    "snippet": "GPT-5.5 is OpenAI's current top-tier model, released in April 2026. It sits above GPT-5.4 in the product lineup and is built specifically for ...",
+    "host_name": "www.mindstudio.ai",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/guides/latest-model",
+    "name": "Using GPT-5.5 | OpenAI API",
+    "snippet": "GPT-5.5 supports all API features that were already available with GPT-5.4, including prompt caching, hosted tools, tool search, compaction, and phase ...",
+    "host_name": "developers.openai.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://llm.datasette.io/en/stable/openai-models.html",
+    "name": "OpenAI models - LLM - Datasette",
+    "snippet": "LLM ships with a default plugin for talking to OpenAI's API. OpenAI offer both language models and embedding models, and LLM can access both types.",
+    "host_name": "llm.datasette.io",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://miraflow.ai/blog/gpt-5-5-explained-openai-most-powerful-model",
+    "name": "GPT-5.5 Explained: Everything You Need to Know About OpenAI's",
+    "snippet": "OpenAI released GPT-5.5 on April 23, 2026 — the first fully retrained base model since GPT-4.5. It scores 82.7% on Terminal-Bench 2.0 (vs ...",
+    "host_name": "miraflow.ai",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

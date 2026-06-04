@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://openai.com/index/introducing-gpt-5-5",
+    "name": "Introducing GPT-5.5 - OpenAI",
+    "snippet": "Update on April 24, 2026: GPT‑5.5 and GPT‑5.5 Pro are now available in the API. The system card has also been updated to describe the ...",
+    "host_name": "openai.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/models/gpt-5",
+    "name": "GPT-5 Model | OpenAI API",
+    "snippet": "GPT-5 is our previous model for coding, reasoning, and agentic tasks across domains. We recommend using the latest GPT-5.5. Learn more in our latest model guide ...",
+    "host_name": "developers.openai.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://openai.com/index/gpt-5-5-instant",
+    "name": "GPT-5.5 Instant: smarter, clearer, and more personalized | OpenAI",
+    "snippet": "Availability. May 5, 2026. ProductRelease. GPT‑5.5 Instant: smarter, clearer, and more personalized. Try on ChatGPT (opens in a new window).",
+    "host_name": "openai.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.verdent.ai/guides/gpt-5-codex-model-names-explained",
+    "name": "GPT-5 Codex Model Names Explained in 2026 - Verdent Guides",
+    "snippet": "GPT-5.2-Codex is still the correct model ID for API-key workflows as of May 2026 because GPT-5.5 isn't yet available without ChatGPT sign-in.",
+    "host_name": "www.verdent.ai",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://openai.com/gpt-5",
+    "name": "GPT-5 is here - OpenAI",
+    "snippet": "GPT‑5 produces high-quality code, generates front-end UI with minimal prompting, and shows improvements to personality, steerability, and executing long chains ...",
+    "host_name": "openai.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://evolink.ai/blog/gpt-5-api-pricing-guide-2026-cost-comparison",
+    "name": "GPT-5 API Pricing 2026: GPT-5.5, GPT-5.4, GPT-5.2 & GPT-5.1",
+    "snippet": "GPT-5 API pricing now spans four production routes on EvoLink. GPT-5.5 is the premium route at $4.00 input / $24.00 output per 1M tokens on ...",
+    "host_name": "evolink.ai",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://blog.mean.ceo/new-ai-model-releases-news-may-2026",
+    "name": "New AI Model Releases News | May, 2026 (STARTUP EDITION)",
+    "snippet": "GPT-5.5 also became available via API on April 24. OpenAI also launched ... OpenAI's best available model is GPT-5.5, released April 23.",
+    "host_name": "blog.mean.ceo",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/guides/latest-model",
+    "name": "Using GPT-5.5 | OpenAI API",
+    "snippet": "Using GPT-5.5. Learn best practices, features, and migration guidance for GPT-5.5 and the GPT-5 model family.",
+    "host_name": "developers.openai.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://webscraft.org/blog/openai-vipustiv-gpt54-scho-zminilos-v-2026?lang=en",
+    "name": "GPT-5.4 Release Notes: OpenAI Model Features  - WebCraft",
+    "snippet": "GPT-5.2 Thinking remains in Legacy Models until June 5, 2026. API — endpoints gpt-5.4 and gpt-5.4-pro are available now. Codex ...",
+    "host_name": "webscraft.org",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://releasebot.io/updates/openai",
+    "name": "OpenAI Release Notes - May 2026 Latest Updates - Releasebot",
+    "snippet": "Complete list of OpenAI latest updates for May 2026: get every product news, release note, and changelog from OpenAI summarized in one timeline.",
+    "host_name": "releasebot.io",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
