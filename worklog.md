@@ -202,3 +202,57 @@ Stage Summary:
 - Both animations are continuous (repeat reverse) and stop automatically when PM is assigned
 - Build compiles successfully
 - No deployment pushed
+---
+Task ID: 2
+Agent: Main Agent
+Task: Add text editors with formatting toolbar to all text fields in the Design Planning screen, matching the Initiation Phase style
+
+Work Log:
+- Analyzed screenshot showing the Planning Phase / Design Planning screen
+- Identified that the Design Planning screen used plain TextEditingController with VoiceTextField and _inputDecoration
+- Identified that the Initiation Phase uses RichTextEditingController + TextFormattingToolbar with a white container style
+- Made the following changes to `lib/screens/design_planning_screen.dart`:
+
+1. **Added imports**: `RichTextEditingController` and `TextFormattingToolbar`
+
+2. **Added FocusNodes** for all 21 text field controllers to enable toolbar show/hide on focus
+
+3. **Changed all controller initializations** from `TextEditingController(text: ...)` to `RichTextEditingController(text: ...)` for all 21 controllers:
+   - _overviewController, _designWhoController, _designHowController, _designVendorsController
+   - _designInterfacesController, _objectivesController, _successCriteriaController
+   - _scopeController, _outOfScopeController, _architectureController
+   - _diagramReferenceController, _dataFlowController, _uiUxController
+   - _designSystemController, _technicalFrontendController, _technicalBackendController
+   - _technicalDataController, _constraintsController, _assumptionsController
+   - _validationController, _governanceController
+
+4. **Added FocusNode disposal** in the dispose method for all 21 focus nodes
+
+5. **Rewrote `_TextAreaField` widget** to include:
+   - `focusNode` optional parameter
+   - `TextFormattingToolbar(controller: controller)` above the text field
+   - White container with rounded border (matching Initiation Phase style)
+   - `VoiceTextField` with `InputBorder.none`, zero `contentPadding`
+   - `maxLines: null` for auto-expanding (was previously fixed `minLines + 2`)
+   - Text style: fontSize 14, grey[800] color
+
+6. **Rewrote `_TextField` widget** with the same pattern:
+   - `focusNode` optional parameter
+   - `TextFormattingToolbar(controller: controller)` above the text field
+   - White container with rounded border
+   - `VoiceTextField` with `InputBorder.none`, zero `contentPadding`
+   - `minLines: 1, maxLines: null` for single-line that auto-expands
+
+7. **Added `focusNode:` parameter** to all 21 usages of `_TextAreaField` and `_TextField` throughout the file
+
+- Build verified successfully: `flutter build web --release --no-tree-shake-icons --base-href "/"`
+- NOT deployed to GitHub per user's explicit instruction
+
+Stage Summary:
+- All 21 text fields in the Design Planning screen now have the same rich text editor as the Initiation Phase
+- Each field has a TextFormattingToolbar with Bold, Italic, Underline, Heading 1/2, and Undo support
+- RichTextEditingController renders **bold**, *italic*, __underline__, and # headings inline
+- Text fields auto-expand with content (maxLines: null) instead of fixed height
+- White container style matches the Initiation Phase design
+- Build compiles successfully
+- No deployment pushed
