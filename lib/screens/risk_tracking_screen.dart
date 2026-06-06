@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -639,19 +640,43 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           DataCell(Text(risk.id,
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF0EA5E9)))),
-                          DataCell(Text(risk.title,
-                              style: const TextStyle(fontSize: 13),
-                              maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          DataCell(Text(risk.owner,
-                              style: const TextStyle(
-                                  fontSize: 13, color: Color(0xFF64748B)),
-                              maxLines: 1, overflow: TextOverflow.ellipsis)),
-                          DataCell(_chip('${risk.probability} p')),
-                          DataCell(_impactChip(risk.impact)),
-                          DataCell(_statusChip(risk.status)),
-                          DataCell(Text(risk.nextReview,
-                              style: const TextStyle(fontSize: 12),
-                              maxLines: 1, overflow: TextOverflow.ellipsis)),
+                          DataCell(InlineEditableText(
+                            value: risk.title,
+                            onChanged: (v) { setState(() { risk.title = v; }); },
+                            style: const TextStyle(fontSize: 13),
+                            enableVoice: false,
+                          )),
+                          DataCell(InlineEditableText(
+                            value: risk.owner,
+                            onChanged: (v) { setState(() { risk.owner = v; }); },
+                            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                            enableVoice: false,
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _chip('${risk.probability} p'),
+                            options: const ['0.1 p', '0.2 p', '0.3 p', '0.4 p', '0.5 p', '0.6 p', '0.7 p', '0.8 p', '0.9 p', '1.0 p'],
+                            currentValue: '${risk.probability} p',
+                            onChanged: (v) { setState(() { risk.probability = v.replaceAll(' p', ''); }); },
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _impactChip(risk.impact),
+                            options: const ['Low', 'Medium', 'High'],
+                            currentValue: risk.impact,
+                            onChanged: (v) { setState(() { risk.impact = v; }); },
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _statusChip(risk.status),
+                            options: const ['Mitigating', 'Monitoring', 'Escalated', 'Accepted'],
+                            currentValue: risk.status,
+                            onChanged: (v) { setState(() { risk.status = v; }); },
+                          )),
+                          DataCell(InlineEditableText(
+                            value: risk.nextReview,
+                            onChanged: (v) { setState(() { risk.nextReview = v; }); },
+                            style: const TextStyle(fontSize: 12),
+                            hint: 'YYYY-MM-DD',
+                            enableVoice: false,
+                          )),
                           DataCell(_buildRowActions(
                             onEdit: () => _openEditRiskDialog(risk),
                             onDelete: () => _deleteRisk(risk),
@@ -802,25 +827,60 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                           DataCell(Text(plan.id,
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF0EA5E9), fontWeight: FontWeight.w600))),
-                          DataCell(Text(plan.riskId,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF6366F1)))),
+                          DataCell(InlineEditableText(
+                            value: plan.riskId,
+                            onChanged: (v) { setState(() { plan.riskId = v; }); },
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF6366F1)),
+                            enableVoice: false,
+                          )),
                           DataCell(SizedBox(
                             width: 220,
-                            child: Text(plan.strategy,
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: InlineEditableText(
+                              value: plan.strategy,
+                              onChanged: (v) { setState(() { plan.strategy = v; }); },
+                              style: const TextStyle(fontSize: 12),
+                              maxLines: 2,
+                              enableVoice: false,
+                            ),
                           )),
-                          DataCell(Text(plan.owner,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
-                          DataCell(_categoryChip(plan.category)),
-                          DataCell(_mitigationStatusChip(plan.status)),
+                          DataCell(InlineEditableText(
+                            value: plan.owner,
+                            onChanged: (v) { setState(() { plan.owner = v; }); },
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                            enableVoice: false,
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _categoryChip(plan.category),
+                            options: const ['Integrations', 'Compliance', 'Data team', 'Cybersecurity', 'Finance', 'General'],
+                            currentValue: plan.category,
+                            onChanged: (v) { setState(() { plan.category = v; }); },
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _mitigationStatusChip(plan.status),
+                            options: const ['Not started', 'In progress', 'On track', 'At risk', 'Completed'],
+                            currentValue: plan.status,
+                            onChanged: (v) { setState(() { plan.status = v; }); },
+                          )),
                           DataCell(_buildCoverageCell(plan)),
-                          DataCell(Text(plan.targetDate,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
-                          DataCell(_effectivenessChip(plan.effectiveness)),
-                          DataCell(_residualRiskChip(plan.residualRisk)),
+                          DataCell(InlineEditableText(
+                            value: plan.targetDate,
+                            onChanged: (v) { setState(() { plan.targetDate = v; }); },
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            hint: 'YYYY-MM-DD',
+                            enableVoice: false,
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _effectivenessChip(plan.effectiveness),
+                            options: const ['High', 'Medium', 'Low'],
+                            currentValue: plan.effectiveness,
+                            onChanged: (v) { setState(() { plan.effectiveness = v; }); },
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _residualRiskChip(plan.residualRisk),
+                            options: const ['Low', 'Medium', 'High'],
+                            currentValue: plan.residualRisk,
+                            onChanged: (v) { setState(() { plan.residualRisk = v; }); },
+                          )),
                           DataCell(_buildRowActions(
                             onEdit: () => _openEditMitigationDialog(plan),
                             onDelete: () => _deleteMitigationPlan(plan),
@@ -1069,28 +1129,63 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                                   fontSize: 12, color: Color(0xFF0EA5E9), fontWeight: FontWeight.w600))),
                           DataCell(SizedBox(
                             width: 160,
-                            child: Text(signal.title,
-                                style: const TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: InlineEditableText(
+                              value: signal.title,
+                              onChanged: (v) { setState(() { signal.title = v; }); },
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                              maxLines: 2,
+                              enableVoice: false,
+                            ),
                           )),
-                          DataCell(_signalCategoryChip(signal.category)),
-                          DataCell(_severityChip(signal.severity)),
-                          DataCell(_confidenceChip(signal.confidence)),
+                          DataCell(_editableChipCell(
+                            chip: _signalCategoryChip(signal.category),
+                            options: const ['Leading', 'Lagging'],
+                            currentValue: signal.category,
+                            onChanged: (v) { setState(() { signal.category = v; }); },
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _severityChip(signal.severity),
+                            options: const ['Critical', 'High', 'Medium', 'Low'],
+                            currentValue: signal.severity,
+                            onChanged: (v) { setState(() { signal.severity = v; }); },
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _confidenceChip(signal.confidence),
+                            options: const ['High', 'Medium', 'Low'],
+                            currentValue: signal.confidence,
+                            onChanged: (v) { setState(() { signal.confidence = v; }); },
+                          )),
                           DataCell(SizedBox(
                             width: 240,
-                            child: Text(signal.description,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: InlineEditableText(
+                              value: signal.description,
+                              onChanged: (v) { setState(() { signal.description = v; }); },
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
+                              maxLines: 2,
+                              enableVoice: false,
+                            ),
                           )),
-                          DataCell(Text(signal.linkedRisk,
-                              style: const TextStyle(
-                                  fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600))),
-                          DataCell(_trendChip(signal.trend)),
-                          DataCell(Text(signal.detectedDate,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+                          DataCell(InlineEditableText(
+                            value: signal.linkedRisk,
+                            onChanged: (v) { setState(() { signal.linkedRisk = v; }); },
+                            style: const TextStyle(
+                                fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                            enableVoice: false,
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _trendChip(signal.trend),
+                            options: const ['Increasing', 'Stable', 'Decreasing'],
+                            currentValue: signal.trend,
+                            onChanged: (v) { setState(() { signal.trend = v; }); },
+                          )),
+                          DataCell(InlineEditableText(
+                            value: signal.detectedDate,
+                            onChanged: (v) { setState(() { signal.detectedDate = v; }); },
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            hint: 'YYYY-MM-DD',
+                            enableVoice: false,
+                          )),
                           DataCell(_buildRowActions(
                             onEdit: () => _openEditSignalDialog(signal),
                             onDelete: () => _deleteSignal(signal),
@@ -1313,36 +1408,73 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                                   fontSize: 12, color: Color(0xFF0EA5E9), fontWeight: FontWeight.w600))),
                           DataCell(SizedBox(
                             width: 200,
-                            child: Text(esc.event,
-                                style: const TextStyle(
-                                    fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: InlineEditableText(
+                              value: esc.event,
+                              onChanged: (v) { setState(() { esc.event = v; }); },
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                              maxLines: 2,
+                              enableVoice: false,
+                            ),
                           )),
-                          DataCell(_escalationLevelChip(esc.level)),
+                          DataCell(_editableChipCell(
+                            chip: _escalationLevelChip(esc.level),
+                            options: const ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite'],
+                            currentValue: esc.level,
+                            onChanged: (v) { setState(() { esc.level = v; }); },
+                          )),
                           DataCell(SizedBox(
                             width: 180,
-                            child: Text(esc.triggerCondition,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: InlineEditableText(
+                              value: esc.triggerCondition,
+                              onChanged: (v) { setState(() { esc.triggerCondition = v; }); },
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
+                              maxLines: 2,
+                              enableVoice: false,
+                            ),
                           )),
-                          DataCell(Text(esc.responsibleParty,
-                              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)))),
-                          DataCell(Text(esc.escalationTarget,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600))),
-                          DataCell(_escalationStatusChip(esc.status)),
+                          DataCell(InlineEditableText(
+                            value: esc.responsibleParty,
+                            onChanged: (v) { setState(() { esc.responsibleParty = v; }); },
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+                            enableVoice: false,
+                          )),
+                          DataCell(InlineEditableText(
+                            value: esc.escalationTarget,
+                            onChanged: (v) { setState(() { esc.escalationTarget = v; }); },
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                            enableVoice: false,
+                          )),
+                          DataCell(_editableChipCell(
+                            chip: _escalationStatusChip(esc.status),
+                            options: const ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred'],
+                            currentValue: esc.status,
+                            onChanged: (v) { setState(() { esc.status = v; }); },
+                          )),
                           DataCell(_buildEscalationReadinessCell(esc)),
-                          DataCell(_responseWindowChip(esc.responseWindow)),
+                          DataCell(_editableChipCell(
+                            chip: _responseWindowChip(esc.responseWindow),
+                            options: const ['4 hrs', '8 hrs', '12 hrs', '24 hrs', '48 hrs'],
+                            currentValue: esc.responseWindow,
+                            onChanged: (v) { setState(() { esc.responseWindow = v; }); },
+                          )),
                           DataCell(SizedBox(
                             width: 200,
-                            child: Text(esc.decisionRequired,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                            child: InlineEditableText(
+                              value: esc.decisionRequired,
+                              onChanged: (v) { setState(() { esc.decisionRequired = v; }); },
+                              style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
+                              maxLines: 2,
+                              enableVoice: false,
+                            ),
                           )),
-                          DataCell(Text(esc.lastReview,
-                              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
+                          DataCell(InlineEditableText(
+                            value: esc.lastReview,
+                            onChanged: (v) { setState(() { esc.lastReview = v; }); },
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                            hint: 'YYYY-MM-DD',
+                            enableVoice: false,
+                          )),
                           DataCell(_buildRowActions(
                             onEdit: () => _openEditEscalationDialog(esc),
                             onDelete: () => _deleteEscalation(esc),
@@ -1824,6 +1956,57 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
   }
 
   // ─── Generic Chip Helpers ─────────────────────────────────────────────────
+
+  /// Wraps a chip widget in an InkWell that shows a dropdown dialog on tap.
+  Widget _editableChipCell({
+    required Widget chip,
+    required List<String> options,
+    required String currentValue,
+    required ValueChanged<String> onChanged,
+  }) {
+    return InkWell(
+      onTap: () {
+        var selected = currentValue;
+        showDialog(
+          context: context,
+          builder: (ctx) {
+            return StatefulBuilder(
+              builder: (ctx, setDialogState) {
+                return AlertDialog(
+                  title: const Text('Select value'),
+                  content: DropdownButton<String>(
+                    value: options.contains(selected) ? selected : null,
+                    isExpanded: true,
+                    items: options
+                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                        .toList(),
+                    onChanged: (v) {
+                      if (v != null) setDialogState(() => selected = v);
+                    },
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        onChanged(selected);
+                        Navigator.of(ctx).pop();
+                      },
+                      child: const Text('Update'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: chip,
+    );
+  }
 
   Widget _chip(String label) {
     return Container(
@@ -2810,7 +2993,7 @@ class _PanelShell extends StatelessWidget {
 }
 
 class _EscalationReadiness {
-  const _EscalationReadiness({
+  _EscalationReadiness({
     required this.id,
     required this.event,
     required this.level,
@@ -2825,35 +3008,35 @@ class _EscalationReadiness {
   });
 
   final String id;
-  final String event;
-  final String level; // L1-Operational | L2-Management | L3-Executive | L4-Board/C-Suite
-  final String triggerCondition;
-  final String responsibleParty;
-  final String escalationTarget;
-  final String status; // Ready | Pending | In progress | Escalated | Deferred
-  final double readiness;
-  final String responseWindow;
-  final String decisionRequired;
-  final String lastReview;
+  String event;
+  String level; // L1-Operational | L2-Management | L3-Executive | L4-Board/C-Suite
+  String triggerCondition;
+  String responsibleParty;
+  String escalationTarget;
+  String status; // Ready | Pending | In progress | Escalated | Deferred
+  double readiness;
+  String responseWindow;
+  String decisionRequired;
+  String lastReview;
 }
 
 // ─── Data Models ────────────────────────────────────────────────────────────
 
 class _RiskItem {
-  const _RiskItem(this.id, this.title, this.owner, this.probability,
+  _RiskItem(this.id, this.title, this.owner, this.probability,
       this.impact, this.status, this.nextReview);
 
   final String id;
-  final String title;
-  final String owner;
-  final String probability;
-  final String impact;
-  final String status;
-  final String nextReview;
+  String title;
+  String owner;
+  String probability;
+  String impact;
+  String status;
+  String nextReview;
 }
 
 class _RiskSignal {
-  const _RiskSignal({
+  _RiskSignal({
     required this.id,
     required this.title,
     required this.category,
@@ -2866,18 +3049,18 @@ class _RiskSignal {
   });
 
   final String id;
-  final String title;
-  final String category; // Leading | Lagging
-  final String severity; // Critical | High | Medium | Low
-  final String confidence; // High | Medium | Low
-  final String description;
-  final String linkedRisk;
-  final String trend; // Increasing | Stable | Decreasing
-  final String detectedDate;
+  String title;
+  String category; // Leading | Lagging
+  String severity; // Critical | High | Medium | Low
+  String confidence; // High | Medium | Low
+  String description;
+  String linkedRisk;
+  String trend; // Increasing | Stable | Decreasing
+  String detectedDate;
 }
 
 class _MitigationPlan {
-  const _MitigationPlan({
+  _MitigationPlan({
     required this.id,
     required this.riskId,
     required this.strategy,
@@ -2891,15 +3074,15 @@ class _MitigationPlan {
   });
 
   final String id;
-  final String riskId;
-  final String strategy;
-  final String owner;
-  final String category;
-  final String status; // Not started | In progress | On track | At risk | Completed
-  final double coverage;
-  final String targetDate;
-  final String effectiveness; // High | Medium | Low
-  final String residualRisk; // Low | Medium | High
+  String riskId;
+  String strategy;
+  String owner;
+  String category;
+  String status; // Not started | In progress | On track | At risk | Completed
+  double coverage;
+  String targetDate;
+  String effectiveness; // High | Medium | Low
+  String residualRisk; // Low | Medium | High
 }
 
 class _StatCardData {

@@ -6473,11 +6473,11 @@ String _objectiveStatusFromTargetStatus(QualityTargetStatus status) {
 
 class QualityStandard {
   final String id;
-  final String name;
-  final String source;
-  final String category;
-  final String description;
-  final String applicability;
+  String name;
+  String source;
+  String category;
+  String description;
+  String applicability;
 
   QualityStandard({
     required this.id,
@@ -6537,15 +6537,15 @@ class QualityStandard {
 
 class QualityObjective {
   final String id;
-  final String title;
-  final String acceptanceCriteria;
-  final String successMetric;
-  final String targetValue;
-  final String currentValue;
-  final String owner;
-  final String linkedRequirement;
-  final String linkedWbs;
-  final String status;
+  String title;
+  String acceptanceCriteria;
+  String successMetric;
+  String targetValue;
+  String currentValue;
+  String owner;
+  String linkedRequirement;
+  String linkedWbs;
+  String status;
 
   QualityObjective({
     required this.id,
@@ -6629,14 +6629,14 @@ class QualityObjective {
 
 class QualityWorkflowControl {
   final String id;
-  final QualityWorkflowType type;
-  final String name;
-  final String method;
-  final String tools;
-  final String checklist;
-  final String frequency;
-  final String owner;
-  final String standardsReference;
+  QualityWorkflowType type;
+  String name;
+  String method;
+  String tools;
+  String checklist;
+  String frequency;
+  String owner;
+  String standardsReference;
 
   QualityWorkflowControl({
     required this.id,
@@ -6715,14 +6715,14 @@ class QualityWorkflowControl {
 
 class QualityAuditEntry {
   final String id;
-  final String title;
-  final String scope;
-  final String plannedDate;
-  final String completedDate;
-  final String owner;
-  final AuditResultStatus result;
-  final String findings;
-  final String notes;
+  String title;
+  String scope;
+  String plannedDate;
+  String completedDate;
+  String owner;
+  AuditResultStatus result;
+  String findings;
+  String notes;
 
   QualityAuditEntry({
     required this.id,
@@ -6800,16 +6800,16 @@ class QualityAuditEntry {
 
 class QualityTaskEntry {
   final String id;
-  final String task;
-  final double percentComplete;
-  final String responsible;
-  final String startDate;
-  final String endDate;
-  final int? durationDays;
-  final QualityTaskStatus status;
-  final QualityTaskPriority priority;
-  final String comments;
-  final String? resolvedDate;
+  String task;
+  double percentComplete;
+  String responsible;
+  String startDate;
+  String endDate;
+  int? durationDays;
+  QualityTaskStatus status;
+  QualityTaskPriority priority;
+  String comments;
+  String? resolvedDate;
 
   QualityTaskEntry({
     required this.id,
@@ -6913,15 +6913,15 @@ class QualityTaskEntry {
 class CorrectiveActionEntry {
   final String id;
   final String auditEntryId;
-  final String title;
-  final String rootCause;
-  final String action;
-  final String owner;
-  final String dueDate;
-  final CorrectiveActionStatus status;
-  final String createdAt;
-  final String closedAt;
-  final String verificationNotes;
+  String title;
+  String rootCause;
+  String action;
+  String owner;
+  String dueDate;
+  CorrectiveActionStatus status;
+  String createdAt;
+  String closedAt;
+  String verificationNotes;
 
   CorrectiveActionEntry({
     required this.id,
@@ -7014,12 +7014,12 @@ class CorrectiveActionEntry {
 
 class QualityChangeEntry {
   final String id;
-  final String description;
-  final String reason;
-  final String requestedBy;
-  final String approvedBy;
-  final String date;
-  final String status;
+  String description;
+  String reason;
+  String requestedBy;
+  String approvedBy;
+  String date;
+  String status;
 
   QualityChangeEntry({
     required this.id,

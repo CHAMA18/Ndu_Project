@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/procurement/procurement_models.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 
-class BudgetTrackingTable extends StatelessWidget {
+class BudgetTrackingTable extends StatefulWidget {
   const BudgetTrackingTable({
     super.key,
     required this.items,
     required this.purchaseOrders,
+    this.onItemUpdated,
   });
 
   final List<ProcurementItemModel> items;
   final List<PurchaseOrderModel> purchaseOrders;
+  final void Function(ProcurementItemModel item, String field, String value)? onItemUpdated;
+
+  @override
+  State<BudgetTrackingTable> createState() => _BudgetTrackingTableState();
+}
+
+class _BudgetTrackingTableState extends State<BudgetTrackingTable> {
 
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty) {
+    if (widget.items.isEmpty) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(20),
@@ -30,7 +39,7 @@ class BudgetTrackingTable extends StatelessWidget {
       );
     }
 
-    final totals = _BudgetTotals.from(items, purchaseOrders);
+    final totals = _BudgetTotals.from(widget.items, widget.purchaseOrders);
 
     return Container(
       width: double.infinity,
@@ -72,26 +81,50 @@ class BudgetTrackingTable extends StatelessWidget {
                 DataColumn(label: Text('Variance')),
                 DataColumn(label: Text('Status')),
               ],
-              rows: items
+              rows: widget.items
                   .map(
                     (item) {
-                      final committed = item.committedAmount(purchaseOrders);
-                      final remaining = item.remainingBudget(purchaseOrders);
-                      final variance = item.variancePercent(purchaseOrders);
-                      final status = item.budgetStatus(purchaseOrders);
+                      final committed = item.committedAmount(widget.purchaseOrders);
+                      final remaining = item.remainingBudget(widget.purchaseOrders);
+                      final variance = item.variancePercent(widget.purchaseOrders);
+                      final status = item.budgetStatus(widget.purchaseOrders);
                       return DataRow(
                         cells: [
                           DataCell(
                             ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 220),
-                              child: Text(
-                                item.name,
-                                overflow: TextOverflow.ellipsis,
+                              child: InlineEditableText(
+                                value: item.name,
+                                onChanged: (v) {
+                                  setState(() {});
+                                  widget.onItemUpdated?.call(item, 'name', v);
+                                },
+                                style: const TextStyle(fontSize: 13),
                               ),
                             ),
                           ),
-                          DataCell(Text(_formatCurrency(item.budget))),
-                          DataCell(Text(_formatCurrency(item.spent))),
+                          DataCell(InlineEditableText(
+                            value: _formatCurrency(item.budget),
+                            onChanged: (v) {
+                              final parsed = NumberFormat.currency(symbol: '\$').tryParse(v);
+                              if (parsed != null) {
+                                widget.onItemUpdated?.call(item, 'budget', parsed.toString());
+                              }
+                              setState(() {});
+                            },
+                            style: const TextStyle(fontSize: 13),
+                          )),
+                          DataCell(InlineEditableText(
+                            value: _formatCurrency(item.spent),
+                            onChanged: (v) {
+                              final parsed = NumberFormat.currency(symbol: '\$').tryParse(v);
+                              if (parsed != null) {
+                                widget.onItemUpdated?.call(item, 'spent', parsed.toString());
+                              }
+                              setState(() {});
+                            },
+                            style: const TextStyle(fontSize: 13),
+                          )),
                           DataCell(Text(_formatCurrency(committed))),
                           DataCell(Text(_formatCurrency(remaining))),
                           DataCell(Text('${variance.toStringAsFixed(1)}%')),

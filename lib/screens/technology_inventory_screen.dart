@@ -10,6 +10,7 @@ import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 class TechnologyInventoryScreen extends StatefulWidget {
   const TechnologyInventoryScreen({super.key});
 
@@ -222,10 +223,10 @@ class _TechnologyInventoryScreenState extends State<TechnologyInventoryScreen> {
                           ],
                           rows: _items.map((it) {
                             return DataRow(cells: [
-                              DataCell(Center(child: Text(it['name'] ?? ''))),
+                              DataCell(Center(child: InlineEditableText(value: it['name'] ?? '', onChanged: (v) { setState(() { it['name'] = v; }); _save(); }, style: const TextStyle(fontSize: 13)))),
                               DataCell(
-                                  Center(child: Text(it['category'] ?? ''))),
-                              DataCell(Center(child: Text(it['notes'] ?? ''))),
+                                  Center(child: InlineEditableText(value: it['category'] ?? '', onChanged: (v) { setState(() { it['category'] = v; }); _save(); }, style: const TextStyle(fontSize: 13)))),
+                              DataCell(Center(child: InlineEditableText(value: it['notes'] ?? '', onChanged: (v) { setState(() { it['notes'] = v; }); _save(); }, style: const TextStyle(fontSize: 13)))),
                             ]);
                           }).toList(),
                         ),

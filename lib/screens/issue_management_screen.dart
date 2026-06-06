@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 class IssueManagementScreen extends StatefulWidget {
   const IssueManagementScreen({super.key});
 
@@ -823,20 +824,29 @@ class _ProjectIssuesLogCard extends StatelessWidget {
   }
 }
 
-class _IssueLogRow extends StatelessWidget {
+class _IssueLogRow extends StatefulWidget {
   const _IssueLogRow(
       {required this.entry,
       required this.columnFlex,
       this.onEdit,
-      this.onDelete});
+      this.onDelete,
+      this.onFieldChanged});
 
   final IssueLogItem entry;
   final List<int> columnFlex;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+  final VoidCallback? onFieldChanged;
 
   @override
+  State<_IssueLogRow> createState() => _IssueLogRowState();
+}
+
+class _IssueLogRowState extends State<_IssueLogRow> {
+  @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
+    final columnFlex = widget.columnFlex;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
       child: Row(
@@ -857,22 +867,22 @@ class _IssueLogRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  entry.title,
+                InlineEditableText(
+                  value: entry.title,
+                  onChanged: (v) { setState(() { entry.title = v; }); widget.onFieldChanged?.call(); },
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF111827)),
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  entry.description,
+                InlineEditableText(
+                  value: entry.description,
+                  onChanged: (v) { setState(() { entry.description = v; }); widget.onFieldChanged?.call(); },
                   style:
                       const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                   maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -912,22 +922,26 @@ class _IssueLogRow extends StatelessWidget {
           ),
           Expanded(
             flex: columnFlex[5],
-            child: Text(
-              entry.assignee,
+            child: InlineEditableText(
+              value: entry.assignee,
+              onChanged: (v) { setState(() { entry.assignee = v; }); widget.onFieldChanged?.call(); },
               style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
             ),
           ),
           Expanded(
             flex: columnFlex[6],
-            child: Text(
-              entry.dueDate,
+            child: InlineEditableText(
+              value: entry.dueDate,
+              onChanged: (v) { setState(() { entry.dueDate = v; }); widget.onFieldChanged?.call(); },
+              hint: 'YYYY-MM-DD',
               style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
             ),
           ),
           Expanded(
             flex: columnFlex[7],
-            child: Text(
-              entry.milestone,
+            child: InlineEditableText(
+              value: entry.milestone,
+              onChanged: (v) { setState(() { entry.milestone = v; }); widget.onFieldChanged?.call(); },
               style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
             ),
           ),
@@ -937,14 +951,14 @@ class _IssueLogRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  onPressed: onEdit,
+                  onPressed: widget.onEdit,
                   icon: const Icon(Icons.edit_outlined,
                       size: 18, color: Color(0xFF6B7280)),
                   splashRadius: 18,
                   tooltip: 'Edit',
                 ),
                 IconButton(
-                  onPressed: onDelete,
+                  onPressed: widget.onDelete,
                   icon: const Icon(Icons.delete_outline,
                       size: 18, color: Color(0xFFEF4444)),
                   splashRadius: 18,

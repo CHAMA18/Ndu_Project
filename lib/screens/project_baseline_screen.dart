@@ -16,6 +16,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 class ProjectBaselineScreen extends StatefulWidget {
   const ProjectBaselineScreen({super.key});
 
@@ -378,21 +379,34 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
     TextStyle? style,
     Alignment alignment = Alignment.centerLeft,
     TextAlign textAlign = TextAlign.left,
+    ValueChanged<String>? onChanged,
   }) {
     final child = Container(
       alignment: alignment,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Text(
-        text,
-        textAlign: textAlign,
-        softWrap: true,
-        style: style ??
-            const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF374151),
-              height: 1.35,
+      child: onChanged != null
+          ? InlineEditableText(
+              value: text,
+              onChanged: onChanged,
+              style: style ??
+                  const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF374151),
+                    height: 1.35,
+                  ),
+              textAlign: textAlign,
+            )
+          : Text(
+              text,
+              textAlign: textAlign,
+              softWrap: true,
+              style: style ??
+                  const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF374151),
+                    height: 1.35,
+                  ),
             ),
-      ),
     );
 
     if (width != null) {
@@ -1429,6 +1443,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                                 _buildTableTextCell(
                                   m.name,
                                   flex: 5,
+                                  onChanged: (v) { setState(() { m.name = v; }); },
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -1460,6 +1475,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                                       ? 'General'
                                       : m.discipline,
                                   flex: 3,
+                                  onChanged: (v) { setState(() {}); },
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF6B7280),
@@ -1646,6 +1662,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                                 _buildTableTextCell(
                                   p.name,
                                   flex: 4,
+                                  onChanged: (v) { setState(() { p.name = v; }); },
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
@@ -1908,10 +1925,12 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
                                 _buildTableTextCell(
                                   v.approvedBy,
                                   flex: 2,
+                                  onChanged: (v2) { setState(() { v.approvedBy = v2; }); },
                                 ),
                                 _buildTableTextCell(
                                   v.description,
                                   flex: 4,
+                                  onChanged: (v2) { setState(() { v.description = v2; }); },
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF6B7280),
@@ -2380,13 +2399,13 @@ class _BaselineVersion {
   final String id;
   final String versionLabel;
   final DateTime createdAt;
-  final String approvedBy;
-  final String description;
+  String approvedBy;
+  String description;
   final String scheduleSummary;
   final String costSummary;
   final String scopeSummary;
 
-  const _BaselineVersion({
+  _BaselineVersion({
     required this.id,
     required this.versionLabel,
     required this.createdAt,
@@ -2423,13 +2442,13 @@ class _BaselineVersion {
 }
 
 class _ScheduleMilestone {
-  final String name;
+  String name;
   final DateTime? targetDate;
   final DateTime? baselineDate;
   final String discipline;
   final String status;
 
-  const _ScheduleMilestone({
+  _ScheduleMilestone({
     required this.name,
     this.targetDate,
     this.baselineDate,
@@ -2443,7 +2462,7 @@ class _SchedulePhase {
   DateTime? baselineEnd;
   DateTime? currentStart;
   DateTime? currentEnd;
-  final String name;
+  String name;
   final int taskCount;
   final int completedCount;
 

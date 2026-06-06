@@ -21,6 +21,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 enum _ScopeTab { overview, registry, traceability, baseline }
 
 const List<String> _tabLabels = [
@@ -717,9 +718,7 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
                 return DataRow(cells: [
                   DataCell(ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 180),
-                    child: Text(item.scopeItem,
-                        style: const TextStyle(fontSize: 11),
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                    child: InlineEditableText(value: item.scopeItem, onChanged: (v) { setState(() { item.scopeItem = v; }); _scheduleSave(); }, style: const TextStyle(fontSize: 11), maxLines: 2),
                   )),
                   DataCell(Center(
                     child: _LinkBadge(

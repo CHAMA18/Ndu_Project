@@ -23,6 +23,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 class CostEstimateScreen extends StatefulWidget {
   const CostEstimateScreen({super.key});
 
@@ -4929,9 +4930,9 @@ class _CostVsScheduleWorkspace extends StatelessWidget {
                   final variance = planned - actual;
                   return DataRow(cells: [
                     DataCell(Text(label, style: const TextStyle(fontSize: 12))),
-                    DataCell(Text(formatCurrency(planned), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                    DataCell(Text(actual > 0 ? formatCurrency(actual) : '-', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: actual > 0 ? const Color(0xFF047857) : const Color(0xFFCBD5E1)))),
-                    DataCell(Text(variance != 0 ? formatCurrency(variance) : '-', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: variance > 0 ? const Color(0xFF059669) : variance < 0 ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1)))),
+                    DataCell(InlineEditableText(value: formatCurrency(planned), onChanged: (v) {}, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                    DataCell(InlineEditableText(value: actual > 0 ? formatCurrency(actual) : '-', onChanged: (v) {}, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: actual > 0 ? const Color(0xFF047857) : const Color(0xFFCBD5E1)))),
+                    DataCell(InlineEditableText(value: variance != 0 ? formatCurrency(variance) : '-', onChanged: (v) {}, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: variance > 0 ? const Color(0xFF059669) : variance < 0 ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1)))),
                   ]);
                 }).toList(),
               ),
