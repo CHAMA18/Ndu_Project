@@ -76,6 +76,26 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
     _selectedProjectIds.value = {};
   }
 
+  void _openGroupProjectsScreen({
+    required List<ProjectRecord> projects,
+    required bool isLoading,
+    String? error,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _GroupProjectsExpandedScreen(
+          projects: projects,
+          isLoading: isLoading,
+          error: error,
+          selectedIdsListenable: _selectedProjectIds,
+          selectedIds: _selectedProjectIds.value,
+          onToggle: _toggleSelection,
+          onClear: _clearSelection,
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleAddProject() async {
     final nameController = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -482,19 +502,14 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                         ),
                         const SizedBox(height: 24),
                         if (!widget.isBasicPlan) ...[
-                          ValueListenableBuilder<Set<String>>(
-                            valueListenable: _selectedProjectIds,
-                            builder: (context, selectedIds, _) {
-                              return _GroupProjectsCard(
-                                projects: projects,
-                                isLoading: isLoading,
-                                error: error,
-                                selectedIds: selectedIds,
-                                selectedIdsListenable: _selectedProjectIds,
-                                onToggle: _toggleSelection,
-                                onClear: _clearSelection,
-                              );
-                            },
+                          _GroupProjectsCTA(
+                            projectCount: projects.length,
+                            isLoading: isLoading,
+                            onTap: () => _openGroupProjectsScreen(
+                              projects: projects,
+                              isLoading: isLoading,
+                              error: error,
+                            ),
                           ),
                           const SizedBox(height: 24),
                         ],
@@ -521,19 +536,14 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                           flex: 5,
                           child: Column(
                             children: [
-                              ValueListenableBuilder<Set<String>>(
-                                valueListenable: _selectedProjectIds,
-                                builder: (context, selectedIds, _) {
-                                  return _GroupProjectsCard(
-                                    projects: projects,
-                                    isLoading: isLoading,
-                                    error: error,
-                                    selectedIds: selectedIds,
-                                    selectedIdsListenable: _selectedProjectIds,
-                                    onToggle: _toggleSelection,
-                                    onClear: _clearSelection,
-                                  );
-                                },
+                              _GroupProjectsCTA(
+                                projectCount: projects.length,
+                                isLoading: isLoading,
+                                onTap: () => _openGroupProjectsScreen(
+                                  projects: projects,
+                                  isLoading: isLoading,
+                                  error: error,
+                                ),
                               ),
                               const SizedBox(height: 24),
                               const _ProgramsSummaryCard(),
@@ -1562,643 +1572,317 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
   }
 }
 
-class _GroupProjectsCard extends StatefulWidget {
-  const _GroupProjectsCard({
-    required this.projects,
+// ─────────────────────────────────────────────────────────────────────────────
+// Group Projects CTA – world‑class action button on the dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+class _GroupProjectsCTA extends StatefulWidget {
+  const _GroupProjectsCTA({
+    required this.projectCount,
     required this.isLoading,
-    this.error,
-    required this.selectedIds,
-    required this.onToggle,
-    required this.onClear,
-    this.expandedView = false,
-    this.selectedIdsListenable,
+    required this.onTap,
   });
 
-  final List<ProjectRecord> projects;
+  final int projectCount;
   final bool isLoading;
-  final String? error;
-  final Set<String> selectedIds;
-  final ValueChanged<String> onToggle;
-  final VoidCallback onClear;
-  final bool expandedView;
-  final ValueListenable<Set<String>>? selectedIdsListenable;
+  final VoidCallback onTap;
 
   @override
-  State<_GroupProjectsCard> createState() => _GroupProjectsCardState();
+  State<_GroupProjectsCTA> createState() => _GroupProjectsCTAState();
 }
 
-class _GroupProjectsCardState extends State<_GroupProjectsCard> {
-  bool _showAll = false;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _glowAnim;
+  bool _isHovered = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.expandedView) {
-      _showAll = true;
-    }
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat(reverse: true);
+
+    _scaleAnim = Tween<double>(begin: 1.0, end: 1.012).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _controller.dispose();
     super.dispose();
-  }
-
-  void _openExpandedView() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _GroupProjectsExpandedScreen(
-          projects: widget.projects,
-          isLoading: widget.isLoading,
-          error: widget.error,
-          selectedIdsListenable: widget.selectedIdsListenable,
-          selectedIds: widget.selectedIds,
-          onToggle: widget.onToggle,
-          onClear: widget.onClear,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleCreateProgram() async {
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final programName = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        final theme = Theme.of(dialogContext);
-        final scheme = theme.colorScheme;
-
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.layers, color: scheme.primary, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Text('Name Your Program'),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Give a name to your new program.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-                const SizedBox(height: 20),
-                VoiceTextFormField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'Program Name',
-                    hintText: 'e.g., Terminal Modernization Program',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor:
-                        scheme.surfaceContainerHighest.withOpacity(0.3),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a name';
-                    }
-                    if (value.trim().length < 3) {
-                      return 'Name must be at least 3 characters';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(nameController.text.trim());
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: scheme.primary,
-                foregroundColor: scheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Create Program'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (programName == null || !mounted) return;
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      // Create program
-      await ProgramService.createProgram(
-        name: programName,
-        projectIds: widget.selectedIds.toList(),
-        ownerId: user.uid,
-      );
-
-      if (!mounted) return;
-
-      // Clear selection
-      widget.onClear();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Program created successfully!'),
-            backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error creating program: $e'),
-            backgroundColor: Colors.red),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final selectedCount = widget.selectedIds.length;
-    final user = FirebaseAuth.instance.currentUser;
+    final scheme = Theme.of(context).colorScheme;
+    final hasProjects = widget.projectCount >= 3;
 
-    return _FrostedSurface(
-      padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isColumn = constraints.maxWidth < 720;
-              final seeAllButton = widget.expandedView
-                  ? const SizedBox.shrink()
-                  : TextButton(
-                      onPressed: _openExpandedView,
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFFF4D6D),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      child: const Text('See All'),
-                    );
-
-              final guidance = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Group Projects Into A Program',
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 24,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'When you have more than three single projects, select up to three that share an outcome to create a new program.',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _isHovered ? 1.02 : _scaleAnim.value,
+            child: child,
+          );
+        },
+        child: GestureDetector(
+          onTap: widget.isLoading ? null : widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF0F172A),
+                  Color(0xFF1E293B),
+                  Color(0xFF0F172A),
                 ],
-              );
-
-              final capChip = Align(
-                alignment:
-                    isColumn ? Alignment.centerLeft : Alignment.topCenter,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.filter_alt_outlined,
-                          size: 18, color: Colors.grey.shade600),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Up to 3 projects',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
+                stops: [0.0, 0.5, 1.0],
+              ),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: _isHovered
+                    ? const Color(0xFF3B82F6).withOpacity(0.6)
+                    : const Color(0xFF334155),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF3B82F6)
+                      .withOpacity(_isHovered ? 0.25 : 0.08 * _glowAnim.value),
+                  blurRadius: _isHovered ? 32 : 20,
+                  spreadRadius: _isHovered ? 2 : 0,
+                  offset: const Offset(0, 8),
                 ),
-              );
-
-              if (isColumn) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: guidance),
-                        seeAllButton,
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    capChip,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: guidance),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      seeAllButton,
-                      const SizedBox(height: 8),
-                      capChip,
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          VoiceTextField(
-            controller: _searchController,
-            style: const TextStyle(fontSize: 16),
-            decoration: InputDecoration(
-              hintText: 'Search projects to group...',
-              hintStyle: const TextStyle(fontSize: 16),
-              prefixIcon:
-                  Icon(Icons.search, color: Colors.grey.shade600, size: 24),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 22),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor, width: 2.5),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            onChanged: (value) {
-              setState(() => _searchQuery = value.toLowerCase().trim());
-            },
-          ),
-          const SizedBox(height: 24),
-          if (user == null)
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F8FD),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE3E6F2)),
-              ),
-              child: Center(
-                child: Text(
-                  'Sign in to group projects',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            )
-          else if (widget.isLoading)
-            Container(
-              padding: const EdgeInsets.all(40),
-              child: const Center(child: CircularProgressIndicator()),
-            )
-          else if (widget.error != null)
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Center(
-                child: Column(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Icon + Badge Row ──
+                Row(
                   children: [
-                    Icon(Icons.error_outline,
-                        size: 40, color: Colors.red.shade400),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Error loading projects',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.red.shade700,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.error!,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: Colors.grey.shade600),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Builder(
-              builder: (context) {
-                final allProjects = widget.projects;
-
-                // Apply search filter
-                final firebaseProjects = _searchQuery.isEmpty
-                    ? allProjects
-                    : allProjects.where((project) {
-                        final name = project.name.toLowerCase();
-                        final status = project.status.toLowerCase();
-                        return name.contains(_searchQuery) ||
-                            status.contains(_searchQuery);
-                      }).toList();
-
-                if (allProjects.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'No projects available to group',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w600,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
                         ),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF3B82F6).withOpacity(0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.layers_rounded,
+                        color: Colors.white,
+                        size: 26,
                       ),
                     ),
-                  );
-                }
-
-                if (firebaseProjects.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Center(
+                    const SizedBox(width: 16),
+                    Expanded(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.search_off,
-                              size: 40, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
+                          const Text(
+                            'Group Into Program',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
                           Text(
-                            'No matching projects',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
+                            hasProjects
+                                ? '${widget.projectCount} projects available'
+                                : 'Need at least 3 projects',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: hasProjects
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFFF87171),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                }
-
-                // Show only 10 by default
-                final visibleCount = _showAll
-                    ? firebaseProjects.length
-                    : (firebaseProjects.length > 10
-                        ? 10
-                        : firebaseProjects.length);
-
-                // Use ValueListenableBuilder to react to selection changes
-                if (widget.selectedIdsListenable != null) {
-                  return ValueListenableBuilder<Set<String>>(
-                    valueListenable: widget.selectedIdsListenable!,
-                    builder: (context, selectedIds, _) {
-                      return Column(
-                        children: [
-                          for (int i = 0; i < visibleCount; i++) ...[
-                            _SelectableProjectRowFromFirebase(
-                              project: firebaseProjects[i],
-                              selected:
-                                  selectedIds.contains(firebaseProjects[i].id),
-                              onTap: () =>
-                                  widget.onToggle(firebaseProjects[i].id),
-                            ),
-                            if (i < visibleCount - 1)
-                              const SizedBox(height: 12),
-                          ],
-                          if (firebaseProjects.length > 10 &&
-                              !widget.expandedView)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  onPressed: () {
-                                    setState(() => _showAll = !_showAll);
-                                  },
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.black87,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 10),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(24)),
-                                  ),
-                                  icon: Icon(
-                                      _showAll
-                                          ? Icons.expand_less
-                                          : Icons.expand_more,
-                                      size: 18),
-                                  label: Text(_showAll
-                                      ? 'Show 10'
-                                      : 'View All (${firebaseProjects.length})'),
-                                ),
-                              ),
-                            ),
-                        ],
-                      );
-                    },
-                  );
-                }
-
-                // Fallback if no ValueListenable provided
-                return Column(
-                  children: [
-                    for (int i = 0; i < visibleCount; i++) ...[
-                      _SelectableProjectRowFromFirebase(
-                        project: firebaseProjects[i],
-                        selected:
-                            widget.selectedIds.contains(firebaseProjects[i].id),
-                        onTap: () => widget.onToggle(firebaseProjects[i].id),
+                    // Animated arrow
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _isHovered
+                            ? const Color(0xFF3B82F6)
+                            : Colors.white.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      if (i < visibleCount - 1) const SizedBox(height: 12),
-                    ],
-                    if (firebaseProjects.length > 10 && !widget.expandedView)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() => _showAll = !_showAll);
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24)),
-                            ),
-                            icon: Icon(
-                                _showAll
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                size: 18),
-                            label: Text(_showAll
-                                ? 'Show 10'
-                                : 'View All (${firebaseProjects.length})'),
-                          ),
-                        ),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        color: _isHovered
+                            ? Colors.white
+                            : const Color(0xFF94A3B8),
+                        size: 20,
                       ),
+                    ),
                   ],
-                );
-              },
-            ),
-          const SizedBox(height: 24),
-          // Use ValueListenableBuilder for selection count if available
-          widget.selectedIdsListenable != null
-              ? ValueListenableBuilder<Set<String>>(
-                  valueListenable: widget.selectedIdsListenable!,
-                  builder: (context, selectedIds, _) {
-                    final count = selectedIds.length;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$count/3 projects selected. Select exactly three to create a program.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: count == 3 ? _handleCreateProgram : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF111111),
-                              foregroundColor: Colors.white,
-                              elevation: count == 3 ? 10 : 0,
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                            ),
-                            child: Text(
-                              count == 3
-                                  ? 'Create Program'
-                                  : 'Select ${3 - count} more',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                const SizedBox(height: 20),
+
+                // ── Description ──
+                const Text(
+                  'Select up to three projects that share an outcome to create a new program.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFFCBD5E1),
+                    height: 1.6,
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Metric Chips ──
+                Row(
                   children: [
-                    Text(
-                      '$selectedCount/3 projects selected. Select exactly three to create a program.',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade700,
+                    _MetricChip(
+                      icon: Icons.folder_outlined,
+                      label: '${widget.projectCount} projects',
+                      color: const Color(0xFF3B82F6),
+                    ),
+                    const SizedBox(width: 10),
+                    const _MetricChip(
+                      icon: Icons.filter_alt_outlined,
+                      label: 'Up to 3',
+                      color: Color(0xFF8B5CF6),
+                    ),
+                    const SizedBox(width: 10),
+                    const _MetricChip(
+                      icon: Icons.auto_awesome,
+                      label: 'Program',
+                      color: Color(0xFFF59E0B),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ── CTA Button ──
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: widget.isLoading ? null : widget.onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasProjects
+                          ? const Color(0xFF3B82F6)
+                          : const Color(0xFF334155),
+                      foregroundColor: Colors.white,
+                      elevation: _isHovered ? 8 : 0,
+                      shadowColor: const Color(0xFF3B82F6).withOpacity(0.4),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 15,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            selectedCount == 3 ? _handleCreateProgram : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF111111),
-                          foregroundColor: Colors.white,
-                          elevation: selectedCount == 3 ? 10 : 0,
-                          shadowColor: Colors.black.withOpacity(0.3),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 28, vertical: 22),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(32)),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 17,
-                            letterSpacing: 0.3,
+                    child: widget.isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                hasProjects
+                                    ? 'Group Projects'
+                                    : 'Get Started',
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.arrow_forward_rounded,
+                                size: 18,
+                                color: hasProjects
+                                    ? Colors.white
+                                    : Colors.white54,
+                              ),
+                            ],
                           ),
-                        ),
-                        child: const Text('Create program from selected'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricChip extends StatelessWidget {
+  const _MetricChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+              letterSpacing: 0.2,
+            ),
+          ),
         ],
       ),
     );
@@ -2387,7 +2071,7 @@ class _SingleProjectsExpandedScreen extends StatelessWidget {
   }
 }
 
-class _GroupProjectsExpandedScreen extends StatelessWidget {
+class _GroupProjectsExpandedScreen extends StatefulWidget {
   const _GroupProjectsExpandedScreen({
     required this.projects,
     required this.isLoading,
@@ -2407,43 +2091,566 @@ class _GroupProjectsExpandedScreen extends StatelessWidget {
   final ValueListenable<Set<String>>? selectedIdsListenable;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Group Projects Into A Program'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black87,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: selectedIdsListenable == null
-              ? _GroupProjectsCard(
-                  projects: projects,
-                  isLoading: isLoading,
-                  error: error,
-                  selectedIds: selectedIds,
-                  onToggle: onToggle,
-                  onClear: onClear,
-                  expandedView: true,
-                )
-              : ValueListenableBuilder<Set<String>>(
-                  valueListenable: selectedIdsListenable!,
-                  builder: (context, ids, _) {
-                    return _GroupProjectsCard(
-                      projects: projects,
-                      isLoading: isLoading,
-                      error: error,
-                      selectedIds: ids,
-                      onToggle: onToggle,
-                      onClear: onClear,
-                      expandedView: true,
-                      selectedIdsListenable: selectedIdsListenable,
-                    );
+  State<_GroupProjectsExpandedScreen> createState() =>
+      _GroupProjectsExpandedScreenState();
+}
+
+class _GroupProjectsExpandedScreenState
+    extends State<_GroupProjectsExpandedScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCreateProgram(Set<String> selectedIds) async {
+    if (selectedIds.length != 3) return;
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final programName = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final scheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.layers, color: scheme.primary, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text('Name Your Program'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Give a name to your new program.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+                VoiceTextFormField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Program Name',
+                    hintText: 'e.g., Terminal Modernization Program',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.3),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    if (value.trim().length < 3) {
+                      return 'Name must be at least 3 characters';
+                    }
+                    return null;
                   },
                 ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(nameController.text.trim());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Create Program'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (programName == null || !mounted) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await ProgramService.createProgram(
+        name: programName,
+        projectIds: selectedIds.toList(),
+        ownerId: user.uid,
+      );
+
+      if (!mounted) return;
+
+      widget.onClear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Program created successfully!'),
+            backgroundColor: Colors.green),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error creating program: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: const Text('Group Projects Into A Program'),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        foregroundColor: Colors.black87,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: Colors.grey.shade200),
+        ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Header Section ──
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Guidance text
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)],
+                      ),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFBFDBFE).withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B82F6).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.info_outline_rounded,
+                              size: 20, color: Color(0xFF3B82F6)),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Select up to three projects that share an outcome to create a new program.',
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: const Color(0xFF1E40AF),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Search bar
+                  VoiceTextField(
+                    controller: _searchController,
+                    style: const TextStyle(fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: 'Search projects to group...',
+                      hintStyle: const TextStyle(fontSize: 15),
+                      prefixIcon: Icon(Icons.search,
+                          color: Colors.grey.shade500, size: 22),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 20),
+                              onPressed: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            BorderSide(color: Colors.grey.shade300, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide:
+                            BorderSide(color: Theme.of(context).primaryColor, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 16),
+                    ),
+                    onChanged: (value) {
+                      setState(() => _searchQuery = value.toLowerCase().trim());
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Project List ──
+            Expanded(
+              child: widget.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : widget.error != null
+                      ? _buildErrorState(textTheme)
+                      : user == null
+                          ? _buildSignInState(textTheme)
+                          : _buildProjectList(),
+            ),
+
+            // ── Bottom Selection Bar ──
+            if (widget.selectedIdsListenable != null)
+              ValueListenableBuilder<Set<String>>(
+                valueListenable: widget.selectedIdsListenable!,
+                builder: (context, selectedIds, _) {
+                  return _SelectionBottomBar(
+                    selectedCount: selectedIds.length,
+                    onCreateProgram: () => _handleCreateProgram(selectedIds),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(TextTheme textTheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const SizedBox(height: 16),
+            Text('Error loading projects',
+                style: textTheme.bodyLarge?.copyWith(
+                    color: Colors.red.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(widget.error ?? '',
+                style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignInState(TextTheme textTheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline_rounded, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('Sign in to group projects',
+                style: textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectList() {
+    final allProjects = widget.projects;
+
+    // Apply search filter
+    final filteredProjects = _searchQuery.isEmpty
+        ? allProjects
+        : allProjects.where((project) {
+            final name = project.name.toLowerCase();
+            final status = project.status.toLowerCase();
+            return name.contains(_searchQuery) || status.contains(_searchQuery);
+          }).toList();
+
+    if (allProjects.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_off_outlined,
+                  size: 56, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text('No projects available to group',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('Create at least 3 projects first to form a program.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade500, height: 1.5),
+                  textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (filteredProjects.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 56, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text('No matching projects',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (widget.selectedIdsListenable != null) {
+      return ValueListenableBuilder<Set<String>>(
+        valueListenable: widget.selectedIdsListenable!,
+        builder: (context, selectedIds, _) {
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+            itemCount: filteredProjects.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final project = filteredProjects[index];
+              return _SelectableProjectRowFromFirebase(
+                project: project,
+                selected: selectedIds.contains(project.id),
+                onTap: () => widget.onToggle(project.id),
+              );
+            },
+          );
+        },
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+      itemCount: filteredProjects.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final project = filteredProjects[index];
+        return _SelectableProjectRowFromFirebase(
+          project: project,
+          selected: widget.selectedIds.contains(project.id),
+          onTap: () => widget.onToggle(project.id),
+        );
+      },
+    );
+  }
+}
+
+// ── Sticky Bottom Bar with Selection Progress ──
+class _SelectionBottomBar extends StatelessWidget {
+  const _SelectionBottomBar({
+    required this.selectedCount,
+    required this.onCreateProgram,
+  });
+
+  final int selectedCount;
+  final VoidCallback onCreateProgram;
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = selectedCount == 3;
+    final progress = selectedCount / 3;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Progress indicator
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: const Color(0xFFE2E8F0),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isActive
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF3B82F6),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Selection dots
+                Row(
+                  children: List.generate(3, (i) {
+                    final filled = i < selectedCount;
+                    return Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: filled
+                            ? (isActive
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF3B82F6))
+                            : const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                        boxShadow: filled
+                            ? [
+                                BoxShadow(
+                                  color: (isActive
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFF3B82F6))
+                                      .withOpacity(0.3),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: filled
+                          ? const Icon(Icons.check_rounded,
+                              size: 14, color: Colors.white)
+                          : null,
+                    );
+                  }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Status text + button
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isActive
+                            ? 'Ready to create program!'
+                            : 'Select ${3 - selectedCount} more project${3 - selectedCount == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: isActive
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$selectedCount of 3 projects selected',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: isActive ? onCreateProgram : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isActive
+                        ? const Color(0xFF111827)
+                        : const Color(0xFFE2E8F0),
+                    foregroundColor: isActive ? Colors.white : Colors.grey,
+                    elevation: isActive ? 8 : 0,
+                    shadowColor: isActive
+                        ? Colors.black.withOpacity(0.3)
+                        : Colors.transparent,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 16),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 15,
+                    ),
+                  ),
+                  child: Text(
+                    isActive ? 'Create Program' : 'Select More',
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
