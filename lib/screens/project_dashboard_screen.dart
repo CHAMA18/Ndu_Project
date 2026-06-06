@@ -507,66 +507,28 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   required bool isLoading,
                   String? error,
                 }) {
-                  if (isCompact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SingleProjectsCard(
-                          projects: projects,
-                          isLoading: isLoading,
-                          error: error,
-                          isBasicPlan: widget.isBasicPlan,
-                        ),
-                        const SizedBox(height: 24),
-                        if (!widget.isBasicPlan) ...[
-                          _GroupProjectsCTA(
-                            projectCount: projects.length,
-                            isLoading: isLoading,
-                            onTap: () => _openGroupProjectsScreen(
-                              projects: projects,
-                              isLoading: isLoading,
-                              error: error,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                        const _ProgramsSummaryCard(),
-                      ],
-                    );
-                  }
-
-                  return Row(
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 7,
-                        child: _SingleProjectsCard(
-                          projects: projects,
-                          isLoading: isLoading,
-                          error: error,
-                          isBasicPlan: widget.isBasicPlan,
-                        ),
+                      _SingleProjectsCard(
+                        projects: projects,
+                        isLoading: isLoading,
+                        error: error,
+                        isBasicPlan: widget.isBasicPlan,
                       ),
                       if (!widget.isBasicPlan) ...[
-                        const SizedBox(width: 24),
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            children: [
-                              _GroupProjectsCTA(
-                                projectCount: projects.length,
-                                isLoading: isLoading,
-                                onTap: () => _openGroupProjectsScreen(
-                                  projects: projects,
-                                  isLoading: isLoading,
-                                  error: error,
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              const _ProgramsSummaryCard(),
-                            ],
+                        const SizedBox(height: 24),
+                        _GroupProjectsCTA(
+                          projectCount: projects.length,
+                          isLoading: isLoading,
+                          onTap: () => _openGroupProjectsScreen(
+                            projects: projects,
+                            isLoading: isLoading,
+                            error: error,
                           ),
                         ),
+                        const SizedBox(height: 24),
+                        const _ProgramsSummaryCard(),
                       ],
                     ],
                   );
