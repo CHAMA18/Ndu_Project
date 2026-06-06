@@ -846,6 +846,28 @@ class _ProjectDashboardMobileShellState
 
                                 const SizedBox(height: _Tokens.sectionGap),
 
+                                // ── Group Projects CTA ────────────────────
+                                if (!widget.isBasicPlan)
+                                  _MobileGroupProjectsCTA(
+                                    projectCount: groupingList.length,
+                                    isLoading: false,
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => _MobileGroupProjectsScreen(
+                                            projects: groupingList,
+                                            selectedIdsListenable: _selectedProjectIds,
+                                            onToggle: _toggleSelection,
+                                            onClear: _clearSelection,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+
+                                if (!widget.isBasicPlan)
+                                  const SizedBox(height: _Tokens.sectionGap),
+
                                 // ── Single Projects Section ──────────────────
                                 Container(
                                   padding:
@@ -973,26 +995,6 @@ class _ProjectDashboardMobileShellState
                                   ),
                                 ),
 
-                                const SizedBox(height: _Tokens.sectionGap),
-
-                                // ── Group Projects CTA ────────────────────
-                                if (!widget.isBasicPlan)
-                                  _MobileGroupProjectsCTA(
-                                    projectCount: groupingList.length,
-                                    isLoading: false,
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => _MobileGroupProjectsScreen(
-                                            projects: groupingList,
-                                            selectedIdsListenable: _selectedProjectIds,
-                                            onToggle: _toggleSelection,
-                                            onClear: _clearSelection,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
                               ],
                             ),
                           ),
@@ -1295,17 +1297,13 @@ class _MobileGroupProjectsCTA extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF334155)),
+          color: _Tokens.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(_Tokens.radiusXl),
+          border: Border.all(color: _Tokens.outlineVariant),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF3B82F6).withOpacity(0.1),
-              blurRadius: 16,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 20,
               offset: const Offset(0, 4),
             ),
           ],
@@ -1315,10 +1313,15 @@ class _MobileGroupProjectsCTA extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
-                ),
+                color: _Tokens.primary,
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: _Tokens.primary.withOpacity(0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: const Icon(Icons.layers_rounded,
                   color: Colors.white, size: 22),
@@ -1333,7 +1336,7 @@ class _MobileGroupProjectsCTA extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: _Tokens.onSurface,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1345,8 +1348,8 @@ class _MobileGroupProjectsCTA extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: hasProjects
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFFF87171),
+                          ? _Tokens.onSurfaceVariant
+                          : _Tokens.error,
                     ),
                   ),
                 ],
@@ -1355,11 +1358,11 @@ class _MobileGroupProjectsCTA extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.08),
+                color: _Tokens.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(Icons.arrow_forward_rounded,
-                  color: Color(0xFF94A3B8), size: 18),
+                  color: _Tokens.outline, size: 18),
             ),
           ],
         ),
@@ -1575,7 +1578,7 @@ class _MobileGroupProjectsScreenState
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextField(
+                  VoiceTextField(
                     controller: _searchController,
                     style: const TextStyle(fontSize: 15),
                     decoration: InputDecoration(

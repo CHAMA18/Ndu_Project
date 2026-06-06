@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
 
 // ─── Data Models ────────────────────────────────────────────────────────────
@@ -343,7 +344,7 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    TextField(
+                    VoiceTextField(
                       controller: labelController,
                       decoration: const InputDecoration(
                         labelText: 'Label',
@@ -352,7 +353,7 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: techController,
                       decoration: const InputDecoration(
                         labelText: 'Technology Stack',
@@ -362,7 +363,7 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
+                    VoiceTextField(
                       controller: descController,
                       maxLines: 3,
                       decoration: const InputDecoration(
@@ -410,7 +411,7 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Edit Connection'),
-        content: TextField(
+        content: VoiceTextField(
           controller: controller,
           decoration: const InputDecoration(
             labelText: 'Connection Label',

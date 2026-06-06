@@ -18,7 +18,6 @@ import 'package:ndu_project/services/project_route_registry.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
-
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kSurfaceBackground = Color(0xFFFCFCFC);
@@ -2239,7 +2238,7 @@ class _WbsNotesCardState extends State<_WbsNotesCard> {
                 ),
                 const SizedBox(height: 12),
                 // Textarea
-                TextField(
+                VoiceTextField(
                   controller: _controller,
                   onChanged: _handleChanged,
                   maxLines: 4,

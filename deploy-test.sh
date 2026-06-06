@@ -2,16 +2,17 @@
 #
 # NDU Project - Deploy to Test Instance
 #
-# This script deploys the latest built web app to the testing instance
-# at chama18.github.io/NDU-Test/. It does NOT require pulling source code from GitHub.
+# This script deploys the latest built web app to the testing instance.
+# The test instance uses GitHub Pages at:
+#   https://chama18.github.io/NDU-Test/
+#
+# IMPORTANT: Do NOT use a custom domain or CNAME file.
+# The site must always be accessible at the GitHub Pages URL above.
 #
 # Usage:
 #   ./deploy-test.sh                    # Deploy current build to test
 #   ./deploy-test.sh --build            # Build fresh from source, then deploy
 #   ./deploy-test.sh --build --confirm  # Build, send email confirmation, then deploy
-#
-# The test instance is served from: https://github.com/CHAMA18/NDU-Test
-# Live URL: https://chama18.github.io/NDU-Test/
 #
 
 set -e
@@ -29,6 +30,7 @@ SOURCE_DIR="/home/z/my-project/Ndu_Project"
 BUILD_DIR="$SOURCE_DIR/build/web"
 TEST_REPO_DIR="/home/z/my-project/NDU-Test"
 FLUTTER_PATH="/home/z/flutter/bin/flutter"
+BASE_HREF="/NDU-Test/"
 DEPLOY_MSG="${2:-Update test instance with latest build}"
 
 echo ""
@@ -70,8 +72,8 @@ if [ "$DO_BUILD" = true ]; then
   export PATH="/home/z/flutter/bin:$PATH"
   cd "$SOURCE_DIR"
 
-  echo -e "${BLUE}Running: flutter build web --release --no-tree-shake-icons --base-href "/NDU-Test/"${NC}"
-  flutter build web --release --no-tree-shake-icons --base-href "/NDU-Test/"
+  echo -e "${BLUE}Running: flutter build web --release --no-tree-shake-icons --base-href "$BASE_HREF"${NC}"
+  /home/z/flutter/bin/flutter build web --release --no-tree-shake-icons --base-href "$BASE_HREF"
 
   # Patch canvaskit config
   if grep -q "canvasKitBaseUrl" "$BUILD_DIR/flutter_bootstrap.js"; then
@@ -154,10 +156,21 @@ find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name '.gitignore' -exec rm -rf 
 # Copy new files
 cp -r "$BUILD_DIR"/* .
 
-# Ensure NO CNAME file (we use chama18.github.io/NDU-Test/ directly)
-rm -f CNAME
+# ============================================================
+# CRITICAL: NEVER create a CNAME file in this repo!
+# CNAME causes GitHub Pages to use a custom domain, which
+# breaks the chama18.github.io/NDU-Test/ URL.
+# If a CNAME file was somehow created, remove it.
+# ============================================================
+if [ -f "CNAME" ]; then
+  echo -e "${RED}WARNING: CNAME file found! Removing it to prevent custom domain redirect.${NC}"
+  rm -f CNAME
+fi
 
-# Add 404.html for SPA routing on GitHub Pages subpath
+# Ensure .nojekyll exists to prevent Jekyll processing
+touch .nojekyll
+
+# Add 404.html for SPA routing (subpath version for /NDU-Test/)
 cat > 404.html << 'EOF404'
 <!DOCTYPE html>
 <html>
@@ -165,13 +178,14 @@ cat > 404.html << 'EOF404'
   <meta charset="utf-8">
   <title>NDU Project Test - Redirecting...</title>
   <script>
-    // SPA routing for GitHub Pages subpath
-    var l = window.location;
-    var path = l.pathname.replace(/^\/NDU-Test\//, '');
-    if (path && path !== '/') {
-      l.replace(l.origin + '/NDU-Test/' + l.search + '#' + path);
-    } else {
-      l.replace(l.origin + '/NDU-Test/');
+    // SPA routing for GitHub Pages subpath (/NDU-Test/)
+    var path = window.location.pathname;
+    var basePath = '/NDU-Test/';
+    if (path.indexOf(basePath) === 0 && path !== basePath) {
+      var relativePath = path.substring(basePath.length);
+      if (relativePath && relativePath !== '/') {
+        window.location.replace(window.location.origin + basePath + window.location.search + '#' + relativePath);
+      }
     }
   </script>
 </head>
@@ -181,12 +195,11 @@ cat > 404.html << 'EOF404'
 </html>
 EOF404
 
-# Patch index.html to add TEST ENVIRONMENT banner and fix base href
+# Patch index.html to add TEST ENVIRONMENT banner and ensure correct base href
 echo -e "${YELLOW}Adding TEST ENVIRONMENT banner to index.html...${NC}"
 
 # Ensure base href is correct for GitHub Pages subpath
-sed -i 's|<base href="/">|<base href="/NDU-Test/">|g' index.html
-sed -i 's|<base href="/NDU-Test/">|<base href="/NDU-Test/">|g' index.html
+sed -i "s|<base href=\"[^\"]*\">|<base href=\"/NDU-Test/\">|g" index.html
 
 # Update title
 sed -i 's|<title>NDU Project</title>|<title>NDU Project - TEST ENVIRONMENT</title>|g' index.html
@@ -210,6 +223,39 @@ echo -e "${YELLOW}Committing and pushing to test repo...${NC}"
 git add -A
 git commit --author="CHAMA18 <chungu424@gmail.com>" -m "Update test instance: $(date '+%Y-%m-%d %H:%M')" 2>/dev/null || echo "No changes to commit"
 git push origin main 2>&1
+
+# ============================================================
+# POST-DEPLOY VERIFICATION
+# Ensure no CNAME file exists and no custom domain is set
+# ============================================================
+echo ""
+echo -e "${YELLOW}Running post-deploy verification...${NC}"
+
+# Verify no CNAME file in the repo
+if [ -f "CNAME" ]; then
+  echo -e "${RED}ERROR: CNAME file still exists after deploy! Removing and forcing push.${NC}"
+  rm -f CNAME
+  git add -A
+  git commit --author="CHAMA18 <chungu424@gmail.com>" -m "Emergency: Remove CNAME file" 2>/dev/null || true
+  git push origin main 2>&1
+fi
+
+# Verify GitHub Pages has no custom domain via API
+PAGES_INFO=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/CHAMA18/NDU-Test/pages 2>/dev/null || echo "")
+if echo "$PAGES_INFO" | grep -q '"cname"'; then
+  CNAME_VALUE=$(echo "$PAGES_INFO" | python3 -c "import sys,json; print(json.load(sys.stdin).get('cname',''))" 2>/dev/null || echo "unknown")
+  if [ -n "$CNAME_VALUE" ] && [ "$CNAME_VALUE" != "None" ] && [ "$CNAME_VALUE" != "null" ]; then
+    echo -e "${RED}WARNING: Custom domain is set to '$CNAME_VALUE'. Removing it via API...${NC}"
+    # Remove custom domain via API by updating Pages with empty cname
+    curl -s -X PUT -H "Authorization: token ${GITHUB_TOKEN}" -H "Accept: application/vnd.github.v3+json" \
+      https://api.github.com/repos/CHAMA18/NDU-Test/pages \
+      -d '{"cname":null}' 2>/dev/null || true
+  else
+    echo -e "${GREEN}Verified: No custom domain set on GitHub Pages${NC}"
+  fi
+else
+  echo -e "${GREEN}Verified: GitHub Pages configuration OK${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}========================================${NC}"

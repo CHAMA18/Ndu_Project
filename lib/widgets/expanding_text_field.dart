@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 /// A drop-in TextField that grows vertically as the user types,
 /// with optional voice-to-text input via a microphone button.
@@ -157,7 +158,7 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
 
     final effectiveDecoration = _buildDecoration(baseDecoration, voiceEnabled);
 
-    return TextField(
+    return VoiceTextField(
       controller: _controller,
       focusNode: widget.focusNode,
       readOnly: widget.readOnly,
@@ -386,7 +387,7 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
 
     final effectiveDecoration = _buildDecoration(baseDecoration, voiceEnabled);
 
-    return TextFormField(
+    return VoiceTextFormField(
       controller: _controller,
       focusNode: widget.focusNode,
       readOnly: widget.readOnly,

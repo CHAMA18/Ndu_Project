@@ -508,14 +508,7 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SingleProjectsCard(
-                        projects: projects,
-                        isLoading: isLoading,
-                        error: error,
-                        isBasicPlan: widget.isBasicPlan,
-                      ),
                       if (!widget.isBasicPlan) ...[
-                        const SizedBox(height: 24),
                         Padding(
                           padding: EdgeInsets.symmetric(
                               horizontal: isCompact ? 20 : 40),
@@ -529,6 +522,15 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 24),
+                      ],
+                      _SingleProjectsCard(
+                        projects: projects,
+                        isLoading: isLoading,
+                        error: error,
+                        isBasicPlan: widget.isBasicPlan,
+                      ),
+                      if (!widget.isBasicPlan) ...[
                         const SizedBox(height: 24),
                         Padding(
                           padding: EdgeInsets.symmetric(
@@ -1568,7 +1570,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group Projects CTA – world‑class premium action button
+// Group Projects CTA – premium action button matching app theme
 // ─────────────────────────────────────────────────────────────────────────────
 class _GroupProjectsCTA extends StatefulWidget {
   const _GroupProjectsCTA({
@@ -1591,7 +1593,6 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
   late AnimationController _pulseController;
   late Animation<double> _shimmerAnim;
   late Animation<double> _pulseAnim;
-  late Animation<double> _glowAnim;
   bool _isHovered = false;
   bool _isPressed = false;
 
@@ -1608,15 +1609,12 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
       CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
     );
 
-    // Subtle pulsing glow
+    // Subtle pulsing accent glow
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
     )..repeat(reverse: true);
     _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-    _glowAnim = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
@@ -1631,6 +1629,8 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
   @override
   Widget build(BuildContext context) {
     final hasProjects = widget.projectCount >= 3;
+    final media = MediaQuery.of(context);
+    final isCompact = media.size.width < 600;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -1645,9 +1645,9 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
           builder: (context, child) {
             return Transform.scale(
               scale: _isPressed
-                  ? 0.97
+                  ? 0.98
                   : _isHovered
-                      ? 1.02
+                      ? 1.005
                       : 1.0,
               child: child,
             );
@@ -1657,66 +1657,57 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
             curve: Curves.easeOutCubic,
             height: 72,
             decoration: BoxDecoration(
-              gradient: _isPressed
-                  ? const LinearGradient(
-                      colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
-                    )
+              // White/light background matching app theme
+              color: _isPressed
+                  ? const Color(0xFFF0F4FF)
                   : _isHovered
-                      ? const LinearGradient(
-                          colors: [Color(0xFF2563EB), Color(0xFF6366F1)],
-                        )
-                      : const LinearGradient(
-                          begin: Alignment(-1.0, 0.0),
-                          end: Alignment(1.0, 0.0),
-                          colors: [
-                            Color(0xFF3B82F6),
-                            Color(0xFF6366F1),
-                            Color(0xFF8B5CF6),
-                          ],
-                          stops: [0.0, 0.5, 1.0],
-                        ),
-              borderRadius: BorderRadius.circular(20),
+                      ? const Color(0xFFF8FAFF)
+                      : Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
+              border: Border.all(
+                color: _isPressed
+                    ? const Color(0xFF3B82F6).withOpacity(0.5)
+                    : _isHovered
+                        ? const Color(0xFF3B82F6).withOpacity(0.35)
+                        : const Color(0xFFE4E7F3),
+                width: _isHovered || _isPressed ? 1.5 : 1.0,
+              ),
               boxShadow: [
-                // Primary glow
-                BoxShadow(
-                  color: const Color(0xFF3B82F6).withOpacity(
-                    _isPressed
-                        ? 0.5
-                        : _isHovered
-                            ? 0.4
-                            : 0.15 * _glowAnim.value,
+                // Subtle accent glow on hover/press
+                if (_isHovered || _isPressed)
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withOpacity(
+                      _isPressed ? 0.12 : 0.08,
+                    ),
+                    blurRadius: _isPressed ? 20 : 28,
+                    spreadRadius: _isPressed ? 0 : 2,
+                    offset: const Offset(0, 4),
                   ),
-                  blurRadius: _isPressed
-                      ? 16
-                      : _isHovered
-                          ? 32
-                          : 20 * _glowAnim.value,
-                  spreadRadius: _isPressed ? 0 : _isHovered ? 4 : 0,
-                  offset: Offset(0, _isPressed ? 2 : 6),
-                ),
-                // Ambient glow (pulsing)
+                // Subtle pulsing accent glow when idle
                 if (!_isHovered && !_isPressed)
                   BoxShadow(
-                    color: const Color(0xFF6366F1)
-                        .withOpacity(0.08 * _pulseAnim.value),
-                    blurRadius: 40 * _pulseAnim.value,
-                    spreadRadius: 2 * _pulseAnim.value,
-                    offset: const Offset(0, 0),
+                    color: const Color(0xFF3B82F6)
+                        .withOpacity(0.04 * _pulseAnim.value),
+                    blurRadius: 24 * _pulseAnim.value,
+                    spreadRadius: 1 * _pulseAnim.value,
+                    offset: const Offset(0, 2),
                   ),
-                // Depth shadow
+                // Depth shadow matching _FrostedSurface
                 BoxShadow(
-                  color: Colors.black.withOpacity(_isPressed ? 0.15 : 0.2),
-                  blurRadius: _isPressed ? 8 : 14,
-                  offset: Offset(0, _isPressed ? 1 : 4),
+                  color: Colors.black.withOpacity(
+                    _isPressed ? 0.03 : 0.05,
+                  ),
+                  blurRadius: _isPressed ? 12 : 28,
+                  offset: Offset(0, _isPressed ? 8 : 18),
                 ),
               ],
             ),
             child: Stack(
               children: [
-                // ── Shimmer sweep ──
+                // ── Shimmer sweep (subtle, theme-matched) ──
                 if (!_isHovered && !_isPressed)
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
                     child: FractionallySizedBox(
                       widthFactor: 0.3,
                       child: Align(
@@ -1725,9 +1716,9 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               colors: [
-                                Colors.white.withOpacity(0.0),
-                                Colors.white.withOpacity(0.08),
-                                Colors.white.withOpacity(0.0),
+                                const Color(0xFF3B82F6).withOpacity(0.0),
+                                const Color(0xFF3B82F6).withOpacity(0.04),
+                                const Color(0xFF3B82F6).withOpacity(0.0),
                               ],
                             ),
                           ),
@@ -1740,15 +1731,26 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
                     children: [
-                      // Icon badge
+                      // Icon badge with accent color
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(
-                            _isHovered || _isPressed ? 0.25 : 0.18,
-                          ),
+                          color: _isPressed
+                              ? const Color(0xFF3B82F6)
+                              : _isHovered
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF3B82F6).withOpacity(0.9),
                           borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withOpacity(
+                                _isHovered || _isPressed ? 0.3 : 0.15,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: widget.isLoading
                             ? const SizedBox(
@@ -1772,12 +1774,16 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Group Into Program',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                                color: _isPressed
+                                    ? const Color(0xFF1D4ED8)
+                                    : _isHovered
+                                        ? const Color(0xFF2563EB)
+                                        : const Color(0xFF1E293B),
                                 letterSpacing: -0.2,
                                 height: 1.2,
                               ),
@@ -1790,23 +1796,23 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
-                                color: Colors.white.withOpacity(
-                                  hasProjects ? 0.78 : 0.55,
-                                ),
+                                color: hasProjects
+                                    ? Colors.grey.shade600
+                                    : Colors.grey.shade400,
                                 height: 1.3,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      // Right arrow with animated container
+                      // Right arrow with accent tint
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(
-                            _isHovered || _isPressed ? 0.25 : 0.12,
-                          ),
+                          color: _isHovered || _isPressed
+                              ? const Color(0xFF3B82F6).withOpacity(0.1)
+                              : Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: AnimatedSlide(
@@ -1814,9 +1820,11 @@ class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
                               ? const Offset(0.15, 0)
                               : Offset.zero,
                           duration: const Duration(milliseconds: 200),
-                          child: const Icon(
+                          child: Icon(
                             Icons.arrow_forward_rounded,
-                            color: Colors.white,
+                            color: _isHovered || _isPressed
+                                ? const Color(0xFF3B82F6)
+                                : Colors.grey.shade500,
                             size: 20,
                           ),
                         ),
