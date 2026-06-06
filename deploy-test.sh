@@ -3,7 +3,7 @@
 # NDU Project - Deploy to Test Instance
 #
 # This script deploys the latest built web app to the testing instance
-# at test.nduproject.com. It does NOT require pulling source code from GitHub.
+# at chama18.github.io/NDU-Test/. It does NOT require pulling source code from GitHub.
 #
 # Usage:
 #   ./deploy-test.sh                    # Deploy current build to test
@@ -11,7 +11,7 @@
 #   ./deploy-test.sh --build --confirm  # Build, send email confirmation, then deploy
 #
 # The test instance is served from: https://github.com/CHAMA18/NDU-Test
-# Live URL: https://test.nduproject.com
+# Live URL: https://chama18.github.io/NDU-Test/
 #
 
 set -e
@@ -70,8 +70,8 @@ if [ "$DO_BUILD" = true ]; then
   export PATH="/home/z/flutter/bin:$PATH"
   cd "$SOURCE_DIR"
 
-  echo -e "${BLUE}Running: flutter build web --release --no-tree-shake-icons --base-href "/"${NC}"
-  flutter build web --release --no-tree-shake-icons --base-href "/"
+  echo -e "${BLUE}Running: flutter build web --release --no-tree-shake-icons --base-href "/NDU-Test/"${NC}"
+  flutter build web --release --no-tree-shake-icons --base-href "/NDU-Test/"
 
   # Patch canvaskit config
   if grep -q "canvasKitBaseUrl" "$BUILD_DIR/flutter_bootstrap.js"; then
@@ -154,10 +154,10 @@ find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name '.gitignore' -exec rm -rf 
 # Copy new files
 cp -r "$BUILD_DIR"/* .
 
-# Ensure test-specific files
-echo "test.nduproject.com" > CNAME
+# Ensure NO CNAME file (we use chama18.github.io/NDU-Test/ directly)
+rm -f CNAME
 
-# Add 404.html for SPA routing
+# Add 404.html for SPA routing on GitHub Pages subpath
 cat > 404.html << 'EOF404'
 <!DOCTYPE html>
 <html>
@@ -165,8 +165,14 @@ cat > 404.html << 'EOF404'
   <meta charset="utf-8">
   <title>NDU Project Test - Redirecting...</title>
   <script>
-    var path = window.location.pathname + window.location.search + window.location.hash;
-    window.location.replace(window.location.origin + '/' + path);
+    // SPA routing for GitHub Pages subpath
+    var l = window.location;
+    var path = l.pathname.replace(/^\/NDU-Test\//, '');
+    if (path && path !== '/') {
+      l.replace(l.origin + '/NDU-Test/' + l.search + '#' + path);
+    } else {
+      l.replace(l.origin + '/NDU-Test/');
+    }
   </script>
 </head>
 <body>
@@ -175,7 +181,29 @@ cat > 404.html << 'EOF404'
 </html>
 EOF404
 
-echo -e "${GREEN}Files copied successfully${NC}"
+# Patch index.html to add TEST ENVIRONMENT banner and fix base href
+echo -e "${YELLOW}Adding TEST ENVIRONMENT banner to index.html...${NC}"
+
+# Ensure base href is correct for GitHub Pages subpath
+sed -i 's|<base href="/">|<base href="/NDU-Test/">|g' index.html
+sed -i 's|<base href="/NDU-Test/">|<base href="/NDU-Test/">|g' index.html
+
+# Update title
+sed -i 's|<title>NDU Project</title>|<title>NDU Project - TEST ENVIRONMENT</title>|g' index.html
+
+# Add TEST ENVIRONMENT banner CSS and banner element if not already present
+if ! grep -q "test-environment-banner" index.html; then
+  # Add banner CSS before </style>
+  sed -i 's|</style>|#test-environment-banner{position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(135deg,#d97706,#dc2626);color:white;text-align:center;padding:8px 16px;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;box-shadow:0 2px 12px rgba(217,119,6,0.5);pointer-events:none;user-select:none}#test-environment-banner::after{content:"  TEST ENVIRONMENT - NOT FOR PRODUCTION USE"}\n</style>|' index.html
+
+  # Add banner div after <body>
+  sed -i 's|<body>|<body>\n  <div id="test-environment-banner"></div>|' index.html
+
+  # Add persistent banner script before </body>
+  sed -i 's|</body>|<script>(function(){var b=document.getElementById("test-environment-banner");var o=new MutationObserver(function(){if(!document.getElementById("test-environment-banner")){var n=document.createElement("div");n.id="test-environment-banner";n.style.cssText="position:fixed;top:0;left:0;right:0;z-index:999999;background:linear-gradient(135deg,#d97706,#dc2626);color:white;text-align:center;padding:8px 16px;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;box-shadow:0 2px 12px rgba(217,119,6,0.5);pointer-events:none;user-select:none;";n.textContent="";document.body.insertBefore(n,document.body.firstChild)}});o.observe(document.body,{childList:true,subtree:true})})();</script>\n</body>|' index.html
+fi
+
+echo -e "${GREEN}Files copied and patched successfully${NC}"
 
 # Step 5: Commit and push
 echo -e "${YELLOW}Committing and pushing to test repo...${NC}"
@@ -188,7 +216,7 @@ echo -e "${GREEN}========================================${NC}"
 echo -e "${GREEN}  TEST INSTANCE DEPLOYED!${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
-echo -e "  URL: ${CYAN}https://test.nduproject.com${NC}"
+echo -e "  URL: ${CYAN}https://chama18.github.io/NDU-Test/${NC}"
 echo -e "  Repo: ${CYAN}https://github.com/CHAMA18/NDU-Test${NC}"
 echo ""
 echo -e "  Note: GitHub Pages may take 1-2 minutes to update."
