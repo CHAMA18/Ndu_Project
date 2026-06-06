@@ -1,0 +1,12 @@
+.prompt_attachments
+.dart_tool
+*.hologram.dart
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.DS_Store
+.firebase/
+.zed/
+.codex/
+android/
+ios/
