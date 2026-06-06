@@ -499,8 +499,6 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isCompact = constraints.maxWidth < 1180;
-                final horizontalPadding =
-                    constraints.maxWidth < 600 ? 20.0 : 40.0;
 
                 Widget buildProjectColumns({
                   required List<ProjectRecord> projects,
@@ -518,34 +516,49 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                       ),
                       if (!widget.isBasicPlan) ...[
                         const SizedBox(height: 24),
-                        _GroupProjectsCTA(
-                          projectCount: projects.length,
-                          isLoading: isLoading,
-                          onTap: () => _openGroupProjectsScreen(
-                            projects: projects,
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 20 : 40),
+                          child: _GroupProjectsCTA(
+                            projectCount: projects.length,
                             isLoading: isLoading,
-                            error: error,
+                            onTap: () => _openGroupProjectsScreen(
+                              projects: projects,
+                              isLoading: isLoading,
+                              error: error,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 24),
-                        const _ProgramsSummaryCard(),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 20 : 40),
+                          child: const _ProgramsSummaryCard(),
+                        ),
                       ],
                     ],
                   );
                 }
 
                 return SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding, vertical: 36),
+                  padding: EdgeInsets.only(top: 36, bottom: 96),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _ProjectHeader(
-                        onAddProject: _handleAddProject,
-                        isBasicPlan: widget.isBasicPlan,
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 20 : 40),
+                        child: _ProjectHeader(
+                          onAddProject: _handleAddProject,
+                          isBasicPlan: widget.isBasicPlan,
+                        ),
                       ),
                       const SizedBox(height: 26),
-                      const _StatusStrip(),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 20 : 40),
+                        child: const _StatusStrip(),
+                      ),
                       const SizedBox(height: 28),
                       if (user == null)
                         buildProjectColumns(
@@ -1100,6 +1113,9 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
 
     return _FrostedSurface(
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+      removeBorder: true,
+      removeShadow: true,
+      removeRadius: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3929,10 +3945,19 @@ class _TableHeaderLabel extends StatelessWidget {
 }
 
 class _FrostedSurface extends StatelessWidget {
-  const _FrostedSurface({required this.child, this.padding});
+  const _FrostedSurface({
+    required this.child,
+    this.padding,
+    this.removeBorder = false,
+    this.removeShadow = false,
+    this.removeRadius = false,
+  });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
+  final bool removeBorder;
+  final bool removeShadow;
+  final bool removeRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -3944,9 +3969,9 @@ class _FrostedSurface extends StatelessWidget {
       padding: resolvedPadding,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
-        border: Border.all(color: const Color(0xFFE4E7F3)),
-        boxShadow: [
+        borderRadius: removeRadius ? BorderRadius.zero : BorderRadius.circular(isCompact ? 22 : 28),
+        border: removeBorder ? null : Border.all(color: const Color(0xFFE4E7F3)),
+        boxShadow: removeShadow ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 28,
