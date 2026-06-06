@@ -82,8 +82,12 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
     String? error,
   }) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _GroupProjectsExpandedScreen(
+      PageRouteBuilder(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            _GroupProjectsExpandedScreen(
           projects: projects,
           isLoading: isLoading,
           error: error,
@@ -92,6 +96,19 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
           onToggle: _toggleSelection,
           onClear: _clearSelection,
         ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final tween = Tween(begin: const Offset(0.0, 0.05), end: Offset.zero)
+              .animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
+          return SlideTransition(
+            position: tween,
+            child: FadeTransition(
+              opacity: CurvedAnimation(
+                  parent: animation, curve: Curves.easeOut),
+              child: child,
+            ),
+          );
+        },
       ),
     );
   }
@@ -1573,7 +1590,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Group Projects CTA – world‑class action button on the dashboard
+// Group Projects CTA – world‑class premium action button
 // ─────────────────────────────────────────────────────────────────────────────
 class _GroupProjectsCTA extends StatefulWidget {
   const _GroupProjectsCTA({
@@ -1591,299 +1608,248 @@ class _GroupProjectsCTA extends StatefulWidget {
 }
 
 class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnim;
+    with TickerProviderStateMixin {
+  late AnimationController _shimmerController;
+  late AnimationController _pulseController;
+  late Animation<double> _shimmerAnim;
+  late Animation<double> _pulseAnim;
   late Animation<double> _glowAnim;
   bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
 
-    _scaleAnim = Tween<double>(begin: 1.0, end: 1.012).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    // Shimmer sweep across the button surface
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    )..repeat();
+    _shimmerAnim = Tween<double>(begin: -1.2, end: 2.4).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
     );
-    _glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+
+    // Subtle pulsing glow
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+    _glowAnim = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _shimmerController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final hasProjects = widget.projectCount >= 3;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _isHovered ? 1.02 : _scaleAnim.value,
-            child: child,
-          );
-        },
-        child: GestureDetector(
-          onTap: widget.isLoading ? null : widget.onTap,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.isLoading ? null : widget.onTap,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_shimmerController, _pulseController]),
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _isPressed
+                  ? 0.97
+                  : _isHovered
+                      ? 1.02
+                      : 1.0,
+              child: child,
+            );
+          },
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
+            duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.all(28),
+            height: 72,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFF0F172A),
-                  Color(0xFF1E293B),
-                  Color(0xFF0F172A),
-                ],
-                stops: [0.0, 0.5, 1.0],
-              ),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: _isHovered
-                    ? const Color(0xFF3B82F6).withOpacity(0.6)
-                    : const Color(0xFF334155),
-                width: 1.5,
-              ),
+              gradient: _isPressed
+                  ? const LinearGradient(
+                      colors: [Color(0xFF1D4ED8), Color(0xFF4338CA)],
+                    )
+                  : _isHovered
+                      ? const LinearGradient(
+                          colors: [Color(0xFF2563EB), Color(0xFF6366F1)],
+                        )
+                      : const LinearGradient(
+                          begin: Alignment(-1.0, 0.0),
+                          end: Alignment(1.0, 0.0),
+                          colors: [
+                            Color(0xFF3B82F6),
+                            Color(0xFF6366F1),
+                            Color(0xFF8B5CF6),
+                          ],
+                          stops: [0.0, 0.5, 1.0],
+                        ),
+              borderRadius: BorderRadius.circular(20),
               boxShadow: [
+                // Primary glow
                 BoxShadow(
-                  color: const Color(0xFF3B82F6)
-                      .withOpacity(_isHovered ? 0.25 : 0.08 * _glowAnim.value),
-                  blurRadius: _isHovered ? 32 : 20,
-                  spreadRadius: _isHovered ? 2 : 0,
-                  offset: const Offset(0, 8),
+                  color: const Color(0xFF3B82F6).withOpacity(
+                    _isPressed
+                        ? 0.5
+                        : _isHovered
+                            ? 0.4
+                            : 0.15 * _glowAnim.value,
+                  ),
+                  blurRadius: _isPressed
+                      ? 16
+                      : _isHovered
+                          ? 32
+                          : 20 * _glowAnim.value,
+                  spreadRadius: _isPressed ? 0 : _isHovered ? 4 : 0,
+                  offset: Offset(0, _isPressed ? 2 : 6),
                 ),
+                // Ambient glow (pulsing)
+                if (!_isHovered && !_isPressed)
+                  BoxShadow(
+                    color: const Color(0xFF6366F1)
+                        .withOpacity(0.08 * _pulseAnim.value),
+                    blurRadius: 40 * _pulseAnim.value,
+                    spreadRadius: 2 * _pulseAnim.value,
+                    offset: const Offset(0, 0),
+                  ),
+                // Depth shadow
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(_isPressed ? 0.15 : 0.2),
+                  blurRadius: _isPressed ? 8 : 14,
+                  offset: Offset(0, _isPressed ? 1 : 4),
                 ),
               ],
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                // ── Icon + Badge Row ──
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
+                // ── Shimmer sweep ──
+                if (!_isHovered && !_isPressed)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: FractionallySizedBox(
+                      widthFactor: 0.3,
+                      child: Align(
+                        alignment: Alignment(_shimmerAnim.value, 0.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white.withOpacity(0.0),
+                                Colors.white.withOpacity(0.08),
+                                Colors.white.withOpacity(0.0),
+                              ],
+                            ),
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.layers_rounded,
-                        color: Colors.white,
-                        size: 26,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Group Into Program',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hasProjects
-                                ? '${widget.projectCount} projects available'
-                                : 'Need at least 3 projects',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: hasProjects
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFFF87171),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Animated arrow
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _isHovered
-                            ? const Color(0xFF3B82F6)
-                            : Colors.white.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        color: _isHovered
-                            ? Colors.white
-                            : const Color(0xFF94A3B8),
-                        size: 20,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // ── Description ──
-                const Text(
-                  'Select up to three projects that share an outcome to create a new program.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFFCBD5E1),
-                    height: 1.6,
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Metric Chips ──
-                Row(
-                  children: [
-                    _MetricChip(
-                      icon: Icons.folder_outlined,
-                      label: '${widget.projectCount} projects',
-                      color: const Color(0xFF3B82F6),
-                    ),
-                    const SizedBox(width: 10),
-                    const _MetricChip(
-                      icon: Icons.filter_alt_outlined,
-                      label: 'Up to 3',
-                      color: Color(0xFF8B5CF6),
-                    ),
-                    const SizedBox(width: 10),
-                    const _MetricChip(
-                      icon: Icons.auto_awesome,
-                      label: 'Program',
-                      color: Color(0xFFF59E0B),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // ── CTA Button ──
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: widget.isLoading ? null : widget.onTap,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: hasProjects
-                          ? const Color(0xFF3B82F6)
-                          : const Color(0xFF334155),
-                      foregroundColor: Colors.white,
-                      elevation: _isHovered ? 8 : 0,
-                      shadowColor: const Color(0xFF3B82F6).withOpacity(0.4),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    child: widget.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                hasProjects
-                                    ? 'Group Projects'
-                                    : 'Get Started',
-                              ),
-                              const SizedBox(width: 8),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                size: 18,
-                                color: hasProjects
-                                    ? Colors.white
-                                    : Colors.white54,
-                              ),
-                            ],
+                // ── Button content ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      // Icon badge
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(
+                            _isHovered || _isPressed ? 0.25 : 0.18,
                           ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: widget.isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(
+                                Icons.layers_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Text
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Group Into Program',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                                letterSpacing: -0.2,
+                                height: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              hasProjects
+                                  ? '${widget.projectCount} projects available'
+                                  : 'Need at least 3 projects',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white.withOpacity(
+                                  hasProjects ? 0.78 : 0.55,
+                                ),
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Right arrow with animated container
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(
+                            _isHovered || _isPressed ? 0.25 : 0.12,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: AnimatedSlide(
+                          offset: _isHovered || _isPressed
+                              ? const Offset(0.15, 0)
+                              : Offset.zero,
+                          duration: const Duration(milliseconds: 200),
+                          child: const Icon(
+                            Icons.arrow_forward_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  const _MetricChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2231,110 +2197,158 @@ class _GroupProjectsExpandedScreenState
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded),
-        ),
-        title: const Text('Group Projects Into A Program'),
-        backgroundColor: Colors.white,
-        elevation: 0.5,
-        foregroundColor: Colors.black87,
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: Colors.grey.shade200),
-        ),
-      ),
       body: SafeArea(
         child: Column(
           children: [
-            // ── Header Section ──
+            // ── Premium Header ──
             Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1E293B),
+                    Color(0xFF0F172A),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withOpacity(0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Guidance text
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)],
-                      ),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFBFDBFE).withOpacity(0.5)),
-                    ),
+                  // Top bar with back button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
                     child: Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF3B82F6).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Icon(Icons.info_outline_rounded,
-                              size: 20, color: Color(0xFF3B82F6)),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Select up to three projects that share an outcome to create a new program.',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: const Color(0xFF1E40AF),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                              height: 1.5,
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              color: Colors.white70),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.08),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Step indicator
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.12)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.layers_rounded,
+                                  size: 14, color: Color(0xFF818CF8)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Step 1 of 2',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF818CF8),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Title + description
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Group Projects Into A Program',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Select up to three projects that share an outcome to create a new program.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withOpacity(0.6),
+                            height: 1.5,
                           ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-
-                  // Search bar
-                  VoiceTextField(
-                    controller: _searchController,
-                    style: const TextStyle(fontSize: 16),
-                    decoration: InputDecoration(
-                      hintText: 'Search projects to group...',
-                      hintStyle: const TextStyle(fontSize: 15),
-                      prefixIcon: Icon(Icons.search,
-                          color: Colors.grey.shade500, size: 22),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 20),
-                              onPressed: () {
-                                setState(() {
-                                  _searchController.clear();
-                                  _searchQuery = '';
-                                });
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
+                  // Search bar (inside dark header)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                    child: VoiceTextField(
+                      controller: _searchController,
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Search projects to group...',
+                        hintStyle: TextStyle(
+                          fontSize: 15,
+                          color: Colors.white.withOpacity(0.35),
+                        ),
+                        prefixIcon: Icon(Icons.search,
+                            color: Colors.white.withOpacity(0.4), size: 22),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear,
+                                    size: 20, color: Colors.white.withOpacity(0.5)),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.06),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.1), width: 1.5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: const Color(0xFF818CF8), width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            BorderSide(color: Colors.grey.shade300, width: 1.5),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide:
-                            BorderSide(color: Theme.of(context).primaryColor, width: 2),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 16),
+                      onChanged: (value) {
+                        setState(() => _searchQuery = value.toLowerCase().trim());
+                      },
                     ),
-                    onChanged: (value) {
-                      setState(() => _searchQuery = value.toLowerCase().trim());
-                    },
                   ),
                 ],
               ),
@@ -2554,11 +2568,13 @@ class _SelectionBottomBar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 14),
-                // Selection dots
+                // Selection dots with animation
                 Row(
                   children: List.generate(3, (i) {
                     final filled = i < selectedCount;
-                    return Container(
+                    return AnimatedContainer(
+                      duration: Duration(milliseconds: 200 + i * 80),
+                      curve: Curves.easeOutBack,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       width: 24,
                       height: 24,
@@ -2624,28 +2640,57 @@ class _SelectionBottomBar extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: isActive ? onCreateProgram : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isActive
-                        ? const Color(0xFF111827)
-                        : const Color(0xFFE2E8F0),
-                    foregroundColor: isActive ? Colors.white : Colors.grey,
-                    elevation: isActive ? 8 : 0,
-                    shadowColor: isActive
-                        ? Colors.black.withOpacity(0.3)
-                        : Colors.transparent,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: isActive
+                        ? const LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
+                          )
+                        : null,
+                    color: isActive ? null : const Color(0xFFE2E8F0),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withOpacity(0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
                   ),
-                  child: Text(
-                    isActive ? 'Create Program' : 'Select More',
+                  child: ElevatedButton(
+                    onPressed: isActive ? onCreateProgram : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: isActive ? Colors.white : Colors.grey,
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      disabledBackgroundColor: Colors.transparent,
+                      disabledForegroundColor: Colors.grey,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isActive ? 'Create Program' : 'Select More',
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded, size: 18),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ],
