@@ -1680,10 +1680,10 @@ class _SettingsScreenState extends State<SettingsScreen>
     final statusColor = isConfigured ? Colors.green : Colors.red;
     final statusLabel = isConfigured ? 'Configured' : 'Not Configured';
     final subtitle = isEnvManaged
-        ? 'API key is set via environment and used across the app.'
+        ? 'API key is set via environment. Powered by Anthropic Claude.'
         : isConfigured
-            ? 'A runtime API key is active and used by all AI features.'
-            : 'Add an API key to enable AI features across the app.';
+            ? 'A runtime Anthropic API key is active. Powered by Claude.'
+            : 'Add an Anthropic API key to enable AI features powered by Claude.';
 
     return Card(
       margin: EdgeInsets.zero,
@@ -1702,7 +1702,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 color: const Color(0xFFEEF2FF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.bolt, color: Colors.blue),
+              child: const Icon(Icons.auto_awesome, color: Color(0xFFD97706)),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1711,7 +1711,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 children: [
                   Row(
                     children: [
-                      const Text('KAZ AI',
+                      const Text('KAZ AI · Claude',
                           style: TextStyle(
                               fontSize: 18, fontWeight: FontWeight.w700)),
                       const SizedBox(width: 8),

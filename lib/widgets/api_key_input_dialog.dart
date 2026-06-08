@@ -42,9 +42,9 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
     return AlertDialog(
       title: const Row(
         children: [
-          Icon(Icons.security, color: Colors.blue),
+          Icon(Icons.security, color: Color(0xFFD97706)),
           SizedBox(width: 8),
-          Text('Configure OpenAI API Key'),
+          Text('Configure AI API Key'),
         ],
       ),
       content: SingleChildScrollView(
@@ -53,7 +53,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'To enable AI-powered solution generation, please enter your OpenAI API key:',
+              'To enable AI-powered features, please enter your Anthropic (Claude) API key:',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -77,8 +77,8 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
                 }
               },
               decoration: InputDecoration(
-                labelText: 'OpenAI API Key',
-                hintText: 'sk-proj-...',
+                labelText: 'Anthropic API Key',
+                hintText: 'sk-ant-api03-...',
                 border: const OutlineInputBorder(),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -113,7 +113,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: const Color(0xFFD97706).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Column(
@@ -121,13 +121,13 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: Colors.blue),
+                      Icon(Icons.info_outline, size: 16, color: Color(0xFFD97706)),
                       SizedBox(width: 8),
                       Text('How to get your API key:', style: TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                   SizedBox(height: 8),
-                  Text('1. Go to platform.openai.com'),
+                  Text('1. Go to console.anthropic.com'),
                   Text('2. Sign in to your account'),
                   Text('3. Navigate to API Keys section'),
                   Text('4. Create a new API key'),
@@ -166,6 +166,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
       return;
     }
 
+    // Accept both Anthropic (sk-ant-) and OpenAI (sk-) key prefixes
     if (!apiKey.startsWith('sk-')) {
       _showError('API key should start with "sk-"');
       return;

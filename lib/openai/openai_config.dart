@@ -13,7 +13,9 @@ import 'package:ndu_project/utils/diagram_model.dart';
 const String apiKey = String.fromEnvironment('OPENAI_PROXY_API_KEY');
 const String endpoint = String.fromEnvironment('OPENAI_PROXY_ENDPOINT');
 
-/// Central configuration for OpenAI access.
+/// Central configuration for AI API access.
+/// Supports both OpenAI and Anthropic (Claude) models.
+/// The Firebase proxy auto-detects the model and routes accordingly.
 class OpenAiConfig {
   static String get _trimmedEnvEndpoint => endpoint.trim().isEmpty
       ? ''
@@ -36,8 +38,11 @@ class OpenAiConfig {
     return 'https://us-central1-$projectId.cloudfunctions.net/openaiProxy';
   }
 
-  /// Model used for light-weight autocomplete suggestions.
+  /// Model used for AI requests.
   static String get model => SecureAPIConfig.model;
+
+  /// Whether the current model is a Claude / Anthropic model.
+  static bool get isClaudeModel => SecureAPIConfig.isClaudeModel;
 
   /// OpenAI Agent Builder workflow used by the Firebase proxy.
   static String get workflowId => SecureAPIConfig.workflowId;
@@ -48,8 +53,9 @@ class OpenAiConfig {
   /// Determine if we're using a proxy endpoint (Cloud Function, server, etc.)
   /// Proxies in this app expect requests to the BASE URL with NO extra path.
   static bool get _isProxyEndpoint {
-    // Treat any non-openai.com endpoint as a proxy
-    return !baseEndpoint.contains('openai.com');
+    // Treat any non-openai.com and non-anthropic.com endpoint as a proxy
+    return !baseEndpoint.contains('openai.com') &&
+           !baseEndpoint.contains('anthropic.com');
   }
 
   /// Responses API endpoint. When using a proxy endpoint, do NOT append a path.
@@ -70,37 +76,36 @@ class OpenAiConfig {
     return Uri.parse('$base/chat/completions');
   }
 
-  /// Wraps a request body map with a workflow_id override that tells the
-  /// Firebase Cloud Function proxy to skip the default OpenAI Workflow and
-  /// forward the request directly to the Chat Completions / Responses API.
-  /// This prevents the workflow from injecting unsupported parameters (e.g.
-  /// 'reasoning') that cause 400 errors with models like gpt-4o.
+  /// Wraps a request body map with model-specific adjustments.
   ///
-  /// When the proxy receives `workflow_id: 'none'`, it evaluates to a truthy
-  /// string but does NOT start with 'wf_', so `getConfiguredOpenAiWorkflowId`
-  /// returns '' and the request goes directly to OpenAI.
-  ///
-  /// For reasoning models (o3, o4, o1), this also:
+  /// For OpenAI reasoning models (o3, o4, o1):
   /// - Removes `temperature` parameter (reasoning models only support default value of 1)
-  /// - Removes any legacy token parameters that are not accepted by the API
-  /// The Chat Completions API now requires `max_completion_tokens` for o3/o4
-  /// models. The legacy `max_tokens` parameter causes a 400 error.
+  /// - Removes legacy token parameters
+  ///
+  /// For Claude models:
+  /// - Uses `max_tokens` instead of `max_completion_tokens`
+  /// - Temperature works normally (no stripping needed)
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
     final result = Map<String, dynamic>.from(body);
 
-    // Strip unsupported params for reasoning models
+    if (isClaudeModel) {
+      // Claude uses max_tokens, not max_completion_tokens
+      if (result.containsKey('max_completion_tokens')) {
+        result['max_tokens'] = result.remove('max_completion_tokens');
+      }
+      if (result.containsKey('max_output_tokens')) {
+        result['max_tokens'] = result.remove('max_output_tokens');
+      }
+      // Claude doesn't support response_format — the proxy handles JSON mode
+      // by appending instructions to the user message
+      result.remove('response_format');
+      return result;
+    }
+
+    // Strip unsupported params for OpenAI reasoning models
     if (SecureAPIConfig.isReasoningModel) {
-      // The Chat Completions API now requires `max_completion_tokens` for
-      // reasoning models (o3, o4). The legacy `max_tokens` parameter causes:
-      //   - max_tokens → 400 "Unsupported parameter: 'max_tokens' is not supported with this model"
-      //   - max_output_tokens → 400 "Unknown parameter"
-      // So we remove the legacy variants and keep max_completion_tokens.
       result.remove('max_tokens');
       result.remove('max_output_tokens');
-
-      // Reasoning models (o3, o4, o1) only support temperature=1 (default).
-      // Sending any other value causes a 400 error:
-      // "'temperature' does not support X with this model. Only the default (1) value is supported."
       result.remove('temperature');
     }
 
@@ -111,8 +116,8 @@ class OpenAiConfig {
   static String? configurationWarning() {
     if (!kIsWeb) return null;
     if (_isProxyEndpoint) return null; // ok, using proxy
-    // On web with direct OpenAI endpoint: likely to hit CORS
-    return 'OpenAI proxy endpoint not configured. Using direct OpenAI endpoint may fail due to CORS. Set OPENAI_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
+    // On web with direct API endpoint: likely to hit CORS
+    return 'AI proxy endpoint not configured. Using direct API endpoint may fail due to CORS. Set OPENAI_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
   }
 }
 
@@ -121,10 +126,11 @@ class OpenAiNotConfiguredException implements Exception {
 
   @override
   String toString() =>
-      'OpenAI API key is not configured. Please add a valid key to enable suggestions.';
+      'AI API key is not configured. Please add a valid key to enable suggestions.';
 }
 
-/// Lightweight autocomplete service backed by OpenAI Responses API.
+/// Lightweight autocomplete service backed by the AI API.
+/// Works with both OpenAI and Claude models via the Firebase proxy.
 class OpenAiAutocompleteService {
   OpenAiAutocompleteService._internal({http.Client? client})
       : _client = client ?? http.Client();
@@ -186,21 +192,21 @@ class OpenAiAutocompleteService {
     try {
       final warn = OpenAiConfig.configurationWarning();
       if (warn != null) {
-        debugPrint('OpenAI configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
+        debugPrint('AI configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
       }
       final response = await _client
           .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
           .timeout(_timeout);
 
       if (response.statusCode == 429) {
-        throw Exception('OpenAI rate limit reached. Please try again shortly.');
+        throw Exception('AI rate limit reached. Please try again shortly.');
       }
       if (response.statusCode == 401) {
-        throw Exception('OpenAI rejected the API key. Please verify it.');
+        throw Exception('AI rejected the API key. Please verify it.');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-          'OpenAI request failed (${response.statusCode}): ${response.body}',
+          'AI request failed (${response.statusCode}): ${response.body}',
         );
       }
 
@@ -217,9 +223,9 @@ class OpenAiAutocompleteService {
 
       return _fallbackSuggestions(currentText, maxSuggestions);
     } on TimeoutException {
-      throw Exception('OpenAI request timed out. Please retry in a moment.');
+      throw Exception('AI request timed out. Please retry in a moment.');
     } on FormatException catch (e) {
-      throw Exception('Failed to parse OpenAI response: $e');
+      throw Exception('Failed to parse AI response: $e');
     }
   }
 
@@ -351,14 +357,14 @@ Always return ONLY a valid JSON object with nodes and edges arrays.'''
     try {
       final response = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 16));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('OpenAI diagram error ${response.statusCode}: ${response.body}');
+        throw Exception('AI diagram error ${response.statusCode}: ${response.body}');
       }
       final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content = (data['choices'] as List).first['message']['content'] as String;
       final parsed = jsonDecode(content) as Map<String, dynamic>;
       return _parseDiagram(parsed);
     } catch (e) {
-      debugPrint('OpenAI diagram generation failed: $e');
+      debugPrint('AI diagram generation failed: $e');
       // Fallback contextual diagram based on section
       return _createFallbackDiagram(section);
     }

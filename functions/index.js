@@ -11,6 +11,167 @@ const db = admin.firestore();
 
 const DEFAULT_OPENAI_WORKFLOW_ID = 'wf_69f1f5acc7ec819082fb76bbbf79b64d088ea0e514080150';
 
+// ============================================================================
+// ANTHROPIC / CLAUDE API TRANSLATION
+// ============================================================================
+// When the client requests a model starting with 'claude-', the proxy
+// translates the OpenAI-compatible request into Anthropic Messages API format
+// and translates the response back to OpenAI format for client compatibility.
+
+const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_VERSION = '2023-06-01';
+
+function isClaudeModel(modelName) {
+  return (modelName || '').toLowerCase().startsWith('claude-');
+}
+
+/**
+ * Translate an OpenAI Chat Completions request body to Anthropic Messages API format.
+ * - Extract system message from messages array → `system` top-level field
+ * - Rename `max_completion_tokens` / `max_tokens` → `max_tokens`
+ * - Strip unsupported OpenAI-only params
+ */
+function translateToAnthropic(payload) {
+  const model = payload.model || 'claude-sonnet-4-20250514';
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+
+  // Extract system message(s)
+  let systemPrompt = '';
+  const nonSystemMessages = [];
+  for (const msg of messages) {
+    if (msg.role === 'system') {
+      const content = typeof msg.content === 'string'
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content.map(c => c.text || c.content || '').join('\n')
+          : String(msg.content || '');
+      systemPrompt += (systemPrompt ? '\n\n' : '') + content;
+    } else {
+      nonSystemMessages.push(translateMessageContent(msg));
+    }
+  }
+
+  // Handle Responses API input format
+  if (!nonSystemMessages.length && Array.isArray(payload.input)) {
+    for (const msg of payload.input) {
+      if (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant') {
+        const content = typeof msg.content === 'string'
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? msg.content.map(c => c.text || c.content || '').join('\n')
+            : String(msg.content || '');
+        if (msg.role === 'system') {
+          systemPrompt += (systemPrompt ? '\n\n' : '') + content;
+        } else {
+          nonSystemMessages.push({ role: msg.role, content });
+        }
+      }
+    }
+  }
+
+  // Build Anthropic request
+  const anthropic = {
+    model,
+    max_tokens: payload.max_completion_tokens || payload.max_tokens || payload.max_output_tokens || 1200,
+    messages: nonSystemMessages.length ? nonSystemMessages : [{ role: 'user', content: 'Please assist.' }],
+  };
+  if (systemPrompt) anthropic.system = systemPrompt;
+  if (payload.temperature != null) anthropic.temperature = payload.temperature;
+  if (payload.top_p != null) anthropic.top_p = payload.top_p;
+  if (payload.stop_sequences || payload.stop) anthropic.stop_sequences = payload.stop_sequences || payload.stop;
+  if (payload.stream === true) anthropic.stream = true;
+  // Pass through response_format if the client wants JSON
+  if (payload.response_format && payload.response_format.type === 'json_object') {
+    anthropic.messages = anthropic.messages.map(m => ({
+      ...m,
+      content: m.role === 'user'
+        ? m.content + '\n\nIMPORTANT: Return ONLY valid JSON, no markdown, no commentary.'
+        : m.content,
+    }));
+  }
+  return anthropic;
+}
+
+/**
+ * Translate message content from OpenAI format to simple string format for Anthropic.
+ */
+function translateMessageContent(msg) {
+  const role = msg.role === 'assistant' ? 'assistant' : 'user';
+  if (typeof msg.content === 'string') return { role, content: msg.content };
+  if (Array.isArray(msg.content)) {
+    const text = msg.content
+      .map(c => c.text || c.content || (typeof c === 'string' ? c : ''))
+      .filter(Boolean)
+      .join('\n');
+    return { role, content: text };
+  }
+  return { role, content: String(msg.content || '') };
+}
+
+/**
+ * Translate an Anthropic Messages API response back to OpenAI Chat Completions format.
+ * This keeps the client-side parsing code working without modification.
+ */
+function translateAnthropicToOpenAI(anthropicResponse, requestedModel) {
+  // Extract text from content blocks
+  let text = '';
+  if (Array.isArray(anthropicResponse.content)) {
+    text = anthropicResponse.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('');
+  } else if (typeof anthropicResponse.content === 'string') {
+    text = anthropicResponse.content;
+  }
+
+  return {
+    id: anthropicResponse.id || `chatcmpl-${Date.now()}`,
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: requestedModel || anthropicResponse.model || 'claude-sonnet-4-20250514',
+    choices: [{
+      index: 0,
+      message: { role: 'assistant', content: text },
+      finish_reason: anthropicResponse.stop_reason === 'end_turn' ? 'stop' : (anthropicResponse.stop_reason || 'stop'),
+    }],
+    usage: {
+      prompt_tokens: anthropicResponse.usage?.input_tokens || 0,
+      completion_tokens: anthropicResponse.usage?.output_tokens || 0,
+      total_tokens: (anthropicResponse.usage?.input_tokens || 0) + (anthropicResponse.usage?.output_tokens || 0),
+    },
+  };
+}
+
+/**
+ * Translate an Anthropic response into OpenAI Responses API format.
+ */
+function translateAnthropicToResponses(anthropicResponse, requestedModel) {
+  let text = '';
+  if (Array.isArray(anthropicResponse.content)) {
+    text = anthropicResponse.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('');
+  } else if (typeof anthropicResponse.content === 'string') {
+    text = anthropicResponse.content;
+  }
+
+  return {
+    id: anthropicResponse.id || `resp-${Date.now()}`,
+    object: 'response',
+    output: [{
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text }],
+    }],
+    model: requestedModel || anthropicResponse.model || 'claude-sonnet-4-20250514',
+    usage: {
+      input_tokens: anthropicResponse.usage?.input_tokens || 0,
+      output_tokens: anthropicResponse.usage?.output_tokens || 0,
+    },
+  };
+}
+
 // Lazy-load config to avoid deployment timeouts
 function getRuntimeConfig() {
   try {
@@ -374,7 +535,7 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
 
 exports.openaiProxy = functions
   .runWith({
-    secrets: ['OPENAI_API_KEY'],
+    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })
@@ -420,12 +581,52 @@ exports.openaiProxy = functions
         return;
       }
       
+      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
+      const modelName = requestPayload.model || '';
+
+      // ── ANTHROPIC / CLAUDE PATH ─────────────────────────────────────────
+      // If the requested model starts with 'claude-', route through the
+      // Anthropic Messages API instead of OpenAI.
+      if (isClaudeModel(modelName)) {
+        const anthropicApiKey = process.env.ANTHROPIC_API_KEY || apiKey; // fallback to OPENAI_API_KEY if ANTHROPIC not set
+        if (!anthropicApiKey) {
+          res.status(500).json({ error: 'Service configuration error: no Anthropic API key' });
+          return;
+        }
+        const anthropicPayload = translateToAnthropic(requestPayload);
+        const isResponsesRequest = req.body && (typeof req.body === 'object') && ('input' in req.body);
+
+        console.log(`Proxy → Anthropic Messages API (model=${modelName})`);
+        const anthropicResponse = await fetch(ANTHROPIC_API_BASE, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicApiKey,
+            'anthropic-version': ANTHROPIC_VERSION,
+          },
+          body: JSON.stringify(anthropicPayload),
+        });
+
+        const data = await anthropicResponse.json();
+
+        if (!anthropicResponse.ok) {
+          console.error('Anthropic API error:', JSON.stringify(data));
+          res.status(anthropicResponse.status).json(data);
+          return;
+        }
+
+        // Translate Anthropic response back to OpenAI format for client compatibility
+        const openaiFormatted = isResponsesRequest
+          ? translateAnthropicToResponses(data, modelName)
+          : translateAnthropicToOpenAI(data, modelName);
+        res.status(200).json(openaiFormatted);
+        return;
+      }
+
+      // ── OPENAI PATH (legacy) ────────────────────────────────────────────
       const workflowId = getConfiguredOpenAiWorkflowId(req);
 
       // Determine endpoint path from request payload
-      // If client provides explicit endpoint, use it. Otherwise, infer:
-      // - Presence of `input` usually means Responses API
-      // - Otherwise default to Chat Completions
       let endpoint = req.body.endpoint;
       if (!endpoint) {
         if (req.body && (typeof req.body === 'object') && ('input' in req.body)) {
@@ -434,7 +635,6 @@ exports.openaiProxy = functions
           endpoint = '/chat/completions';
         }
       }
-      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
       const openaiUrl = workflowId
         ? `https://api.openai.com/v1/workflows/${workflowId}/run`
         : `https://api.openai.com/v1${endpoint}`;

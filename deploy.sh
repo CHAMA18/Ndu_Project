@@ -32,8 +32,9 @@ echo -e "${BLUE}Step 1:${NC} Getting dependencies..."
 flutter pub get
 
 echo ""
-echo -e "${BLUE}Step 2:${NC} Building user app..."
-flutter build web --target=lib/main.dart --no-tree-shake-icons --release --pwa-strategy=none
+echo -e "${BLUE}Step 2:${NC} Building user app (with Anthropic Claude AI)..."
+flutter build web --target=lib/main.dart --no-tree-shake-icons --release --pwa-strategy=none \
+  --dart-define=ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ User app built successfully${NC}"
 else
@@ -51,7 +52,8 @@ echo -e "${GREEN}✓ Staging build copied to docs/${NC}"
 
 echo ""
 echo -e "${BLUE}Step 4:${NC} Building admin app..."
-flutter build web --target=lib/main_admin.dart --no-tree-shake-icons --release --output=build/admin_web/ --pwa-strategy=none
+flutter build web --target=lib/main_admin.dart --no-tree-shake-icons --release --output=build/admin_web/ --pwa-strategy=none \
+  --dart-define=ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}"
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Admin app built successfully${NC}"
 else

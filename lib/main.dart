@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ndu_project/firebase_options.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/api_config_secure.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -120,8 +121,10 @@ void main() async {
     debugPrint(stack.toString());
   }
 
-  // Initialize OpenAI API key from environment (if provided)
+  // Initialize AI API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
+  // Load Anthropic API key from compile-time --dart-define if available
+  SecureAPIConfig.initFromEnv();
   // Warm common local stores in background to reduce first-navigation latency.
   unawaited(UserPreferencesService.warmUp());
   unawaited(ProjectNavigationService.instance.warmUp());
