@@ -401,7 +401,7 @@ class _ProjectDashboardMobileShellState
                   children: [
                     Expanded(
                       child: Text(
-                        p.name.isEmpty ? 'Untitled Project' : p.name,
+                        p.displayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -532,7 +532,7 @@ class _ProjectDashboardMobileShellState
             ? singles
             : singles.where((e) {
                 final q = _query.toLowerCase();
-                return e.name.toLowerCase().contains(q) ||
+                return e.displayName.toLowerCase().contains(q) ||
                     e.status.toLowerCase().contains(q) ||
                     _owner(e).toLowerCase().contains(q);
               }).toList();
@@ -540,7 +540,7 @@ class _ProjectDashboardMobileShellState
             ? singles
             : singles.where((e) {
                 final q = _groupQuery.toLowerCase();
-                return e.name.toLowerCase().contains(q) ||
+                return e.displayName.toLowerCase().contains(q) ||
                     e.status.toLowerCase().contains(q);
               }).toList();
 
@@ -1924,8 +1924,9 @@ class _MobileGroupProjectsScreenState
     final filtered = _searchQuery.isEmpty
         ? widget.projects
         : widget.projects.where((p) {
-            return p.name.toLowerCase().contains(_searchQuery) ||
-                p.status.toLowerCase().contains(_searchQuery);
+            return p.displayName.toLowerCase().contains(_searchQuery) ||
+                p.status.toLowerCase().contains(_searchQuery) ||
+                p.solutionTitle.toLowerCase().contains(_searchQuery);
           }).toList();
 
     if (widget.projects.isEmpty) {
@@ -2018,9 +2019,7 @@ class _MobileGroupProjectsScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            project.name.isNotEmpty
-                                ? project.name
-                                : 'Untitled Project',
+                            project.displayName,
                             style: const TextStyle(
                               fontWeight: FontWeight.w600,
                               fontSize: 15,

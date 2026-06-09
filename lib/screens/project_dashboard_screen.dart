@@ -1369,7 +1369,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                 final firebaseProjects = _searchQuery.isEmpty
                     ? allProjects
                     : allProjects.where((project) {
-                        final name = project.name.toLowerCase();
+                        final name = project.displayName.toLowerCase();
                         final status = project.status.toLowerCase();
                         final milestone = project.milestone.toLowerCase();
                         return name.contains(_searchQuery) ||
@@ -2422,7 +2422,7 @@ class _GroupProjectsExpandedScreenState
     final filteredProjects = _searchQuery.isEmpty
         ? allProjects
         : allProjects.where((project) {
-            final name = project.name.toLowerCase();
+            final name = project.displayName.toLowerCase();
             final status = project.status.toLowerCase();
             return name.contains(_searchQuery) || status.contains(_searchQuery);
           }).toList();
@@ -3325,7 +3325,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName =
-        project.name.isNotEmpty ? project.name : 'Untitled Project';
+        project.displayName;
     final phaseLabel = project.progressSnapshot.currentPhase.trim().isEmpty
         ? (project.status.isNotEmpty ? project.status : 'Initiation')
         : project.progressSnapshot.currentPhase.trim();
@@ -3782,7 +3782,7 @@ class _SelectableProjectRowFromFirebase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName =
-        project.name.isNotEmpty ? project.name : 'Untitled Project';
+        project.displayName;
     final statusLabel =
         project.status.isNotEmpty ? project.status : 'Initiation';
 
