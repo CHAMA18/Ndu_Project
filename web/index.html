@@ -67,32 +67,37 @@
   <!-- Runtime environment config — loaded BEFORE Flutter so keys are
        available when EnvConfigLoader.load() runs in main(). -->
   <script src="env-config.js?v=__NDU_VERSION__"></script>
-  <script src="flutter_bootstrap.js?v=__NDU_VERSION__" async></script>
 
-  <!-- Hard refresh on stale service worker — detects version mismatch and force-reloads -->
+  <!-- Aggressive cache bust: always clear service workers & caches, then force-reload if stale -->
   <script>
     (function() {
       var NDU_BUILD = '__NDU_VERSION__';
       try {
-        var stored = localStorage.getItem('__ndu_build');
-        if (stored && stored !== NDU_BUILD) {
-          // Build changed — unregister old service worker and hard reload
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              regs.forEach(function(reg) { reg.unregister(); });
-            });
-          }
+        // Always unregister service workers to prevent stale caching
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(reg) { reg.unregister(); });
+          });
+        }
+        // Always clear Cache API entries
+        if ('caches' in window) {
           caches.keys().then(function(names) {
             names.forEach(function(name) { caches.delete(name); });
-          }).then(function() {
-            localStorage.setItem('__ndu_build', NDU_BUILD);
-            location.reload(true);
           });
+        }
+        // Check if build version changed → hard reload with query param to bust all caches
+        var stored = localStorage.getItem('__ndu_build');
+        if (stored && stored !== NDU_BUILD) {
+          localStorage.setItem('__ndu_build', NDU_BUILD);
+          // Force reload with cache bypass
+          location.replace(location.href.split('?')[0] + '?v=' + NDU_BUILD);
           return;
         }
         localStorage.setItem('__ndu_build', NDU_BUILD);
       } catch(e) {}
     })();
   </script>
+
+  <script src="flutter_bootstrap.js?v=__NDU_VERSION__" async></script>
 </body>
 </html>
