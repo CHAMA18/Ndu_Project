@@ -973,7 +973,16 @@ class _ProjectDashboardMobileShellState
                                   ),
                                 ),
 
-                                // ── Group Projects CTA (below project containers) ────
+                                // ── Programs & Portfolios Summary Container ────
+                                if (!widget.isBasicPlan) ...[
+                                  const SizedBox(height: _Tokens.sectionGap),
+                                  _MobileProgramsPortfoliosCard(
+                                    programCount: programCount,
+                                    portfolioCount: portfolioCount,
+                                  ),
+                                ],
+
+                                // ── Group Projects CTA — below ALL containers ────
                                 if (!widget.isBasicPlan) ...[
                                   const SizedBox(height: _Tokens.sectionGap),
                                   _MobileGroupProjectsCTA(
@@ -1268,6 +1277,175 @@ class _PremiumUserGreeting extends StatelessWidget {
         fontWeight: FontWeight.w800,
         color: Color(0xFF191C1D),
         height: 1,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile Programs & Portfolios Summary Card – shows counts for programs/portfolios
+// ─────────────────────────────────────────────────────────────────────────────
+class _MobileProgramsPortfoliosCard extends StatelessWidget {
+  const _MobileProgramsPortfoliosCard({
+    required this.programCount,
+    required this.portfolioCount,
+  });
+
+  final int programCount;
+  final int portfolioCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(_Tokens.cardPadding),
+      decoration: BoxDecoration(
+        color: _Tokens.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(_Tokens.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAF5FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.layers_outlined,
+                    size: 22, color: Color(0xFF9333EA)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Programs & Portfolios',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: _Tokens.onSurface,
+                        letterSpacing: -0.01,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'High-level containers for your grouped work.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: _Tokens.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAF5FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF9333EA).withOpacity(0.15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.layers,
+                          size: 20, color: Color(0xFF9333EA)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$programCount',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF9333EA),
+                              ),
+                            ),
+                            const Text(
+                              'Programs',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _Tokens.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF16A34A).withOpacity(0.15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pie_chart_outline_rounded,
+                          size: 20, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$portfolioCount',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF16A34A),
+                              ),
+                            ),
+                            const Text(
+                              'Portfolios',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _Tokens.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

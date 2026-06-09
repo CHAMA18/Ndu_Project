@@ -508,12 +508,18 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SingleProjectsCard(
-                        projects: projects,
-                        isLoading: isLoading,
-                        error: error,
-                        isBasicPlan: widget.isBasicPlan,
+                      // ── Single Projects Container ──
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 20 : 40),
+                        child: _SingleProjectsCard(
+                          projects: projects,
+                          isLoading: isLoading,
+                          error: error,
+                          isBasicPlan: widget.isBasicPlan,
+                        ),
                       ),
+                      // ── Programs & Portfolios Summary Container ──
                       if (!widget.isBasicPlan) ...[
                         const SizedBox(height: 24),
                         Padding(
@@ -521,6 +527,9 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                               horizontal: isCompact ? 20 : 40),
                           child: const _ProgramsSummaryCard(),
                         ),
+                      ],
+                      // ── Group Into Program CTA — below ALL containers ──
+                      if (!widget.isBasicPlan) ...[
                         const SizedBox(height: 24),
                         Padding(
                           padding: EdgeInsets.symmetric(
