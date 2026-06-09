@@ -7,6 +7,11 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="NDU Project - Navigate. Deliver. Upgrade.">
 
+  <!-- Aggressive cache prevention — ensures users always see the latest version -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -61,7 +66,33 @@
   </div>
   <!-- Runtime environment config — loaded BEFORE Flutter so keys are
        available when EnvConfigLoader.load() runs in main(). -->
-  <script src="env-config.js"></script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="env-config.js?v=__NDU_VERSION__"></script>
+  <script src="flutter_bootstrap.js?v=__NDU_VERSION__" async></script>
+
+  <!-- Hard refresh on stale service worker — detects version mismatch and force-reloads -->
+  <script>
+    (function() {
+      var NDU_BUILD = '__NDU_VERSION__';
+      try {
+        var stored = localStorage.getItem('__ndu_build');
+        if (stored && stored !== NDU_BUILD) {
+          // Build changed — unregister old service worker and hard reload
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              regs.forEach(function(reg) { reg.unregister(); });
+            });
+          }
+          caches.keys().then(function(names) {
+            names.forEach(function(name) { caches.delete(name); });
+          }).then(function() {
+            localStorage.setItem('__ndu_build', NDU_BUILD);
+            location.reload(true);
+          });
+          return;
+        }
+        localStorage.setItem('__ndu_build', NDU_BUILD);
+      } catch(e) {}
+    })();
+  </script>
 </body>
 </html>

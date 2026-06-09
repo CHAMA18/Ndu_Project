@@ -99,6 +99,11 @@ find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name '.gitignore' -exec rm -rf 
 # Copy new files
 cp -r "$BUILD_DIR"/* .
 
+# Inject cache-busting version stamp into index.html (replaces __NDU_VERSION__ placeholders)
+NDU_VERSION="$(date +%s)"
+echo -e "${BLUE}Injecting cache-bust version: ${NDU_VERSION}${NC}"
+sed -i "s/__NDU_VERSION__/${NDU_VERSION}/g" index.html
+
 # ============================================================
 # CRITICAL: NEVER create a CNAME file in this repo!
 # CNAME causes GitHub Pages to use a custom domain, which

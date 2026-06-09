@@ -198,6 +198,11 @@ EOF404
 # Patch index.html to add TEST ENVIRONMENT banner and ensure correct base href
 echo -e "${YELLOW}Adding TEST ENVIRONMENT banner to index.html...${NC}"
 
+# Inject cache-busting version stamp into index.html (replaces __NDU_VERSION__ placeholders)
+NDU_VERSION="$(date +%s)"
+echo -e "${BLUE}Injecting cache-bust version: ${NDU_VERSION}${NC}"
+sed -i "s/__NDU_VERSION__/${NDU_VERSION}/g" index.html
+
 # Ensure base href is correct for GitHub Pages subpath
 sed -i "s|<base href=\"[^\"]*\">|<base href=\"/NDU-Test/\">|g" index.html
 
