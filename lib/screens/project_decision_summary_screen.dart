@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -1450,19 +1451,15 @@ class _NextButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ElevatedButton(
+    return LoadingNextButton(
       onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-        elevation: 2,
-      ),
-      child: const Text(
-        'Next',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
+      backgroundColor: const Color(0xFFFFD700),
+      foregroundColor: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
+      borderRadius: 50,
+      elevation: 2,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
     );
   }
 }

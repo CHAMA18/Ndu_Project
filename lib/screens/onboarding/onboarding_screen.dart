@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 /// Onboarding screen with 3 pages
 /// Shown only on first app launch (native apps only)
@@ -122,24 +123,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       if (_currentPage > 0) const SizedBox(width: 16),
                       Expanded(
-                        child: ElevatedButton(
+                        child: LoadingNextButton(
                           onPressed: _nextPage,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFFD700),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            _currentPage == 2 ? 'Get Started' : 'Next',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black,
-                            ),
-                          ),
+                          label: _currentPage == 2 ? 'Get Started' : 'Next',
+                          backgroundColor: const Color(0xFFFFD700),
+                          foregroundColor: Colors.black,
+                          borderRadius: 12,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          elevation: 0,
                         ),
                       ),
                     ],

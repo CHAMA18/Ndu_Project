@@ -1264,7 +1264,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             Column(
               children: [
                 // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
                 Expanded(
                   child: Row(
                     children: [
@@ -1273,7 +1273,14 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
                         child: const InitiationLikeSidebar(
                             activeItemLabel: 'Business Case Detail'),
                       ),
-                      Expanded(child: _buildMainContent()),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                            Expanded(child: _buildMainContent()),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),

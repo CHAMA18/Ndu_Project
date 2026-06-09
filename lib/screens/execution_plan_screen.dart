@@ -63,7 +63,8 @@ class _ExecutionPlanScreenState extends State<ExecutionPlanScreen> {
               onBack: () => PlanningPhaseNavigation.goToPrevious(
                   context, 'execution_plan'),
               onNext: () => PlanningPhaseNavigation.goToNext(
-                  context, 'execution_plan'), onExportPdf: _exportPdf),
+                  context, 'execution_plan')),
+            ExecutionPlanActionButtons(onExportPdf: _exportPdf),
             const SizedBox(height: 32),
             const SectionIntro(),
             const SizedBox(height: 28),

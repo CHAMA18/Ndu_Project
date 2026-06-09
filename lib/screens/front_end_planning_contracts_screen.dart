@@ -16,6 +16,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -604,21 +605,16 @@ class _FrontEndPlanningContractsScreenState
                               const SizedBox(height: 32),
                               Align(
                                 alignment: Alignment.centerRight,
-                                child: ElevatedButton(
+                                child: LoadingNextButton(
                                   onPressed: _navigateToProcurement,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: _kFabYellow,
-                                    foregroundColor: _kFabOnYellow,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 32, vertical: 16),
-                                    elevation: 0,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  child: const Text('Next',
-                                      style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600)),
+                                  backgroundColor: _kFabYellow,
+                                  foregroundColor: _kFabOnYellow,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 32, vertical: 16),
+                                  elevation: 0,
+                                  borderRadius: 8,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 80),
@@ -1230,32 +1226,18 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                               fontWeight: FontWeight.w600)),
                                     ),
                                     const SizedBox(width: 16),
-                                    ElevatedButton(
+                                    LoadingNextButton(
                                       onPressed: _handleSubmit,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _kFabYellow,
-                                        foregroundColor: _kFabOnYellow,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 34, vertical: 18),
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(30)),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(_isEdit ? 'Save' : 'Next',
-                                              style: const TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w600)),
-                                          if (!_isEdit) ...[
-                                            const SizedBox(width: 12),
-                                            const Icon(Icons.arrow_forward,
-                                                size: 18),
-                                          ],
-                                        ],
-                                      ),
+                                      label: _isEdit ? 'Save' : 'Next',
+                                      showArrow: !_isEdit,
+                                      backgroundColor: _kFabYellow,
+                                      foregroundColor: _kFabOnYellow,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 34, vertical: 18),
+                                      elevation: 0,
+                                      borderRadius: 30,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ],
                                 ),

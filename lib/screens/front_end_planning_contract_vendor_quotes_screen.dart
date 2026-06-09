@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/screens/front_end_planning_procurement_screen.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -5434,20 +5435,13 @@ class _FrontEndPlanningContractVendorQuotesScreenState
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton(
+                child: LoadingNextButton(
                   onPressed: _navigateToProcurement,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF4B400),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                  ),
-                  child: const Text(
-                    'Next',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                  backgroundColor: const Color(0xFFF4B400),
+                  foregroundColor: Colors.black,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -6123,21 +6117,14 @@ class _BottomOverlay extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            ElevatedButton(
+            LoadingNextButton(
               onPressed: onNext,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFF6C437),
-                foregroundColor: const Color(0xFF111827),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 34, vertical: 16),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22)),
-                elevation: 0,
-              ),
-              child: const Text(
-                'Next',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-              ),
+              backgroundColor: const Color(0xFFF6C437),
+              foregroundColor: const Color(0xFF111827),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 34, vertical: 16),
+              borderRadius: 22,
+              elevation: 0,
             ),
           ],
         ),

@@ -37,6 +37,9 @@ String resolveExecutionCheckpoint(String key) {
   return executionCheckpointAlias[trimmed] ?? trimmed;
 }
 
+/// Navigation bar header for Execution Plan pages.
+/// Displays only the navigation bar (back/forward buttons, title, user profile).
+/// Use [ExecutionPlanActionButtons] for the Import / Content / Export PDF / AI Assist row.
 class ExecutionPlanHeader extends StatelessWidget {
   const ExecutionPlanHeader({
     super.key,
@@ -44,6 +47,33 @@ class ExecutionPlanHeader extends StatelessWidget {
     this.onNext,
     this.breadcrumbPhase,
     this.breadcrumbTitle,
+  });
+
+  final VoidCallback onBack;
+  final VoidCallback? onNext;
+  final String? breadcrumbPhase;
+  final String? breadcrumbTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return UnifiedPhaseHeader(
+      title: 'Execution Plan',
+      breadcrumbPhase: breadcrumbPhase,
+      breadcrumbTitle: breadcrumbTitle,
+      showDrawerButton: true,
+      onBackPressed: onBack,
+      onForwardPressed: onNext,
+      showActivityLogAction: true,
+    );
+  }
+}
+
+/// Action buttons row for Execution Plan pages (Import, Content, Export PDF, AI Assist).
+/// Place this widget INSIDE the content area (after the sidebar) so that it
+/// does not overflow into the sidebar space.
+class ExecutionPlanActionButtons extends StatelessWidget {
+  const ExecutionPlanActionButtons({
+    super.key,
     this.showImportButton = true,
     this.showContentButton = true,
     this.showExportPdf = true,
@@ -52,12 +82,8 @@ class ExecutionPlanHeader extends StatelessWidget {
     this.onContentPressed,
     this.onExportPdf,
     this.onAiAssist,
+    this.breadcrumbTitle,
   });
-
-  final VoidCallback onBack;
-  final VoidCallback? onNext;
-  final String? breadcrumbPhase;
-  final String? breadcrumbTitle;
 
   /// Show Import button in the action row.
   final bool showImportButton;
@@ -83,6 +109,9 @@ class ExecutionPlanHeader extends StatelessWidget {
   /// Callback for AI Assist button.
   final VoidCallback? onAiAssist;
 
+  /// Title used by the default export-pdf handler.
+  final String? breadcrumbTitle;
+
   void _defaultExportPdf(BuildContext context) {
     final title = breadcrumbTitle ?? 'Execution Plan';
     PdfExportHelper.exportScreenPdf(
@@ -107,58 +136,46 @@ class ExecutionPlanHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        UnifiedPhaseHeader(
-          title: 'Execution Plan',
-          breadcrumbPhase: breadcrumbPhase,
-          breadcrumbTitle: breadcrumbTitle,
-          showDrawerButton: true,
-          onBackPressed: onBack,
-          onForwardPressed: onNext,
-          showActivityLogAction: true,
-        ),
-        if (showImportButton || showContentButton || showExportPdf || showAiAssist) ...[
-          if (isMobile)
-            const SizedBox(height: 12)
-          else
-            const SizedBox(height: 16),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                if (showImportButton)
-                  _YellowButton(
-                    label: 'Import',
-                    icon: Icons.upload_outlined,
-                    onPressed: onImportPressed ?? () {},
-                  ),
-                if (showContentButton)
-                  _WhiteButton(
-                    label: 'Content',
-                    icon: Icons.download_outlined,
-                    onPressed: onContentPressed ?? () {},
-                  ),
-                if (showExportPdf)
-                  _WhiteButton(
-                    label: 'Export PDF',
-                    icon: Icons.picture_as_pdf_outlined,
-                    onPressed: onExportPdf ?? () => _defaultExportPdf(context),
-                  ),
-                if (showAiAssist)
-                  _AiAssistButton(
-                    label: 'AI Assist',
-                    icon: Icons.auto_awesome,
-                    onPressed: onAiAssist ?? () => _defaultAiAssist(context),
-                  ),
-              ],
+    if (!showImportButton && !showContentButton && !showExportPdf && !showAiAssist) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: isMobile ? 16 : 24,
+        right: isMobile ? 16 : 24,
+        top: isMobile ? 12 : 16,
+      ),
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          if (showImportButton)
+            _YellowButton(
+              label: 'Import',
+              icon: Icons.upload_outlined,
+              onPressed: onImportPressed ?? () {},
             ),
-          ),
+          if (showContentButton)
+            _WhiteButton(
+              label: 'Content',
+              icon: Icons.download_outlined,
+              onPressed: onContentPressed ?? () {},
+            ),
+          if (showExportPdf)
+            _WhiteButton(
+              label: 'Export PDF',
+              icon: Icons.picture_as_pdf_outlined,
+              onPressed: onExportPdf ?? () => _defaultExportPdf(context),
+            ),
+          if (showAiAssist)
+            _AiAssistButton(
+              label: 'AI Assist',
+              icon: Icons.auto_awesome,
+              onPressed: onAiAssist ?? () => _defaultAiAssist(context),
+            ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -694,26 +711,90 @@ class CrossReferenceNote extends StatelessWidget {
   }
 }
 
-class YellowActionButton extends StatelessWidget {
-  const YellowActionButton({super.key, required this.label, required this.onPressed});
+class YellowActionButton extends StatefulWidget {
+  const YellowActionButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.isLoading = false,
+  });
 
   final String label;
   final VoidCallback onPressed;
+  final bool isLoading;
+
+  @override
+  State<YellowActionButton> createState() => _YellowActionButtonState();
+}
+
+class _YellowActionButtonState extends State<YellowActionButton> {
+  bool _isNavigating = false;
+
+  bool get _showLoading => widget.isLoading || _isNavigating;
+
+  Future<void> _handlePress() async {
+    if (_showLoading) return;
+    setState(() => _isNavigating = true);
+
+    // Let the UI render the loading spinner before executing the callback
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    if (!mounted) return;
+    widget.onPressed();
+
+    // Keep the spinner visible briefly so the user sees the feedback
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) {
+      setState(() => _isNavigating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: onPressed,
+      onPressed: _showLoading ? null : _handlePress,
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFFFFD700),
         foregroundColor: Colors.black,
+        disabledBackgroundColor: const Color(0xFFFFD700).withOpacity(0.5),
+        disabledForegroundColor: Colors.black45,
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _showLoading
+            ? Row(
+                key: const ValueKey('loading'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Colors.black.withOpacity(0.5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black.withOpacity(0.6),
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                widget.label,
+                key: const ValueKey('idle'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
       ),
     );
   }

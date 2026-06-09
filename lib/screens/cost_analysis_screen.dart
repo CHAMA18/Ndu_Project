@@ -1282,7 +1282,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           child: Stack(
             children: [
               Column(children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
                 Expanded(
                     child: Row(children: [
                   DraggableSidebar(
@@ -1291,7 +1291,14 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                         activeItemLabel:
                             'Cost Benefit Analysis & Financial Metrics'),
                   ),
-                  Expanded(child: _buildMainContent()),
+                  Expanded(
+                    child: Column(
+                      children: [
+                        BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                        Expanded(child: _buildMainContent()),
+                      ],
+                    ),
+                  ),
                 ])),
               ]),
               MobileSidebarHamburger(

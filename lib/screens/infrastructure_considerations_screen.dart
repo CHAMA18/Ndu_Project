@@ -36,6 +36,7 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 enum _MissingInfrastructureAction { manual, autoFill, skip }
 
@@ -319,7 +320,7 @@ class _InfrastructureConsiderationsScreenState
         child: Stack(
           children: [
             Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(
@@ -327,7 +328,14 @@ class _InfrastructureConsiderationsScreenState
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'Infrastructure Considerations'),
                 ),
-                Expanded(child: _buildMainContent()),
+                Expanded(
+                  child: Column(
+                    children: [
+                      BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
+                ),
               ])),
             ]),
             MobileSidebarHamburger(
@@ -1638,18 +1646,15 @@ class _InfrastructureConsiderationsScreenState
 
   // ignore: unused_element
   Widget _nextButton({required bool expand}) {
-    final button = ElevatedButton(
+    final button = LoadingNextButton(
       onPressed: _handleNextPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 0,
-        minimumSize: expand ? const Size.fromHeight(52) : null,
-      ),
-      child: const Text('Next',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      backgroundColor: const Color(0xFFFFD700),
+      foregroundColor: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      borderRadius: 8,
+      elevation: 0,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
     );
     if (expand) {
       return SizedBox(width: double.infinity, child: button);

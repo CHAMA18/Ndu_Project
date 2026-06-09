@@ -7,6 +7,7 @@ import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/widgets/user_access_chip.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -260,16 +261,15 @@ class _BottomOverlay extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  ElevatedButton(
-                    onPressed: () => ProjectFrameworkScreen.open(context), 
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC812),
-                      foregroundColor: const Color(0xFF111827),
-                      padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Next', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  LoadingNextButton(
+                    onPressed: () => ProjectFrameworkScreen.open(context),
+                    backgroundColor: const Color(0xFFFFC812),
+                    foregroundColor: const Color(0xFF111827),
+                    padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 16),
+                    borderRadius: 22,
+                    elevation: 0,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ],
               ),

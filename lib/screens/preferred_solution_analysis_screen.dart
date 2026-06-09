@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/widgets/header_banner_image.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -623,7 +624,7 @@ class _PreferredSolutionAnalysisScreenState
         child: Stack(
           children: [
             Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(
@@ -631,7 +632,14 @@ class _PreferredSolutionAnalysisScreenState
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'Preferred Solution Analysis'),
                 ),
-                Expanded(child: _buildMainContent()),
+                Expanded(
+                  child: Column(
+                    children: [
+                      BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
+                ),
               ])),
             ]),
             MobileSidebarHamburger(
@@ -1215,19 +1223,21 @@ class _PreferredSolutionAnalysisScreenState
             ),
             const Spacer(),
             // Next button
-            ElevatedButton.icon(
-              onPressed: _analysis.isEmpty ? null : _handleNextToSelectionPage,
-              icon: const Icon(Icons.arrow_forward, size: 16),
-              label: const Text('Next',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFC107),
-                foregroundColor: const Color(0xFF1a1a1a),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
-                elevation: 1,
+            IgnorePointer(
+              ignoring: _analysis.isEmpty,
+              child: Opacity(
+                opacity: _analysis.isEmpty ? 0.5 : 1.0,
+                child: LoadingNextButton(
+                  onPressed: _handleNextToSelectionPage,
+                  backgroundColor: const Color(0xFFFFC107),
+                  foregroundColor: const Color(0xFF1a1a1a),
+                  borderRadius: 8,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  elevation: 1,
+                  fontWeight: FontWeight.w600,
+                  showArrow: true,
+                ),
               ),
             ),
           ],
@@ -1295,19 +1305,19 @@ class _PreferredSolutionAnalysisScreenState
           const SizedBox(height: 14),
           Align(
             alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: _analysis.isEmpty ? null : _handleNextToSelectionPage,
-              icon: const Icon(Icons.arrow_forward, size: 18),
-              label: const Text('Next'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            child: IgnorePointer(
+              ignoring: _analysis.isEmpty,
+              child: Opacity(
+                opacity: _analysis.isEmpty ? 0.5 : 1.0,
+                child: LoadingNextButton(
+                  onPressed: _handleNextToSelectionPage,
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: Colors.black,
+                  borderRadius: 10,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                  showArrow: true,
                 ),
-                elevation: 0,
               ),
             ),
           ),
@@ -1740,19 +1750,19 @@ class _PreferredSolutionAnalysisScreenState
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        ElevatedButton(
-          onPressed: _isLoading ? null : _handleNextStep,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFFFD700),
-            foregroundColor: Colors.black,
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
-          ),
-          child: const Text(
-            'Next',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        IgnorePointer(
+          ignoring: _isLoading,
+          child: Opacity(
+            opacity: _isLoading ? 0.5 : 1.0,
+            child: LoadingNextButton(
+              onPressed: _handleNextStep,
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              borderRadius: 12,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -4599,29 +4609,24 @@ class _PreferredSolutionAnalysisScreenState
       child: const Icon(Icons.info_outline, color: Colors.white, size: 24),
     );
 
-    final buttonChild = const Text('Next',
-        style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black));
-    final buttonStyle = ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFFFFD700),
-      foregroundColor: Colors.black,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 0,
-    );
-
     if (isMobile) {
       return Row(
         children: [
           info,
           const SizedBox(width: 12),
           Expanded(
-            child: SizedBox(
-              height: 48,
-              child: ElevatedButton(
-                onPressed:
-                    _canNavigateToComparison ? _openComparisonPage : null,
-                style: buttonStyle,
-                child: buttonChild,
+            child: IgnorePointer(
+              ignoring: !_canNavigateToComparison,
+              child: Opacity(
+                opacity: _canNavigateToComparison ? 1.0 : 0.5,
+                child: LoadingNextButton(
+                  onPressed: _openComparisonPage,
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: Colors.black,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ),
@@ -4633,10 +4638,19 @@ class _PreferredSolutionAnalysisScreenState
       children: [
         info,
         const Spacer(),
-        ElevatedButton(
-          onPressed: _canNavigateToComparison ? _openComparisonPage : null,
-          style: buttonStyle,
-          child: buttonChild,
+        IgnorePointer(
+          ignoring: !_canNavigateToComparison,
+          child: Opacity(
+            opacity: _canNavigateToComparison ? 1.0 : 0.5,
+            child: LoadingNextButton(
+              onPressed: _openComparisonPage,
+              backgroundColor: const Color(0xFFFFD700),
+              foregroundColor: Colors.black,
+              borderRadius: 12,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ],
     );
@@ -6024,20 +6038,15 @@ class _PreferredSolutionComparisonScreen extends StatelessWidget {
               const SizedBox(height: 24),
               Align(
                 alignment: Alignment.centerRight,
-                child: ElevatedButton(
+                child: LoadingNextButton(
                   onPressed: () => _handleNext(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFD700),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                    elevation: 0,
-                  ),
-                  child: const Text('Next',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: Colors.black,
+                  borderRadius: 10,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 14),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

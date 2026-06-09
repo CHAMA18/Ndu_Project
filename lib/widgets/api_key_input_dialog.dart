@@ -61,6 +61,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
               controller: _apiKeyController,
               focusNode: _focusNode,
               obscureText: _isObscured,
+              enableImport: false,
               enableSuggestions: false,
               autocorrect: false,
               keyboardType: TextInputType.visiblePassword,

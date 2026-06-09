@@ -18,11 +18,12 @@ class SecureAPIConfig {
       'https://us-central1-ndu-d3f60.cloudfunctions.net/openaiProxy';
 
   // Default model used across AI requests.
-  // Using GPT-4o — OpenAI's fastest and most capable model, available through
-  // the Firebase Cloud Function proxy. Claude (Anthropic) models are also
-  // supported when a valid client-side Anthropic API key is provided via
-  // Settings > Integrations.
-  static const String model = 'gpt-4o';
+  // Using Claude Sonnet 4 — Anthropic's fastest and most capable model.
+  // Routes through the Firebase Cloud Function proxy by default (which
+  // detects the 'claude' prefix and forwards to the Anthropic API).
+  // When a user provides their own Anthropic API key via Settings > Integrations,
+  // direct client-side access is used for minimum latency.
+  static const String model = 'claude-sonnet-4-20250514';
 
   /// Anthropic API endpoint — used ONLY when a client-side API key is
   /// explicitly provided by the user (Settings > Integrations). When no

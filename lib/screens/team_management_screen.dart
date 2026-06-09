@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -373,19 +374,18 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                         const SizedBox(height: 28),
                         Align(
                           alignment: Alignment.centerRight,
-                          child: ElevatedButton(
+                          child: LoadingNextButton(
                             onPressed: () => PlanningPhaseNavigation.goToNext(
                               context,
                               'team_management',
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFFD700),
-                              foregroundColor: const Color(0xFF111827),
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            ),
-                            child: const Text('Next', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                            backgroundColor: const Color(0xFFFFD700),
+                            foregroundColor: const Color(0xFF111827),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 14),
+                            borderRadius: 20,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],

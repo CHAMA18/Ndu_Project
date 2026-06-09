@@ -53,7 +53,8 @@ class ExecutionPlanConstructionPlanScreen extends StatelessWidget {
               onBack: () => PlanningPhaseNavigation.goToPrevious(
                   context, 'execution_plan_construction_plan'),
               onNext: () => PlanningPhaseNavigation.goToNext(
-                  context, 'execution_plan_construction_plan'), onExportPdf: () => _exportPdf(context)),
+                  context, 'execution_plan_construction_plan')),
+            ExecutionPlanActionButtons(onExportPdf: () => _exportPdf(context)),
             const SizedBox(height: 32),
             const SectionIntro(
                 title: 'Execution Plan - Construction Plan'),

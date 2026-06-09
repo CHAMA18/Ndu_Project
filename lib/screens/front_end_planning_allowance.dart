@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
@@ -1249,20 +1250,14 @@ class _BottomOverlay extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    ElevatedButton(
+                    LoadingNextButton(
                       onPressed: onNext,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFC812),
-                        foregroundColor: const Color(0xFF111827),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 34, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(22)),
-                        elevation: 0,
-                      ),
-                      child: const Text('Next',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
+                      backgroundColor: const Color(0xFFFFC812),
+                      foregroundColor: const Color(0xFF111827),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 34, vertical: 16),
+                      borderRadius: 22,
+                      elevation: 0,
                     ),
                   ],
                 ),

@@ -35,6 +35,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
@@ -284,7 +285,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         child: Stack(
           children: [
             Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(
@@ -292,7 +293,14 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'Core Stakeholders'),
                 ),
-                Expanded(child: _buildMainContent()),
+                Expanded(
+                  child: Column(
+                    children: [
+                      BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
+                ),
               ])),
             ]),
             MobileSidebarHamburger(
@@ -1497,18 +1505,15 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   // ignore: unused_element
   Widget _nextButton({required bool expand}) {
-    final button = ElevatedButton(
+    final button = LoadingNextButton(
       onPressed: _handleNextPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 0,
-        minimumSize: expand ? const Size.fromHeight(52) : null,
-      ),
-      child: const Text('Next',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      backgroundColor: const Color(0xFFFFD700),
+      foregroundColor: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      borderRadius: 8,
+      elevation: 0,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
     );
     if (expand) {
       return SizedBox(width: double.infinity, child: button);

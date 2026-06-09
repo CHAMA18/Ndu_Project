@@ -519,6 +519,15 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     return provider?.projectData.isBasicPlanProject ?? false;
   }
 
+  /// Whether the current project uses the Agile methodology — which means
+  /// the Design Phase is not applicable (Agile uses iterative sprints instead
+  /// of a sequential design phase).
+  bool get _isAgileProject {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final framework = provider?.projectData.overallFramework?.trim().toLowerCase() ?? '';
+    return framework == 'agile';
+  }
+
   bool _isBasicPlanLocked(String label) {
     if (!_isBasicPlanProject) return false;
     final item = SidebarNavigationService.instance.findItemByLabel(label);
@@ -630,6 +639,28 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   // Goal: keep navigation responsive by not blocking route transitions on
   // network writes. We still persist data/checkpoint in the background.
   void _navigateWithCheckpoint(String checkpoint, Widget screen) {
+    // Block navigation to Design Phase checkpoints when Agile is selected
+    if (_isAgileProject) {
+      final designPhaseCheckpoints = [
+        'design_management',
+        'requirements_implementation',
+        'technical_alignment',
+        'development_set_up',
+        'ui_ux_design',
+        'backend_design',
+        'engineering_design',
+        'technical_development',
+        'tools_integration',
+        'long_lead_equipment_ordering',
+        'specialized_design',
+        'design_deliverables',
+      ];
+      if (designPhaseCheckpoints.contains(checkpoint)) {
+        _showAgileDesignPhaseUnavailableDialog();
+        return;
+      }
+    }
+
     // Validate Planning Phase requirements for Planning Phase checkpoints
     final planningPhaseCheckpoints = [
       'work_breakdown_structure',
@@ -869,6 +900,119 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             '$itemName is not available in your current plan. Please upgrade to access this feature.'),
         backgroundColor: Colors.orange,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  /// Show a modal explaining that the Design Phase is unavailable for Agile projects.
+  void _showAgileDesignPhaseUnavailableDialog() {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFCC00).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.speed_outlined,
+                color: Color(0xFFD97706),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Flexible(
+              child: Text(
+                'Agile Project',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF191C1D),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'The Design Phase is not available for Agile projects.',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF191C1D),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF7F9FB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE0E2E4)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFD97706),
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Agile projects use iterative sprint cycles instead of a sequential Design Phase. '
+                      'Design decisions are made continuously within each sprint, '
+                      'allowing for rapid feedback and adaptation. '
+                      'To access the Design Phase, switch your project framework to Waterfall or Hybrid.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF40484C),
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFFCC00),
+                foregroundColor: const Color(0xFF000000),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 1,
+              ),
+              child: const Text(
+                'Understood',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1614,13 +1758,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         : (isHighlighted ? activeColor : Colors.black87);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: AbsorbPointer(
         absorbing: !isInteractive,
         child: InkWell(
           onTap: isInteractive ? onTap : null,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: isHighlighted
                   ? activeColor.withOpacity(0.08)
@@ -1632,13 +1776,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             ),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: textColor),
-                const SizedBox(width: 16),
+                Icon(icon, size: 18, color: textColor),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       color: textColor,
                       fontWeight:
                           isHighlighted ? FontWeight.w600 : FontWeight.normal,
@@ -1666,13 +1810,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         : (isHighlighted ? activeColor : Colors.black87);
 
     return Padding(
-      padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
+      padding: const EdgeInsets.only(left: 28, right: 12, top: 2, bottom: 2),
       child: AbsorbPointer(
         absorbing: !isInteractive,
         child: InkWell(
           onTap: isInteractive ? onTap : null,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               color: isHighlighted
                   ? activeColor.withOpacity(0.08)
@@ -1685,16 +1829,16 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             child: Row(
               children: [
                 Icon(Icons.circle,
-                    size: 8,
+                    size: 6,
                     color: isDisabled
                         ? Colors.grey[400]
                         : (isHighlighted ? activeColor : Colors.grey[500])),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     title,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: textColor,
                       fontWeight:
                           isHighlighted ? FontWeight.w600 : FontWeight.normal,
@@ -1723,11 +1867,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         ? Colors.grey[400]
         : (isHighlighted ? activeColor : Colors.black87);
     return Padding(
-      padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
+      padding: const EdgeInsets.only(left: 28, right: 12, top: 2, bottom: 2),
       child: InkWell(
         onTap: isInteractive ? onTap : null,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isHighlighted
                 ? activeColor.withOpacity(0.08)
@@ -1740,16 +1884,16 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           child: Row(
             children: [
               Icon(Icons.circle,
-                  size: 8,
+                  size: 6,
                   color: isDisabled
                       ? Colors.grey[400]
                       : (isHighlighted ? activeColor : Colors.grey[500])),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: textColor,
                     fontWeight:
                         isHighlighted ? FontWeight.w600 : FontWeight.normal,
@@ -1763,7 +1907,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   color: isDisabled ? Colors.grey[400] : Colors.grey[600],
-                  size: 18),
+                  size: 16),
             ],
           ),
         ),
@@ -1780,7 +1924,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         ? Colors.grey[400]
         : (isHighlighted ? activeColor : Colors.black87);
     return Padding(
-      padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
+      padding: const EdgeInsets.only(left: 44, right: 12, top: 1, bottom: 1),
       child: AbsorbPointer(
         absorbing: !isInteractive,
         child: InkWell(
@@ -1788,7 +1932,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               ? onTap
               : (isDisabled ? () => _showLockedItemMessage(title) : null),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
             decoration: BoxDecoration(
               color: isHighlighted
                   ? activeColor.withOpacity(0.08)
@@ -1801,8 +1945,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             child: Row(
               children: [
                 Container(
-                  width: 4,
-                  height: 4,
+                  width: 3,
+                  height: 3,
                   decoration: BoxDecoration(
                     color: isDisabled
                         ? Colors.grey[300]
@@ -1810,7 +1954,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     title,
@@ -1835,47 +1979,70 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   Widget _buildExpandableHeader(IconData icon, String title,
       {required bool expanded,
       required VoidCallback onTap,
-      bool isActive = false}) {
+      bool isActive = false,
+      bool isDisabled = false}) {
     const activeColor = Color(0xFFD97706);
+    final isInteractive = !isDisabled;
+    final isHighlighted = isActive && !isDisabled;
+    final textColor = isDisabled
+        ? Colors.grey[400]
+        : (isHighlighted ? activeColor : Colors.black87);
+    final iconColor = isDisabled
+        ? Colors.grey[400]
+        : (isHighlighted ? activeColor : Colors.black87);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: isActive
-                ? activeColor.withOpacity(0.08)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: isActive
-                ? Border.all(color: activeColor.withOpacity(0.20))
-                : null,
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: isActive ? activeColor : Colors.black87),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: isActive ? activeColor : Colors.black87,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: AbsorbPointer(
+        absorbing: !isInteractive,
+        child: InkWell(
+          onTap: isInteractive ? onTap : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isHighlighted
+                  ? activeColor.withOpacity(0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+              border: isHighlighted
+                  ? Border.all(color: activeColor.withOpacity(0.20))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: iconColor),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: textColor,
+                            fontWeight: isHighlighted ? FontWeight.w600 : FontWeight.normal,
+                            decoration: isDisabled ? TextDecoration.lineThrough : null,
+                          ),
+                          softWrap: true,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (isDisabled) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.lock_outline, size: 12, color: Colors.grey[400]),
+                      ],
+                    ],
                   ),
-                  softWrap: true,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              Icon(
-                  expanded
-                      ? Icons.keyboard_arrow_up
-                      : Icons.keyboard_arrow_down,
-                  color: isActive ? activeColor : Colors.grey[700],
-                  size: 20),
-            ],
+                Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: isDisabled ? Colors.grey[400] : (isHighlighted ? activeColor : Colors.grey[700]),
+                    size: 18),
+              ],
+            ),
           ),
         ),
       ),
@@ -1905,7 +2072,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               child: Center(child: AppLogo(height: 64)),
             ),
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               decoration: const BoxDecoration(
                 border: Border(
                   bottom: BorderSide(color: Color(0xFFFFD700), width: 1),
@@ -1933,7 +2100,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             ),
             // Search bar
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
               child: Container(
                 height: 42,
                 decoration: BoxDecoration(
@@ -1944,6 +2111,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
                 child: VoiceTextField(
                   controller: _searchController,
                   onChanged: (value) => setState(() => _searchQuery = value),
+                  enableVoice: false,
+                  enableImport: false,
                   style: const TextStyle(
                       color: Color(0xFF1A1D1F),
                       fontSize: 14,
@@ -2024,6 +2193,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         _isBasicPlanLocked('Warranties & Operations Support');
     final lockProjectFinancialReview =
         _isBasicPlanLocked('Project Financial Review');
+    // Agile projects do not use a sequential Design Phase
+    final lockDesignPhaseAgile = _isAgileProject;
     return [
       _buildMenuItem(
         Icons.home_outlined,
@@ -2524,58 +2695,74 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         Icons.design_services_outlined,
         'Design Phase',
         expanded: _designPhaseExpanded,
-        onTap: () => setState(() {
-          _designPhaseExpanded = !_designPhaseExpanded;
-          _sharedDesignPhaseExpanded = _designPhaseExpanded;
-        }),
+        onTap: () {
+          if (lockDesignPhaseAgile) {
+            _showAgileDesignPhaseUnavailableDialog();
+            return;
+          }
+          setState(() {
+            _designPhaseExpanded = !_designPhaseExpanded;
+            _sharedDesignPhaseExpanded = _designPhaseExpanded;
+          });
+        },
         isActive: _activeIn(_designPhaseLabels),
+        isDisabled: lockDesignPhaseAgile,
       ),
-      if (_designPhaseExpanded) ...[
+      if (_designPhaseExpanded && !lockDesignPhaseAgile) ...[
         _buildSubMenuItem('Design Management',
             onTap: _openDesignManagement,
-            isActive: widget.activeItemLabel == 'Design Management'),
+            isActive: widget.activeItemLabel == 'Design Management',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem('Design Specifications',
             onTap: _openRequirementsImplementation,
-            isActive: widget.activeItemLabel == 'Design Specifications'),
+            isActive: widget.activeItemLabel == 'Design Specifications',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem('Technical Alignment',
             onTap: _openTechnicalAlignment,
-            isActive: widget.activeItemLabel == 'Technical Alignment'),
+            isActive: widget.activeItemLabel == 'Technical Alignment',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem('Development Set Up',
             onTap: _openDevelopmentSetUp,
-            isActive: widget.activeItemLabel == 'Development Set Up'),
+            isActive: widget.activeItemLabel == 'Development Set Up',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem('UI/UX Design',
             onTap: _openUiUxDesign,
-            isActive: widget.activeItemLabel == 'UI/UX Design'),
+            isActive: widget.activeItemLabel == 'UI/UX Design',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem('Backend Design',
             onTap: _openBackendDesign,
-            isActive: widget.activeItemLabel == 'Backend Design'),
+            isActive: widget.activeItemLabel == 'Backend Design',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem(
           'Engineering',
-          onTap: lockEngineering ? null : _openEngineeringDesign,
+          onTap: (lockEngineering || lockDesignPhaseAgile) ? null : _openEngineeringDesign,
           isActive: widget.activeItemLabel == 'Engineering',
-          isDisabled: lockEngineering,
+          isDisabled: lockEngineering || lockDesignPhaseAgile,
         ),
         _buildSubMenuItem(
           'Technical Development',
-          onTap: lockTechnicalDevelopment ? null : _openTechnicalDevelopment,
+          onTap: (lockTechnicalDevelopment || lockDesignPhaseAgile) ? null : _openTechnicalDevelopment,
           isActive: widget.activeItemLabel == 'Technical Development',
-          isDisabled: lockTechnicalDevelopment,
+          isDisabled: lockTechnicalDevelopment || lockDesignPhaseAgile,
         ),
         _buildSubMenuItem('Tools Integration',
             onTap: _openToolsIntegration,
-            isActive: widget.activeItemLabel == 'Tools Integration'),
+            isActive: widget.activeItemLabel == 'Tools Integration',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem('Long Lead Equipment Ordering',
             onTap: _openLongLeadEquipmentOrdering,
-            isActive: widget.activeItemLabel == 'Long Lead Equipment Ordering'),
+            isActive: widget.activeItemLabel == 'Long Lead Equipment Ordering',
+            isDisabled: lockDesignPhaseAgile),
         _buildSubMenuItem(
           'Specialized Design',
-          onTap: lockSpecializedDesign ? null : _openSpecializedDesign,
+          onTap: (lockSpecializedDesign || lockDesignPhaseAgile) ? null : _openSpecializedDesign,
           isActive: widget.activeItemLabel == 'Specialized Design',
-          isDisabled: lockSpecializedDesign,
+          isDisabled: lockSpecializedDesign || lockDesignPhaseAgile,
         ),
         _buildSubMenuItem('Design Deliverables',
             onTap: _openDesignDeliverables,
-            isActive: widget.activeItemLabel == 'Design Deliverables'),
+            isActive: widget.activeItemLabel == 'Design Deliverables',
+            isDisabled: lockDesignPhaseAgile),
       ],
       _buildExpandableHeader(
         Icons.play_circle_outline,

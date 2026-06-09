@@ -332,7 +332,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Stack(
           children: [
             Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
+              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
               Expanded(
                   child: Row(children: [
                 DraggableSidebar(
@@ -340,7 +340,14 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'IT Considerations'),
                 ),
-                Expanded(child: _buildMainContent()),
+                Expanded(
+                  child: Column(
+                    children: [
+                      BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                      Expanded(child: _buildMainContent()),
+                    ],
+                  ),
+                ),
               ])),
             ]),
             MobileSidebarHamburger(

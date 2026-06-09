@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/screens/front_end_planning_requirements_screen.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -638,20 +639,16 @@ class _FrontEndPlanningWorkspaceScreenState
               children: [
                 const KazAiChatBubble(positioned: false),
                 const SizedBox(width: 16),
-                ElevatedButton(
+                LoadingNextButton(
                   onPressed: _handleNextPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC812),
-                    foregroundColor: const Color(0xFF111827),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 28, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22)),
-                    elevation: 0,
-                  ),
-                  child: const Text('Next',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  backgroundColor: const Color(0xFFFFC812),
+                  foregroundColor: const Color(0xFF111827),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 14),
+                  borderRadius: 22,
+                  elevation: 0,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
               ],
             ),

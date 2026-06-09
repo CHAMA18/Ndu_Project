@@ -4,11 +4,13 @@ import 'package:ndu_project/services/voice_input_service.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
 /// A drop-in TextField that grows vertically as the user types,
-/// with optional voice-to-text input via a microphone button.
+/// with optional voice-to-text input via a microphone button and
+/// an import button for pasting/importing content.
 /// - No internal scrolling; the enclosing page scrolls instead.
 /// - By default starts with [minLines] and expands with content (maxLines=null).
 /// - Use for multiline content such as notes, descriptions, comments.
 /// - Set [enableVoice] to false to hide the mic button (defaults to true).
+/// - Set [enableImport] to false to hide the import button (defaults to true).
 class ExpandingTextField extends StatefulWidget {
   const ExpandingTextField({
     super.key,
@@ -28,6 +30,8 @@ class ExpandingTextField extends StatefulWidget {
     this.onSubmitted,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableImport = true,
+    this.importIconColor,
   });
 
   final TextEditingController? controller;
@@ -51,23 +55,23 @@ class ExpandingTextField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow.
   final Color? voiceIconColor;
 
+  /// Whether to show the import content button. Defaults to true.
+  final bool enableImport;
+
+  /// Color of the import icon. Defaults to grey.
+  final Color? importIconColor;
+
   @override
   State<ExpandingTextField> createState() => _ExpandingTextFieldState();
 }
 
 class _ExpandingTextFieldState extends State<ExpandingTextField> {
   late TextEditingController _controller;
-  final VoiceInputService _voiceService = VoiceInputService.instance;
-  StreamSubscription<VoiceResult>? _resultSubscription;
-  StreamSubscription<VoiceStatus>? _statusSubscription;
-  bool _isListening = false;
-  bool _voiceAvailable = true;
 
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? TextEditingController();
-    _checkAvailability();
   }
 
   @override
@@ -78,70 +82,8 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
     }
   }
 
-  Future<void> _checkAvailability() async {
-    final available = await _voiceService.initialize();
-    if (mounted && available != _voiceAvailable) {
-      setState(() => _voiceAvailable = available);
-    }
-  }
-
-  Future<void> _toggleVoiceInput() async {
-    if (_isListening) {
-      await _voiceService.stopListening();
-      _cleanupSubscriptions();
-      if (mounted) setState(() => _isListening = false);
-    } else {
-      final started = await _voiceService.startListening(
-        existingText: _controller.text,
-      );
-      if (!started) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Speech recognition is not available on this device.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-        return;
-      }
-
-      _resultSubscription = _voiceService.onResult.listen((result) {
-        if (!mounted) return;
-        final text = result.text;
-        _controller.text = text;
-        _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: text.length),
-        );
-        widget.onChanged?.call(text);
-
-        if (result.isFinal) {
-          if (mounted) setState(() => _isListening = false);
-          _cleanupSubscriptions();
-        }
-      });
-
-      _statusSubscription = _voiceService.onStatusChanged.listen((status) {
-        if (status == VoiceStatus.stopped || status == VoiceStatus.error) {
-          if (mounted) setState(() => _isListening = false);
-          _cleanupSubscriptions();
-        }
-      });
-
-      if (mounted) setState(() => _isListening = true);
-    }
-  }
-
-  void _cleanupSubscriptions() {
-    _resultSubscription?.cancel();
-    _resultSubscription = null;
-    _statusSubscription?.cancel();
-    _statusSubscription = null;
-  }
-
   @override
   void dispose() {
-    _cleanupSubscriptions();
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -150,13 +92,15 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled = widget.enableVoice && _voiceAvailable;
     final InputDecoration baseDecoration = widget.decoration ?? const InputDecoration(
       border: OutlineInputBorder(),
       isDense: true,
     );
 
-    final effectiveDecoration = _buildDecoration(baseDecoration, voiceEnabled);
+    final effectiveDecoration = baseDecoration.copyWith(
+      hintText: widget.hintText ?? baseDecoration.hintText,
+      labelText: widget.labelText ?? baseDecoration.labelText,
+    );
 
     return VoiceTextField(
       controller: _controller,
@@ -172,66 +116,16 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
       enabled: widget.enabled,
       onEditingComplete: widget.onEditingComplete,
       onSubmitted: widget.onSubmitted,
-    );
-  }
-
-  InputDecoration _buildDecoration(InputDecoration base, bool voiceEnabled) {
-    final decorated = base.copyWith(
-      hintText: widget.hintText ?? base.hintText,
-      labelText: widget.labelText ?? base.labelText,
-    );
-
-    if (!voiceEnabled) return decorated;
-
-    final micIcon = _buildMicIcon();
-    final existingSuffix = decorated.suffixIcon;
-    Widget suffixWidget;
-
-    if (existingSuffix != null) {
-      suffixWidget = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [existingSuffix, micIcon],
-      );
-    } else {
-      suffixWidget = micIcon;
-    }
-
-    return decorated.copyWith(suffixIcon: suffixWidget);
-  }
-
-  Widget _buildMicIcon() {
-    final iconColor = widget.voiceIconColor ?? const Color(0xFFFFB800);
-
-    if (_isListening) {
-      return Container(
-        width: 36,
-        height: 36,
-        margin: const EdgeInsets.only(right: 4),
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: IconButton(
-          icon: Icon(Icons.mic, color: iconColor, size: 18),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          onPressed: _toggleVoiceInput,
-          tooltip: 'Stop voice input',
-        ),
-      );
-    }
-
-    return IconButton(
-      icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 18),
-      padding: const EdgeInsets.only(right: 4),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
+      enableVoice: widget.enableVoice,
+      voiceIconColor: widget.voiceIconColor,
+      enableImport: widget.enableImport,
+      importIconColor: widget.importIconColor,
     );
   }
 }
 
-/// A Form-compatible variant using TextFormField, with voice-to-text support.
+/// A Form-compatible variant using TextFormField, with voice-to-text support
+/// and import content support.
 class ExpandingTextFormField extends StatefulWidget {
   const ExpandingTextFormField({
     super.key,
@@ -254,6 +148,8 @@ class ExpandingTextFormField extends StatefulWidget {
     this.autovalidateMode,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableImport = true,
+    this.importIconColor,
   });
 
   final TextEditingController? controller;
@@ -280,23 +176,23 @@ class ExpandingTextFormField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow.
   final Color? voiceIconColor;
 
+  /// Whether to show the import content button. Defaults to true.
+  final bool enableImport;
+
+  /// Color of the import icon. Defaults to grey.
+  final Color? importIconColor;
+
   @override
   State<ExpandingTextFormField> createState() => _ExpandingTextFormFieldState();
 }
 
 class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
   late TextEditingController _controller;
-  final VoiceInputService _voiceService = VoiceInputService.instance;
-  StreamSubscription<VoiceResult>? _resultSubscription;
-  StreamSubscription<VoiceStatus>? _statusSubscription;
-  bool _isListening = false;
-  bool _voiceAvailable = true;
 
   @override
   void initState() {
     super.initState();
     _controller = widget.controller ?? TextEditingController();
-    _checkAvailability();
   }
 
   @override
@@ -307,70 +203,8 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
     }
   }
 
-  Future<void> _checkAvailability() async {
-    final available = await _voiceService.initialize();
-    if (mounted && available != _voiceAvailable) {
-      setState(() => _voiceAvailable = available);
-    }
-  }
-
-  Future<void> _toggleVoiceInput() async {
-    if (_isListening) {
-      await _voiceService.stopListening();
-      _cleanupSubscriptions();
-      if (mounted) setState(() => _isListening = false);
-    } else {
-      final started = await _voiceService.startListening(
-        existingText: _controller.text,
-      );
-      if (!started) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Speech recognition is not available on this device.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-        return;
-      }
-
-      _resultSubscription = _voiceService.onResult.listen((result) {
-        if (!mounted) return;
-        final text = result.text;
-        _controller.text = text;
-        _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: text.length),
-        );
-        widget.onChanged?.call(text);
-
-        if (result.isFinal) {
-          if (mounted) setState(() => _isListening = false);
-          _cleanupSubscriptions();
-        }
-      });
-
-      _statusSubscription = _voiceService.onStatusChanged.listen((status) {
-        if (status == VoiceStatus.stopped || status == VoiceStatus.error) {
-          if (mounted) setState(() => _isListening = false);
-          _cleanupSubscriptions();
-        }
-      });
-
-      if (mounted) setState(() => _isListening = true);
-    }
-  }
-
-  void _cleanupSubscriptions() {
-    _resultSubscription?.cancel();
-    _resultSubscription = null;
-    _statusSubscription?.cancel();
-    _statusSubscription = null;
-  }
-
   @override
   void dispose() {
-    _cleanupSubscriptions();
     if (widget.controller == null) {
       _controller.dispose();
     }
@@ -379,13 +213,15 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled = widget.enableVoice && _voiceAvailable;
     final InputDecoration baseDecoration = widget.decoration ?? const InputDecoration(
       border: OutlineInputBorder(),
       isDense: true,
     );
 
-    final effectiveDecoration = _buildDecoration(baseDecoration, voiceEnabled);
+    final effectiveDecoration = baseDecoration.copyWith(
+      hintText: widget.hintText ?? baseDecoration.hintText,
+      labelText: widget.labelText ?? baseDecoration.labelText,
+    );
 
     return VoiceTextFormField(
       controller: _controller,
@@ -404,61 +240,10 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
       onEditingComplete: widget.onEditingComplete,
       onFieldSubmitted: widget.onFieldSubmitted,
       autovalidateMode: widget.autovalidateMode,
-    );
-  }
-
-  InputDecoration _buildDecoration(InputDecoration base, bool voiceEnabled) {
-    final decorated = base.copyWith(
-      hintText: widget.hintText ?? base.hintText,
-      labelText: widget.labelText ?? base.labelText,
-    );
-
-    if (!voiceEnabled) return decorated;
-
-    final micIcon = _buildMicIcon();
-    final existingSuffix = decorated.suffixIcon;
-    Widget suffixWidget;
-
-    if (existingSuffix != null) {
-      suffixWidget = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [existingSuffix, micIcon],
-      );
-    } else {
-      suffixWidget = micIcon;
-    }
-
-    return decorated.copyWith(suffixIcon: suffixWidget);
-  }
-
-  Widget _buildMicIcon() {
-    final iconColor = widget.voiceIconColor ?? const Color(0xFFFFB800);
-
-    if (_isListening) {
-      return Container(
-        width: 36,
-        height: 36,
-        margin: const EdgeInsets.only(right: 4),
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.15),
-          shape: BoxShape.circle,
-        ),
-        child: IconButton(
-          icon: Icon(Icons.mic, color: iconColor, size: 18),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-          onPressed: _toggleVoiceInput,
-          tooltip: 'Stop voice input',
-        ),
-      );
-    }
-
-    return IconButton(
-      icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 18),
-      padding: const EdgeInsets.only(right: 4),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
+      enableVoice: widget.enableVoice,
+      voiceIconColor: widget.voiceIconColor,
+      enableImport: widget.enableImport,
+      importIconColor: widget.importIconColor,
     );
   }
 }

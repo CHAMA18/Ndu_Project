@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -380,7 +381,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           children: [
             Column(
               children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                BusinessCaseHeader(scaffoldKey: _scaffoldKey),
                 Expanded(
                   child: Row(
                     children: [
@@ -389,7 +390,14 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                         child: const InitiationLikeSidebar(
                             activeItemLabel: 'Risk Identification'),
                       ),
-                      Expanded(child: _buildMainContent()),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            BusinessCaseActionButtons(onExportPdf: _exportPdf),
+                            Expanded(child: _buildMainContent()),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -544,19 +552,14 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton(
+                child: LoadingNextButton(
                   onPressed: _handleNextPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    textStyle: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 13.5),
-                  ),
-                  child: const Text('Next'),
+                  backgroundColor: const Color(0xFFFBBF24),
+                  foregroundColor: Colors.black,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],

@@ -520,6 +520,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
       children: [
         VoiceTextField(
           controller: _pasteController,
+          enableImport: false, // Already a paste area
           maxLines: 6,
           style: const TextStyle(
             fontSize: 12,
