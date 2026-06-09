@@ -78,7 +78,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
               },
               decoration: InputDecoration(
                 labelText: 'Anthropic API Key',
-                hintText: 'sk-ant-api03-...',
+                hintText: 'sk-ant-...',
                 border: const OutlineInputBorder(),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,

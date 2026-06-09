@@ -46,25 +46,22 @@ class OpenAiConfig {
   /// OpenAI Agent Builder workflow used by the Firebase proxy.
   static String get workflowId => SecureAPIConfig.workflowId;
 
-  // Consider configured if using a proxy endpoint (no client API key needed)
-  // OR if an API key is available. Claude models always need a key since
-  // they call the API directly.
-  static bool get isConfigured {
-    if (SecureAPIConfig.isClaudeModel) {
-      return apiKeyValue.isNotEmpty;
-    }
-    return _isProxyEndpoint || apiKeyValue.isNotEmpty;
-  }
+  // Always considered configured — the Firebase proxy has server-side
+  // API keys for both OpenAI and Anthropic (Claude) models, so AI features
+  // work out of the box. When a user provides their own key, direct access
+  // is used for lower latency.
+  static bool get isConfigured => true;
 
   /// Determine if we're using a proxy endpoint (Cloud Function, server, etc.)
   static bool get _isProxyEndpoint {
     return !baseEndpoint.contains('openai.com');
   }
 
-  /// Responses API endpoint. For Claude models, returns the Anthropic
-  /// Messages API endpoint directly. For OpenAI, uses the proxy.
+  /// Responses API endpoint. Routes through the Firebase proxy by default.
+  /// When a user has provided their own Claude API key, uses direct
+  /// Anthropic access for lower latency.
   static Uri responsesUri() {
-    if (SecureAPIConfig.isClaudeModel) {
+    if (SecureAPIConfig.useDirectAnthropicAccess) {
       return Uri.parse(SecureAPIConfig.anthropicBaseUrl);
     }
     final base = baseEndpoint.endsWith('/')
@@ -74,10 +71,11 @@ class OpenAiConfig {
     return Uri.parse('$base/responses');
   }
 
-  /// Chat Completions endpoint. For Claude models, returns the Anthropic
-  /// Messages API endpoint directly. For OpenAI, uses the proxy.
+  /// Chat Completions endpoint. Routes through the Firebase proxy by default.
+  /// When a user has provided their own Claude API key, uses direct
+  /// Anthropic access for lower latency.
   static Uri chatUri() {
-    if (SecureAPIConfig.isClaudeModel) {
+    if (SecureAPIConfig.useDirectAnthropicAccess) {
       return Uri.parse(SecureAPIConfig.anthropicBaseUrl);
     }
     final base = baseEndpoint.endsWith('/')
@@ -87,16 +85,22 @@ class OpenAiConfig {
     return Uri.parse('$base/chat/completions');
   }
 
-  /// Returns the appropriate HTTP headers for the current model.
-  /// Claude uses `x-api-key` + Anthropic-specific headers.
-  /// OpenAI uses `Authorization: Bearer`.
+  /// Returns the appropriate HTTP headers for the current request mode.
+  /// For direct Anthropic access (user-provided key): x-api-key + Anthropic headers.
+  /// For proxy access with Claude: passes key via x-anthropic-api-key header
+  /// so the proxy can forward it to the Anthropic API.
+  /// For proxy access without a key: standard Content-Type only (proxy uses
+  /// its server-side key).
   static Map<String, String> buildHeaders() {
     final base = <String, String>{'Content-Type': 'application/json'};
-    if (SecureAPIConfig.isClaudeModel) {
+    if (SecureAPIConfig.useDirectAnthropicAccess) {
       base['x-api-key'] = apiKeyValue;
       base['anthropic-version'] = '2023-06-01';
       base['anthropic-dangerous-direct-browser-access'] = 'true';
-    } else {
+    } else if (SecureAPIConfig.isClaudeModel && apiKeyValue.isNotEmpty) {
+      // Pass user's Claude key through the proxy via custom header
+      base['x-anthropic-api-key'] = apiKeyValue;
+    } else if (apiKeyValue.isNotEmpty) {
       base['Authorization'] = 'Bearer $apiKeyValue';
     }
     return base;
@@ -250,27 +254,28 @@ class OpenAiConfig {
     };
   }
 
-  /// Sends an AI request using the appropriate format for the current model.
-  /// For Claude models, this converts the request to Anthropic format and
-  /// the response back to OpenAI format transparently.
+  /// Sends an AI request using the appropriate format for the current mode.
+  /// - **Direct Anthropic access** (user-provided key): Converts to Anthropic
+  ///   format, calls API directly, converts response back to OpenAI format.
+  /// - **Proxy access** (default): Sends OpenAI-format body through the
+  ///   Firebase Cloud Function proxy, which handles Claude routing server-side.
   static Future<http.Response> sendRequest({
     required Uri uri,
     required Map<String, String> headers,
     required Map<String, dynamic> body,
     Duration? timeout,
   }) async {
-    if (SecureAPIConfig.isClaudeModel) {
-      // Use Anthropic-specific headers and payload format
+    if (SecureAPIConfig.useDirectAnthropicAccess) {
+      // Direct Anthropic access — convert payload format
       final claudeHeaders = buildHeaders();
       final claudePayload = convertToAnthropicPayload(wrapBody(body));
-      final claudeUri = chatUri(); // Always use Messages API endpoint
+      final claudeUri = chatUri();
 
       final response = await http
           .post(claudeUri, headers: claudeHeaders, body: claudePayload)
           .timeout(timeout ?? const Duration(seconds: 10));
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        // Convert Anthropic response to OpenAI format for seamless parsing
         try {
           final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
               as Map<String, dynamic>;
@@ -283,13 +288,12 @@ class OpenAiConfig {
           );
         } catch (e) {
           debugPrint('Failed to convert Anthropic response: $e');
-          // Return original response if conversion fails
           return response;
         }
       }
       return response;
     } else {
-      // OpenAI format — send as-is through the proxy
+      // Proxy access — send OpenAI-format body; proxy handles Claude routing
       final response = await http
           .post(uri, headers: headers, body: jsonEncode(wrapBody(body)))
           .timeout(timeout ?? const Duration(seconds: 10));
@@ -300,11 +304,9 @@ class OpenAiConfig {
   /// Helpful diagnostic used by UI to provide actionable error messages
   static String? configurationWarning() {
     if (!kIsWeb) return null;
-    if (SecureAPIConfig.isClaudeModel) {
-      // Claude uses direct API access with CORS header — no proxy needed
-      return null;
-    }
-    if (_isProxyEndpoint) return null; // ok, using proxy
+    // Proxy is always configured, so no warnings needed
+    if (_isProxyEndpoint) return null;
+    if (SecureAPIConfig.useDirectAnthropicAccess) return null;
     return 'AI proxy endpoint not configured. Using direct endpoint may fail due to CORS.';
   }
 }

@@ -67,6 +67,8 @@ class ApiKeyManager {
   }
 
   /// Persists the provided key under users/{uid}. Creates the document if missing.
+  /// Also saves to settings/ai_config so the Firebase Cloud Function proxy
+  /// can read the key server-side when no ANTHROPIC_API_KEY secret is set.
   static Future<void> persistForCurrentUser(String apiKey) async {
     setApiKey(apiKey);
     try {
@@ -81,8 +83,28 @@ class ApiKeyManager {
         SetOptions(merge: true),
       );
       debugPrint('ApiKeyManager: API key persisted to Firestore for user ${user.uid.substring(0, 6)}…');
+
+      // Also save to shared config so the proxy function can use it
+      await _saveToSharedConfig(apiKey.trim());
     } catch (e) {
       debugPrint('ApiKeyManager.persistForCurrentUser error: $e');
+    }
+  }
+
+  /// Saves the API key to the shared settings/ai_config document
+  /// so the Firebase Cloud Function proxy can read it server-side.
+  static Future<void> _saveToSharedConfig(String apiKey) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('ai_config')
+          .set({
+        'anthropicApiKey': apiKey,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('ApiKeyManager: API key saved to shared config for proxy.');
+    } catch (e) {
+      debugPrint('ApiKeyManager._saveToSharedConfig error: $e');
     }
   }
 

@@ -123,8 +123,9 @@ void main() async {
 
   // Initialize AI API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
-  // Load Anthropic API key from compile-time --dart-define if available
-  SecureAPIConfig.initFromEnv();
+  // Default Anthropic (Claude) API key is built into SecureAPIConfig,
+  // so AI features work out of the box without manual configuration.
+  // Users can still override via Settings > Integrations.
   // Warm common local stores in background to reduce first-navigation latency.
   unawaited(UserPreferencesService.warmUp());
   unawaited(ProjectNavigationService.instance.warmUp());

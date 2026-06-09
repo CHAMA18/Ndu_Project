@@ -7,8 +7,10 @@ class SecureAPIConfig {
 
   static String? _apiKey;
 
-  // Cloud Function proxy endpoint (keeps the API key server-side).
-  // Used as fallback for OpenAI models when no client-side key is provided.
+  // Cloud Function proxy endpoint — the only endpoint used for AI requests.
+  // Both OpenAI and Anthropic (Claude) requests route through this proxy,
+  // keeping API keys server-side for maximum security. The proxy function
+  // detects the model name and routes to the appropriate API.
   static const String baseUrl =
       'https://us-central1-ndu-d3f60.cloudfunctions.net/openaiProxy';
 
@@ -16,13 +18,12 @@ class SecureAPIConfig {
   // Using Claude Sonnet 4 — Anthropic's fastest and most capable model.
   // Claude Sonnet provides excellent quality at dramatically faster speeds
   // compared to OpenAI o3 reasoning model (2-4s vs 15-30s per request).
-  // Direct browser access eliminates proxy latency for near-instant responses.
   static const String model = 'claude-sonnet-4-20250514';
 
-  /// Anthropic API endpoint for direct browser access.
-  /// Claude models call this directly, bypassing the Firebase proxy
-  /// for minimum latency. The anthropic-dangerous-direct-browser-access
-  /// header enables CORS for browser-based requests.
+  /// Anthropic API endpoint — used ONLY when a client-side API key is
+  /// explicitly provided by the user (Settings > Integrations). When no
+  /// client key is set, all requests go through the Firebase proxy which
+  /// keeps the key server-side.
   static const String anthropicBaseUrl = 'https://api.anthropic.com/v1/messages';
 
   /// Whether the current model is an OpenAI reasoning model (o1, o3, o4, etc.)
@@ -32,20 +33,28 @@ class SecureAPIConfig {
   /// Whether the current model is an Anthropic Claude model.
   static bool get isClaudeModel => model.toLowerCase().startsWith('claude');
 
+  /// Whether we should use direct Anthropic API access (client-side key)
+  /// vs. routing through the Firebase proxy (server-side key).
+  /// Direct access is only used when a user has explicitly provided their
+  /// own Anthropic API key via Settings > Integrations.
+  static bool get useDirectAnthropicAccess =>
+      isClaudeModel && _apiKey != null && _apiKey!.trim().isNotEmpty;
+
   /// Returns the API endpoint URI for the current model.
-  /// Claude models use the direct Anthropic endpoint for fastest response.
-  /// OpenAI models use the Firebase Cloud Function proxy.
+  /// When a user-provided Claude API key exists, use direct Anthropic access
+  /// for minimum latency. Otherwise, route through the Firebase proxy.
   static Uri get apiEndpoint {
-    if (isClaudeModel) {
+    if (useDirectAnthropicAccess) {
       return Uri.parse(anthropicBaseUrl);
     }
     return Uri.parse(baseUrl);
   }
 
-  /// Returns the API key header name for the current model.
-  /// Claude uses `x-api-key`, OpenAI uses `Authorization: Bearer`.
+  /// Returns the API key headers for the current model.
+  /// For direct Anthropic access (user-provided key), uses x-api-key.
+  /// For proxy access, uses Authorization header (proxy handles auth).
   static Map<String, String> get authHeaders {
-    if (isClaudeModel) {
+    if (useDirectAnthropicAccess) {
       return {
         'x-api-key': _apiKey ?? '',
         'anthropic-version': '2023-06-01',
@@ -53,7 +62,7 @@ class SecureAPIConfig {
       };
     }
     return {
-      'Authorization': 'Bearer ${_apiKey ?? ''}',
+      'Authorization': 'Bearer ${apiKey ?? ''}',
     };
   }
 
@@ -74,8 +83,13 @@ class SecureAPIConfig {
   static const String workflowId =
       'wf_69f1f5acc7ec819082fb76bbbf79b64d088ea0e514080150';
 
+  /// Returns the API key — either the user-provided runtime key, or empty
+  /// string when using the Firebase proxy (which has its own server-side key).
   static String? get apiKey => _apiKey;
-  static bool get hasApiKey => _apiKey?.trim().isNotEmpty == true;
+
+  /// Whether any API key is available (either client-side or via proxy).
+  /// The proxy always has a server-side key, so this is always true.
+  static bool get hasApiKey => true;
 
   static void setApiKey(String apiKey) {
     _apiKey = apiKey.trim().isEmpty ? null : apiKey.trim();

@@ -88,7 +88,7 @@ function setCorsHeaders(req, res) {
   }
   res.set('Vary', 'Origin');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-anthropic-api-key, anthropic-version');
 }
 
 function getConfiguredOpenAiWorkflowId(req) {
@@ -399,10 +399,28 @@ exports.openaiProxy = functions
 
       // ── Anthropic (Claude) routing ──────────────────────────────────
       if (model.startsWith('claude')) {
-        const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        // Check for client-provided API key first (from Settings > Integrations)
+        let anthropicApiKey = req.headers['x-anthropic-api-key'] ||
+          req.headers['x-api-key'] || '';
+
+        // If no client key, try Firebase secret
         if (!anthropicApiKey) {
-          console.error('ANTHROPIC_API_KEY secret not configured');
-          res.status(500).json({ error: 'Anthropic service not configured' });
+          anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        }
+
+        // Fallback: try to read the key from Firestore (settings/ai_config)
+        if (!anthropicApiKey) {
+          try {
+            const configDoc = await db.collection('settings').doc('ai_config').get();
+            anthropicApiKey = configDoc.data()?.anthropicApiKey || '';
+          } catch (e) {
+            console.warn('Failed to read Anthropic key from Firestore:', e.message);
+          }
+        }
+
+        if (!anthropicApiKey) {
+          console.error('ANTHROPIC_API_KEY not configured (neither client header, secret, nor Firestore)');
+          res.status(500).json({ error: 'Anthropic service not configured. Add your API key in Settings > Integrations.' });
           return;
         }
 
