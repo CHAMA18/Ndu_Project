@@ -11,6 +11,7 @@ import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -610,48 +611,19 @@ class _PreferredSolutionAnalysisScreenState
   Widget build(BuildContext context) {
     // ignore: unused_local_variable
     final isMobile = AppBreakpoints.isMobile(context);
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.grey[50],
-      drawer: isMobile
-          ? const Drawer(
-              child: InitiationLikeSidebar(
-                  activeItemLabel: 'Preferred Solution Analysis'))
-          : null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                  child: Row(children: [
-                DraggableSidebar(
-                  openWidth: sidebarWidth,
-                  child: const InitiationLikeSidebar(
-                      activeItemLabel: 'Preferred Solution Analysis'),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      BusinessCaseActionButtons(onExportPdf: _exportPdf),
-                      Expanded(child: _buildMainContent()),
-                    ],
-                  ),
-                ),
-              ])),
-            ]),
-            MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Preferred Solution Analysis',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Preferred Solution Analysis',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Preferred Solution Analysis',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _notesController,
       ),
+      child: _buildMainContent(),
     );
   }
 

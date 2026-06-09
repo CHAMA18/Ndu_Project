@@ -2051,7 +2051,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final double bannerHeight = AppBreakpoints.isMobile(context) ? 72 : 96;
+    // Match the UnifiedPhaseHeader height (72px) so the sidebar banner
+    // bottom aligns with the app header bottom border.
+    const double bannerHeight = 72;
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
     return Container(
       width: sidebarWidth,
@@ -2065,11 +2067,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       child: Column(
         children: [
           if (widget.showHeader) ...[
-            // Full-width banner image above "StackOne"
+            // Banner image — matches app header height so borders align
             SizedBox(
               width: double.infinity,
               height: bannerHeight,
-              child: Center(child: AppLogo(height: 64)),
+              child: Center(child: AppLogo(height: 48)),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),

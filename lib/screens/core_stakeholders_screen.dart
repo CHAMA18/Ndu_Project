@@ -8,6 +8,7 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -276,43 +277,19 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: isMobile ? _buildMobileDrawer() : null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-              Expanded(
-                  child: Row(children: [
-                DraggableSidebar(
-                  openWidth: sidebarWidth,
-                  child: const InitiationLikeSidebar(
-                      activeItemLabel: 'Core Stakeholders'),
-                ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      BusinessCaseActionButtons(onExportPdf: _exportPdf),
-                      Expanded(child: _buildMainContent()),
-                    ],
-                  ),
-                ),
-              ])),
-            ]),
-            MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Core Stakeholders',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Core Stakeholders',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Core Stakeholders',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _notesController,
       ),
+      child: _buildMainContent(),
     );
   }
 

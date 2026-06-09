@@ -255,6 +255,9 @@ class OpenAiConfig {
   }
 
   /// Sends an AI request using the appropriate format for the current mode.
+  /// Includes automatic model fallback: if the primary model returns a 404
+  /// or other transient error, the request is retried with fallback models
+  /// from [SecureAPIConfig.fallbackModels].
   /// - **Direct Anthropic access** (user-provided key): Converts to Anthropic
   ///   format, calls API directly, converts response back to OpenAI format.
   /// - **Proxy access** (default): Sends OpenAI-format body through the
@@ -265,40 +268,99 @@ class OpenAiConfig {
     required Map<String, dynamic> body,
     Duration? timeout,
   }) async {
-    if (SecureAPIConfig.useDirectAnthropicAccess) {
-      // Direct Anthropic access — convert payload format
-      final claudeHeaders = buildHeaders();
-      final claudePayload = convertToAnthropicPayload(wrapBody(body));
-      final claudeUri = chatUri();
+    // Build the list of models to try: primary first, then fallbacks
+    final modelsToTry = <String>[
+      body['model'] as String? ?? SecureAPIConfig.model,
+      ...SecureAPIConfig.fallbackModels
+          .where((m) => m != (body['model'] as String? ?? SecureAPIConfig.model)),
+    ];
 
-      final response = await http
-          .post(claudeUri, headers: claudeHeaders, body: claudePayload)
-          .timeout(timeout ?? const Duration(seconds: 10));
+    http.Response? lastResponse;
 
-      if (response.statusCode >= 200 && response.statusCode < 300) {
+    for (final model in modelsToTry) {
+      final bodyWithModel = Map<String, dynamic>.from(body);
+      bodyWithModel['model'] = model;
+
+      if (SecureAPIConfig.useDirectAnthropicAccess) {
+        // Direct Anthropic access — convert payload format
+        final claudeHeaders = buildHeaders();
+        final claudePayload = convertToAnthropicPayload(wrapBody(bodyWithModel));
+        final claudeUri = chatUri();
+
         try {
-          final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
-              as Map<String, dynamic>;
-          final openaiCompatData = convertFromAnthropicResponse(anthropicData);
-          return http.Response(
-            jsonEncode(openaiCompatData),
-            response.statusCode,
-            headers: response.headers,
-            reasonPhrase: response.reasonPhrase,
-          );
-        } catch (e) {
-          debugPrint('Failed to convert Anthropic response: $e');
+          final response = await http
+              .post(claudeUri, headers: claudeHeaders, body: claudePayload)
+              .timeout(timeout ?? const Duration(seconds: 10));
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            try {
+              final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
+                  as Map<String, dynamic>;
+              final openaiCompatData =
+                  convertFromAnthropicResponse(anthropicData);
+              return http.Response(
+                jsonEncode(openaiCompatData),
+                response.statusCode,
+                headers: response.headers,
+                reasonPhrase: response.reasonPhrase,
+              );
+            } catch (e) {
+              debugPrint('Failed to convert Anthropic response: $e');
+              return response;
+            }
+          }
+
+          // If 404 (model not found) or 400 with model error, try next model
+          if (response.statusCode == 404 ||
+              (response.statusCode == 400 &&
+                  response.body.contains('not_found_error'))) {
+            debugPrint('AI model $model not found, trying fallback...');
+            lastResponse = response;
+            continue;
+          }
+
+          // For other errors (401, 429, etc.), don't retry with different model
           return response;
+        } on TimeoutException {
+          debugPrint('AI request with model $model timed out, trying fallback...');
+          continue;
+        }
+      } else {
+        // Proxy access — send OpenAI-format body; proxy handles Claude routing
+        try {
+          final response = await http
+              .post(uri,
+                  headers: headers,
+                  body: jsonEncode(wrapBody(bodyWithModel)))
+              .timeout(timeout ?? const Duration(seconds: 10));
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            return response;
+          }
+
+          // If 404 or model-not-found, try next model
+          if (response.statusCode == 404 ||
+              (response.statusCode == 400 &&
+                  response.body.contains('not_found_error'))) {
+            debugPrint('AI model $model not found via proxy, trying fallback...');
+            lastResponse = response;
+            continue;
+          }
+
+          // For other errors, return immediately
+          return response;
+        } on TimeoutException {
+          debugPrint('AI proxy request with model $model timed out, trying fallback...');
+          continue;
         }
       }
-      return response;
-    } else {
-      // Proxy access — send OpenAI-format body; proxy handles Claude routing
-      final response = await http
-          .post(uri, headers: headers, body: jsonEncode(wrapBody(body)))
-          .timeout(timeout ?? const Duration(seconds: 10));
-      return response;
     }
+
+    // All models exhausted — return the last error response
+    return lastResponse ?? http.Response(
+      jsonEncode({'error': 'All AI model attempts failed'}),
+      503,
+    );
   }
 
   /// Helpful diagnostic used by UI to provide actionable error messages

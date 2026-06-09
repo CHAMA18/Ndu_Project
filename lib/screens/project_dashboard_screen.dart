@@ -27,6 +27,7 @@ import 'program_dashboard_screen.dart';
 import 'project_dashboard_mobile_shell.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'project_log_screen.dart';
 class ProjectDashboardScreen extends StatefulWidget {
   const ProjectDashboardScreen({super.key, this.isBasicPlan = false});
 
@@ -508,19 +509,41 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Group Into Program CTA — directly below stat cards ──
+                      // ── Group Into Program CTA & Project Log CTA — directly below stat cards ──
                       if (!widget.isBasicPlan) ...[
                         Padding(
                           padding: EdgeInsets.symmetric(
                               horizontal: isCompact ? 20 : 40),
-                          child: _GroupProjectsCTA(
-                            projectCount: projects.length,
-                            isLoading: isLoading,
-                            onTap: () => _openGroupProjectsScreen(
-                              projects: projects,
-                              isLoading: isLoading,
-                              error: error,
-                            ),
+                          child: Wrap(
+                            spacing: 16,
+                            runSpacing: 16,
+                            children: [
+                              SizedBox(
+                                width: isCompact ? double.infinity : (constraints.maxWidth - (isCompact ? 40 : 80) - 16) / 2,
+                                child: _GroupProjectsCTA(
+                                  projectCount: projects.length,
+                                  isLoading: isLoading,
+                                  onTap: () => _openGroupProjectsScreen(
+                                    projects: projects,
+                                    isLoading: isLoading,
+                                    error: error,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: isCompact ? double.infinity : (constraints.maxWidth - (isCompact ? 40 : 80) - 16) / 2,
+                                child: _ProjectLogCTA(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProjectLogScreen(
+                                        projectId: null,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 28),
@@ -4250,5 +4273,172 @@ class _DesktopPremiumGreeting extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[now.month]} ${now.day}, ${now.year}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Project Log CTA – gold/amber accent button for task tracking
+// ─────────────────────────────────────────────────────────────────────────────
+class _ProjectLogCTA extends StatefulWidget {
+  const _ProjectLogCTA({
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  State<_ProjectLogCTA> createState() => _ProjectLogCTAState();
+}
+
+class _ProjectLogCTAState extends State<_ProjectLogCTA> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final isCompact = media.size.width < 600;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          height: 72,
+          decoration: BoxDecoration(
+            color: _isPressed
+                ? const Color(0xFFFFF8E1)
+                : _isHovered
+                    ? const Color(0xFFFFFBF0)
+                    : Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
+            border: Border.all(
+              color: _isPressed
+                  ? const Color(0xFFFABD00).withOpacity(0.6)
+                  : _isHovered
+                      ? const Color(0xFFFABD00).withOpacity(0.4)
+                      : const Color(0xFFE4E7F3),
+              width: _isHovered || _isPressed ? 1.5 : 1.0,
+            ),
+            boxShadow: [
+              if (_isHovered || _isPressed)
+                BoxShadow(
+                  color: const Color(0xFFFABD00).withOpacity(
+                    _isPressed ? 0.15 : 0.1,
+                  ),
+                  blurRadius: _isPressed ? 20 : 28,
+                  spreadRadius: _isPressed ? 0 : 2,
+                  offset: const Offset(0, 4),
+                ),
+              BoxShadow(
+                color: Colors.black.withOpacity(
+                  _isPressed ? 0.03 : 0.05,
+                ),
+                blurRadius: _isPressed ? 12 : 28,
+                offset: Offset(0, _isPressed ? 8 : 18),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                // Icon badge with gold/amber accent
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _isPressed
+                        ? const Color(0xFFFABD00)
+                        : _isHovered
+                            ? const Color(0xFFFFD700)
+                            : const Color(0xFFFABD00).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFABD00).withOpacity(
+                          _isHovered || _isPressed ? 0.35 : 0.18,
+                        ),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.assignment_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Text
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Project Log',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: _isPressed
+                              ? const Color(0xFFB45309)
+                              : _isHovered
+                                  ? const Color(0xFFD97706)
+                                  : const Color(0xFF1E293B),
+                          letterSpacing: -0.2,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Track tasks, assignments, and deadlines',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Right arrow with gold tint
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _isHovered || _isPressed
+                        ? const Color(0xFFFABD00).withOpacity(0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: AnimatedSlide(
+                    offset: _isHovered || _isPressed
+                        ? const Offset(0.15, 0)
+                        : Offset.zero,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      color: _isHovered || _isPressed
+                          ? const Color(0xFFFABD00)
+                          : Colors.grey.shade500,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/standalone_mic_button.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 /// Standardized header for all Business Case pages.
@@ -42,11 +43,14 @@ class BusinessCaseActionButtons extends StatelessWidget {
     this.showContentButton = true,
     this.showExportPdf = true,
     this.showAiAssist = true,
+    this.showMicButton = true,
     this.onImportPressed,
     this.onContentPressed,
     this.onExportPdf,
     this.onAiAssist,
     this.breadcrumbTitle,
+    this.micController,
+    this.onMicChanged,
   });
 
   /// Show Import button in the action row.
@@ -60,6 +64,9 @@ class BusinessCaseActionButtons extends StatelessWidget {
 
   /// Show AI Assist button in the action row.
   final bool showAiAssist;
+
+  /// Show the standalone mic button for voice-to-text.
+  final bool showMicButton;
 
   /// Callback for Import button.
   final VoidCallback? onImportPressed;
@@ -75,6 +82,13 @@ class BusinessCaseActionButtons extends StatelessWidget {
 
   /// Title used by the default export-pdf handler.
   final String? breadcrumbTitle;
+
+  /// Controller for the mic button's speech-to-text transcription.
+  /// If null, the mic button will not be shown even if [showMicButton] is true.
+  final TextEditingController? micController;
+
+  /// Callback when the mic button transcribes text.
+  final ValueChanged<String>? onMicChanged;
 
   void _defaultExportPdf(BuildContext context) {
     final title = breadcrumbTitle ?? 'Initiation Phase';
@@ -110,34 +124,52 @@ class BusinessCaseActionButtons extends StatelessWidget {
         right: isMobile ? 16 : 24,
         top: isMobile ? 12 : 16,
       ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (showImportButton)
-            _YellowButton(
-              label: 'Import',
-              icon: Icons.upload_outlined,
-              onPressed: onImportPressed ?? () {},
+          // Action buttons row
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              if (showImportButton)
+                _YellowButton(
+                  label: 'Import',
+                  icon: Icons.upload_outlined,
+                  onPressed: onImportPressed ?? () {},
+                ),
+              if (showContentButton)
+                _WhiteButton(
+                  label: 'Content',
+                  icon: Icons.download_outlined,
+                  onPressed: onContentPressed ?? () {},
+                ),
+              if (showExportPdf)
+                _WhiteButton(
+                  label: 'Export PDF',
+                  icon: Icons.picture_as_pdf_outlined,
+                  onPressed: onExportPdf ?? () => _defaultExportPdf(context),
+                ),
+              if (showAiAssist)
+                _AiAssistButton(
+                  label: 'AI Assist',
+                  icon: Icons.auto_awesome,
+                  onPressed: onAiAssist ?? () => _defaultAiAssist(context),
+                ),
+            ],
+          ),
+          // Standalone mic button — positioned below the import section
+          if (showMicButton && micController != null) ...[
+            const SizedBox(height: 12),
+            StandaloneMicButton(
+              controller: micController!,
+              onChanged: onMicChanged,
+              label: 'Voice Input',
+              showLabel: true,
+              size: 40,
+              iconSize: 20,
             ),
-          if (showContentButton)
-            _WhiteButton(
-              label: 'Content',
-              icon: Icons.download_outlined,
-              onPressed: onContentPressed ?? () {},
-            ),
-          if (showExportPdf)
-            _WhiteButton(
-              label: 'Export PDF',
-              icon: Icons.picture_as_pdf_outlined,
-              onPressed: onExportPdf ?? () => _defaultExportPdf(context),
-            ),
-          if (showAiAssist)
-            _AiAssistButton(
-              label: 'AI Assist',
-              icon: Icons.auto_awesome,
-              onPressed: onAiAssist ?? () => _defaultAiAssist(context),
-            ),
+          ],
         ],
       ),
     );
