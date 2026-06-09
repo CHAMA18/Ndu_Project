@@ -846,28 +846,6 @@ class _ProjectDashboardMobileShellState
 
                                 const SizedBox(height: _Tokens.sectionGap),
 
-                                // ── Group Projects CTA ────────────────────
-                                if (!widget.isBasicPlan)
-                                  _MobileGroupProjectsCTA(
-                                    projectCount: groupingList.length,
-                                    isLoading: false,
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => _MobileGroupProjectsScreen(
-                                            projects: groupingList,
-                                            selectedIdsListenable: _selectedProjectIds,
-                                            onToggle: _toggleSelection,
-                                            onClear: _clearSelection,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-
-                                if (!widget.isBasicPlan)
-                                  const SizedBox(height: _Tokens.sectionGap),
-
                                 // ── Single Projects Section ──────────────────
                                 Container(
                                   padding:
@@ -994,6 +972,27 @@ class _ProjectDashboardMobileShellState
                                     ],
                                   ),
                                 ),
+
+                                // ── Group Projects CTA (below project containers) ────
+                                if (!widget.isBasicPlan) ...[
+                                  const SizedBox(height: _Tokens.sectionGap),
+                                  _MobileGroupProjectsCTA(
+                                    projectCount: groupingList.length,
+                                    isLoading: false,
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => _MobileGroupProjectsScreen(
+                                            projects: groupingList,
+                                            selectedIdsListenable: _selectedProjectIds,
+                                            onToggle: _toggleSelection,
+                                            onClear: _clearSelection,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
 
                               ],
                             ),

@@ -508,22 +508,6 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (!widget.isBasicPlan) ...[
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: isCompact ? 20 : 40),
-                          child: _GroupProjectsCTA(
-                            projectCount: projects.length,
-                            isLoading: isLoading,
-                            onTap: () => _openGroupProjectsScreen(
-                              projects: projects,
-                              isLoading: isLoading,
-                              error: error,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
                       _SingleProjectsCard(
                         projects: projects,
                         isLoading: isLoading,
@@ -536,6 +520,20 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                           padding: EdgeInsets.symmetric(
                               horizontal: isCompact ? 20 : 40),
                           child: const _ProgramsSummaryCard(),
+                        ),
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 20 : 40),
+                          child: _GroupProjectsCTA(
+                            projectCount: projects.length,
+                            isLoading: isLoading,
+                            onTap: () => _openGroupProjectsScreen(
+                              projects: projects,
+                              isLoading: isLoading,
+                              error: error,
+                            ),
+                          ),
                         ),
                       ],
                     ],
