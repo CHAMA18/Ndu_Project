@@ -508,6 +508,23 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // ── Group Into Program CTA — directly below stat cards ──
+                      if (!widget.isBasicPlan) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 20 : 40),
+                          child: _GroupProjectsCTA(
+                            projectCount: projects.length,
+                            isLoading: isLoading,
+                            onTap: () => _openGroupProjectsScreen(
+                              projects: projects,
+                              isLoading: isLoading,
+                              error: error,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                      ],
                       // ── Single Projects Container ──
                       Padding(
                         padding: EdgeInsets.symmetric(
@@ -526,23 +543,6 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                           padding: EdgeInsets.symmetric(
                               horizontal: isCompact ? 20 : 40),
                           child: const _ProgramsSummaryCard(),
-                        ),
-                      ],
-                      // ── Group Into Program CTA — below ALL containers ──
-                      if (!widget.isBasicPlan) ...[
-                        const SizedBox(height: 24),
-                        Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: isCompact ? 20 : 40),
-                          child: _GroupProjectsCTA(
-                            projectCount: projects.length,
-                            isLoading: isLoading,
-                            onTap: () => _openGroupProjectsScreen(
-                              projects: projects,
-                              isLoading: isLoading,
-                              error: error,
-                            ),
-                          ),
                         ),
                       ],
                     ],
