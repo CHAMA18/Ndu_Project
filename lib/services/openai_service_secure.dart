@@ -466,7 +466,7 @@ class OpenAiServiceSecure {
     String body, {
     Duration? timeout,
   }) async {
-    final effectiveTimeout = timeout ?? const Duration(seconds: 10);
+    final effectiveTimeout = timeout ?? SecureAPIConfig.defaultTimeout;
 
     // Only use direct Anthropic access when user has provided their own key
     if (SecureAPIConfig.isClaudeModel && OpenAiConfig.apiKeyValue.isNotEmpty) {
@@ -486,31 +486,43 @@ class OpenAiServiceSecure {
           OpenAiConfig.wrapBody(bodyMap));
       final claudeUri = Uri.parse(SecureAPIConfig.anthropicBaseUrl);
 
-      final response = await _client
-          .post(claudeUri, headers: claudeHeaders, body: claudePayload)
-          .timeout(effectiveTimeout);
+      try {
+        debugPrint('AI (_aiPost): Direct Anthropic request (model=${bodyMap['model']})');
+        final response = await _client
+            .post(claudeUri, headers: claudeHeaders, body: claudePayload)
+            .timeout(effectiveTimeout);
 
-      // Convert Anthropic response back to OpenAI format for seamless parsing
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        try {
-          final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
-              as Map<String, dynamic>;
-          final openaiCompatData =
-              OpenAiConfig.convertFromAnthropicResponse(anthropicData);
-          return http.Response(
-            jsonEncode(openaiCompatData),
-            response.statusCode,
-            headers: response.headers,
-            reasonPhrase: response.reasonPhrase,
-          );
-        } catch (e) {
-          debugPrint('Failed to convert Anthropic response: $e');
+        // Convert Anthropic response back to OpenAI format for seamless parsing
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          try {
+            final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
+                as Map<String, dynamic>;
+            final openaiCompatData =
+                OpenAiConfig.convertFromAnthropicResponse(anthropicData);
+            debugPrint('AI (_aiPost): Anthropic request succeeded');
+            return http.Response(
+              jsonEncode(openaiCompatData),
+              response.statusCode,
+              headers: response.headers,
+              reasonPhrase: response.reasonPhrase,
+            );
+          } catch (e) {
+            debugPrint('AI (_aiPost): Failed to convert Anthropic response: $e');
+          }
+        } else {
+          debugPrint('AI (_aiPost): Anthropic error ${response.statusCode}: '
+              '${response.body.length > 200 ? response.body.substring(0, 200) : response.body}');
         }
+        return response;
+      } on TimeoutException {
+        debugPrint('AI (_aiPost): Anthropic request timed out after '
+            '${effectiveTimeout.inSeconds}s');
+        rethrow;
       }
-      return response;
     }
 
     // Default: send through the Firebase proxy (handles both OpenAI and Claude)
+    debugPrint('AI (_aiPost): Proxy request');
     return _client
         .post(uri, headers: headers, body: body)
         .timeout(effectiveTimeout);

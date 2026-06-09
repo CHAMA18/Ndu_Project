@@ -275,9 +275,12 @@ class OpenAiConfig {
           .where((m) => m != (body['model'] as String? ?? SecureAPIConfig.model)),
     ];
 
+    final effectiveTimeout = timeout ?? SecureAPIConfig.defaultTimeout;
     http.Response? lastResponse;
+    String? lastError;
 
-    for (final model in modelsToTry) {
+    for (int attempt = 0; attempt < modelsToTry.length; attempt++) {
+      final model = modelsToTry[attempt];
       final bodyWithModel = Map<String, dynamic>.from(body);
       bodyWithModel['model'] = model;
 
@@ -288,9 +291,11 @@ class OpenAiConfig {
         final claudeUri = chatUri();
 
         try {
+          debugPrint('AI: Sending request to Anthropic API (model=$model, '
+              'attempt=${attempt + 1}/${modelsToTry.length})');
           final response = await http
               .post(claudeUri, headers: claudeHeaders, body: claudePayload)
-              .timeout(timeout ?? const Duration(seconds: 10));
+              .timeout(effectiveTimeout);
 
           if (response.statusCode >= 200 && response.statusCode < 300) {
             try {
@@ -298,6 +303,7 @@ class OpenAiConfig {
                   as Map<String, dynamic>;
               final openaiCompatData =
                   convertFromAnthropicResponse(anthropicData);
+              debugPrint('AI: Anthropic request succeeded (model=$model)');
               return http.Response(
                 jsonEncode(openaiCompatData),
                 response.statusCode,
@@ -305,44 +311,34 @@ class OpenAiConfig {
                 reasonPhrase: response.reasonPhrase,
               );
             } catch (e) {
-              debugPrint('Failed to convert Anthropic response: $e');
+              debugPrint('AI: Failed to convert Anthropic response: $e');
               return response;
             }
           }
 
+          // Check for specific error types
+          final errorBody = response.body;
+          lastError = 'Anthropic ${response.statusCode}: $errorBody';
+
           // If 404 (model not found) or 400 with model error, try next model
           if (response.statusCode == 404 ||
               (response.statusCode == 400 &&
-                  response.body.contains('not_found_error'))) {
-            debugPrint('AI model $model not found, trying fallback...');
+                  errorBody.contains('not_found_error'))) {
+            debugPrint('AI: Model $model not found, trying fallback...');
             lastResponse = response;
             continue;
           }
 
-          // For other errors (401, 429, etc.), don't retry with different model
-          return response;
-        } on TimeoutException {
-          debugPrint('AI request with model $model timed out, trying fallback...');
-          continue;
-        }
-      } else {
-        // Proxy access — send OpenAI-format body; proxy handles Claude routing
-        try {
-          final response = await http
-              .post(uri,
-                  headers: headers,
-                  body: jsonEncode(wrapBody(bodyWithModel)))
-              .timeout(timeout ?? const Duration(seconds: 10));
-
-          if (response.statusCode >= 200 && response.statusCode < 300) {
+          // If 401/403, the key is invalid — no point trying other models
+          if (response.statusCode == 401 || response.statusCode == 403) {
+            debugPrint('AI: Authentication error (${response.statusCode}) '
+                '— API key may be invalid');
             return response;
           }
 
-          // If 404 or model-not-found, try next model
-          if (response.statusCode == 404 ||
-              (response.statusCode == 400 &&
-                  response.body.contains('not_found_error'))) {
-            debugPrint('AI model $model not found via proxy, trying fallback...');
+          // If 429 rate limit, try next model (haiku is cheaper/faster)
+          if (response.statusCode == 429) {
+            debugPrint('AI: Rate limited on model $model, trying fallback...');
             lastResponse = response;
             continue;
           }
@@ -350,15 +346,63 @@ class OpenAiConfig {
           // For other errors, return immediately
           return response;
         } on TimeoutException {
-          debugPrint('AI proxy request with model $model timed out, trying fallback...');
+          lastError = 'Timeout after ${effectiveTimeout.inSeconds}s (model=$model)';
+          debugPrint('AI: Request with model $model timed out, trying fallback...');
+          continue;
+        } catch (e) {
+          lastError = 'Network error: $e (model=$model)';
+          debugPrint('AI: Network error with model $model: $e');
+          continue;
+        }
+      } else {
+        // Proxy access — send OpenAI-format body; proxy handles Claude routing
+        try {
+          debugPrint('AI: Sending request via proxy (model=$model, '
+              'attempt=${attempt + 1}/${modelsToTry.length})');
+          final response = await http
+              .post(uri,
+                  headers: headers,
+                  body: jsonEncode(wrapBody(bodyWithModel)))
+              .timeout(effectiveTimeout);
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            debugPrint('AI: Proxy request succeeded (model=$model)');
+            return response;
+          }
+
+          final errorBody = response.body;
+          lastError = 'Proxy ${response.statusCode}: $errorBody';
+
+          // If 404 or model-not-found, try next model
+          if (response.statusCode == 404 ||
+              (response.statusCode == 400 &&
+                  errorBody.contains('not_found_error'))) {
+            debugPrint('AI: Model $model not found via proxy, trying fallback...');
+            lastResponse = response;
+            continue;
+          }
+
+          // For other errors, return immediately
+          return response;
+        } on TimeoutException {
+          lastError = 'Proxy timeout after ${effectiveTimeout.inSeconds}s (model=$model)';
+          debugPrint('AI: Proxy request with model $model timed out, trying fallback...');
+          continue;
+        } catch (e) {
+          lastError = 'Proxy network error: $e (model=$model)';
+          debugPrint('AI: Proxy network error with model $model: $e');
           continue;
         }
       }
     }
 
-    // All models exhausted — return the last error response
+    // All models exhausted — return the last error response with details
+    debugPrint('AI: All model attempts failed. Last error: $lastError');
     return lastResponse ?? http.Response(
-      jsonEncode({'error': 'All AI model attempts failed'}),
+      jsonEncode({
+        'error': 'All AI model attempts failed',
+        'details': lastError ?? 'No response received from any model',
+      }),
       503,
     );
   }

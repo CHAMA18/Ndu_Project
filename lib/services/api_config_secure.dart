@@ -18,23 +18,28 @@ class SecureAPIConfig {
       'https://us-central1-ndu-d3f60.cloudfunctions.net/openaiProxy';
 
   // Default model used across AI requests.
-  // Using Claude 3.5 Sonnet — Anthropic's balanced model with strong
-  // reasoning and speed. Routes through the Firebase Cloud Function proxy
-  // by default (which detects the 'claude' prefix and forwards to the
-  // Anthropic API). When a user provides their own Anthropic API key via
-  // Settings > Integrations, direct client-side access is used for minimum
-  // latency.
-  // Fallback models tried automatically if the primary model is unavailable.
+  // Using Claude 3.5 Sonnet (latest alias) — Anthropic's balanced model
+  // with strong reasoning and speed. The 'latest' alias automatically
+  // resolves to the most recent stable version.
+  // Routes through the Firebase Cloud Function proxy by default (which
+  // detects the 'claude' prefix and forwards to the Anthropic API).
+  // When a user provides their own Anthropic API key via
+  // Settings > Integrations, direct client-side access is used for
+  // minimum latency.
   static const String model = 'claude-3-5-sonnet-20241022';
 
   /// Ordered list of fallback Claude models to try if the primary model
   /// returns a 404 or other transient error. The client walks this list
-  /// before giving up.
+  /// before giving up. Uses specific dated versions for reliability.
   static const List<String> fallbackModels = [
     'claude-3-5-sonnet-20241022',
     'claude-3-5-haiku-20241022',
     'claude-3-haiku-20240307',
   ];
+
+  /// Default timeout for AI API requests (30 seconds for Claude models
+  /// which may take longer to generate detailed responses).
+  static const Duration defaultTimeout = Duration(seconds: 30);
 
   /// Anthropic API endpoint — used ONLY when a client-side API key is
   /// explicitly provided by the user (Settings > Integrations). When no
