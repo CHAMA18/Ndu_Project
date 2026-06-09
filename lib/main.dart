@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ndu_project/firebase_options.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/api_config_secure.dart';
+import 'package:ndu_project/services/env_config_loader.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -123,9 +124,8 @@ void main() async {
 
   // Initialize AI API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
-  // Default Anthropic (Claude) API key is built into SecureAPIConfig,
-  // so AI features work out of the box without manual configuration.
-  // Users can still override via Settings > Integrations.
+  // Load API key from env-config.js (runtime config) for direct Anthropic access
+  EnvConfigLoader.load();
   // Warm common local stores in background to reduce first-navigation latency.
   unawaited(UserPreferencesService.warmUp());
   unawaited(ProjectNavigationService.instance.warmUp());

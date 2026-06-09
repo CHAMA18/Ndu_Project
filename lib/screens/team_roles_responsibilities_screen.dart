@@ -2351,35 +2351,39 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
 
   // --- AI Suggestion Helper (now in dialog state) ---
   Future<String> fetchOpenAiSuggestion(String field) async {
-    // Replace with your actual OpenAI API key and endpoint
-    const apiKey = 'YOUR_OPENAI_API_KEY';
-    const endpoint = 'https://api.openai.com/v1/chat/completions';
-
     final prompt = _buildPromptForField(field);
-    final response = await http.post(
-      Uri.parse(endpoint),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $apiKey',
-      },
-      body: jsonEncode(OpenAiConfig.wrapBody({
-        'model': OpenAiConfig.model,
-        'messages': [
-          {
-            'role': 'system',
-            'content': 'You are an expert HR assistant for software teams.'
-          },
-          {'role': 'user', 'content': prompt},
-        ],
-        'max_completion_tokens': 60,
-        'temperature': 0.7,
-      })),
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final suggestion = data['choices'][0]['message']['content']?.trim();
-      return suggestion ?? '';
-    } else {
+    try {
+      final response = await OpenAiConfig.sendRequest(
+        uri: OpenAiConfig.chatUri(),
+        headers: OpenAiConfig.buildHeaders(),
+        body: {
+          'model': OpenAiConfig.model,
+          'messages': [
+            {
+              'role': 'system',
+              'content': 'You are an expert HR assistant for software teams.'
+            },
+            {'role': 'user', 'content': prompt},
+          ],
+          'max_tokens': 60,
+          'temperature': 0.7,
+        },
+        timeout: const Duration(seconds: 15),
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+        final choices = data['choices'] as List?;
+        if (choices != null && choices.isNotEmpty) {
+          final content = choices[0]['message']?['content'];
+          return content is String ? content.trim() : '';
+        }
+        return '';
+      } else {
+        debugPrint('AI suggestion failed: ${response.statusCode} ${response.body}');
+        return '';
+      }
+    } catch (e) {
+      debugPrint('AI suggestion error: $e');
       return '';
     }
   }

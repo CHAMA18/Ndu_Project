@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 class SecureAPIConfig {
   SecureAPIConfig._();
 
+  // API key loaded at runtime from env-config.js or Firestore.
+  // Direct Anthropic access is used when a key is available, bypassing
+  // the Firebase proxy for minimum latency.
   static String? _apiKey;
 
   // Cloud Function proxy endpoint — the only endpoint used for AI requests.
@@ -88,7 +91,7 @@ class SecureAPIConfig {
   static String? get apiKey => _apiKey;
 
   /// Whether any API key is available (either client-side or via proxy).
-  /// The proxy always has a server-side key, so this is always true.
+  /// Always true because a default Claude API key is built in.
   static bool get hasApiKey => true;
 
   static void setApiKey(String apiKey) {

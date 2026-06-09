@@ -3,6 +3,7 @@ import 'package:ndu_project/theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:ndu_project/firebase_options.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/env_config_loader.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -87,8 +88,9 @@ void main() async {
     debugPrint('Firebase init error: $e');
   }
 
-  // Initialize OpenAI API key from environment (if provided)
+  // Initialize AI API key from environment
   ApiKeyManager.initializeApiKey();
+  EnvConfigLoader.load();
 
   runApp(const AdminApp());
 }

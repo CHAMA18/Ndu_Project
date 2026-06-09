@@ -59,6 +59,9 @@
     <div class="loading-spinner"></div>
     <div class="loading-text">Loading NDU Project...</div>
   </div>
+  <!-- Runtime environment config — loaded BEFORE Flutter so keys are
+       available when EnvConfigLoader.load() runs in main(). -->
+  <script src="env-config.js"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
