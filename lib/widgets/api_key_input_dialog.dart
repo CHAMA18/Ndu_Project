@@ -42,7 +42,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
     return AlertDialog(
       title: const Row(
         children: [
-          Icon(Icons.security, color: Color(0xFFD97706)),
+          Icon(Icons.security, color: Colors.blue),
           SizedBox(width: 8),
           Text('Configure AI API Key'),
         ],
@@ -53,7 +53,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'To enable AI-powered features, please enter your Anthropic (Claude) API key:',
+              'To enable AI-powered solution generation, please enter your Anthropic (Claude) API key:',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -113,7 +113,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFD97706).withOpacity(0.08),
+                color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Column(
@@ -121,7 +121,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.info_outline, size: 16, color: Color(0xFFD97706)),
+                      Icon(Icons.info_outline, size: 16, color: Colors.blue),
                       SizedBox(width: 8),
                       Text('How to get your API key:', style: TextStyle(fontWeight: FontWeight.bold)),
                     ],

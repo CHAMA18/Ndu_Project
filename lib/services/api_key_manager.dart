@@ -37,11 +37,33 @@ class ApiKeyManager {
   }
 
   /// Loads a previously saved key for the currently signed-in user (if any).
-  /// Does nothing if an environment key is already active or if we have a hardcoded default key.
+  /// Checks Firestore for the user's stored API key and loads it into memory.
   static Future<void> ensureLoadedForSignedInUser() async {
-    // No-op by default. Projects can extend to load keys per user if desired.
-    debugPrint('ApiKeyManager.ensureLoadedForSignedInUser: no-op in this build.');
-    return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('ApiKeyManager: No signed-in user, skipping key load.');
+        return;
+      }
+      if (SecureAPIConfig.hasApiKey) {
+        debugPrint('ApiKeyManager: API key already in memory, skipping Firestore load.');
+        return;
+      }
+      final doc = await FirebaseFirestore.instance
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .get();
+      final savedKey = doc.data()?[_keyField] as String?;
+      if (savedKey != null && savedKey.trim().isNotEmpty) {
+        SecureAPIConfig.setApiKey(savedKey.trim());
+        _isInitialized = true;
+        debugPrint('ApiKeyManager: Loaded saved API key from Firestore for user ${user.uid.substring(0, 6)}…');
+      } else {
+        debugPrint('ApiKeyManager: No saved API key found for user ${user.uid.substring(0, 6)}…');
+      }
+    } catch (e) {
+      debugPrint('ApiKeyManager.ensureLoadedForSignedInUser error: $e');
+    }
   }
 
   /// Persists the provided key under users/{uid}. Creates the document if missing.

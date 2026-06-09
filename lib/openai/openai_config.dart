@@ -14,8 +14,13 @@ const String apiKey = String.fromEnvironment('OPENAI_PROXY_API_KEY');
 const String endpoint = String.fromEnvironment('OPENAI_PROXY_ENDPOINT');
 
 /// Central configuration for AI API access.
-/// Supports both OpenAI and Anthropic (Claude) models.
-/// The Firebase proxy auto-detects the model and routes accordingly.
+///
+/// Supports both OpenAI and Anthropic (Claude) models:
+/// - **Claude models**: Call the Anthropic API directly from the client for
+///   minimum latency (no proxy overhead). Uses the `x-api-key` header with
+///   the `anthropic-dangerous-direct-browser-access` header for CORS support.
+/// - **OpenAI models**: Route through the Firebase Cloud Function proxy to
+///   avoid CORS issues and keep the API key server-side.
 class OpenAiConfig {
   static String get _trimmedEnvEndpoint => endpoint.trim().isEmpty
       ? ''
@@ -28,9 +33,6 @@ class OpenAiConfig {
   }
 
   /// Base endpoint preference: environment overrides default REST endpoint.
-  /// IMPORTANT: If running on web and no proxy endpoint is provided, direct
-  /// calls to api.openai.com will be blocked by CORS. The UI will surface
-  /// a clear error so the user can configure the proxy.
   static String get baseEndpoint {
     if (_trimmedEnvEndpoint.isNotEmpty) return _trimmedEnvEndpoint;
     // Fallback to project Cloud Function proxy if env not provided
@@ -41,25 +43,30 @@ class OpenAiConfig {
   /// Model used for AI requests.
   static String get model => SecureAPIConfig.model;
 
-  /// Whether the current model is a Claude / Anthropic model.
-  static bool get isClaudeModel => SecureAPIConfig.isClaudeModel;
-
   /// OpenAI Agent Builder workflow used by the Firebase proxy.
   static String get workflowId => SecureAPIConfig.workflowId;
 
   // Consider configured if using a proxy endpoint (no client API key needed)
-  static bool get isConfigured => _isProxyEndpoint || apiKeyValue.isNotEmpty;
-
-  /// Determine if we're using a proxy endpoint (Cloud Function, server, etc.)
-  /// Proxies in this app expect requests to the BASE URL with NO extra path.
-  static bool get _isProxyEndpoint {
-    // Treat any non-openai.com and non-anthropic.com endpoint as a proxy
-    return !baseEndpoint.contains('openai.com') &&
-           !baseEndpoint.contains('anthropic.com');
+  // OR if an API key is available. Claude models always need a key since
+  // they call the API directly.
+  static bool get isConfigured {
+    if (SecureAPIConfig.isClaudeModel) {
+      return apiKeyValue.isNotEmpty;
+    }
+    return _isProxyEndpoint || apiKeyValue.isNotEmpty;
   }
 
-  /// Responses API endpoint. When using a proxy endpoint, do NOT append a path.
+  /// Determine if we're using a proxy endpoint (Cloud Function, server, etc.)
+  static bool get _isProxyEndpoint {
+    return !baseEndpoint.contains('openai.com');
+  }
+
+  /// Responses API endpoint. For Claude models, returns the Anthropic
+  /// Messages API endpoint directly. For OpenAI, uses the proxy.
   static Uri responsesUri() {
+    if (SecureAPIConfig.isClaudeModel) {
+      return Uri.parse(SecureAPIConfig.anthropicBaseUrl);
+    }
     final base = baseEndpoint.endsWith('/')
         ? baseEndpoint.substring(0, baseEndpoint.length - 1)
         : baseEndpoint;
@@ -67,8 +74,12 @@ class OpenAiConfig {
     return Uri.parse('$base/responses');
   }
 
-  /// Chat Completions endpoint. When using a proxy endpoint, do NOT append a path.
+  /// Chat Completions endpoint. For Claude models, returns the Anthropic
+  /// Messages API endpoint directly. For OpenAI, uses the proxy.
   static Uri chatUri() {
+    if (SecureAPIConfig.isClaudeModel) {
+      return Uri.parse(SecureAPIConfig.anthropicBaseUrl);
+    }
     final base = baseEndpoint.endsWith('/')
         ? baseEndpoint.substring(0, baseEndpoint.length - 1)
         : baseEndpoint;
@@ -76,29 +87,43 @@ class OpenAiConfig {
     return Uri.parse('$base/chat/completions');
   }
 
-  /// Wraps a request body map with model-specific adjustments.
-  ///
-  /// For OpenAI reasoning models (o3, o4, o1):
-  /// - Removes `temperature` parameter (reasoning models only support default value of 1)
-  /// - Removes legacy token parameters
+  /// Returns the appropriate HTTP headers for the current model.
+  /// Claude uses `x-api-key` + Anthropic-specific headers.
+  /// OpenAI uses `Authorization: Bearer`.
+  static Map<String, String> buildHeaders() {
+    final base = <String, String>{'Content-Type': 'application/json'};
+    if (SecureAPIConfig.isClaudeModel) {
+      base['x-api-key'] = apiKeyValue;
+      base['anthropic-version'] = '2023-06-01';
+      base['anthropic-dangerous-direct-browser-access'] = 'true';
+    } else {
+      base['Authorization'] = 'Bearer $apiKeyValue';
+    }
+    return base;
+  }
+
+  /// Wraps a request body map, cleaning up parameters based on the
+  /// target model's requirements.
   ///
   /// For Claude models:
-  /// - Uses `max_tokens` instead of `max_completion_tokens`
-  /// - Temperature works normally (no stripping needed)
+  /// - Converts `max_completion_tokens` → `max_tokens` (Anthropic format)
+  /// - Keeps `temperature` (Claude supports it natively)
+  /// - Keeps `response_format` (adds JSON instruction to system prompt)
+  ///
+  /// For OpenAI reasoning models (o3, o4, o1):
+  /// - Removes `temperature` (only default value of 1 supported)
+  /// - Removes `max_tokens` and `max_output_tokens` (use `max_completion_tokens`)
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
     final result = Map<String, dynamic>.from(body);
 
-    if (isClaudeModel) {
-      // Claude uses max_tokens, not max_completion_tokens
-      if (result.containsKey('max_completion_tokens')) {
-        result['max_tokens'] = result.remove('max_completion_tokens');
+    if (SecureAPIConfig.isClaudeModel) {
+      // Claude uses `max_tokens` instead of `max_completion_tokens`
+      final maxCompletion = result.remove('max_completion_tokens');
+      if (maxCompletion != null && result['max_tokens'] == null) {
+        result['max_tokens'] = maxCompletion;
       }
-      if (result.containsKey('max_output_tokens')) {
-        result['max_tokens'] = result.remove('max_output_tokens');
-      }
-      // Claude doesn't support response_format — the proxy handles JSON mode
-      // by appending instructions to the user message
-      result.remove('response_format');
+      result.remove('max_output_tokens');
+      // Claude supports temperature natively — no need to strip it
       return result;
     }
 
@@ -112,12 +137,175 @@ class OpenAiConfig {
     return result;
   }
 
+  /// Converts an OpenAI-format request body to Anthropic Messages API format.
+  /// This is called before sending requests when using Claude models.
+  ///
+  /// OpenAI format: {"messages": [{"role": "system", "content": "..."}, ...]}
+  /// Anthropic format: {"system": "...", "messages": [{"role": "user", "content": "..."}]}
+  static String convertToAnthropicPayload(Map<String, dynamic> openaiBody) {
+    final messages = openaiBody['messages'] as List? ?? [];
+    final systemPrompt = StringBuffer();
+    final anthropicMessages = <Map<String, dynamic>>[];
+
+    for (final msg in messages) {
+      if (msg is! Map<String, dynamic>) continue;
+      final role = msg['role'] as String? ?? 'user';
+      final content = msg['content'];
+
+      if (role == 'system') {
+        // Anthropic uses a top-level `system` field
+        if (content is String) {
+          systemPrompt.write(content);
+        } else if (content is List) {
+          for (final item in content) {
+            if (item is Map<String, dynamic>) {
+              final text = item['text'] ?? '';
+              if (text is String && text.isNotEmpty) {
+                systemPrompt.writeln(text);
+              }
+            }
+          }
+        }
+      } else {
+        // user / assistant messages
+        String textContent = '';
+        if (content is String) {
+          textContent = content;
+        } else if (content is List) {
+          for (final item in content) {
+            if (item is Map<String, dynamic>) {
+              final type = item['type'] as String? ?? '';
+              final text = item['text'] ?? '';
+              if ((type == 'text' || type == 'input_text' || type == 'output_text') &&
+                  text is String) {
+                textContent += text;
+              }
+            }
+          }
+        }
+        anthropicMessages.add({'role': role, 'content': textContent});
+      }
+    }
+
+    // If response_format is json_object, append JSON instruction to system prompt
+    final responseFormat = openaiBody['response_format'];
+    if (responseFormat is Map && responseFormat['type'] == 'json_object') {
+      systemPrompt.writeln(
+        '\n\nIMPORTANT: You MUST return only valid JSON matching the requested schema. '
+        'Do not include any text outside the JSON object.',
+      );
+    }
+
+    final payload = <String, dynamic>{
+      'model': openaiBody['model'] ?? SecureAPIConfig.model,
+      'max_tokens': openaiBody['max_tokens'] ?? openaiBody['max_completion_tokens'] ?? 1024,
+      'messages': anthropicMessages,
+    };
+
+    if (systemPrompt.isNotEmpty) {
+      payload['system'] = systemPrompt.toString().trim();
+    }
+
+    if (openaiBody['temperature'] != null) {
+      payload['temperature'] = openaiBody['temperature'];
+    }
+
+    return jsonEncode(payload);
+  }
+
+  /// Converts an Anthropic Messages API response back to OpenAI Chat Completions
+  /// format so the existing client parsing logic continues to work unchanged.
+  static Map<String, dynamic> convertFromAnthropicResponse(
+      Map<String, dynamic> anthropicData) {
+    final content = anthropicData['content'] as List? ?? [];
+    final textContent = content
+        .whereType<Map<String, dynamic>>()
+        .where((block) => block['type'] == 'text')
+        .map((block) => block['text'] as String? ?? '')
+        .join('');
+
+    return {
+      'id': anthropicData['id'] ?? 'chatcmpl-claude-${DateTime.now().millisecondsSinceEpoch}',
+      'object': 'chat.completion',
+      'model': anthropicData['model'] ?? SecureAPIConfig.model,
+      'choices': [
+        {
+          'index': 0,
+          'message': {
+            'role': 'assistant',
+            'content': textContent,
+          },
+          'finish_reason': anthropicData['stop_reason'] == 'end_turn'
+              ? 'stop'
+              : (anthropicData['stop_reason'] ?? 'stop'),
+        }
+      ],
+      'usage': {
+        'prompt_tokens': (anthropicData['usage'] as Map?)?['input_tokens'] ?? 0,
+        'completion_tokens': (anthropicData['usage'] as Map?)?['output_tokens'] ?? 0,
+        'total_tokens':
+            ((anthropicData['usage'] as Map?)?['input_tokens'] as int? ?? 0) +
+                ((anthropicData['usage'] as Map?)?['output_tokens'] as int? ?? 0),
+      }
+    };
+  }
+
+  /// Sends an AI request using the appropriate format for the current model.
+  /// For Claude models, this converts the request to Anthropic format and
+  /// the response back to OpenAI format transparently.
+  static Future<http.Response> sendRequest({
+    required Uri uri,
+    required Map<String, String> headers,
+    required Map<String, dynamic> body,
+    Duration? timeout,
+  }) async {
+    if (SecureAPIConfig.isClaudeModel) {
+      // Use Anthropic-specific headers and payload format
+      final claudeHeaders = buildHeaders();
+      final claudePayload = convertToAnthropicPayload(wrapBody(body));
+      final claudeUri = chatUri(); // Always use Messages API endpoint
+
+      final response = await http
+          .post(claudeUri, headers: claudeHeaders, body: claudePayload)
+          .timeout(timeout ?? const Duration(seconds: 10));
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        // Convert Anthropic response to OpenAI format for seamless parsing
+        try {
+          final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
+              as Map<String, dynamic>;
+          final openaiCompatData = convertFromAnthropicResponse(anthropicData);
+          return http.Response(
+            jsonEncode(openaiCompatData),
+            response.statusCode,
+            headers: response.headers,
+            reasonPhrase: response.reasonPhrase,
+          );
+        } catch (e) {
+          debugPrint('Failed to convert Anthropic response: $e');
+          // Return original response if conversion fails
+          return response;
+        }
+      }
+      return response;
+    } else {
+      // OpenAI format — send as-is through the proxy
+      final response = await http
+          .post(uri, headers: headers, body: jsonEncode(wrapBody(body)))
+          .timeout(timeout ?? const Duration(seconds: 10));
+      return response;
+    }
+  }
+
   /// Helpful diagnostic used by UI to provide actionable error messages
   static String? configurationWarning() {
     if (!kIsWeb) return null;
+    if (SecureAPIConfig.isClaudeModel) {
+      // Claude uses direct API access with CORS header — no proxy needed
+      return null;
+    }
     if (_isProxyEndpoint) return null; // ok, using proxy
-    // On web with direct API endpoint: likely to hit CORS
-    return 'AI proxy endpoint not configured. Using direct API endpoint may fail due to CORS. Set OPENAI_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
+    return 'AI proxy endpoint not configured. Using direct endpoint may fail due to CORS.';
   }
 }
 
@@ -129,8 +317,7 @@ class OpenAiNotConfiguredException implements Exception {
       'AI API key is not configured. Please add a valid key to enable suggestions.';
 }
 
-/// Lightweight autocomplete service backed by the AI API.
-/// Works with both OpenAI and Claude models via the Firebase proxy.
+/// Lightweight autocomplete service backed by AI.
 class OpenAiAutocompleteService {
   OpenAiAutocompleteService._internal({http.Client? client})
       : _client = client ?? http.Client();
@@ -140,7 +327,7 @@ class OpenAiAutocompleteService {
 
   final http.Client _client;
 
-  static const Duration _timeout = Duration(seconds: 12);
+  static const Duration _timeout = Duration(seconds: 8);
   static const double _temperature = 0.35;
 
   Future<List<String>> fetchSuggestions({
@@ -154,49 +341,31 @@ class OpenAiAutocompleteService {
       throw const OpenAiNotConfiguredException();
     }
 
-    final uri = OpenAiConfig.responsesUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
-
     final payload = {
       'model': OpenAiConfig.model,
       'temperature': _temperature,
-      // Give the model more headroom for higher-quality continuations
-      'max_completion_tokens': 300,
-      'input': [
+      'max_tokens': 300,
+      'messages': [
         {
           'role': 'system',
-          'content': [
-            {
-              'type': 'input_text',
-              'text':
-                  'You help business analysts finish their writing. Provide up to $maxSuggestions polished continuation suggestions that extend the user\'s draft. Do not repeat the existing text, do not number or bullet responses, and avoid placeholders.'
-            }
-          ]
+          'content':
+              'You help business analysts finish their writing. Provide up to $maxSuggestions polished continuation suggestions that extend the user\'s draft. Do not repeat the existing text, do not number or bullet responses, and avoid placeholders.'
         },
         {
           'role': 'user',
-          'content': [
-            {
-              'type': 'input_text',
-              'text':
-                  'Field: $fieldName\nCurrent draft: """${_escape(currentText)}"""\nAdditional context: """${_escape(context)}"""\nReturn up to $maxSuggestions unique continuations, each on its own line.'
-            }
-          ]
+          'content':
+              'Field: $fieldName\nCurrent draft: """${_escape(currentText)}"""\nAdditional context: """${_escape(context)}"""\nReturn up to $maxSuggestions unique continuations, each on its own line.'
         }
-      ]
+      ],
     };
 
     try {
-      final warn = OpenAiConfig.configurationWarning();
-      if (warn != null) {
-        debugPrint('AI configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
-      }
-      final response = await _client
-          .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
-          .timeout(_timeout);
+      final response = await OpenAiConfig.sendRequest(
+        uri: OpenAiConfig.responsesUri(),
+        headers: OpenAiConfig.buildHeaders(),
+        body: payload,
+        timeout: _timeout,
+      );
 
       if (response.statusCode == 429) {
         throw Exception('AI rate limit reached. Please try again shortly.');
@@ -254,7 +423,7 @@ class OpenAiAutocompleteService {
           buffer.write(entry);
         }
       }
-  if (buffer.isNotEmpty) return buffer.toString().replaceAll('*', '');
+      if (buffer.isNotEmpty) return buffer.toString().replaceAll('*', '');
     }
 
     final choices = payload['choices'];
@@ -273,9 +442,9 @@ class OpenAiAutocompleteService {
           }
         }
         final text = first['text'];
-  if (text is String) return text.replaceAll('*', '');
+        if (text is String) return text.replaceAll('*', '');
       } else if (first is String) {
-  return first.toString().replaceAll('*', '');
+        return first.toString().replaceAll('*', '');
       }
     }
 
@@ -317,21 +486,15 @@ class OpenAiDiagramService {
     String? refinementHint,
   }) async {
     if (!OpenAiConfig.isConfigured) {
-      // Fallback: single-node diagram using section name
       return DiagramModel(nodes: [DiagramNode(id: 'start', label: section)], edges: const []);
     }
 
-    final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
-
     final prompt = _diagramPrompt(section: section, context: contextText, refinementHint: refinementHint);
-    final body = jsonEncode(OpenAiConfig.wrapBody({
+
+    final payload = {
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_completion_tokens': maxTokens,
+      'max_tokens': maxTokens,
       'response_format': {'type': 'json_object'},
       'messages': [
         {
@@ -352,10 +515,15 @@ Always return ONLY a valid JSON object with nodes and edges arrays.'''
           'content': prompt,
         }
       ],
-    }));
+    };
 
     try {
-      final response = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 16));
+      final response = await OpenAiConfig.sendRequest(
+        uri: OpenAiConfig.chatUri(),
+        headers: OpenAiConfig.buildHeaders(),
+        body: payload,
+        timeout: const Duration(seconds: 10),
+      );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('AI diagram error ${response.statusCode}: ${response.body}');
       }
@@ -365,7 +533,6 @@ Always return ONLY a valid JSON object with nodes and edges arrays.'''
       return _parseDiagram(parsed);
     } catch (e) {
       debugPrint('AI diagram generation failed: $e');
-      // Fallback contextual diagram based on section
       return _createFallbackDiagram(section);
     }
   }

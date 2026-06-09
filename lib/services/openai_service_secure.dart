@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:ndu_project/openai/openai_config.dart';
+import 'package:ndu_project/services/api_config_secure.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/models/staffing_row.dart';
@@ -447,25 +448,72 @@ class OpenAiServiceSecure {
   final http.Client _client;
   static const int maxRetries = 2;
   static const Duration retryDelay = Duration(seconds: 2);
-  static const Duration _interRequestDelay = Duration(milliseconds: 120);
-  static Future<void> _serializedQueue = Future<void>.value();
 
   OpenAiServiceSecure({http.Client? client})
       : _client = client ?? http.Client();
 
+  /// Executes an API call without serialization for instant parallel requests.
   Future<T> _runSerialized<T>(Future<T> Function() operation) {
-    final completer = Completer<T>();
-    _serializedQueue = _serializedQueue.catchError((_) {}).then((_) async {
-      try {
-        final result = await operation();
-        completer.complete(result);
-      } catch (error, stackTrace) {
-        completer.completeError(error, stackTrace);
-      } finally {
-        await Future<void>.delayed(_interRequestDelay);
+    return operation();
+  }
+
+  /// Sends an AI API POST request, automatically handling Claude vs OpenAI format.
+  /// For Claude models: converts to Anthropic Messages API format, sends directly
+  /// to api.anthropic.com (bypassing proxy for minimum latency), and converts
+  /// the response back to OpenAI Chat Completions format transparently.
+  Future<http.Response> _aiPost(
+    Uri uri,
+    Map<String, String> headers,
+    String body, {
+    Duration? timeout,
+  }) async {
+    final effectiveTimeout = timeout ?? const Duration(seconds: 10);
+
+    if (SecureAPIConfig.isClaudeModel) {
+      // Parse the JSON body to convert formats
+      final bodyMap = jsonDecode(body) as Map<String, dynamic>;
+
+      // Build Anthropic-specific headers
+      final claudeHeaders = <String, String>{
+        'Content-Type': 'application/json',
+        'x-api-key': OpenAiConfig.apiKeyValue,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      };
+
+      // Convert OpenAI-format body to Anthropic Messages API format
+      final claudePayload = OpenAiConfig.convertToAnthropicPayload(
+          OpenAiConfig.wrapBody(bodyMap));
+      final claudeUri = Uri.parse(SecureAPIConfig.anthropicBaseUrl);
+
+      final response = await _client
+          .post(claudeUri, headers: claudeHeaders, body: claudePayload)
+          .timeout(effectiveTimeout);
+
+      // Convert Anthropic response back to OpenAI format for seamless parsing
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          final anthropicData = jsonDecode(utf8.decode(response.bodyBytes))
+              as Map<String, dynamic>;
+          final openaiCompatData =
+              OpenAiConfig.convertFromAnthropicResponse(anthropicData);
+          return http.Response(
+            jsonEncode(openaiCompatData),
+            response.statusCode,
+            headers: response.headers,
+            reasonPhrase: response.reasonPhrase,
+          );
+        } catch (e) {
+          debugPrint('Failed to convert Anthropic response: $e');
+        }
       }
-    });
-    return completer.future;
+      return response;
+    }
+
+    // OpenAI: send as-is through the proxy
+    return _client
+        .post(uri, headers: headers, body: body)
+        .timeout(effectiveTimeout);
   }
 
   Future<String> generateCompletion(
@@ -504,12 +552,10 @@ class OpenAiServiceSecure {
         ],
       }));
 
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'AI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -563,9 +609,7 @@ class OpenAiServiceSecure {
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -637,9 +681,7 @@ class OpenAiServiceSecure {
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -981,9 +1023,7 @@ class OpenAiServiceSecure {
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode >= 300) return {'in': [], 'out': []};
 
       final data =
@@ -1044,9 +1084,7 @@ class OpenAiServiceSecure {
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode >= 300) return {'risks': [], 'constraints': []};
 
       final data =
@@ -1129,9 +1167,7 @@ class OpenAiServiceSecure {
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode >= 300) {
         return _fallbackMitigationPlans(trimmedRisks);
       }
@@ -1233,9 +1269,7 @@ class OpenAiServiceSecure {
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode >= 300) return {};
 
       final data =
@@ -1331,9 +1365,7 @@ Rules:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
@@ -1415,9 +1447,7 @@ Return ONLY valid JSON: {"objective": "..." }
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
@@ -1507,9 +1537,7 @@ $trimmedContext
     }
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -1905,9 +1933,7 @@ Use concise professional language. Status should use In progress, Pending, In re
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode >= 300) return const DesignDeliverablesData();
 
       final data =
@@ -1992,9 +2018,7 @@ Use concise professional language. Status must be one of: Approved, Aligned, Rea
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 20));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode >= 300) return {};
 
@@ -2049,9 +2073,7 @@ Return JSON with:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 20));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode >= 300) return SpecializedDesignData();
 
@@ -2249,9 +2271,7 @@ Return JSON with:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -2321,9 +2341,7 @@ Return JSON with:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -2583,9 +2601,7 @@ $c
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 10));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode == 401) {
         throw Exception('Invalid API key');
       }
@@ -2850,9 +2866,7 @@ $scaleConstraints
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 15));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
@@ -2933,9 +2947,7 @@ $scaleConstraints
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -3213,9 +3225,7 @@ $domainHints
       ],
     }));
 
-    final response = await _client
-        .post(uri, headers: headers, body: body)
-        .timeout(const Duration(seconds: 12));
+    final response = await _aiPost(uri, headers, body);
     if (response.statusCode == 429) {
       throw Exception('API quota exceeded. Please check your OpenAI billing.');
     }
@@ -3272,9 +3282,7 @@ $domainHints
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -3625,9 +3633,7 @@ $domainHints
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -3723,9 +3729,7 @@ $domainHints
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -5013,9 +5017,7 @@ Domain guardrail: $guardrails
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -5358,9 +5360,7 @@ Return plain text only.'''
       ],
     }));
 
-    final response = await _client
-        .post(uri, headers: headers, body: body)
-        .timeout(const Duration(seconds: 18));
+    final response = await _aiPost(uri, headers, body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
     }
@@ -5437,9 +5437,7 @@ Return plain text only.'''
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return _fallbackBenefitLineItems(
           estimatedProjectValue,
@@ -5811,9 +5809,7 @@ Return ONLY JSON.
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode == 401) {
         throw Exception('Invalid API key. Please check your OpenAI API key.');
       }
@@ -6019,9 +6015,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -6201,9 +6195,7 @@ Context notes (optional): $notes
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -6599,9 +6591,7 @@ Make each suggestion:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 10));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception('OpenAI error ${response.statusCode}');
       }
@@ -6710,9 +6700,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -6774,9 +6762,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -6845,9 +6831,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -6919,9 +6903,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -7040,9 +7022,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -7259,9 +7239,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -7445,9 +7423,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -7660,9 +7636,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -9049,9 +9023,7 @@ Return JSON in this format:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 15));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -9136,9 +9108,7 @@ Return JSON in this format:
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 22));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -9293,9 +9263,7 @@ Additional Context: $contextNotes
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -9426,9 +9394,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -9571,9 +9537,7 @@ Return ONLY valid JSON.
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -9894,9 +9858,7 @@ Return ONLY valid JSON.
     }
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -10245,9 +10207,7 @@ Return ONLY JSON: {"items":[...]}'''
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) return [];
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -10303,9 +10263,7 @@ Return ONLY JSON: {"items":[...]}'''
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) return [];
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -10360,9 +10318,7 @@ Return ONLY JSON: {"items":[...]}'''
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 14));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) return [];
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -11327,9 +11283,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -11435,9 +11389,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -11557,9 +11509,7 @@ $escaped
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+      final response = await _aiPost(uri, headers, body);
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'OpenAI error ${response.statusCode}: ${response.body}');
@@ -11698,9 +11648,7 @@ Return only the title, no additional text.''';
     }));
 
     try {
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 8));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
@@ -11792,9 +11740,7 @@ IMPORTANT RULES:
         ],
       }));
 
-      final response = await _client
-          .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 20));
+      final response = await _aiPost(uri, headers, body);
 
       if (response.statusCode == 200) {
         final parsed = jsonDecode(response.body) as Map<String, dynamic>;

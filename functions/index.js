@@ -1,6 +1,5 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
-const nodemailer = require('nodemailer');
 
 // Initialize admin only if not already initialized
 if (!admin.apps.length) {
@@ -10,167 +9,6 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 const DEFAULT_OPENAI_WORKFLOW_ID = 'wf_69f1f5acc7ec819082fb76bbbf79b64d088ea0e514080150';
-
-// ============================================================================
-// ANTHROPIC / CLAUDE API TRANSLATION
-// ============================================================================
-// When the client requests a model starting with 'claude-', the proxy
-// translates the OpenAI-compatible request into Anthropic Messages API format
-// and translates the response back to OpenAI format for client compatibility.
-
-const ANTHROPIC_API_BASE = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
-
-function isClaudeModel(modelName) {
-  return (modelName || '').toLowerCase().startsWith('claude-');
-}
-
-/**
- * Translate an OpenAI Chat Completions request body to Anthropic Messages API format.
- * - Extract system message from messages array → `system` top-level field
- * - Rename `max_completion_tokens` / `max_tokens` → `max_tokens`
- * - Strip unsupported OpenAI-only params
- */
-function translateToAnthropic(payload) {
-  const model = payload.model || 'claude-sonnet-4-20250514';
-  const messages = Array.isArray(payload.messages) ? payload.messages : [];
-
-  // Extract system message(s)
-  let systemPrompt = '';
-  const nonSystemMessages = [];
-  for (const msg of messages) {
-    if (msg.role === 'system') {
-      const content = typeof msg.content === 'string'
-        ? msg.content
-        : Array.isArray(msg.content)
-          ? msg.content.map(c => c.text || c.content || '').join('\n')
-          : String(msg.content || '');
-      systemPrompt += (systemPrompt ? '\n\n' : '') + content;
-    } else {
-      nonSystemMessages.push(translateMessageContent(msg));
-    }
-  }
-
-  // Handle Responses API input format
-  if (!nonSystemMessages.length && Array.isArray(payload.input)) {
-    for (const msg of payload.input) {
-      if (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant') {
-        const content = typeof msg.content === 'string'
-          ? msg.content
-          : Array.isArray(msg.content)
-            ? msg.content.map(c => c.text || c.content || '').join('\n')
-            : String(msg.content || '');
-        if (msg.role === 'system') {
-          systemPrompt += (systemPrompt ? '\n\n' : '') + content;
-        } else {
-          nonSystemMessages.push({ role: msg.role, content });
-        }
-      }
-    }
-  }
-
-  // Build Anthropic request
-  const anthropic = {
-    model,
-    max_tokens: payload.max_completion_tokens || payload.max_tokens || payload.max_output_tokens || 1200,
-    messages: nonSystemMessages.length ? nonSystemMessages : [{ role: 'user', content: 'Please assist.' }],
-  };
-  if (systemPrompt) anthropic.system = systemPrompt;
-  if (payload.temperature != null) anthropic.temperature = payload.temperature;
-  if (payload.top_p != null) anthropic.top_p = payload.top_p;
-  if (payload.stop_sequences || payload.stop) anthropic.stop_sequences = payload.stop_sequences || payload.stop;
-  if (payload.stream === true) anthropic.stream = true;
-  // Pass through response_format if the client wants JSON
-  if (payload.response_format && payload.response_format.type === 'json_object') {
-    anthropic.messages = anthropic.messages.map(m => ({
-      ...m,
-      content: m.role === 'user'
-        ? m.content + '\n\nIMPORTANT: Return ONLY valid JSON, no markdown, no commentary.'
-        : m.content,
-    }));
-  }
-  return anthropic;
-}
-
-/**
- * Translate message content from OpenAI format to simple string format for Anthropic.
- */
-function translateMessageContent(msg) {
-  const role = msg.role === 'assistant' ? 'assistant' : 'user';
-  if (typeof msg.content === 'string') return { role, content: msg.content };
-  if (Array.isArray(msg.content)) {
-    const text = msg.content
-      .map(c => c.text || c.content || (typeof c === 'string' ? c : ''))
-      .filter(Boolean)
-      .join('\n');
-    return { role, content: text };
-  }
-  return { role, content: String(msg.content || '') };
-}
-
-/**
- * Translate an Anthropic Messages API response back to OpenAI Chat Completions format.
- * This keeps the client-side parsing code working without modification.
- */
-function translateAnthropicToOpenAI(anthropicResponse, requestedModel) {
-  // Extract text from content blocks
-  let text = '';
-  if (Array.isArray(anthropicResponse.content)) {
-    text = anthropicResponse.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('');
-  } else if (typeof anthropicResponse.content === 'string') {
-    text = anthropicResponse.content;
-  }
-
-  return {
-    id: anthropicResponse.id || `chatcmpl-${Date.now()}`,
-    object: 'chat.completion',
-    created: Math.floor(Date.now() / 1000),
-    model: requestedModel || anthropicResponse.model || 'claude-sonnet-4-20250514',
-    choices: [{
-      index: 0,
-      message: { role: 'assistant', content: text },
-      finish_reason: anthropicResponse.stop_reason === 'end_turn' ? 'stop' : (anthropicResponse.stop_reason || 'stop'),
-    }],
-    usage: {
-      prompt_tokens: anthropicResponse.usage?.input_tokens || 0,
-      completion_tokens: anthropicResponse.usage?.output_tokens || 0,
-      total_tokens: (anthropicResponse.usage?.input_tokens || 0) + (anthropicResponse.usage?.output_tokens || 0),
-    },
-  };
-}
-
-/**
- * Translate an Anthropic response into OpenAI Responses API format.
- */
-function translateAnthropicToResponses(anthropicResponse, requestedModel) {
-  let text = '';
-  if (Array.isArray(anthropicResponse.content)) {
-    text = anthropicResponse.content
-      .filter(block => block.type === 'text')
-      .map(block => block.text)
-      .join('');
-  } else if (typeof anthropicResponse.content === 'string') {
-    text = anthropicResponse.content;
-  }
-
-  return {
-    id: anthropicResponse.id || `resp-${Date.now()}`,
-    object: 'response',
-    output: [{
-      type: 'message',
-      role: 'assistant',
-      content: [{ type: 'output_text', text }],
-    }],
-    model: requestedModel || anthropicResponse.model || 'claude-sonnet-4-20250514',
-    usage: {
-      input_tokens: anthropicResponse.usage?.input_tokens || 0,
-      output_tokens: anthropicResponse.usage?.output_tokens || 0,
-    },
-  };
-}
 
 // Lazy-load config to avoid deployment timeouts
 function getRuntimeConfig() {
@@ -542,88 +380,136 @@ exports.openaiProxy = functions
   .https.onRequest(async (req, res) => {
     // Use the centralized CORS helper function
     setCorsHeaders(req, res);
-    
+
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
       return;
     }
-    
+
     // Only allow POST requests
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed. Use POST.' });
       return;
     }
-    
+
     try {
-      // Optional: Verify Firebase Auth token
-      // Uncomment the following lines to require authentication:
-      /*
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ error: 'Unauthorized. Missing or invalid token.' });
+      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
+      const model = (requestPayload.model || '').toLowerCase();
+
+      // ── Anthropic (Claude) routing ──────────────────────────────────
+      if (model.startsWith('claude')) {
+        const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        if (!anthropicApiKey) {
+          console.error('ANTHROPIC_API_KEY secret not configured');
+          res.status(500).json({ error: 'Anthropic service not configured' });
+          return;
+        }
+
+        // Convert OpenAI-format request to Anthropic Messages API format
+        const openaiMessages = requestPayload.messages || [];
+        let systemPrompt = '';
+        const anthropicMessages = [];
+
+        for (const msg of openaiMessages) {
+          if (msg.role === 'system') {
+            // Anthropic uses a top-level `system` field
+            const content = typeof msg.content === 'string'
+              ? msg.content
+              : Array.isArray(msg.content)
+                ? msg.content.map(c => c.text || '').join('\n')
+                : '';
+            systemPrompt = content;
+          } else {
+            // user / assistant messages
+            let text = '';
+            if (typeof msg.content === 'string') {
+              text = msg.content;
+            } else if (Array.isArray(msg.content)) {
+              text = msg.content.map(c => {
+                if (c.type === 'text' || c.type === 'input_text') return c.text || '';
+                return '';
+              }).join('\n');
+            }
+            anthropicMessages.push({ role: msg.role, content: text });
+          }
+        }
+
+        const anthropicPayload = {
+          model: requestPayload.model,
+          max_tokens: requestPayload.max_completion_tokens || requestPayload.max_tokens || 1024,
+          messages: anthropicMessages,
+        };
+        if (systemPrompt) anthropicPayload.system = systemPrompt;
+        if (requestPayload.temperature != null) anthropicPayload.temperature = requestPayload.temperature;
+        if (requestPayload.response_format) {
+          // Anthropic doesn't use response_format the same way,
+          // but we can instruct via system prompt
+          if (requestPayload.response_format.type === 'json_object') {
+            anthropicPayload.system = (anthropicPayload.system || '') +
+              '\n\nIMPORTANT: You MUST return only valid JSON matching the requested schema. Do not include any text outside the JSON object.';
+          }
+        }
+
+        console.log(`Proxying to Anthropic API: model=${requestPayload.model}, messages=${anthropicMessages.length}`);
+
+        const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicApiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify(anthropicPayload)
+        });
+
+        const anthropicData = await anthropicResponse.json();
+
+        if (!anthropicResponse.ok) {
+          console.error('Anthropic API error:', JSON.stringify(anthropicData));
+          res.status(anthropicResponse.status).json(anthropicData);
+          return;
+        }
+
+        // Convert Anthropic response back to OpenAI Chat Completions format
+        // so the client parsing logic continues to work unchanged
+        const textContent = (anthropicData.content || [])
+          .filter(block => block.type === 'text')
+          .map(block => block.text)
+          .join('');
+
+        const openaiCompatResponse = {
+          id: anthropicData.id || `chatcmpl-anthropic-${Date.now()}`,
+          object: 'chat.completion',
+          model: anthropicData.model || requestPayload.model,
+          choices: [{
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: textContent
+            },
+            finish_reason: anthropicData.stop_reason === 'end_turn' ? 'stop' : (anthropicData.stop_reason || 'stop')
+          }],
+          usage: {
+            prompt_tokens: anthropicData.usage?.input_tokens || 0,
+            completion_tokens: anthropicData.usage?.output_tokens || 0,
+            total_tokens: (anthropicData.usage?.input_tokens || 0) + (anthropicData.usage?.output_tokens || 0)
+          }
+        };
+
+        res.status(200).json(openaiCompatResponse);
         return;
       }
-      
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const userId = decodedToken.uid;
-      
-      // Optional: Implement rate limiting per user
-      // Check Firestore for user's request count and block if exceeded
-      */
-      
-      // Get OpenAI API key from Firebase secrets
+
+      // ── OpenAI routing (default) ────────────────────────────────────
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
         console.error('OPENAI_API_KEY secret not configured');
         res.status(500).json({ error: 'Service configuration error' });
         return;
       }
-      
-      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
-      const modelName = requestPayload.model || '';
 
-      // ── ANTHROPIC / CLAUDE PATH ─────────────────────────────────────────
-      // If the requested model starts with 'claude-', route through the
-      // Anthropic Messages API instead of OpenAI.
-      if (isClaudeModel(modelName)) {
-        const anthropicApiKey = process.env.ANTHROPIC_API_KEY || apiKey; // fallback to OPENAI_API_KEY if ANTHROPIC not set
-        if (!anthropicApiKey) {
-          res.status(500).json({ error: 'Service configuration error: no Anthropic API key' });
-          return;
-        }
-        const anthropicPayload = translateToAnthropic(requestPayload);
-        const isResponsesRequest = req.body && (typeof req.body === 'object') && ('input' in req.body);
-
-        console.log(`Proxy → Anthropic Messages API (model=${modelName})`);
-        const anthropicResponse = await fetch(ANTHROPIC_API_BASE, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': anthropicApiKey,
-            'anthropic-version': ANTHROPIC_VERSION,
-          },
-          body: JSON.stringify(anthropicPayload),
-        });
-
-        const data = await anthropicResponse.json();
-
-        if (!anthropicResponse.ok) {
-          console.error('Anthropic API error:', JSON.stringify(data));
-          res.status(anthropicResponse.status).json(data);
-          return;
-        }
-
-        // Translate Anthropic response back to OpenAI format for client compatibility
-        const openaiFormatted = isResponsesRequest
-          ? translateAnthropicToResponses(data, modelName)
-          : translateAnthropicToOpenAI(data, modelName);
-        res.status(200).json(openaiFormatted);
-        return;
-      }
-
-      // ── OPENAI PATH (legacy) ────────────────────────────────────────────
       const workflowId = getConfiguredOpenAiWorkflowId(req);
 
       // Determine endpoint path from request payload
@@ -649,7 +535,7 @@ exports.openaiProxy = functions
             stream: false
           }
         : requestPayload;
-      
+
       // Forward the request to OpenAI
       const openaiResponse = await fetch(openaiUrl, {
         method: 'POST',
@@ -659,21 +545,21 @@ exports.openaiProxy = functions
         },
         body: JSON.stringify(openaiPayload)
       });
-      
+
       const data = await openaiResponse.json();
-      
+
       // Return OpenAI's response to the client
       res.status(openaiResponse.status).json(
         workflowId && openaiResponse.ok
           ? normalizeWorkflowResponse(data, endpoint, workflowId)
           : data
       );
-      
+
     } catch (error) {
       console.error('OpenAI proxy error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to process request',
-        message: error.message 
+        message: error.message
       });
     }
   });
@@ -1902,488 +1788,5 @@ exports.cancelSubscription = functions
     } catch (error) {
       console.error('Cancel subscription error:', error);
       res.status(500).json({ error: error.message });
-    }
-  });
-
-// ============================================================================
-// DEPLOYMENT CONFIRMATION EMAIL FUNCTIONS
-// ============================================================================
-
-/**
- * Send Deployment Confirmation Email
- *
- * Sends an email to the owner requesting confirmation before a deployment
- * proceeds to the live domains. The deployment is recorded in Firestore
- * with a unique request ID and must be explicitly approved before the
- * deploy script will continue.
- *
- * Workflow:
- *   1. Deploy script calls this function with deployment details
- *   2. Email is sent to the owner with approve/reject links
- *   3. Owner clicks approve or reject in the email
- *   4. Deploy script polls checkDeploymentStatus until status is resolved
- *
- * Setup:
- *   firebase functions:secrets:set SMTP_HOST
- *   firebase functions:secrets:set SMTP_PORT
- *   firebase functions:secrets:set SMTP_USER
- *   firebase functions:secrets:set SMTP_PASS
- *   firebase functions:secrets:set DEPLOY_NOTIFY_EMAIL
- *
- *   OR use Gmail:
- *   firebase functions:secrets:set GMAIL_USER
- *   firebase functions:secrets:set GMAIL_APP_PASSWORD
- */
-
-const DEPLOYMENT_OWNER_EMAIL = process.env.DEPLOY_NOTIFY_EMAIL || 'chungu424@gmail.com';
-
-/**
- * Create a nodemailer transport using environment configuration
- */
-function createEmailTransport() {
-  // Gmail configuration (preferred)
-  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
-  }
-
-  // Custom SMTP configuration
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587', 10),
-      secure: parseInt(process.env.SMTP_PORT || '587', 10) === 465,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  }
-
-  // Fallback: use Ethereal Email (test account) for development
-  console.warn('No email credentials configured. Using Ethereal test account.');
-  return null;
-}
-
-/**
- * HTTP Callable: Send deployment confirmation email
- *
- * Body:
- *   - target: string (e.g., "staging", "admin", "both")
- *   - commitHash: string
- *   - commitMessage: string
- *   - branch: string
- *   - deployedBy: string (who/what initiated)
- *   - domains: string[] (list of domains being deployed to)
- *   - changesSummary: string (brief description of what changed)
- */
-exports.sendDeploymentConfirmation = functions
-  .runWith({
-    secrets: ['GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'],
-    timeoutSeconds: 30,
-    memory: '256MB'
-  })
-  .https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
-
-    if (req.method !== 'POST') {
-      res.status(405).json({ error: 'Method not allowed. Use POST.' });
-      return;
-    }
-
-    try {
-      const {
-        target = 'unknown',
-        commitHash = 'unknown',
-        commitMessage = 'No commit message',
-        branch = 'main',
-        deployedBy = 'automated',
-        domains = [],
-        changesSummary = 'No summary provided',
-      } = req.body || {};
-
-      // Generate a unique deployment request ID
-      const requestId = `deploy_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-
-      // Create the deployment request in Firestore
-      const deployRef = db.collection('deployment_requests').doc(requestId);
-      await deployRef.set({
-        id: requestId,
-        status: 'pending', // pending | approved | rejected | expired
-        target,
-        commitHash,
-        commitMessage,
-        branch,
-        deployedBy,
-        domains,
-        changesSummary,
-        ownerEmail: DEPLOYMENT_OWNER_EMAIL,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: admin.firestore.Timestamp.fromDate(
-          new Date(Date.now() + 30 * 60 * 1000) // 30 min expiry
-        ),
-      });
-
-      // Build the email
-      const transporter = createEmailTransport();
-
-      if (!transporter) {
-        // No email configured - auto-approve for development
-        console.warn('No email transport available. Auto-approving deployment request.');
-        await deployRef.update({
-          status: 'approved',
-          approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-          approvedBy: 'auto (no email config)',
-        });
-        res.json({
-          success: true,
-          requestId,
-          status: 'approved',
-          message: 'No email configuration found. Deployment auto-approved for development.',
-        });
-        return;
-      }
-
-      const functionRegion = process.env.FUNCTION_REGION || process.env.FUNCTION_TARGET || 'us-central1';
-      const projectId = process.env.GCLOUD_PROJECT || 'ndu-d3f60';
-      const baseUrl = `https://${functionRegion}-${projectId}.cloudfunctions.net`;
-
-      const approveUrl = `${baseUrl}/handleDeploymentAction?action=approve&requestId=${requestId}`;
-      const rejectUrl = `${baseUrl}/handleDeploymentAction?action=reject&requestId=${requestId}`;
-
-      const domainsList = domains.length > 0
-        ? domains.map(d => `<li><code>${d}</code></li>`).join('')
-        : '<li><code>staging.nduproject.com</code></li><li><code>admin.nduproject.com</code></li>';
-
-      const htmlBody = `
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; }
-    .header { background: linear-gradient(135deg, #3b82f6, #8b5cf6); padding: 24px; text-align: center; }
-    .header h1 { margin: 0; color: white; font-size: 22px; }
-    .header p { margin: 8px 0 0; color: rgba(255,255,255,0.8); font-size: 14px; }
-    .content { padding: 24px; }
-    .detail-row { display: flex; padding: 8px 0; border-bottom: 1px solid #334155; }
-    .detail-label { width: 140px; font-weight: 600; color: #94a3b8; font-size: 13px; }
-    .detail-value { flex: 1; font-size: 14px; color: #e2e8f0; }
-    .detail-value code { background: #0f172a; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
-    .summary { background: #0f172a; border-radius: 8px; padding: 16px; margin: 16px 0; border-left: 3px solid #3b82f6; }
-    .summary p { margin: 0; font-size: 14px; line-height: 1.6; }
-    .actions { display: flex; gap: 12px; margin: 24px 0; }
-    .btn { display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; text-align: center; flex: 1; }
-    .btn-approve { background: #22c55e; color: white; }
-    .btn-reject { background: #ef4444; color: white; }
-    .footer { padding: 16px 24px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px solid #334155; }
-    .warning { background: #422006; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin: 16px 0; }
-    .warning p { margin: 0; color: #fbbf24; font-size: 13px; }
-    ul { padding-left: 20px; }
-    li { margin: 4px 0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>NDU Project Deployment Request</h1>
-      <p>Confirmation required before deploying to production</p>
-    </div>
-    <div class="content">
-      <div class="warning">
-        <p>A deployment is pending your approval. This will push changes to the live domains listed below. Please review carefully before approving.</p>
-      </div>
-
-      <div class="detail-row">
-        <div class="detail-label">Request ID</div>
-        <div class="detail-value"><code>${requestId}</code></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Target</div>
-        <div class="detail-value"><strong>${target.toUpperCase()}</strong></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Branch</div>
-        <div class="detail-value"><code>${branch}</code></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Commit</div>
-        <div class="detail-value"><code>${commitHash.substring(0, 12)}</code></div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Initiated By</div>
-        <div class="detail-value">${deployedBy}</div>
-      </div>
-      <div class="detail-row">
-        <div class="detail-label">Domains</div>
-        <div class="detail-value">
-          <ul>${domainsList}</ul>
-        </div>
-      </div>
-
-      <div class="summary">
-        <p><strong>Commit Message:</strong><br>${commitMessage}</p>
-      </div>
-      <div class="summary">
-        <p><strong>Changes Summary:</strong><br>${changesSummary}</p>
-      </div>
-
-      <div class="actions">
-        <a href="${approveUrl}" class="btn btn-approve">Approve Deployment</a>
-        <a href="${rejectUrl}" class="btn btn-reject">Reject Deployment</a>
-      </div>
-    </div>
-    <div class="footer">
-      <p>NDU Project Deployment System &bull; This request expires in 30 minutes</p>
-      <p>If you did not initiate this deployment, please reject it immediately.</p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-      const textBody = `
-NDU PROJECT DEPLOYMENT REQUEST
-==============================
-
-A deployment is pending your approval.
-
-Request ID: ${requestId}
-Target: ${target.toUpperCase()}
-Branch: ${branch}
-Commit: ${commitHash.substring(0, 12)}
-Initiated By: ${deployedBy}
-Domains: ${domains.join(', ') || 'staging.nduproject.com, admin.nduproject.com'}
-
-Commit Message: ${commitMessage}
-
-Changes Summary: ${changesSummary}
-
-APPROVE: ${approveUrl}
-REJECT: ${rejectUrl}
-
-This request expires in 30 minutes.
-If you did not initiate this deployment, please reject it immediately.
-`;
-
-      // Send the email
-      const mailResult = await transporter.sendMail({
-        from: `"NDU Deploy" <${process.env.GMAIL_USER || process.env.SMTP_USER || 'noreply@nduproject.com'}>`,
-        to: DEPLOYMENT_OWNER_EMAIL,
-        subject: `[NDU Deploy] Deployment Confirmation Required - ${target.toUpperCase()} - ${commitHash.substring(0, 8)}`,
-        html: htmlBody,
-        text: textBody,
-      });
-
-      console.log('Deployment confirmation email sent:', mailResult.messageId);
-
-      res.json({
-        success: true,
-        requestId,
-        status: 'pending',
-        message: `Confirmation email sent to ${DEPLOYMENT_OWNER_EMAIL}. Waiting for approval.`,
-        messageId: mailResult.messageId,
-      });
-
-    } catch (error) {
-      console.error('Failed to send deployment confirmation email:', error);
-      res.status(500).json({
-        error: 'Failed to send confirmation email',
-        message: error.message,
-      });
-    }
-  });
-
-/**
- * HTTP Callable: Handle deployment action (approve/reject)
- *
- * This is called via email links. It updates the Firestore document
- * and shows a confirmation page to the user.
- */
-exports.handleDeploymentAction = functions
-  .runWith({
-    timeoutSeconds: 15,
-    memory: '128MB'
-  })
-  .https.onRequest(async (req, res) => {
-    const { action, requestId } = req.query;
-
-    if (!action || !requestId) {
-      res.status(400).send('Missing action or requestId parameters.');
-      return;
-    }
-
-    if (!['approve', 'reject'].includes(action)) {
-      res.status(400).send('Invalid action. Must be "approve" or "reject".');
-      return;
-    }
-
-    try {
-      const deployDoc = await db.collection('deployment_requests').doc(requestId).get();
-
-      if (!deployDoc.exists) {
-        res.status(404).send(`
-          <html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f172a;color:#e2e8f0;">
-            <h1 style="color:#ef4444;">Deployment Request Not Found</h1>
-            <p>This deployment request may have expired or does not exist.</p>
-          </body></html>
-        `);
-        return;
-      }
-
-      const deployData = deployDoc.data();
-
-      if (deployData.status !== 'pending') {
-        const statusColor = deployData.status === 'approved' ? '#22c55e' : '#ef4444';
-        res.status(200).send(`
-          <html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f172a;color:#e2e8f0;">
-            <h1 style="color:${statusColor};">Already ${deployData.status.toUpperCase()}</h1>
-            <p>This deployment request was already ${deployData.status}.</p>
-            <p>Request ID: ${requestId}</p>
-          </body></html>
-        `);
-        return;
-      }
-
-      // Check expiry
-      const now = new Date();
-      const expiresAt = deployData.expiresAt?.toDate ? deployData.expiresAt.toDate() : new Date(0);
-      if (now > expiresAt) {
-        await deployDoc.ref.update({
-          status: 'expired',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        res.status(200).send(`
-          <html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f172a;color:#e2e8f0;">
-            <h1 style="color:#f59e0b;">Request Expired</h1>
-            <p>This deployment request has expired (30 minute window).</p>
-            <p>Please initiate a new deployment.</p>
-          </body></html>
-        `);
-        return;
-      }
-
-      // Update the status
-      const newStatus = action === 'approve' ? 'approved' : 'rejected';
-      await deployDoc.ref.update({
-        status: newStatus,
-        [action === 'approve' ? 'approvedAt' : 'rejectedAt']: admin.firestore.FieldValue.serverTimestamp(),
-        [action === 'approve' ? 'approvedBy' : 'rejectedBy']: 'owner',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      const color = action === 'approve' ? '#22c55e' : '#ef4444';
-      const icon = action === 'approve' ? '&#10004;' : '&#10008;';
-      const message = action === 'approve'
-        ? 'The deployment will now proceed to the live domains.'
-        : 'The deployment has been cancelled and will NOT proceed.';
-
-      res.status(200).send(`
-        <html><body style="font-family:sans-serif;text-align:center;padding:40px;background:#0f172a;color:#e2e8f0;">
-          <div style="max-width:500px;margin:0 auto;background:#1e293b;border-radius:12px;padding:32px;border:1px solid #334155;">
-            <div style="font-size:48px;color:${color};">${icon}</div>
-            <h1 style="color:${color};">Deployment ${newStatus.toUpperCase()}</h1>
-            <p>${message}</p>
-            <div style="text-align:left;background:#0f172a;border-radius:8px;padding:16px;margin:16px 0;">
-              <p style="margin:4px 0;color:#94a3b8;font-size:13px;">Request ID: <code style="color:#e2e8f0;">${requestId}</code></p>
-              <p style="margin:4px 0;color:#94a3b8;font-size:13px;">Target: <strong style="color:#e2e8f0;">${deployData.target?.toUpperCase() || 'N/A'}</strong></p>
-              <p style="margin:4px 0;color:#94a3b8;font-size:13px;">Commit: <code style="color:#e2e8f0;">${(deployData.commitHash || '').substring(0, 12)}</code></p>
-              <p style="margin:4px 0;color:#94a3b8;font-size:13px;">Branch: <code style="color:#e2e8f0;">${deployData.branch || 'N/A'}</code></p>
-            </div>
-          </div>
-        </body></html>
-      `);
-
-    } catch (error) {
-      console.error('Error handling deployment action:', error);
-      res.status(500).send('Internal server error');
-    }
-  });
-
-/**
- * HTTP Callable: Check deployment status
- *
- * Called by the deploy script to poll whether the owner has approved
- * or rejected a deployment request.
- *
- * Query params:
- *   - requestId: string
- */
-exports.checkDeploymentStatus = functions
-  .runWith({
-    timeoutSeconds: 10,
-    memory: '128MB'
-  })
-  .https.onRequest(async (req, res) => {
-    setCorsHeaders(req, res);
-
-    if (req.method === 'OPTIONS') {
-      res.status(204).send('');
-      return;
-    }
-
-    if (req.method !== 'GET' && req.method !== 'POST') {
-      res.status(405).json({ error: 'Method not allowed' });
-      return;
-    }
-
-    const requestId = req.query.requestId || req.body?.requestId;
-
-    if (!requestId) {
-      res.status(400).json({ error: 'Missing requestId parameter' });
-      return;
-    }
-
-    try {
-      const deployDoc = await db.collection('deployment_requests').doc(requestId).get();
-
-      if (!deployDoc.exists) {
-        res.status(404).json({ error: 'Deployment request not found', status: 'not_found' });
-        return;
-      }
-
-      const data = deployDoc.data();
-
-      // Check expiry and auto-expire if needed
-      const now = new Date();
-      const expiresAt = data.expiresAt?.toDate ? data.expiresAt.toDate() : new Date(0);
-      if (data.status === 'pending' && now > expiresAt) {
-        await deployDoc.ref.update({
-          status: 'expired',
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        res.json({
-          status: 'expired',
-          requestId: data.id,
-          message: 'Deployment request has expired. Please initiate a new one.',
-        });
-        return;
-      }
-
-      res.json({
-        status: data.status,
-        requestId: data.id,
-        target: data.target,
-        commitHash: data.commitHash,
-        branch: data.branch,
-        approvedBy: data.approvedBy || null,
-        rejectedBy: data.rejectedBy || null,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : null,
-        approvedAt: data.approvedAt?.toDate ? data.approvedAt.toDate().toISOString() : null,
-        rejectedAt: data.rejectedAt?.toDate ? data.rejectedAt.toDate().toISOString() : null,
-      });
-
-    } catch (error) {
-      console.error('Error checking deployment status:', error);
-      res.status(500).json({ error: 'Failed to check deployment status', message: error.message });
     }
   });

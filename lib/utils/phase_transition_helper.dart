@@ -60,10 +60,11 @@ class PhaseTransitionRoute<T> extends PageRouteBuilder<T> {
     String? phaseLabel,
     super.settings,
   }) : super(
-          // Keep phase-change transitions snappy; long transitions feel like
-          // navigation latency and can amplify perceived jank.
-          transitionDuration: const Duration(milliseconds: 650),
-          reverseTransitionDuration: const Duration(milliseconds: 420),
+          // Keep transitions snappy for instant-feeling navigation.
+          // Claude's faster response time means the new screen loads quickly;
+          // long transitions just add perceived latency.
+          transitionDuration: const Duration(milliseconds: 250),
+          reverseTransitionDuration: const Duration(milliseconds: 180),
           pageBuilder: (context, animation, secondaryAnimation) =>
               builder(context),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
