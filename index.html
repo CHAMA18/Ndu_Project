@@ -1,24 +1,16 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="/NDU-Test/">
+  <base href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="NDU Project - Navigate. Deliver. Upgrade.">
+
+  <!-- Aggressive cache prevention — ensures users always see the latest version -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -32,16 +24,80 @@
 
   <title>NDU Project</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    }
+    .loading-container {
+      text-align: center;
+      color: #94a3b8;
+    }
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(148, 163, 184, 0.2);
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div class="loading-container" id="loading-indicator">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading NDU Project...</div>
+  </div>
+  <!-- Runtime environment config — loaded BEFORE Flutter so keys are
+       available when EnvConfigLoader.load() runs in main(). -->
+  <script src="env-config.js?v=1781038092"></script>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+  <!-- Aggressive cache bust: always clear service workers & caches, then force-reload if stale -->
+  <script>
+    (function() {
+      var NDU_BUILD = '1781038092';
+      try {
+        // Always unregister service workers to prevent stale caching
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            regs.forEach(function(reg) { reg.unregister(); });
+          });
+        }
+        // Always clear Cache API entries
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            names.forEach(function(name) { caches.delete(name); });
+          });
+        }
+        // Check if build version changed → hard reload with query param to bust all caches
+        var stored = localStorage.getItem('__ndu_build');
+        if (stored && stored !== NDU_BUILD) {
+          localStorage.setItem('__ndu_build', NDU_BUILD);
+          // Force reload with cache bypass
+          location.replace(location.href.split('?')[0] + '?v=' + NDU_BUILD);
+          return;
+        }
+        localStorage.setItem('__ndu_build', NDU_BUILD);
+      } catch(e) {}
+    })();
+  </script>
+
+  <script src="flutter_bootstrap.js?v=1781038092" async></script>
 </body>
 </html>
