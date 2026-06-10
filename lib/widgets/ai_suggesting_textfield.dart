@@ -756,28 +756,33 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                 if (_voiceAvailable) ...[
                                   if (_isListening)
                                     Container(
-                                      width: 32,
-                                      height: 32,
+                                      width: 40,
+                                      height: 40,
                                       margin: const EdgeInsets.only(right: 4),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFB800).withOpacity(0.15),
                                         shape: BoxShape.circle,
                                       ),
                                       child: IconButton(
-                                        icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 16),
+                                        icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 22),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                                         onPressed: _toggleVoiceInput,
                                         tooltip: 'Stop voice input',
                                       ),
                                     )
                                   else
-                                    IconButton(
-                                      icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 16),
-                                      padding: const EdgeInsets.only(right: 4),
-                                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                                      onPressed: _toggleVoiceInput,
-                                      tooltip: 'Voice input',
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      margin: const EdgeInsets.only(right: 4),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 22),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                                        onPressed: _toggleVoiceInput,
+                                        tooltip: 'Voice input',
+                                      ),
                                     ),
                                 ],
                               ],
@@ -785,25 +790,32 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                       : _voiceAvailable
                           ? (_isListening
                               ? Container(
-                                  width: 36,
-                                  height: 36,
-                                  margin: const EdgeInsets.all(6),
+                                  width: 40,
+                                  height: 40,
+                                  margin: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFFB800).withOpacity(0.15),
                                     shape: BoxShape.circle,
                                   ),
                                   child: IconButton(
-                                    icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 18),
+                                    icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 22),
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                                     onPressed: _toggleVoiceInput,
                                     tooltip: 'Stop voice input',
                                   ),
                                 )
-                              : IconButton(
-                                  icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 18),
-                                  onPressed: _toggleVoiceInput,
-                                  tooltip: 'Voice input',
+                              : Container(
+                                  width: 40,
+                                  height: 40,
+                                  margin: const EdgeInsets.all(4),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 22),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                                    onPressed: _toggleVoiceInput,
+                                    tooltip: 'Voice input',
+                                  ),
                                 ))
                           : null,
                 ),
