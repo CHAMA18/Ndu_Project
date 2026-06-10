@@ -1,17 +1,23 @@
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
+import 'package:ndu_project/utils/text_sanitizer.dart';
 
 /// A drop-in replacement for [TextField] that adds a microphone button
-/// for voice-to-text input.
+/// for voice-to-text input and an import button for pasting/importing content.
 ///
 /// The mic icon appears as a suffixIcon inside the text field's decoration.
 /// When tapped, it requests microphone permission and starts listening.
 /// Recognized speech is appended to the field's text.
 ///
+/// The import icon provides a dropdown with "Paste from Clipboard" and
+/// "Import from File" options.
+///
 /// Set [enableVoice] to false to hide the mic button (defaults to true).
+/// Set [enableImport] to false to hide the import button (defaults to true).
 class VoiceTextField extends StatefulWidget {
   const VoiceTextField({
     super.key,
@@ -59,6 +65,8 @@ class VoiceTextField extends StatefulWidget {
     this.enableVoice = true,
     this.voiceIconColor,
     this.onTapOutside,
+    this.enableImport = true,
+    this.importIconColor,
   });
 
   final TextEditingController? controller;
@@ -110,6 +118,12 @@ class VoiceTextField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow if not specified.
   final Color? voiceIconColor;
 
+  /// Whether to show the import content button. Defaults to true.
+  final bool enableImport;
+
+  /// Color of the import icon. Defaults to grey if not specified.
+  final Color? importIconColor;
+
   @override
   State<VoiceTextField> createState() => _VoiceTextFieldState();
 }
@@ -121,6 +135,7 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
   StreamSubscription<VoiceStatus>? _statusSubscription;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImporting = false;
 
   @override
   void initState() {
@@ -207,6 +222,96 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
     _statusSubscription = null;
   }
 
+  Future<void> _importFromClipboard() async {
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData?.text == null || clipboardData!.text!.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No text found in clipboard.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    final imported = clipboardData.text!;
+    _applyImportedText(imported);
+  }
+
+  Future<void> _importFromFile() async {
+    setState(() => _isImporting = true);
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'md', 'csv', 'json'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) {
+        if (mounted) setState(() => _isImporting = false);
+        return;
+      }
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not read the selected file. Try pasting from clipboard instead.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        if (mounted) setState(() => _isImporting = false);
+        return;
+      }
+      final imported = String.fromCharCodes(bytes);
+      _applyImportedText(imported);
+    } catch (e) {
+      // File picker not supported — fall back to clipboard import
+      if (mounted) {
+        _importFromClipboard();
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
+  }
+
+  void _applyImportedText(String imported) {
+    final sanitized = TextSanitizer.sanitizeAiRichText(imported);
+    final currentText = _controller.text;
+    final selection = _controller.selection;
+
+    if (currentText.trim().isEmpty) {
+      // If the field is empty, replace everything
+      _controller.text = sanitized;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+    } else {
+      // Insert at cursor position
+      final beforeCursor = currentText.substring(0, selection.baseOffset);
+      final afterCursor = currentText.substring(selection.extentOffset);
+      final needsNewline = beforeCursor.isNotEmpty && !beforeCursor.endsWith('\n');
+      final separator = needsNewline ? '\n' : '';
+      final newText = beforeCursor + separator + sanitized + afterCursor;
+      _controller.text = newText;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: beforeCursor.length + separator.length + sanitized.length),
+      );
+    }
+    widget.onChanged?.call(_controller.text);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Content imported successfully.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _cleanupSubscriptions();
@@ -221,7 +326,9 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
   Widget build(BuildContext context) {
     final voiceEnabled =
         widget.enableVoice && _voiceAvailable && !widget.obscureText;
-    final effectiveDecoration = _buildDecoration(voiceEnabled);
+    final importEnabled =
+        widget.enableImport && !widget.obscureText && !widget.readOnly;
+    final effectiveDecoration = _buildDecoration(voiceEnabled, importEnabled);
 
     return TextField(
       controller: _controller,
@@ -269,29 +376,96 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
     );
   }
 
-  InputDecoration _buildDecoration(bool voiceEnabled) {
+  InputDecoration _buildDecoration(bool voiceEnabled, bool importEnabled) {
     final base = widget.decoration ?? const InputDecoration();
-    final micIcon = _buildMicIcon();
 
-    if (!voiceEnabled) return base;
+    if (!voiceEnabled && !importEnabled) return base;
 
-    // Merge the mic icon with any existing suffixIcon
+    // Build list of suffix icons to merge with any existing suffixIcon
+    final List<Widget> suffixIcons = [];
     final existingSuffix = base.suffixIcon;
-    Widget suffixWidget;
-
     if (existingSuffix != null) {
+      suffixIcons.add(existingSuffix);
+    }
+    if (importEnabled) suffixIcons.add(_buildImportIcon());
+    if (voiceEnabled) suffixIcons.add(_buildMicIcon());
+
+    Widget suffixWidget;
+    if (suffixIcons.length == 1) {
+      suffixWidget = suffixIcons.first;
+    } else {
       suffixWidget = Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          existingSuffix,
-          micIcon,
-        ],
+        children: suffixIcons,
       );
-    } else {
-      suffixWidget = micIcon;
     }
 
     return base.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildImportIcon() {
+    final iconColor = widget.importIconColor ?? const Color(0xFF6B7280);
+
+    if (_isImporting) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: Padding(
+          padding: EdgeInsets.only(right: 4),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      icon: Icon(
+        Icons.download_rounded,
+        size: 18,
+        color: iconColor,
+      ),
+      tooltip: 'Import content',
+      padding: const EdgeInsets.only(right: 2),
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      position: PopupMenuPosition.under,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'clipboard',
+          height: 40,
+          child: Row(
+            children: [
+              Icon(Icons.content_paste, size: 16, color: const Color(0xFFB45309)),
+              const SizedBox(width: 8),
+              const Text(
+                'Paste from Clipboard',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'file',
+          height: 40,
+          child: Row(
+            children: [
+              Icon(Icons.upload_file, size: 16, color: const Color(0xFF4154F1)),
+              const SizedBox(width: 8),
+              const Text(
+                'Import from File',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'clipboard') {
+          _importFromClipboard();
+        } else if (value == 'file') {
+          _importFromFile();
+        }
+      },
+    );
   }
 
   Widget _buildMicIcon() {
@@ -299,8 +473,8 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
 
     if (_isListening) {
       return Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         margin: const EdgeInsets.only(right: 4),
         decoration: BoxDecoration(
           color: iconColor.withOpacity(0.15),
@@ -310,34 +484,40 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
           icon: Icon(
             Icons.mic,
             color: iconColor,
-            size: 18,
+            size: 22,
           ),
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           onPressed: _toggleVoiceInput,
           tooltip: 'Stop voice input',
         ),
       );
     }
 
-    return IconButton(
-      icon: Icon(
-        Icons.mic_none_outlined,
-        color: iconColor,
-        size: 18,
+    return Container(
+      width: 40,
+      height: 40,
+      margin: const EdgeInsets.only(right: 4),
+      child: IconButton(
+        icon: Icon(
+          Icons.mic_none_outlined,
+          color: iconColor,
+          size: 22,
+        ),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: _toggleVoiceInput,
+        tooltip: 'Voice input',
       ),
-      padding: const EdgeInsets.only(right: 4),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
     );
   }
 }
 
 /// A drop-in replacement for [TextFormField] that adds a microphone button
-/// for voice-to-text input.
+/// for voice-to-text input and an import button for pasting/importing content.
 ///
-/// Identical API surface to TextFormField with an additional [enableVoice] param.
+/// Identical API surface to TextFormField with additional [enableVoice] and
+/// [enableImport] params.
 class VoiceTextFormField extends StatefulWidget {
   const VoiceTextFormField({
     super.key,
@@ -392,6 +572,8 @@ class VoiceTextFormField extends StatefulWidget {
     this.restorationId,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableImport = true,
+    this.importIconColor,
   });
 
   final TextEditingController? controller;
@@ -450,6 +632,12 @@ class VoiceTextFormField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow if not specified.
   final Color? voiceIconColor;
 
+  /// Whether to show the import content button. Defaults to true.
+  final bool enableImport;
+
+  /// Color of the import icon. Defaults to grey if not specified.
+  final Color? importIconColor;
+
   @override
   State<VoiceTextFormField> createState() => _VoiceTextFormFieldState();
 }
@@ -461,6 +649,7 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   StreamSubscription<VoiceStatus>? _statusSubscription;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImporting = false;
 
   @override
   void initState() {
@@ -553,6 +742,96 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
     _statusSubscription = null;
   }
 
+  Future<void> _importFromClipboard() async {
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData?.text == null || clipboardData!.text!.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No text found in clipboard.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    final imported = clipboardData.text!;
+    _applyImportedText(imported);
+  }
+
+  Future<void> _importFromFile() async {
+    setState(() => _isImporting = true);
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'md', 'csv', 'json'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) {
+        if (mounted) setState(() => _isImporting = false);
+        return;
+      }
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not read the selected file. Try pasting from clipboard instead.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        if (mounted) setState(() => _isImporting = false);
+        return;
+      }
+      final imported = String.fromCharCodes(bytes);
+      _applyImportedText(imported);
+    } catch (e) {
+      // File picker not supported — fall back to clipboard import
+      if (mounted) {
+        _importFromClipboard();
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
+  }
+
+  void _applyImportedText(String imported) {
+    final sanitized = TextSanitizer.sanitizeAiRichText(imported);
+    final currentText = _controller.text;
+    final selection = _controller.selection;
+
+    if (currentText.trim().isEmpty) {
+      // If the field is empty, replace everything
+      _controller.text = sanitized;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+    } else {
+      // Insert at cursor position
+      final beforeCursor = currentText.substring(0, selection.baseOffset);
+      final afterCursor = currentText.substring(selection.extentOffset);
+      final needsNewline = beforeCursor.isNotEmpty && !beforeCursor.endsWith('\n');
+      final separator = needsNewline ? '\n' : '';
+      final newText = beforeCursor + separator + sanitized + afterCursor;
+      _controller.text = newText;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: beforeCursor.length + separator.length + sanitized.length),
+      );
+    }
+    widget.onChanged?.call(_controller.text);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Content imported successfully.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _cleanupSubscriptions();
@@ -566,7 +845,9 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   Widget build(BuildContext context) {
     final voiceEnabled =
         widget.enableVoice && _voiceAvailable && !widget.obscureText;
-    final effectiveDecoration = _buildDecoration(voiceEnabled);
+    final importEnabled =
+        widget.enableImport && !widget.obscureText && !widget.readOnly;
+    final effectiveDecoration = _buildDecoration(voiceEnabled, importEnabled);
 
     return TextFormField(
       controller: _controller,
@@ -620,28 +901,96 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
     );
   }
 
-  InputDecoration _buildDecoration(bool voiceEnabled) {
+  InputDecoration _buildDecoration(bool voiceEnabled, bool importEnabled) {
     final base = widget.decoration ?? const InputDecoration();
-    final micIcon = _buildMicIcon();
 
-    if (!voiceEnabled) return base;
+    if (!voiceEnabled && !importEnabled) return base;
 
+    // Build list of suffix icons to merge with any existing suffixIcon
+    final List<Widget> suffixIcons = [];
     final existingSuffix = base.suffixIcon;
-    Widget suffixWidget;
-
     if (existingSuffix != null) {
+      suffixIcons.add(existingSuffix);
+    }
+    if (importEnabled) suffixIcons.add(_buildImportIcon());
+    if (voiceEnabled) suffixIcons.add(_buildMicIcon());
+
+    Widget suffixWidget;
+    if (suffixIcons.length == 1) {
+      suffixWidget = suffixIcons.first;
+    } else {
       suffixWidget = Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          existingSuffix,
-          micIcon,
-        ],
+        children: suffixIcons,
       );
-    } else {
-      suffixWidget = micIcon;
     }
 
     return base.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildImportIcon() {
+    final iconColor = widget.importIconColor ?? const Color(0xFF6B7280);
+
+    if (_isImporting) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: Padding(
+          padding: EdgeInsets.only(right: 4),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      icon: Icon(
+        Icons.download_rounded,
+        size: 18,
+        color: iconColor,
+      ),
+      tooltip: 'Import content',
+      padding: const EdgeInsets.only(right: 2),
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      position: PopupMenuPosition.under,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'clipboard',
+          height: 40,
+          child: Row(
+            children: [
+              Icon(Icons.content_paste, size: 16, color: const Color(0xFFB45309)),
+              const SizedBox(width: 8),
+              const Text(
+                'Paste from Clipboard',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'file',
+          height: 40,
+          child: Row(
+            children: [
+              Icon(Icons.upload_file, size: 16, color: const Color(0xFF4154F1)),
+              const SizedBox(width: 8),
+              const Text(
+                'Import from File',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'clipboard') {
+          _importFromClipboard();
+        } else if (value == 'file') {
+          _importFromFile();
+        }
+      },
+    );
   }
 
   Widget _buildMicIcon() {
@@ -649,8 +998,8 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
 
     if (_isListening) {
       return Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         margin: const EdgeInsets.only(right: 4),
         decoration: BoxDecoration(
           color: iconColor.withOpacity(0.15),
@@ -660,26 +1009,31 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
           icon: Icon(
             Icons.mic,
             color: iconColor,
-            size: 18,
+            size: 22,
           ),
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           onPressed: _toggleVoiceInput,
           tooltip: 'Stop voice input',
         ),
       );
     }
 
-    return IconButton(
-      icon: Icon(
-        Icons.mic_none_outlined,
-        color: iconColor,
-        size: 18,
+    return Container(
+      width: 40,
+      height: 40,
+      margin: const EdgeInsets.only(right: 4),
+      child: IconButton(
+        icon: Icon(
+          Icons.mic_none_outlined,
+          color: iconColor,
+          size: 22,
+        ),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: _toggleVoiceInput,
+        tooltip: 'Voice input',
       ),
-      padding: const EdgeInsets.only(right: 4),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
     );
   }
 }

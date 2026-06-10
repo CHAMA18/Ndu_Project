@@ -10,6 +10,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/bullet_point_editor.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 const Color _kAccentColor = Color(0xFFFFC812);
 const Color _kTextPrimary = Color(0xFF1A1D1F);
 const Color _kTextSecondary = Color(0xFF6B7280);
@@ -889,21 +890,15 @@ class _NextButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerRight,
-      child: ElevatedButton(
+      child: LoadingNextButton(
         onPressed: () => FrontEndPlanningProcurementScreen.open(context),
-        style: ElevatedButton.styleFrom(
-          elevation: 8,
-          backgroundColor: _kAccentColor,
-          foregroundColor: _kTextPrimary,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 18),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        child: const Text('Next'),
+        backgroundColor: _kAccentColor,
+        foregroundColor: _kTextPrimary,
+        borderRadius: 18,
+        elevation: 8,
+        padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 18),
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
       ),
     );
   }

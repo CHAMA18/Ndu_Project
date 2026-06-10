@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://www.buildfastwithai.com/blogs/best-ai-model-per-task-2026",
+    "name": "Every AI Model Compared: Best One Per Task (2026)",
+    "snippet": "Opus 4.6 leads on SWE-Bench at 75.6%. For terminal-heavy agentic coding, GPT-5.3 Codex is purpose-built and arguably the specialist winner.",
+    "host_name": "www.buildfastwithai.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.reddit.com/r/ChatGPTPro/comments/1lacz04/coding_showdown_gpto3_vs_o4minihigh_vs_4o_vs_41",
+    "name": "GPT-o3 vs o4-mini-high vs 4o vs 4.1 (full benchmark, 50 tasks)",
+    "snippet": "GPT-o3 clearly stood out as the most reliable model—it consistently delivered careful, robust, and safe solutions. Its tendency to produce more ...",
+    "host_name": "www.reddit.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.remio.ai/post/openai-retiring-gpt-4o-gpt-4-1-and-o4-mini-the-2026-transition-guide",
+    "name": "OpenAI Retiring GPT-4o, GPT-4.1, and o4-mini: The 2026 Transition",
+    "snippet": "OpenAI is formally retiring GPT-4o, GPT-4.1, and o4-mini in mid-February 2026. Developers must migrate API endpoints to the GPT-5 series by ...",
+    "host_name": "www.remio.ai",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://yourgpt.ai/blog/updates/open-ai-o3-vs-gpt-4-top-differences-that-you-should-know-in-2025",
+    "name": "Open AI O3 vs GPT-4: Top Differences That You Should Know in 2025",
+    "snippet": "These differences show that GPT-4 vs O3 both are the best of there time and is optimized for tasks requiring extended context, advanced reasoning, and improved ...",
+    "host_name": "yourgpt.ai",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://openai.com/index/introducing-o3-and-o4-mini",
+    "name": "Introducing OpenAI o3 and o4-mini",
+    "snippet": "OpenAI o4-mini is a smaller model optimized for fast, cost-efficient reasoning—it achieves remarkable performance for its size and cost, ...",
+    "host_name": "openai.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.facebook.com/groups/evolutionunleashedai/posts/9395714870476180",
+    "name": "OpenAI's Strategic Shift: o3 and o4-mini Models Replace GPT-5",
+    "snippet": "GPT‑4.1 (2025) - A leaner, more cost-effective spin‑down of GPT‑4.5. - Replaces GPT‑4o in the lineup. > OpenAI‑o1 (2024) - First “thinking ...",
+    "host_name": "www.facebook.com",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@wetrocloud/all-you-need-to-know-about-open-ai-s-new-models-gpt-4-1-o3-and-o4-mini-f479e234fab5",
+    "name": "you need to know about Open AI New Models : GPT 4.1, O3 and O4",
+    "snippet": "OpenAI's latest models — GPT-4.1, o3, and o4-mini — offer a range of capabilities suited for various applications, from advanced coding and ...",
+    "host_name": "medium.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.openai.com/t/comparing-gpt-4o-and-o3-mini-on-same-task/1142746",
+    "name": "Comparing GPT-4o and O3-Mini on same task - Prompting",
+    "snippet": "However, GPT-4o consistently outperformed O3-Mini in most cases, which made me curious about the underlying reasons. If you have any ideas ...",
+    "host_name": "community.openai.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://every.to/vibe-check/vibe-check-openai-s-o3-gpt-4-1-and-o4-mini",
+    "name": "Vibe Check: OpenAI's o3, GPT-4.1, and o4-mini - Every",
+    "snippet": "While o3 is OpenAI's most powerful reasoning model, o4-mini is your go-to when you want most of o3's smarts for a bill nine times cheaper.",
+    "host_name": "every.to",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/posts/clintonwhouse_enterpriseai-aiinfrastructure-aigovernance-activity-7420532621048295424-Foof",
+    "name": "AI Models Ranked: OpenAI's O3 Tops the List | Clint H. posted on",
+    "snippet": "Everyone asks which AI Models Are the Smartest? Here's the IQ scorecard. OpenAI o3 Ranks the highest then Claude-4 Opus, Google's Gemini 2.5 ...",
+    "host_name": "www.linkedin.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]

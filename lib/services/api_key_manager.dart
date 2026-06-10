@@ -37,14 +37,38 @@ class ApiKeyManager {
   }
 
   /// Loads a previously saved key for the currently signed-in user (if any).
-  /// Does nothing if an environment key is already active or if we have a hardcoded default key.
+  /// Checks Firestore for the user's stored API key and loads it into memory.
   static Future<void> ensureLoadedForSignedInUser() async {
-    // No-op by default. Projects can extend to load keys per user if desired.
-    debugPrint('ApiKeyManager.ensureLoadedForSignedInUser: no-op in this build.');
-    return;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        debugPrint('ApiKeyManager: No signed-in user, skipping key load.');
+        return;
+      }
+      if (SecureAPIConfig.hasApiKey) {
+        debugPrint('ApiKeyManager: API key already in memory, skipping Firestore load.');
+        return;
+      }
+      final doc = await FirebaseFirestore.instance
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .get();
+      final savedKey = doc.data()?[_keyField] as String?;
+      if (savedKey != null && savedKey.trim().isNotEmpty) {
+        SecureAPIConfig.setApiKey(savedKey.trim());
+        _isInitialized = true;
+        debugPrint('ApiKeyManager: Loaded saved API key from Firestore for user ${user.uid.substring(0, 6)}…');
+      } else {
+        debugPrint('ApiKeyManager: No saved API key found for user ${user.uid.substring(0, 6)}…');
+      }
+    } catch (e) {
+      debugPrint('ApiKeyManager.ensureLoadedForSignedInUser error: $e');
+    }
   }
 
   /// Persists the provided key under users/{uid}. Creates the document if missing.
+  /// Also saves to settings/ai_config so the Firebase Cloud Function proxy
+  /// can read the key server-side when no ANTHROPIC_API_KEY secret is set.
   static Future<void> persistForCurrentUser(String apiKey) async {
     setApiKey(apiKey);
     try {
@@ -59,8 +83,28 @@ class ApiKeyManager {
         SetOptions(merge: true),
       );
       debugPrint('ApiKeyManager: API key persisted to Firestore for user ${user.uid.substring(0, 6)}…');
+
+      // Also save to shared config so the proxy function can use it
+      await _saveToSharedConfig(apiKey.trim());
     } catch (e) {
       debugPrint('ApiKeyManager.persistForCurrentUser error: $e');
+    }
+  }
+
+  /// Saves the API key to the shared settings/ai_config document
+  /// so the Firebase Cloud Function proxy can read it server-side.
+  static Future<void> _saveToSharedConfig(String apiKey) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('settings')
+          .doc('ai_config')
+          .set({
+        'anthropicApiKey': apiKey,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      debugPrint('ApiKeyManager: API key saved to shared config for proxy.');
+    } catch (e) {
+      debugPrint('ApiKeyManager._saveToSharedConfig error: $e');
     }
   }
 

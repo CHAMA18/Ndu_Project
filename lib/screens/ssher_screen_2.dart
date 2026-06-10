@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 class SsherScreen2 extends StatefulWidget {
   const SsherScreen2({super.key});
@@ -111,18 +112,14 @@ class _SsherScreen2State extends State<SsherScreen2> {
 
         Align(
           alignment: Alignment.centerRight,
-          child: ElevatedButton(
+          child: LoadingNextButton(
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const SsherScreen3())),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Next'),
+            backgroundColor: const Color(0xFFFFD700),
+            foregroundColor: Colors.black,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            borderRadius: 10,
           ),
         ),
       ],

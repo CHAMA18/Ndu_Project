@@ -15,6 +15,7 @@ import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
@@ -1226,6 +1227,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
             standards: quality.standards,
             onEdit: _editStandard,
             onRemove: _removeStandard,
+            onSave: _savePlan,
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -1243,6 +1245,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
             entries: quality.qualityChangeLog,
             onEdit: _editChangeLog,
             onRemove: _removeChangeLog,
+            onSave: _savePlan,
           ),
         ],
       ),
@@ -1258,6 +1261,15 @@ class _ObjectivesView extends StatefulWidget {
 }
 
 class _ObjectivesViewState extends State<_ObjectivesView> {
+  Future<void> _saveObjectives() async {
+    final objectives = _qualityData(context).objectives;
+    await _updateQualityData(
+      context,
+      checkpoint: 'quality_management',
+      updater: (current) => current.copyWith(objectives: objectives),
+    );
+  }
+
   Future<void> _addObjective() async {
     final result = await showDialog<QualityObjective>(
       context: context,
@@ -1345,6 +1357,7 @@ class _ObjectivesViewState extends State<_ObjectivesView> {
         objectives: objectives,
         onEdit: _editObjective,
         onRemove: _removeObjective,
+        onSave: _saveObjectives,
       ),
     );
   }
@@ -1358,6 +1371,18 @@ class _QaTrackingView extends StatefulWidget {
 }
 
 class _QaTrackingViewState extends State<_QaTrackingView> {
+  Future<void> _saveQaData() async {
+    final quality = _qualityData(context);
+    await _updateQualityData(
+      context,
+      checkpoint: 'quality_management',
+      updater: (current) => current.copyWith(
+        workflowControls: quality.workflowControls,
+        qaTaskLog: quality.qaTaskLog,
+      ),
+    );
+  }
+
   Future<void> _addWorkflowControl() async {
     final result = await showDialog<QualityWorkflowControl>(
       context: context,
@@ -1527,6 +1552,7 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
             controls: controls,
             onEdit: _editWorkflowControl,
             onRemove: _removeWorkflowControl,
+            onSave: _saveQaData,
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -1539,6 +1565,7 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
             tasks: quality.qaTaskLog,
             onEdit: _editTask,
             onRemove: _removeTask,
+            onSave: _saveQaData,
           ),
         ],
       ),
@@ -1554,6 +1581,20 @@ class _QcTrackingView extends StatefulWidget {
 }
 
 class _QcTrackingViewState extends State<_QcTrackingView> {
+  Future<void> _saveQcData() async {
+    final quality = _qualityData(context);
+    await _updateQualityData(
+      context,
+      checkpoint: 'quality_management',
+      updater: (current) => current.copyWith(
+        workflowControls: quality.workflowControls,
+        qcTaskLog: quality.qcTaskLog,
+        auditPlan: quality.auditPlan,
+        correctiveActions: quality.correctiveActions,
+      ),
+    );
+  }
+
   Future<void> _addWorkflowControl() async {
     final result = await showDialog<QualityWorkflowControl>(
       context: context,
@@ -1851,6 +1892,7 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
             controls: controls,
             onEdit: _editWorkflowControl,
             onRemove: _removeWorkflowControl,
+            onSave: _saveQcData,
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -1863,6 +1905,7 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
             tasks: quality.qcTaskLog,
             onEdit: _editTask,
             onRemove: _removeTask,
+            onSave: _saveQcData,
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -1876,6 +1919,7 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
             onEdit: _editAudit,
             onRemove: _removeAudit,
             onCreateCorrectiveAction: _createCorrectiveAction,
+            onSave: _saveQcData,
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -1888,6 +1932,7 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
             actions: quality.correctiveActions,
             onEdit: _editCorrectiveAction,
             onRemove: _removeCorrectiveAction,
+            onSave: _saveQcData,
           ),
         ],
       ),
@@ -2505,19 +2550,82 @@ InputDecoration _inputDecoration(BuildContext context, String hint) {
   );
 }
 
-class _StandardsTable extends StatelessWidget {
+class _StandardsTable extends StatefulWidget {
   const _StandardsTable({
     required this.standards,
     required this.onEdit,
     required this.onRemove,
+    required this.onSave,
   });
 
   final List<QualityStandard> standards;
   final ValueChanged<int> onEdit;
   final ValueChanged<int> onRemove;
+  final VoidCallback onSave;
+
+  @override
+  State<_StandardsTable> createState() => _StandardsTableState();
+}
+
+class _StandardsTableState extends State<_StandardsTable> {
+  static const _categoryOptions = [
+    'Quality Management',
+    'Acceptance',
+    'Software Quality',
+    'Security Compliance',
+    'Inspection',
+    'Process',
+    'Governance',
+    'Compliance',
+  ];
+
+  Future<void> _showCategoryDialog(int index) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String selected = widget.standards[index].category;
+        return AlertDialog(
+          title: const Text('Category'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<String>(
+                value: _categoryOptions.contains(selected)
+                    ? selected
+                    : null,
+                isExpanded: true,
+                items: _categoryOptions
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { widget.standards[index].category = result; });
+      widget.onSave();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final standards = widget.standards;
     if (standards.isEmpty) {
       return const _EmptyState(
         message:
@@ -2539,24 +2647,57 @@ class _StandardsTable extends StatelessWidget {
           for (int i = 0; i < standards.length; i++)
             DataRow(
               cells: [
-                DataCell(SizedBox(width: 220, child: Text(standards[i].name))),
-                DataCell(
-                    SizedBox(width: 140, child: Text(standards[i].source))),
-                DataCell(
-                    SizedBox(width: 120, child: Text(standards[i].category))),
                 DataCell(SizedBox(
-                    width: 180, child: Text(standards[i].applicability))),
+                  width: 220,
+                  child: InlineEditableText(
+                    value: standards[i].name,
+                    onChanged: (v) {
+                      setState(() { standards[i].name = v; });
+                      widget.onSave();
+                    },
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )),
+                DataCell(SizedBox(
+                  width: 140,
+                  child: InlineEditableText(
+                    value: standards[i].source,
+                    onChanged: (v) {
+                      setState(() { standards[i].source = v; });
+                      widget.onSave();
+                    },
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )),
+                DataCell(InkWell(
+                  onTap: () => _showCategoryDialog(i),
+                  child: SizedBox(
+                    width: 120,
+                    child: _StatusChipText(label: standards[i].category),
+                  ),
+                )),
+                DataCell(SizedBox(
+                  width: 180,
+                  child: InlineEditableText(
+                    value: standards[i].applicability,
+                    onChanged: (v) {
+                      setState(() { standards[i].applicability = v; });
+                      widget.onSave();
+                    },
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )),
                 DataCell(
                   Row(
                     children: [
                       IconButton(
                         icon: const Icon(Icons.edit_outlined, size: 18),
-                        onPressed: () => onEdit(i),
+                        onPressed: () => widget.onEdit(i),
                       ),
                       IconButton(
                         icon: const Icon(Icons.delete_outline, size: 18),
                         color: const Color(0xFFDC2626),
-                        onPressed: () => onRemove(i),
+                        onPressed: () => widget.onRemove(i),
                       ),
                     ],
                   ),
@@ -2569,19 +2710,77 @@ class _StandardsTable extends StatelessWidget {
   }
 }
 
-class _ObjectivesTable extends StatelessWidget {
+class _ObjectivesTable extends StatefulWidget {
   const _ObjectivesTable({
     required this.objectives,
     required this.onEdit,
     required this.onRemove,
+    required this.onSave,
   });
 
   final List<QualityObjective> objectives;
   final ValueChanged<int> onEdit;
   final ValueChanged<int> onRemove;
+  final VoidCallback onSave;
+
+  @override
+  State<_ObjectivesTable> createState() => _ObjectivesTableState();
+}
+
+class _ObjectivesTableState extends State<_ObjectivesTable> {
+  static const _statusOptions = [
+    'Draft',
+    'In Progress',
+    'Achieved',
+    'At Risk',
+    'Not Achieved',
+  ];
+
+  Future<void> _showStatusDialog(int index) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String selected = widget.objectives[index].status;
+        return AlertDialog(
+          title: const Text('Status'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<String>(
+                value: _statusOptions.contains(selected) ? selected : null,
+                isExpanded: true,
+                items: _statusOptions
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { widget.objectives[index].status = result; });
+      widget.onSave();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final objectives = widget.objectives;
     if (objectives.isEmpty) {
       return const _EmptyState(
         message:
@@ -2605,25 +2804,69 @@ class _ObjectivesTable extends StatelessWidget {
           for (int i = 0; i < objectives.length; i++)
             DataRow(
               cells: [
-                DataCell(
-                    SizedBox(width: 220, child: Text(objectives[i].title))),
                 DataCell(SizedBox(
-                    width: 140, child: Text(objectives[i].successMetric))),
-                DataCell(Text(objectives[i].targetValue)),
-                DataCell(Text(objectives[i].currentValue)),
-                DataCell(
-                    SizedBox(width: 130, child: Text(objectives[i].owner))),
-                DataCell(_StatusChipText(label: objectives[i].status)),
+                  width: 220,
+                  child: InlineEditableText(
+                    value: objectives[i].title,
+                    onChanged: (v) {
+                      setState(() { objectives[i].title = v; });
+                      widget.onSave();
+                    },
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )),
+                DataCell(SizedBox(
+                  width: 140,
+                  child: InlineEditableText(
+                    value: objectives[i].successMetric,
+                    onChanged: (v) {
+                      setState(() { objectives[i].successMetric = v; });
+                      widget.onSave();
+                    },
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )),
+                DataCell(InlineEditableText(
+                  value: objectives[i].targetValue,
+                  onChanged: (v) {
+                    setState(() { objectives[i].targetValue = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                )),
+                DataCell(InlineEditableText(
+                  value: objectives[i].currentValue,
+                  onChanged: (v) {
+                    setState(() { objectives[i].currentValue = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                )),
+                DataCell(SizedBox(
+                  width: 130,
+                  child: InlineEditableText(
+                    value: objectives[i].owner,
+                    onChanged: (v) {
+                      setState(() { objectives[i].owner = v; });
+                      widget.onSave();
+                    },
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                )),
+                DataCell(InkWell(
+                  onTap: () => _showStatusDialog(i),
+                  child: _StatusChipText(label: objectives[i].status),
+                )),
                 DataCell(Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, size: 18),
-                      onPressed: () => onEdit(i),
+                      onPressed: () => widget.onEdit(i),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 18),
                       color: const Color(0xFFDC2626),
-                      onPressed: () => onRemove(i),
+                      onPressed: () => widget.onRemove(i),
                     ),
                   ],
                 )),
@@ -2635,19 +2878,27 @@ class _ObjectivesTable extends StatelessWidget {
   }
 }
 
-class _WorkflowControlsTable extends StatelessWidget {
+class _WorkflowControlsTable extends StatefulWidget {
   const _WorkflowControlsTable({
     required this.controls,
     required this.onEdit,
     required this.onRemove,
+    required this.onSave,
   });
 
   final List<QualityWorkflowControl> controls;
   final ValueChanged<QualityWorkflowControl> onEdit;
   final ValueChanged<QualityWorkflowControl> onRemove;
+  final VoidCallback onSave;
 
   @override
+  State<_WorkflowControlsTable> createState() => _WorkflowControlsTableState();
+}
+
+class _WorkflowControlsTableState extends State<_WorkflowControlsTable> {
+  @override
   Widget build(BuildContext context) {
+    final controls = widget.controls;
     if (controls.isEmpty) {
       return const _EmptyState(
         message:
@@ -2670,23 +2921,79 @@ class _WorkflowControlsTable extends StatelessWidget {
         rows: [
           for (final control in controls)
             DataRow(cells: [
-              DataCell(SizedBox(width: 180, child: Text(control.name))),
-              DataCell(SizedBox(width: 220, child: Text(control.method))),
-              DataCell(SizedBox(width: 140, child: Text(control.tools))),
-              DataCell(Text(control.frequency)),
-              DataCell(SizedBox(width: 140, child: Text(control.owner))),
               DataCell(SizedBox(
-                  width: 180, child: Text(control.standardsReference))),
+                width: 180,
+                child: InlineEditableText(
+                  value: control.name,
+                  onChanged: (v) {
+                    setState(() { control.name = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 220,
+                child: InlineEditableText(
+                  value: control.method,
+                  onChanged: (v) {
+                    setState(() { control.method = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 140,
+                child: InlineEditableText(
+                  value: control.tools,
+                  onChanged: (v) {
+                    setState(() { control.tools = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InlineEditableText(
+                value: control.frequency,
+                onChanged: (v) {
+                  setState(() { control.frequency = v; });
+                  widget.onSave();
+                },
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(SizedBox(
+                width: 140,
+                child: InlineEditableText(
+                  value: control.owner,
+                  onChanged: (v) {
+                    setState(() { control.owner = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 180,
+                child: InlineEditableText(
+                  value: control.standardsReference,
+                  onChanged: (v) {
+                    setState(() { control.standardsReference = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
               DataCell(Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    onPressed: () => onEdit(control),
+                    onPressed: () => widget.onEdit(control),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 18),
                     color: const Color(0xFFDC2626),
-                    onPressed: () => onRemove(control),
+                    onPressed: () => widget.onRemove(control),
                   ),
                 ],
               )),
@@ -2697,17 +3004,24 @@ class _WorkflowControlsTable extends StatelessWidget {
   }
 }
 
-class _TaskLogTable extends StatelessWidget {
+class _TaskLogTable extends StatefulWidget {
   const _TaskLogTable({
     required this.tasks,
     required this.onEdit,
     required this.onRemove,
+    required this.onSave,
   });
 
   final List<QualityTaskEntry> tasks;
   final ValueChanged<QualityTaskEntry> onEdit;
   final ValueChanged<QualityTaskEntry> onRemove;
+  final VoidCallback onSave;
 
+  @override
+  State<_TaskLogTable> createState() => _TaskLogTableState();
+}
+
+class _TaskLogTableState extends State<_TaskLogTable> {
   String _statusLabel(QualityTaskStatus status) {
     switch (status) {
       case QualityTaskStatus.notStarted:
@@ -2732,8 +3046,97 @@ class _TaskLogTable extends StatelessWidget {
     }
   }
 
+  Future<void> _showStatusDialog(QualityTaskEntry task) async {
+    final options = QualityTaskStatus.values;
+    final result = await showDialog<QualityTaskStatus>(
+      context: context,
+      builder: (ctx) {
+        QualityTaskStatus selected = task.status;
+        return AlertDialog(
+          title: const Text('Status'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<QualityTaskStatus>(
+                value: selected,
+                isExpanded: true,
+                items: options
+                    .map((v) => DropdownMenuItem(
+                        value: v, child: Text(_statusLabel(v))))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { task.status = result; });
+      widget.onSave();
+    }
+  }
+
+  Future<void> _showPriorityDialog(QualityTaskEntry task) async {
+    final options = QualityTaskPriority.values;
+    final result = await showDialog<QualityTaskPriority>(
+      context: context,
+      builder: (ctx) {
+        QualityTaskPriority selected = task.priority;
+        return AlertDialog(
+          title: const Text('Priority'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<QualityTaskPriority>(
+                value: selected,
+                isExpanded: true,
+                items: options
+                    .map((v) => DropdownMenuItem(
+                        value: v, child: Text(_priorityLabel(v))))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { task.priority = result; });
+      widget.onSave();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final tasks = widget.tasks;
     if (tasks.isEmpty) {
       return const _EmptyState(
         message:
@@ -2759,27 +3162,89 @@ class _TaskLogTable extends StatelessWidget {
         rows: [
           for (final task in tasks)
             DataRow(cells: [
-              DataCell(SizedBox(width: 170, child: Text(task.task))),
-              DataCell(Text('${task.percentComplete.toStringAsFixed(0)}%')),
-              DataCell(SizedBox(width: 130, child: Text(task.responsible))),
-              DataCell(Text(task.startDate)),
-              DataCell(Text(task.endDate)),
+              DataCell(SizedBox(
+                width: 170,
+                child: InlineEditableText(
+                  value: task.task,
+                  onChanged: (v) {
+                    setState(() { task.task = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InlineEditableText(
+                value: task.percentComplete.toStringAsFixed(0),
+                onChanged: (v) {
+                  final parsed = double.tryParse(v.replaceAll('%', '').trim());
+                  if (parsed != null) {
+                    setState(() { task.percentComplete = parsed.clamp(0.0, 100.0); });
+                    widget.onSave();
+                  }
+                },
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(SizedBox(
+                width: 130,
+                child: InlineEditableText(
+                  value: task.responsible,
+                  onChanged: (v) {
+                    setState(() { task.responsible = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InlineEditableText(
+                value: task.startDate,
+                onChanged: (v) {
+                  setState(() { task.startDate = v; });
+                  widget.onSave();
+                },
+                hint: 'YYYY-MM-DD',
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(InlineEditableText(
+                value: task.endDate,
+                onChanged: (v) {
+                  setState(() { task.endDate = v; });
+                  widget.onSave();
+                },
+                hint: 'YYYY-MM-DD',
+                style: const TextStyle(fontSize: 13),
+              )),
               DataCell(Text(
                 task.durationDays == null ? '-' : '${task.durationDays} d',
               )),
-              DataCell(_StatusChipText(label: _statusLabel(task.status))),
-              DataCell(_StatusChipText(label: _priorityLabel(task.priority))),
-              DataCell(SizedBox(width: 200, child: Text(task.comments))),
+              DataCell(InkWell(
+                onTap: () => _showStatusDialog(task),
+                child: _StatusChipText(label: _statusLabel(task.status)),
+              )),
+              DataCell(InkWell(
+                onTap: () => _showPriorityDialog(task),
+                child: _StatusChipText(label: _priorityLabel(task.priority)),
+              )),
+              DataCell(SizedBox(
+                width: 200,
+                child: InlineEditableText(
+                  value: task.comments,
+                  onChanged: (v) {
+                    setState(() { task.comments = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
               DataCell(Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    onPressed: () => onEdit(task),
+                    onPressed: () => widget.onEdit(task),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 18),
                     color: const Color(0xFFDC2626),
-                    onPressed: () => onRemove(task),
+                    onPressed: () => widget.onRemove(task),
                   ),
                 ],
               )),
@@ -2790,19 +3255,26 @@ class _TaskLogTable extends StatelessWidget {
   }
 }
 
-class _AuditPlanTable extends StatelessWidget {
+class _AuditPlanTable extends StatefulWidget {
   const _AuditPlanTable({
     required this.audits,
     required this.onEdit,
     required this.onRemove,
     required this.onCreateCorrectiveAction,
+    required this.onSave,
   });
 
   final List<QualityAuditEntry> audits;
   final ValueChanged<QualityAuditEntry> onEdit;
   final ValueChanged<QualityAuditEntry> onRemove;
   final ValueChanged<QualityAuditEntry> onCreateCorrectiveAction;
+  final VoidCallback onSave;
 
+  @override
+  State<_AuditPlanTable> createState() => _AuditPlanTableState();
+}
+
+class _AuditPlanTableState extends State<_AuditPlanTable> {
   String _resultLabel(AuditResultStatus status) {
     switch (status) {
       case AuditResultStatus.pass:
@@ -2816,8 +3288,53 @@ class _AuditPlanTable extends StatelessWidget {
     }
   }
 
+  Future<void> _showResultDialog(QualityAuditEntry audit) async {
+    final options = AuditResultStatus.values;
+    final result = await showDialog<AuditResultStatus>(
+      context: context,
+      builder: (ctx) {
+        AuditResultStatus selected = audit.result;
+        return AlertDialog(
+          title: const Text('Result'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<AuditResultStatus>(
+                value: selected,
+                isExpanded: true,
+                items: options
+                    .map((v) => DropdownMenuItem(
+                        value: v, child: Text(_resultLabel(v))))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { audit.result = result; });
+      widget.onSave();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final audits = widget.audits;
     if (audits.isEmpty) {
       return const _EmptyState(
         message:
@@ -2840,12 +3357,61 @@ class _AuditPlanTable extends StatelessWidget {
         rows: [
           for (final audit in audits)
             DataRow(cells: [
-              DataCell(SizedBox(width: 180, child: Text(audit.title))),
-              DataCell(SizedBox(width: 220, child: Text(audit.scope))),
-              DataCell(Text(audit.plannedDate)),
-              DataCell(Text(audit.completedDate)),
-              DataCell(SizedBox(width: 130, child: Text(audit.owner))),
-              DataCell(_StatusChipText(label: _resultLabel(audit.result))),
+              DataCell(SizedBox(
+                width: 180,
+                child: InlineEditableText(
+                  value: audit.title,
+                  onChanged: (v) {
+                    setState(() { audit.title = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 220,
+                child: InlineEditableText(
+                  value: audit.scope,
+                  onChanged: (v) {
+                    setState(() { audit.scope = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InlineEditableText(
+                value: audit.plannedDate,
+                onChanged: (v) {
+                  setState(() { audit.plannedDate = v; });
+                  widget.onSave();
+                },
+                hint: 'YYYY-MM-DD',
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(InlineEditableText(
+                value: audit.completedDate,
+                onChanged: (v) {
+                  setState(() { audit.completedDate = v; });
+                  widget.onSave();
+                },
+                hint: 'YYYY-MM-DD',
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(SizedBox(
+                width: 130,
+                child: InlineEditableText(
+                  value: audit.owner,
+                  onChanged: (v) {
+                    setState(() { audit.owner = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InkWell(
+                onTap: () => _showResultDialog(audit),
+                child: _StatusChipText(label: _resultLabel(audit.result)),
+              )),
               DataCell(Row(
                 children: [
                   if (audit.result == AuditResultStatus.fail ||
@@ -2853,16 +3419,16 @@ class _AuditPlanTable extends StatelessWidget {
                     IconButton(
                       tooltip: 'Create corrective action',
                       icon: const Icon(Icons.rule_folder_outlined, size: 18),
-                      onPressed: () => onCreateCorrectiveAction(audit),
+                      onPressed: () => widget.onCreateCorrectiveAction(audit),
                     ),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    onPressed: () => onEdit(audit),
+                    onPressed: () => widget.onEdit(audit),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 18),
                     color: const Color(0xFFDC2626),
-                    onPressed: () => onRemove(audit),
+                    onPressed: () => widget.onRemove(audit),
                   ),
                 ],
               )),
@@ -2873,17 +3439,24 @@ class _AuditPlanTable extends StatelessWidget {
   }
 }
 
-class _CorrectiveActionsTable extends StatelessWidget {
+class _CorrectiveActionsTable extends StatefulWidget {
   const _CorrectiveActionsTable({
     required this.actions,
     required this.onEdit,
     required this.onRemove,
+    required this.onSave,
   });
 
   final List<CorrectiveActionEntry> actions;
   final ValueChanged<CorrectiveActionEntry> onEdit;
   final ValueChanged<CorrectiveActionEntry> onRemove;
+  final VoidCallback onSave;
 
+  @override
+  State<_CorrectiveActionsTable> createState() => _CorrectiveActionsTableState();
+}
+
+class _CorrectiveActionsTableState extends State<_CorrectiveActionsTable> {
   String _statusLabel(CorrectiveActionStatus status) {
     switch (status) {
       case CorrectiveActionStatus.open:
@@ -2899,8 +3472,53 @@ class _CorrectiveActionsTable extends StatelessWidget {
     }
   }
 
+  Future<void> _showStatusDialog(CorrectiveActionEntry entry) async {
+    final options = CorrectiveActionStatus.values;
+    final result = await showDialog<CorrectiveActionStatus>(
+      context: context,
+      builder: (ctx) {
+        CorrectiveActionStatus selected = entry.status;
+        return AlertDialog(
+          title: const Text('Status'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<CorrectiveActionStatus>(
+                value: selected,
+                isExpanded: true,
+                items: options
+                    .map((v) => DropdownMenuItem(
+                        value: v, child: Text(_statusLabel(v))))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { entry.status = result; });
+      widget.onSave();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final actions = widget.actions;
     if (actions.isEmpty) {
       return const _EmptyState(
         message:
@@ -2922,21 +3540,62 @@ class _CorrectiveActionsTable extends StatelessWidget {
         rows: [
           for (final entry in actions)
             DataRow(cells: [
-              DataCell(SizedBox(width: 190, child: Text(entry.title))),
-              DataCell(SizedBox(width: 220, child: Text(entry.rootCause))),
-              DataCell(SizedBox(width: 130, child: Text(entry.owner))),
-              DataCell(Text(entry.dueDate)),
-              DataCell(_StatusChipText(label: _statusLabel(entry.status))),
+              DataCell(SizedBox(
+                width: 190,
+                child: InlineEditableText(
+                  value: entry.title,
+                  onChanged: (v) {
+                    setState(() { entry.title = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 220,
+                child: InlineEditableText(
+                  value: entry.rootCause,
+                  onChanged: (v) {
+                    setState(() { entry.rootCause = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 130,
+                child: InlineEditableText(
+                  value: entry.owner,
+                  onChanged: (v) {
+                    setState(() { entry.owner = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InlineEditableText(
+                value: entry.dueDate,
+                onChanged: (v) {
+                  setState(() { entry.dueDate = v; });
+                  widget.onSave();
+                },
+                hint: 'YYYY-MM-DD',
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(InkWell(
+                onTap: () => _showStatusDialog(entry),
+                child: _StatusChipText(label: _statusLabel(entry.status)),
+              )),
               DataCell(Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    onPressed: () => onEdit(entry),
+                    onPressed: () => widget.onEdit(entry),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 18),
                     color: const Color(0xFFDC2626),
-                    onPressed: () => onRemove(entry),
+                    onPressed: () => widget.onRemove(entry),
                   ),
                 ],
               )),
@@ -2947,19 +3606,77 @@ class _CorrectiveActionsTable extends StatelessWidget {
   }
 }
 
-class _QualityChangeLogTable extends StatelessWidget {
+class _QualityChangeLogTable extends StatefulWidget {
   const _QualityChangeLogTable({
     required this.entries,
     required this.onEdit,
     required this.onRemove,
+    required this.onSave,
   });
 
   final List<QualityChangeEntry> entries;
   final ValueChanged<int> onEdit;
   final ValueChanged<int> onRemove;
+  final VoidCallback onSave;
+
+  @override
+  State<_QualityChangeLogTable> createState() => _QualityChangeLogTableState();
+}
+
+class _QualityChangeLogTableState extends State<_QualityChangeLogTable> {
+  static const _statusOptions = [
+    'Draft',
+    'Submitted',
+    'Approved',
+    'Rejected',
+    'Implemented',
+  ];
+
+  Future<void> _showStatusDialog(int index) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        String selected = widget.entries[index].status;
+        return AlertDialog(
+          title: const Text('Status'),
+          content: StatefulBuilder(
+            builder: (ctx, setDialogState) {
+              return DropdownButton<String>(
+                value: _statusOptions.contains(selected) ? selected : null,
+                isExpanded: true,
+                items: _statusOptions
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                onChanged: (v) {
+                  if (v != null) {
+                    setDialogState(() => selected = v);
+                  }
+                },
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(selected),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result != null && mounted) {
+      setState(() { widget.entries[index].status = result; });
+      widget.onSave();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final entries = widget.entries;
     if (entries.isEmpty) {
       return const _EmptyState(
         message:
@@ -2982,23 +3699,67 @@ class _QualityChangeLogTable extends StatelessWidget {
         rows: [
           for (int i = 0; i < entries.length; i++)
             DataRow(cells: [
-              DataCell(
-                  SizedBox(width: 220, child: Text(entries[i].description))),
-              DataCell(SizedBox(width: 160, child: Text(entries[i].reason))),
-              DataCell(Text(entries[i].requestedBy)),
-              DataCell(Text(entries[i].approvedBy)),
-              DataCell(Text(entries[i].date)),
-              DataCell(_StatusChipText(label: entries[i].status)),
+              DataCell(SizedBox(
+                width: 220,
+                child: InlineEditableText(
+                  value: entries[i].description,
+                  onChanged: (v) {
+                    setState(() { entries[i].description = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(SizedBox(
+                width: 160,
+                child: InlineEditableText(
+                  value: entries[i].reason,
+                  onChanged: (v) {
+                    setState(() { entries[i].reason = v; });
+                    widget.onSave();
+                  },
+                  style: const TextStyle(fontSize: 13),
+                ),
+              )),
+              DataCell(InlineEditableText(
+                value: entries[i].requestedBy,
+                onChanged: (v) {
+                  setState(() { entries[i].requestedBy = v; });
+                  widget.onSave();
+                },
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(InlineEditableText(
+                value: entries[i].approvedBy,
+                onChanged: (v) {
+                  setState(() { entries[i].approvedBy = v; });
+                  widget.onSave();
+                },
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(InlineEditableText(
+                value: entries[i].date,
+                onChanged: (v) {
+                  setState(() { entries[i].date = v; });
+                  widget.onSave();
+                },
+                hint: 'YYYY-MM-DD',
+                style: const TextStyle(fontSize: 13),
+              )),
+              DataCell(InkWell(
+                onTap: () => _showStatusDialog(i),
+                child: _StatusChipText(label: entries[i].status),
+              )),
               DataCell(Row(
                 children: [
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
-                    onPressed: () => onEdit(i),
+                    onPressed: () => widget.onEdit(i),
                   ),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 18),
                     color: const Color(0xFFDC2626),
-                    onPressed: () => onRemove(i),
+                    onPressed: () => widget.onRemove(i),
                   ),
                 ],
               )),

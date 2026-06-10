@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 /// Inline editable text widget - clicking text turns it into an input field
 /// with optional voice-to-text support.
@@ -206,7 +207,7 @@ class _InlineEditableTextState extends State<InlineEditableText> {
             ],
           ),
           // Text field
-          TextField(
+          VoiceTextField(
             controller: _controller,
             focusNode: _focusNode,
             maxLines: widget.isProseField ? null : widget.maxLines,
@@ -283,28 +284,32 @@ class _InlineEditableTextState extends State<InlineEditableText> {
 
     if (_isListening) {
       return Container(
-        width: 28,
-        height: 28,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: iconColor.withOpacity(0.15),
           shape: BoxShape.circle,
         ),
         child: IconButton(
-          icon: Icon(Icons.mic, color: iconColor, size: 14),
+          icon: Icon(Icons.mic, color: iconColor, size: 22),
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           onPressed: _toggleVoiceInput,
           tooltip: 'Stop voice input',
         ),
       );
     }
 
-    return IconButton(
-      icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 14),
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
+    return Container(
+      width: 40,
+      height: 40,
+      child: IconButton(
+        icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 22),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: _toggleVoiceInput,
+        tooltip: 'Voice input',
+      ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -502,7 +503,7 @@ class _FrontEndPlanningSummaryScreenState
                   ),
                 ),
               ),
-              ElevatedButton(
+              LoadingNextButton(
                 onPressed: () async {
                   await ProjectDataHelper.saveAndNavigate(
                     context: context,
@@ -518,20 +519,11 @@ class _FrontEndPlanningSummaryScreenState
                     ),
                   );
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF4B400),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                child: const Text(
-                  'Next',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
+                backgroundColor: const Color(0xFFF4B400),
+                foregroundColor: Colors.white,
+                borderRadius: 20,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
               ),
             ],
           ),
@@ -1613,7 +1605,7 @@ class _BottomOverlay extends StatelessWidget {
                   const SizedBox(width: 16),
                   const KazAiChatBubble(positioned: false),
                   const SizedBox(width: 16),
-                  ElevatedButton(
+                  LoadingNextButton(
                     onPressed: () async {
                       if (!nextEnabled) {
                         final continueAnyway =
@@ -1627,18 +1619,12 @@ class _BottomOverlay extends StatelessWidget {
                       }
                       await onNext();
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC812),
-                      foregroundColor: const Color(0xFF111827),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 34, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Next',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    backgroundColor: const Color(0xFFFFC812),
+                    foregroundColor: const Color(0xFF111827),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 34, vertical: 16),
+                    borderRadius: 22,
+                    elevation: 0,
                   ),
                 ],
               ),

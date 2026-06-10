@@ -208,6 +208,8 @@ class _SearchField extends StatelessWidget {
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: const VoiceTextField(
+        enableImport: false, // Search field
+        enableVoice: false, // Search field
         decoration: InputDecoration(
           border: InputBorder.none,
           icon: Icon(Icons.search, color: Color(0xFF94A3B8)),

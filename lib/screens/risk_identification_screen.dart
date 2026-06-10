@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -14,6 +15,7 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/ai_error_dialog.dart';
@@ -366,42 +368,19 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     if (isMobile) {
       return _buildMobileScaffold();
     }
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                  child: Row(
-                    children: [
-                      DraggableSidebar(
-                        openWidth: sidebarWidth,
-                        child: const InitiationLikeSidebar(
-                            activeItemLabel: 'Risk Identification'),
-                      ),
-                      Expanded(child: _buildMainContent()),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            MobileSidebarHamburger(
-              sidebar: const InitiationLikeSidebar(
-                activeItemLabel: 'Risk Identification',
-              ),
-            ),
-            const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Risk Identification',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Risk Identification',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _notesController,
       ),
+      child: _buildMainContent(),
     );
   }
 
@@ -541,19 +520,14 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton(
+                child: LoadingNextButton(
                   onPressed: _handleNextPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    textStyle: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 13.5),
-                  ),
-                  child: const Text('Next'),
+                  backgroundColor: const Color(0xFFFBBF24),
+                  foregroundColor: Colors.black,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],

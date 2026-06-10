@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -297,20 +298,15 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
                         borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
-                ElevatedButton.icon(
+                LoadingNextButton(
                   onPressed: () => PlanningPhaseNavigation.goToNext(
                       context, 'lessons_learned'),
-                  icon: const Icon(Icons.arrow_forward, size: 16),
-                  label: const Text('Next'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC044),
-                    foregroundColor: const Color(0xFF111827),
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                  ),
+                  backgroundColor: const Color(0xFFFFC044),
+                  foregroundColor: const Color(0xFF111827),
+                  borderRadius: 8,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                  showArrow: true,
                 ),
               ],
             ),

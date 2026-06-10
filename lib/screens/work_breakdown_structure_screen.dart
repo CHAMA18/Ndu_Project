@@ -18,10 +18,10 @@ import 'package:ndu_project/services/project_route_registry.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
-
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/ai_error_dialog.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 const Color _kSurfaceBackground = Color(0xFFFCFCFC);
 const Color _kAccentColor = Color(0xFFFFC107);
 const Color _kPrimaryText = Color(0xFF212529);
@@ -1818,7 +1818,7 @@ void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
                   borderRadius: BorderRadius.circular(8)),
             ),
           ),
-          ElevatedButton.icon(
+          LoadingNextButton(
             onPressed: () async {
               final nextScreen =
                   PlanningPhaseNavigation.resolveNextScreen(
@@ -1838,17 +1838,12 @@ void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
                 ),
               );
             },
-            icon: const Icon(Icons.arrow_forward, size: 16),
-            label: const Text('Next'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kAccentColor,
-              foregroundColor: _kPrimaryText,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-              side: const BorderSide(color: Color(0xFFFFB300)),
-            ),
+            showArrow: true,
+            backgroundColor: _kAccentColor,
+            foregroundColor: _kPrimaryText,
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            borderRadius: 8,
           ),
         ],
       ),
@@ -2239,7 +2234,7 @@ class _WbsNotesCardState extends State<_WbsNotesCard> {
                 ),
                 const SizedBox(height: 12),
                 // Textarea
-                TextField(
+                VoiceTextField(
                   controller: _controller,
                   onChanged: _handleChanged,
                   maxLines: 4,

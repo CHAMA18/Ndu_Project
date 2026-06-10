@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 /// Shared navigation footer used across the Launch Phase pages.
-class LaunchPhaseNavigation extends StatelessWidget {
+/// Supports built-in loading state on the Next button.
+class LaunchPhaseNavigation extends StatefulWidget {
   const LaunchPhaseNavigation({
     required this.backLabel,
     required this.nextLabel,
@@ -20,8 +21,17 @@ class LaunchPhaseNavigation extends StatelessWidget {
 
   static const _kAccentColor = Color(0xFFFFC812);
 
+  @override
+  State<LaunchPhaseNavigation> createState() => _LaunchPhaseNavigationState();
+}
+
+class _LaunchPhaseNavigationState extends State<LaunchPhaseNavigation> {
+  bool _isNavigatingNext = false;
+
   Future<void> _handleNextTap(BuildContext context) async {
-    if (!nextEnabled) {
+    if (_isNavigatingNext) return;
+
+    if (!widget.nextEnabled) {
       final continueAnyway = await showProceedWithoutReviewDialog(
         context,
         title: 'Please confirm you have reviewed and understood this step',
@@ -30,40 +40,101 @@ class LaunchPhaseNavigation extends StatelessWidget {
       );
       if (!continueAnyway) return;
     }
-    onNext();
+
+    if (!mounted) return;
+    setState(() => _isNavigatingNext = true);
+
+    // Let the UI render the loading spinner before executing the callback
+    await Future.delayed(const Duration(milliseconds: 50));
+
+    if (!mounted) return;
+    widget.onNext();
+
+    // Keep the spinner visible briefly so the user sees the feedback
+    // before the navigation transition takes over
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (mounted) {
+      setState(() => _isNavigatingNext = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    const accentColor = LaunchPhaseNavigation._kAccentColor;
+
     final backButton = OutlinedButton.icon(
-      onPressed: onBack,
-      icon: const Icon(Icons.arrow_back, size: 18, color: _kAccentColor),
+      onPressed: _isNavigatingNext ? null : widget.onBack,
+      icon: Icon(
+        Icons.arrow_back,
+        size: 18,
+        color: _isNavigatingNext
+            ? accentColor.withOpacity(0.4)
+            : accentColor,
+      ),
       label: Text(
-        backLabel,
+        widget.backLabel,
         overflow: TextOverflow.ellipsis,
-        style:
-            const TextStyle(fontWeight: FontWeight.w600, color: _kAccentColor),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: _isNavigatingNext
+              ? accentColor.withOpacity(0.4)
+              : accentColor,
+        ),
       ),
       style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: _kAccentColor),
+        side: BorderSide(
+          color: _isNavigatingNext
+              ? accentColor.withOpacity(0.3)
+              : accentColor,
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
 
     final nextButton = ElevatedButton.icon(
-      onPressed: () {
-        _handleNextTap(context);
-      },
-      icon: const Icon(Icons.arrow_forward, size: 18),
-      label: Text(
-        nextLabel,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w600),
+      onPressed: _isNavigatingNext ? null : () => _handleNextTap(context),
+      icon: _isNavigatingNext
+          ? Container()
+          : const Icon(Icons.arrow_forward, size: 18),
+      label: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: _isNavigatingNext
+            ? Row(
+                key: const ValueKey('loading'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    widget.nextLabel,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                widget.nextLabel,
+                key: const ValueKey('idle'),
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: _kAccentColor,
+        backgroundColor: accentColor,
         foregroundColor: Colors.white,
+        disabledBackgroundColor: accentColor.withOpacity(0.5),
+        disabledForegroundColor: Colors.white70,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         elevation: 0,

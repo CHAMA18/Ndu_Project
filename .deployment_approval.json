@@ -1,0 +1,11 @@
+{
+  "requestId": "4c3c1cba-be11-4dfc-85b1-0c6afd38a81e",
+  "target": "staging",
+  "message": "Trial deployment - email confirmation test",
+  "summary": "Testing the deployment confirmation email system before pushing to staging.nduproject.com",
+  "status": "approved",
+  "createdAt": "2026-06-05T11:08:00.008Z",
+  "expiresAt": "2026-06-05T11:38:00.008Z",
+  "approvedAt": "2026-06-05T11:08:12.636Z",
+  "approvedBy": "owner_chat_confirmation"
+}

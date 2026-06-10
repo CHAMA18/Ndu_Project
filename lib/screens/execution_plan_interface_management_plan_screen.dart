@@ -52,7 +52,8 @@ class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ExecutionPlanHeader(
-                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportInterfaceManagementPlanPdf(context)),
+                onBack: () => Navigator.maybePop(context)),
+            ExecutionPlanActionButtons(onExportPdf: () => _exportInterfaceManagementPlanPdf(context)),
             const SizedBox(height: 32),
             const SectionIntro(
                 title: 'Execution Interface Management Plan'),

@@ -1183,7 +1183,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   Widget _buildInput(LaunchColumn col) {
     switch (col.fieldType) {
       case LaunchFieldType.text:
-        return TextFormField(
+        return VoiceTextFormField(
           controller: _controllers[col.label],
           style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
           decoration: InputDecoration(

@@ -486,6 +486,121 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     });
   }
 
+  /// Show a modal informing the user that selecting Agile will
+  /// disable the Design Phase in the sidebar.
+  void _showAgileDesignPhaseDialog() {
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _Tokens.primary.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.speed_outlined,
+                color: Color(0xFFD97706),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Flexible(
+              child: Text(
+                'Agile Framework Selected',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _Tokens.onSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'By selecting Agile, the Design Phase will be disabled.',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: _Tokens.onSurface,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _Tokens.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _Tokens.outlineVariant),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Color(0xFFD97706),
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Agile projects use iterative sprint cycles instead of a sequential Design Phase. '
+                      'Design decisions are made continuously within each sprint, '
+                      'allowing for rapid feedback and adaptation. '
+                      'The Design Phase section will appear greyed out in the sidebar. '
+                      'To re-enable it, switch your framework to Waterfall or Hybrid.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: _Tokens.onSurfaceVariant,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _Tokens.primary,
+                foregroundColor: _Tokens.primaryOn,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 1,
+              ),
+              child: const Text(
+                'Understood',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _handleNextPressed() async {
     final projectGoals = _goals
         .map((g) => ProjectGoal(
@@ -636,6 +751,9 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                       _MobileFrameworkSection(
                         selectedFramework: _selectedOverallFramework,
                         onChanged: (value) {
+                          if (value == 'Agile' && _selectedOverallFramework != 'Agile') {
+                            _showAgileDesignPhaseDialog();
+                          }
                           setState(() {
                             _selectedOverallFramework = value;
                             if (value == 'Waterfall' || value == 'Agile') {
@@ -774,6 +892,9 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                                   selectedFramework:
                                       _selectedOverallFramework,
                                   onChanged: (value) {
+                                    if (value == 'Agile' && _selectedOverallFramework != 'Agile') {
+                                      _showAgileDesignPhaseDialog();
+                                    }
                                     setState(() {
                                       _selectedOverallFramework = value;
                                       if (value == 'Waterfall' ||

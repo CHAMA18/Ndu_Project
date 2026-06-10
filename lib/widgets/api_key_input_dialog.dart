@@ -44,7 +44,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
         children: [
           Icon(Icons.security, color: Colors.blue),
           SizedBox(width: 8),
-          Text('Configure OpenAI API Key'),
+          Text('Configure AI API Key'),
         ],
       ),
       content: SingleChildScrollView(
@@ -53,7 +53,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'To enable AI-powered solution generation, please enter your OpenAI API key:',
+              'To enable AI-powered solution generation, please enter your Anthropic (Claude) API key:',
               style: TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -61,6 +61,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
               controller: _apiKeyController,
               focusNode: _focusNode,
               obscureText: _isObscured,
+              enableImport: false,
               enableSuggestions: false,
               autocorrect: false,
               keyboardType: TextInputType.visiblePassword,
@@ -77,8 +78,8 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
                 }
               },
               decoration: InputDecoration(
-                labelText: 'OpenAI API Key',
-                hintText: 'sk-proj-...',
+                labelText: 'Anthropic API Key',
+                hintText: 'sk-ant-...',
                 border: const OutlineInputBorder(),
                 suffixIcon: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -127,7 +128,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
                     ],
                   ),
                   SizedBox(height: 8),
-                  Text('1. Go to platform.openai.com'),
+                  Text('1. Go to console.anthropic.com'),
                   Text('2. Sign in to your account'),
                   Text('3. Navigate to API Keys section'),
                   Text('4. Create a new API key'),
@@ -166,6 +167,7 @@ class _ApiKeyInputDialogState extends State<ApiKeyInputDialog> {
       return;
     }
 
+    // Accept both Anthropic (sk-ant-) and OpenAI (sk-) key prefixes
     if (!apiKey.startsWith('sk-')) {
       _showError('API key should start with "sk-"');
       return;

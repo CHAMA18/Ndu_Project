@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as dl;
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 /// World-class CSV Import Dialog
 ///
@@ -517,8 +518,9 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
         ],
       ),
       children: [
-        TextField(
+        VoiceTextField(
           controller: _pasteController,
+          enableImport: false, // Already a paste area
           maxLines: 6,
           style: const TextStyle(
             fontSize: 12,

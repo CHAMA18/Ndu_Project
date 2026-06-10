@@ -19,6 +19,7 @@ import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/whiteboard_canvas.dart';
 import 'package:ndu_project/widgets/chart_builder_workspace.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
@@ -3806,7 +3807,7 @@ Future<void> _loadProgress(String projectId) async {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: titleController,
                   decoration: const InputDecoration(
                     labelText: 'Document Title',
@@ -4041,7 +4042,7 @@ Future<void> _loadProgress(String projectId) async {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextField(
+                VoiceTextField(
                   controller: nameController,
                   decoration: const InputDecoration(
                     labelText: 'Tool Name',
@@ -4050,7 +4051,7 @@ Future<void> _loadProgress(String projectId) async {
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(
+                VoiceTextField(
                   controller: urlController,
                   decoration: const InputDecoration(
                     labelText: 'URL (Optional)',

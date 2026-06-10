@@ -88,7 +88,7 @@ function setCorsHeaders(req, res) {
   }
   res.set('Vary', 'Origin');
   res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-anthropic-api-key, anthropic-version');
 }
 
 function getConfiguredOpenAiWorkflowId(req) {
@@ -373,58 +373,164 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
 
 exports.openaiProxy = functions
   .runWith({
-    secrets: ['OPENAI_API_KEY'],
+    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })
   .https.onRequest(async (req, res) => {
     // Use the centralized CORS helper function
     setCorsHeaders(req, res);
-    
+
     // Handle preflight requests
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
       return;
     }
-    
+
     // Only allow POST requests
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed. Use POST.' });
       return;
     }
-    
+
     try {
-      // Optional: Verify Firebase Auth token
-      // Uncomment the following lines to require authentication:
-      /*
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ error: 'Unauthorized. Missing or invalid token.' });
+      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
+      const model = (requestPayload.model || '').toLowerCase();
+
+      // ── Anthropic (Claude) routing ──────────────────────────────────
+      if (model.startsWith('claude')) {
+        // Check for client-provided API key first (from Settings > Integrations)
+        let anthropicApiKey = req.headers['x-anthropic-api-key'] ||
+          req.headers['x-api-key'] || '';
+
+        // If no client key, try Firebase secret
+        if (!anthropicApiKey) {
+          anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+        }
+
+        // Fallback: try to read the key from Firestore (settings/ai_config)
+        if (!anthropicApiKey) {
+          try {
+            const configDoc = await db.collection('settings').doc('ai_config').get();
+            anthropicApiKey = configDoc.data()?.anthropicApiKey || '';
+          } catch (e) {
+            console.warn('Failed to read Anthropic key from Firestore:', e.message);
+          }
+        }
+
+        if (!anthropicApiKey) {
+          console.error('ANTHROPIC_API_KEY not configured (neither client header, secret, nor Firestore)');
+          res.status(500).json({ error: 'Anthropic service not configured. Add your API key in Settings > Integrations.' });
+          return;
+        }
+
+        // Convert OpenAI-format request to Anthropic Messages API format
+        const openaiMessages = requestPayload.messages || [];
+        let systemPrompt = '';
+        const anthropicMessages = [];
+
+        for (const msg of openaiMessages) {
+          if (msg.role === 'system') {
+            // Anthropic uses a top-level `system` field
+            const content = typeof msg.content === 'string'
+              ? msg.content
+              : Array.isArray(msg.content)
+                ? msg.content.map(c => c.text || '').join('\n')
+                : '';
+            systemPrompt = content;
+          } else {
+            // user / assistant messages
+            let text = '';
+            if (typeof msg.content === 'string') {
+              text = msg.content;
+            } else if (Array.isArray(msg.content)) {
+              text = msg.content.map(c => {
+                if (c.type === 'text' || c.type === 'input_text') return c.text || '';
+                return '';
+              }).join('\n');
+            }
+            anthropicMessages.push({ role: msg.role, content: text });
+          }
+        }
+
+        const anthropicPayload = {
+          model: requestPayload.model,
+          max_tokens: requestPayload.max_completion_tokens || requestPayload.max_tokens || 1024,
+          messages: anthropicMessages,
+        };
+        if (systemPrompt) anthropicPayload.system = systemPrompt;
+        if (requestPayload.temperature != null) anthropicPayload.temperature = requestPayload.temperature;
+        if (requestPayload.response_format) {
+          // Anthropic doesn't use response_format the same way,
+          // but we can instruct via system prompt
+          if (requestPayload.response_format.type === 'json_object') {
+            anthropicPayload.system = (anthropicPayload.system || '') +
+              '\n\nIMPORTANT: You MUST return only valid JSON matching the requested schema. Do not include any text outside the JSON object.';
+          }
+        }
+
+        console.log(`Proxying to Anthropic API: model=${requestPayload.model}, messages=${anthropicMessages.length}`);
+
+        const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': anthropicApiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify(anthropicPayload)
+        });
+
+        const anthropicData = await anthropicResponse.json();
+
+        if (!anthropicResponse.ok) {
+          console.error('Anthropic API error:', JSON.stringify(anthropicData));
+          res.status(anthropicResponse.status).json(anthropicData);
+          return;
+        }
+
+        // Convert Anthropic response back to OpenAI Chat Completions format
+        // so the client parsing logic continues to work unchanged
+        const textContent = (anthropicData.content || [])
+          .filter(block => block.type === 'text')
+          .map(block => block.text)
+          .join('');
+
+        const openaiCompatResponse = {
+          id: anthropicData.id || `chatcmpl-anthropic-${Date.now()}`,
+          object: 'chat.completion',
+          model: anthropicData.model || requestPayload.model,
+          choices: [{
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: textContent
+            },
+            finish_reason: anthropicData.stop_reason === 'end_turn' ? 'stop' : (anthropicData.stop_reason || 'stop')
+          }],
+          usage: {
+            prompt_tokens: anthropicData.usage?.input_tokens || 0,
+            completion_tokens: anthropicData.usage?.output_tokens || 0,
+            total_tokens: (anthropicData.usage?.input_tokens || 0) + (anthropicData.usage?.output_tokens || 0)
+          }
+        };
+
+        res.status(200).json(openaiCompatResponse);
         return;
       }
-      
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const userId = decodedToken.uid;
-      
-      // Optional: Implement rate limiting per user
-      // Check Firestore for user's request count and block if exceeded
-      */
-      
-      // Get OpenAI API key from Firebase secrets
+
+      // ── OpenAI routing (default) ────────────────────────────────────
       const apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
         console.error('OPENAI_API_KEY secret not configured');
         res.status(500).json({ error: 'Service configuration error' });
         return;
       }
-      
+
       const workflowId = getConfiguredOpenAiWorkflowId(req);
 
       // Determine endpoint path from request payload
-      // If client provides explicit endpoint, use it. Otherwise, infer:
-      // - Presence of `input` usually means Responses API
-      // - Otherwise default to Chat Completions
       let endpoint = req.body.endpoint;
       if (!endpoint) {
         if (req.body && (typeof req.body === 'object') && ('input' in req.body)) {
@@ -433,7 +539,6 @@ exports.openaiProxy = functions
           endpoint = '/chat/completions';
         }
       }
-      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
       const openaiUrl = workflowId
         ? `https://api.openai.com/v1/workflows/${workflowId}/run`
         : `https://api.openai.com/v1${endpoint}`;
@@ -448,7 +553,7 @@ exports.openaiProxy = functions
             stream: false
           }
         : requestPayload;
-      
+
       // Forward the request to OpenAI
       const openaiResponse = await fetch(openaiUrl, {
         method: 'POST',
@@ -458,21 +563,21 @@ exports.openaiProxy = functions
         },
         body: JSON.stringify(openaiPayload)
       });
-      
+
       const data = await openaiResponse.json();
-      
+
       // Return OpenAI's response to the client
       res.status(openaiResponse.status).json(
         workflowId && openaiResponse.ok
           ? normalizeWorkflowResponse(data, endpoint, workflowId)
           : data
       );
-      
+
     } catch (error) {
       console.error('OpenAI proxy error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: 'Failed to process request',
-        message: error.message 
+        message: error.message
       });
     }
   });

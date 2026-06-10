@@ -24,6 +24,7 @@ import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 class ContractsTrackingScreen extends StatefulWidget {
   const ContractsTrackingScreen({super.key});
 
@@ -2477,8 +2478,9 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        c.gate.trim().isEmpty ? 'Untitled gate' : c.gate,
+                      InlineEditableText(
+                        value: c.gate.trim().isEmpty ? 'Untitled gate' : c.gate,
+                        onChanged: (v) { setState(() { c.gate = v; }); },
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -2487,10 +2489,10 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                       ),
                       if (c.description.trim().isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          c.description,
+                        InlineEditableText(
+                          value: c.description,
+                          onChanged: (v) { setState(() { c.description = v; }); },
                           maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
@@ -2506,8 +2508,9 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                 Expanded(
                   flex: 3,
                   child: Center(
-                    child: Text(
-                      c.approver.trim().isEmpty ? 'Unassigned' : c.approver,
+                    child: InlineEditableText(
+                      value: c.approver.trim().isEmpty ? 'Unassigned' : c.approver,
+                      onChanged: (v) { setState(() { c.approver = v; }); },
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -2515,6 +2518,7 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                             ? const Color(0xFF9CA3AF)
                             : const Color(0xFF334155),
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -2611,13 +2615,16 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
                 SizedBox(
                   width: 130,
                   child: Center(
-                    child: Text(
-                      c.targetDate.trim().isEmpty ? '—' : c.targetDate,
+                    child: InlineEditableText(
+                      value: c.targetDate.trim().isEmpty ? '—' : c.targetDate,
+                      onChanged: (v) { setState(() { c.targetDate = v; }); },
+                      hint: 'YYYY-MM-DD',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF475569),
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -2782,10 +2789,11 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        e.contractName.trim().isEmpty
+                      InlineEditableText(
+                        value: e.contractName.trim().isEmpty
                             ? 'Unnamed contract'
                             : e.contractName,
+                        onChanged: (v) { setState(() { e.contractName = v; }); },
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -2794,8 +2802,9 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                       ),
                       if (e.committedValue.trim().isNotEmpty) ...[
                         const SizedBox(height: 3),
-                        Text(
-                          e.committedValue,
+                        InlineEditableText(
+                          value: e.committedValue,
+                          onChanged: (v) { setState(() { e.committedValue = v; }); },
                           style: const TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -2835,13 +2844,16 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 SizedBox(
                   width: 120,
                   child: Center(
-                    child: Text(
-                      e.expiryDate.trim().isEmpty ? '—' : e.expiryDate,
+                    child: InlineEditableText(
+                      value: e.expiryDate.trim().isEmpty ? '—' : e.expiryDate,
+                      onChanged: (v) { setState(() { e.expiryDate = v; }); },
+                      hint: 'YYYY-MM-DD',
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF475569),
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -2944,8 +2956,9 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                 SizedBox(
                   width: 120,
                   child: Center(
-                    child: Text(
-                      e.owner.trim().isEmpty ? 'Unassigned' : e.owner,
+                    child: InlineEditableText(
+                      value: e.owner.trim().isEmpty ? 'Unassigned' : e.owner,
+                      onChanged: (v) { setState(() { e.owner = v; }); },
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
@@ -2953,6 +2966,7 @@ class _RenewalEntryRowState extends State<_RenewalEntryRow> {
                             ? const Color(0xFF9CA3AF)
                             : const Color(0xFF334155),
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -3036,7 +3050,7 @@ class _RiskSignalPill extends StatelessWidget {
 }
 
 class _RenewalLaneData {
-  const _RenewalLaneData({
+  _RenewalLaneData({
     required this.id,
     required this.contractName,
     this.contractType = 'SLA',
@@ -3050,14 +3064,14 @@ class _RenewalLaneData {
   });
 
   final String id;
-  final String contractName;
+  String contractName;
   final String contractType;
-  final String expiryDate;
+  String expiryDate;
   final int? daysUntilExpiry;
   final String renewalAction;
-  final String owner;
+  String owner;
   final String status;
-  final String committedValue;
+  String committedValue;
   final String notes;
 
   String get urgencyWindow {
@@ -3195,7 +3209,7 @@ class _RiskSignalData {
 }
 
 class _ApprovalCheckpointData {
-  const _ApprovalCheckpointData({
+  _ApprovalCheckpointData({
     required this.id,
     required this.gate,
     this.description = '',
@@ -3208,13 +3222,13 @@ class _ApprovalCheckpointData {
   });
 
   final String id;
-  final String gate;
-  final String description;
-  final String approver;
+  String gate;
+  String description;
+  String approver;
   final String department;
   final String priority;
   final String status;
-  final String targetDate;
+  String targetDate;
   final String notes;
 
   _ApprovalCheckpointData copyWith({

@@ -488,6 +488,7 @@ class ProjectRecord {
   final String ownerEmail;
   final String ownerName;
   final String name;
+  final String projectName;
   final String solutionTitle;
   final String solutionDescription;
   final String businessCase;
@@ -505,12 +506,37 @@ class ProjectRecord {
   final DateTime? checkpointAt;
   final ProjectProgressSnapshot progressSnapshot;
 
+  /// Returns the best display name for this project.
+  /// Prioritises [projectName] (the user-given name) over [name] (which may
+  /// have been set to the solution title as a fallback during creation).
+  /// If the project name matches the solution description (scope statement),
+  /// it falls back to the solution title or a truncated version.
+  String get displayName {
+    // If projectName is non-empty and different from solutionDescription,
+    // it's the user-given name — use it directly.
+    if (projectName.trim().isNotEmpty &&
+        projectName.trim() != solutionDescription.trim()) {
+      return projectName.trim();
+    }
+    // If name differs from solutionDescription, use name.
+    if (name.trim().isNotEmpty &&
+        name.trim() != solutionDescription.trim()) {
+      return name.trim();
+    }
+    // Fallback: use solutionTitle if available (shorter than description).
+    if (solutionTitle.trim().isNotEmpty) {
+      return solutionTitle.trim();
+    }
+    return name.trim().isNotEmpty ? name.trim() : 'Untitled Project';
+  }
+
   ProjectRecord({
     required this.id,
     required this.ownerId,
     required this.ownerEmail,
     required this.ownerName,
     required this.name,
+    required this.projectName,
     required this.solutionTitle,
     required this.solutionDescription,
     required this.businessCase,
@@ -575,6 +601,7 @@ class ProjectRecord {
       ownerEmail: (data['ownerEmail'] ?? '').toString(),
       ownerName: (data['ownerName'] ?? '').toString(),
       name: (data['name'] ?? data['projectName'] ?? '').toString(),
+      projectName: (data['projectName'] ?? data['name'] ?? '').toString(),
       solutionTitle: (data['solutionTitle'] ?? '').toString(),
       solutionDescription: (data['solutionDescription'] ?? '').toString(),
       businessCase: (data['businessCase'] ?? '').toString(),

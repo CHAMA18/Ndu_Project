@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://developers.openai.com/api/docs/models/gpt-5.4",
+    "name": "GPT-5.4 Model | OpenAI API",
+    "snippet": "GPT-5.4 is our frontier model for complex professional work. Learn more in our latest model guide. Reasoning.effort supports: none (default), low, medium, ...",
+    "host_name": "developers.openai.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://openai.com/index/introducing-gpt-5-4",
+    "name": "Introducing GPT-5.4 - OpenAI",
+    "snippet": "Introducing GPT-5.4, OpenAI's most most capable and efficient frontier model for professional work, with state-of-the-art coding, ...",
+    "host_name": "openai.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.openai.com/t/temperature-in-gpt-5-models/1337133",
+    "name": "Temperature in GPT-5 models - API - OpenAI Developer Community",
+    "snippet": "After some digging and testing, I realized that GPT-5 does not support “temperature” at all, and it performs awfully at storytelling. However, ...",
+    "host_name": "community.openai.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/guides/reasoning",
+    "name": "Reasoning models | OpenAI API",
+    "snippet": "While the Chat Completions API is still supported, you'll get improved model intelligence and performance by using Responses. Get started with reasoning.",
+    "host_name": "developers.openai.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://github.com/pipecat-ai/pipecat/issues/4043",
+    "name": "Function tools with reasoning_effort are not supported for gpt-5.4 in",
+    "snippet": "For gpt-5.4 , OpenAI now explicitly blocks combining reasoning_effort with function tools on the standard /v1/chat/completions endpoint. If you ...",
+    "host_name": "github.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

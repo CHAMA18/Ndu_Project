@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/screens/potential_solutions_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import '../widgets/content_text.dart';
@@ -1252,68 +1253,45 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     if (isMobile) {
       return _buildMobileScaffold();
     }
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                  child: Row(
-                    children: [
-                      DraggableSidebar(
-                        openWidth: sidebarWidth,
-                        child: const InitiationLikeSidebar(
-                            activeItemLabel: 'Business Case Detail'),
-                      ),
-                      Expanded(child: _buildMainContent()),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            MobileSidebarHamburger(
-              sidebar: const InitiationLikeSidebar(
-                activeItemLabel: 'Business Case Detail',
-              ),
-            ),
-            const KazAiChatBubble(),
-            const AdminEditToggle(),
-            // Loading overlay for AI generation
-            if (_isGeneratingAI)
-              Container(
-                color: Colors.black.withOpacity(0.5),
-                child: const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'Generating Business Case with AI...',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Business Case Detail',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Business Case Detail',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _businessCaseController,
+        onMicChanged: _onBusinessChanged,
       ),
+      floatingOverlay: _isGeneratingAI
+          ? Container(
+              color: Colors.black.withOpacity(0.5),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(Color(0xFFFFD700)),
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Generating Business Case with AI...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
+      child: _buildMainContent(),
     );
   }
 

@@ -20,6 +20,7 @@ import 'package:ndu_project/utils/web_utils_stub.dart'
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 enum _SsherCategory { safety, security, health, environment, regulatory }
 
@@ -889,7 +890,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                 ],
               ),
               const SizedBox(height: 10),
-              TextField(
+              VoiceTextField(
                 controller: _notesController,
                 maxLines: 2,
                 onChanged: (_) => _saveNotes(),

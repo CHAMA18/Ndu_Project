@@ -8,6 +8,7 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -36,6 +37,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/ai_error_dialog.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
@@ -275,36 +277,19 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: isMobile ? _buildMobileDrawer() : null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-              Expanded(
-                  child: Row(children: [
-                DraggableSidebar(
-                  openWidth: sidebarWidth,
-                  child: const InitiationLikeSidebar(
-                      activeItemLabel: 'Core Stakeholders'),
-                ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
-            MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Core Stakeholders',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Core Stakeholders',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Core Stakeholders',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _notesController,
       ),
+      child: _buildMainContent(),
     );
   }
 
@@ -1463,18 +1448,15 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   // ignore: unused_element
   Widget _nextButton({required bool expand}) {
-    final button = ElevatedButton(
+    final button = LoadingNextButton(
       onPressed: _handleNextPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 0,
-        minimumSize: expand ? const Size.fromHeight(52) : null,
-      ),
-      child: const Text('Next',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      backgroundColor: const Color(0xFFFFD700),
+      foregroundColor: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      borderRadius: 8,
+      elevation: 0,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
     );
     if (expand) {
       return SizedBox(width: double.infinity, child: button);

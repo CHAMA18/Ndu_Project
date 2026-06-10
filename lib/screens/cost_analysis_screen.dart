@@ -17,6 +17,7 @@ import 'package:ndu_project/screens/change_management_screen.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/lessons_learned_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -1269,40 +1270,21 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
     return WillPopScope(
       onWillPop: _confirmExit,
-      child: Scaffold(
-        key: _scaffoldKey,
-        backgroundColor: Colors.white,
-        drawer: isMobile ? _buildMobileDrawer() : null,
-        body: SafeArea(
-          top: true,
-          child: Stack(
-            children: [
-              Column(children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                    child: Row(children: [
-                  DraggableSidebar(
-                    openWidth: sidebarWidth,
-                    child: const InitiationLikeSidebar(
-                        activeItemLabel:
-                            'Cost Benefit Analysis & Financial Metrics'),
-                  ),
-                  Expanded(child: _buildMainContent()),
-                ])),
-              ]),
-              MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Cost Benefit Analysis & Financial Metrics',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
-              const AdminEditToggle(),
-            ],
-          ),
+      child: BusinessCaseStableShell(
+        activeLabel: 'Cost Benefit Analysis & Financial Metrics',
+        breadcrumbPhase: 'Initiation Phase',
+        breadcrumbTitle: 'Cost Benefit Analysis & Financial Metrics',
+        scaffoldKey: _scaffoldKey,
+        showExportPdf: true,
+        onExportPdf: _exportPdf,
+        headerBottom: BusinessCaseActionButtons(
+          onExportPdf: _exportPdf,
+          showMicButton: true,
+          micController: _notesController,
         ),
+        child: _buildMainContent(),
       ),
     );
   }

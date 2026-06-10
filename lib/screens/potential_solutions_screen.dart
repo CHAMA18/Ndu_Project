@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/risk_identification_screen.dart';
@@ -406,45 +408,19 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
     if (isMobile) {
       return _buildMobileScaffold();
     }
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                  child: Row(
-                    children: [
-                      DraggableSidebar(
-                        openWidth: sidebarWidth,
-                        child: const InitiationLikeSidebar(
-                            activeItemLabel: 'Potential Solutions'),
-                      ),
-                      Expanded(
-                        child: _buildMainContent(),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            MobileSidebarHamburger(
-              sidebar: const InitiationLikeSidebar(
-                activeItemLabel: 'Potential Solutions',
-              ),
-            ),
-            const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Potential Solutions',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Potential Solutions',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _notesController,
       ),
+      child: _buildMainContent(),
     );
   }
 
@@ -629,19 +605,14 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton(
+                child: LoadingNextButton(
                   onPressed: _handleNextPressed,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFBBF24),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    textStyle: const TextStyle(
-                        fontWeight: FontWeight.w800, fontSize: 13.5),
-                  ),
-                  child: const Text('Next'),
+                  backgroundColor: const Color(0xFFFBBF24),
+                  foregroundColor: Colors.black,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],

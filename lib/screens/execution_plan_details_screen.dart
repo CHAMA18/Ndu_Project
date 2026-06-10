@@ -79,7 +79,8 @@ class ExecutionPlanDetailsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ExecutionPlanHeader(
-                onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportPdf(context)),
+                onBack: () => Navigator.maybePop(context)),
+            ExecutionPlanActionButtons(onExportPdf: () => _exportPdf(context)),
             const SizedBox(height: 32),
             if (showPlanDetails) ...[
               const SectionIntro(title: 'Execution Plan Details'),

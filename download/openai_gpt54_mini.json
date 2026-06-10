@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://developers.openai.com/api/docs/models/gpt-5.4-mini",
+    "name": "GPT-5.4 mini Model | OpenAI API",
+    "snippet": "GPT-5.4 mini brings the strengths of GPT-5.4 to a faster, more efficient model designed for high-volume workloads. Learn more in our latest model guide.",
+    "host_name": "developers.openai.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://community.openai.com/t/temperature-in-gpt-5-models/1337133",
+    "name": "Temperature in GPT-5 models - API - OpenAI Developer Community",
+    "snippet": "I'm using GPT-4.1 for RP/world-building, and the “temperature” parameter has been very important for the quality of output. It even took a while ...",
+    "host_name": "community.openai.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/reference/ruby/resources/chat/subresources/completions/methods/create",
+    "name": "Create chat completion | OpenAI API Reference",
+    "snippet": "Compare Chat Completions with Responses. Creates a model response for the given chat conversation. Learn more in the text generation, vision, and audio guides.",
+    "host_name": "developers.openai.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://medium.com/@mkteam/how-to-use-gpt-5-4-api-parameters-and-tools-usage-guide-116dd68f2798",
+    "name": "How to Use GPT-5.4 API: Parameters and Tools Usage Guide",
+    "snippet": "On March 5–7, 2026, OpenAI publicly rolled out GPT-5.4, a frontier model explicitly tuned for professional, document-heavy, and agentic ...",
+    "host_name": "medium.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://developers.openai.com/api/docs/models/gpt-5-mini",
+    "name": "GPT-5 mini Model | OpenAI API",
+    "snippet": "GPT-5 mini is a faster, more cost-efficient version of GPT-5. It's great for well-defined tasks and precise prompts. For most new low-latency, high-volume ...",
+    "host_name": "developers.openai.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  }
+]

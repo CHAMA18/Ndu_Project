@@ -1,17 +1,22 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
+import '../widgets/app_logo.dart';
 import '../widgets/dashboard_bottom_nav_bar.dart';
+import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import 'package:go_router/go_router.dart';
 import '../routing/app_router.dart';
+import '../services/firebase_auth_service.dart';
 import '../services/navigation_context_service.dart';
 import '../services/project_service.dart';
 import '../services/program_service.dart';
 import '../services/portfolio_service.dart';
+import '../services/user_service.dart';
 import '../models/program_model.dart';
 import '../models/portfolio_model.dart';
 import 'basic_plan_dashboard_screen.dart';
@@ -33,7 +38,7 @@ class PortfolioDashboardScreen extends StatelessWidget {
     // ── Desktop layout (width >= 700) ──
     if (MediaQuery.sizeOf(context).width >= 700) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF7F9FB),
+        backgroundColor: Colors.white,
         body: Stack(
           children: [
             SafeArea(
@@ -47,7 +52,7 @@ class PortfolioDashboardScreen extends StatelessWidget {
 
     // ── Mobile layout (width < 700) ──
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           SafeArea(
@@ -144,6 +149,211 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
     );
   }
 
+  void _navigateToBilling() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go('/${AppRoutes.settings}?from=${AppRoutes.dashboard}');
+      }
+    });
+  }
+
+  Future<void> _handleLogout() async {
+    if (!mounted) return;
+
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Confirm Log Out'),
+          content: const Text('Are you sure you want to log out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldLogout == true && mounted) {
+      try {
+        await FirebaseAuthService.signOut();
+        if (mounted) {
+          context.go('/');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error logging out: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _promptPortfolioNameDesktop() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final canCreate = controller.text.trim().isNotEmpty;
+            return Dialog(
+              insetPadding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: Colors.white,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0F2FE),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.auto_awesome_rounded,
+                          color: Color(0xFF0EA5E9), size: 22),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Name this portfolio',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Give your portfolio a name your executives will recognize.',
+                      style: TextStyle(
+                          fontSize: 13, color: Color(0xFF6B7280)),
+                    ),
+                    const SizedBox(height: 18),
+                    VoiceTextField(
+                      controller: controller,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.text_fields_rounded,
+                            size: 18),
+                        hintText: 'Portfolio name',
+                        filled: true,
+                        fillColor: const Color(0xFFF8FAFC),
+                        contentPadding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: canCreate
+                              ? () => Navigator.of(dialogContext)
+                                  .pop(controller.text.trim())
+                              : null,
+                          borderRadius: BorderRadius.circular(999),
+                          child: Ink(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: canCreate
+                                  ? const Color(0xFF0084FF)
+                                  : const Color(0xFFE5E7EB),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              'Create',
+                              style: TextStyle(
+                                  color:
+                                      canCreate ? Colors.white : Colors.grey,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    if (!mounted) return;
+    final name = result?.trim();
+    if (name == null || name.isEmpty) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to create a portfolio.')),
+      );
+      return;
+    }
+    try {
+      await PortfolioService.createPortfolio(
+        name: name,
+        projectIds: const [],
+        ownerId: user.uid,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Portfolio "$name" created successfully.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to create portfolio.')),
+      );
+    }
+  }
+
   List<ProjectRecord> _sortedProjects(
       List<ProjectRecord> projects, _ProjectSort sort) {
     final sorted = [...projects];
@@ -209,17 +419,20 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Desktop Header ──
-                          _DesktopHeader(metrics: metrics),
-                          const SizedBox(height: 24),
-                          // ── Desktop Stats ──
-                          _DesktopStatsRow(
+                          // ── Portfolio Header ──
+                          _PortfolioHeader(
+                            onCreatePortfolio: _promptPortfolioNameDesktop,
+                            onBilling: _navigateToBilling,
+                            onLogout: _handleLogout,
+                          ),
+                          const SizedBox(height: 26),
+                          // ── Portfolio Status Strip ──
+                          _PortfolioStatusStrip(
                             metrics: metrics,
                             onBasicTap: _openBasicProjectDashboard,
                             onSingleTap: _openProjectDashboard,
                             onProgramTap: _openProgramDashboard,
                             onPortfolioTap: () {},
-                            isStacked: constraints.maxWidth < 920,
                           ),
                           const SizedBox(height: 28),
                           // ── Content columns ──
@@ -311,118 +524,397 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
 }
 
 // ═══════════════════════════════════════════════════════════
-// DESKTOP HEADER
+// PORTFOLIO HEADER (matches _ProjectHeader layout)
 // ═══════════════════════════════════════════════════════════
-class _DesktopHeader extends StatelessWidget {
-  const _DesktopHeader({required this.metrics});
-  final _PortfolioMetrics metrics;
+class _PortfolioHeader extends StatefulWidget {
+  const _PortfolioHeader({
+    required this.onCreatePortfolio,
+    required this.onBilling,
+    required this.onLogout,
+  });
 
+  final VoidCallback onCreatePortfolio;
+  final VoidCallback onBilling;
+  final VoidCallback onLogout;
+
+  @override
+  State<_PortfolioHeader> createState() => _PortfolioHeaderState();
+}
+
+class _PortfolioHeaderState extends State<_PortfolioHeader> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF5D7),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFFFE7A8)),
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 960;
+
+        final crumb = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.grey.shade300),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.account_tree_outlined,
-                      size: 18, color: Color(0xFF8A5800)),
-                  SizedBox(width: 8),
-                  Text(
-                    'Portfolio workspace overview',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF8A5800),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.account_tree_outlined,
+                  size: 18, color: Colors.grey.shade700),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Portfolio workspace overview',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: compact ? 16 : 20),
+                    child: Align(
+                      alignment:
+                          compact ? Alignment.center : Alignment.centerLeft,
+                      child: AppLogo(
+                        height: compact ? 72 : 104,
+                        semanticLabel: 'NDU Project Platform',
+                      ),
                     ),
                   ),
+                ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  children: [
+                    ElevatedButton(
+                      onPressed: widget.onCreatePortfolio,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shadowColor: Colors.black.withOpacity(0.1),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 26, vertical: 18),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 22),
+                          const SizedBox(width: 10),
+                          const Text('Create Portfolio'),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward, size: 20),
+                        ],
+                      ),
+                    ),
+                    _secondaryCta(
+                      label: 'Billing',
+                      onPressed: widget.onBilling,
+                      icon: Icons.account_balance_wallet_outlined,
+                    ),
+                    _secondaryCta(
+                      label: 'Log Out',
+                      onPressed: widget.onLogout,
+                      icon: Icons.logout,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (!compact)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/');
+                      }
+                    },
+                    color: const Color(0xFF2D3A4B),
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(child: crumb),
+                ],
+              )
+            else
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/');
+                      }
+                    },
+                    color: const Color(0xFF2D3A4B),
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(child: crumb),
                 ],
               ),
-            ),
-            const SizedBox(width: 12),
-            TextButton.icon(
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/');
-                }
-              },
-              icon: const Icon(Icons.arrow_back, color: Color(0xFF343741)),
-              label: const Text(
-                'Back',
-                style: TextStyle(
-                    color: Color(0xFF343741), fontWeight: FontWeight.w700),
+            const SizedBox(height: 26),
+            // ── Premium Personalized Greeting ──
+            const _DesktopPremiumGreeting(),
+            const SizedBox(height: 14),
+            // ── Description (web only) ──
+            if (kIsWeb)
+              Text(
+                'Manage all portfolios and their rolled-up programs, projects, governance rules, and risks. Track status across your entire portfolio landscape.',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: Colors.grey.shade700,
+                  height: 1.55,
+                ),
               ),
-            ),
           ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Confirm portfolio roll-up',
-          style: textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: const Color(0xFF0E1017),
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          'Review which programs, projects, governance rules, and risks will be rolled up into this portfolio view.',
-          style: textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF4D5060),
-            height: 1.55,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Wrap(
-          spacing: 16,
-          runSpacing: 6,
-          children: [
-            _HeaderChip(
-              label: '${metrics.programCount} programs',
-              dotColor: const Color(0xFFCBD5E1),
-            ),
-            _HeaderChip(
-              label: '${metrics.projectCount} projects',
-              dotColor: const Color(0xFFCBD5E1),
-            ),
-            _HeaderChip(
-              label: metrics.formattedTotalValue,
-              dotColor: const Color(0xFFCBD5E1),
-            ),
-            _HeaderChip(
-              label: 'Risk: ${metrics.riskPostureLabel}',
-              dotColor: metrics.riskPostureColor,
-            ),
-          ],
-        ),
-      ],
+        );
+      },
+    );
+  }
+
+  Widget _secondaryCta({
+    required String label,
+    VoidCallback? onPressed,
+    IconData? icon,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.black87,
+        backgroundColor: Colors.white,
+        side: BorderSide(color: Colors.grey.shade300),
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          const SizedBox(width: 8),
+          Icon(icon ?? Icons.keyboard_arrow_right, size: 20),
+        ],
+      ),
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// DESKTOP STATS ROW
+// DESKTOP PREMIUM GREETING
 // ═══════════════════════════════════════════════════════════
-class _DesktopStatsRow extends StatelessWidget {
-  const _DesktopStatsRow({
+class _DesktopPremiumGreeting extends StatelessWidget {
+  const _DesktopPremiumGreeting();
+
+  /// Time-aware greeting prefix
+  static String _timePrefix() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  /// Extract initials (up to 2 chars) from display name
+  static String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : 'U';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final displayName = FirebaseAuthService.displayNameOrEmail(fallback: 'User');
+    final firstName = displayName.split(' ').first;
+    final initials = _initials(displayName);
+    final greeting = '${_timePrefix()}, $firstName';
+
+    // Photo URL from Firebase Auth
+    final photoUrl = FirebaseAuth.instance.currentUser?.photoURL;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFFFFFFFF),
+            Color(0xFFF7F9FB),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE0E3E5).withOpacity(0.6),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: const Color(0xFFFFCC00).withOpacity(0.06),
+            blurRadius: 32,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // ── Avatar ──
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFFCC00),
+                  Color(0xFFFFE066),
+                  Color(0xFFFFD633),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFCC00).withOpacity(0.35),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: photoUrl != null && photoUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      photoUrl,
+                      width: 56,
+                      height: 56,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Center(
+                        child: Text(initials,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF5C4800),
+                            )),
+                      ),
+                    ),
+                  )
+                : Center(
+                    child: Text(initials,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF5C4800),
+                        )),
+                  ),
+          ),
+          const SizedBox(width: 20),
+          // ── Greeting text ──
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  greeting,
+                  style: textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1C2430),
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your portfolio command center at a glance',
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: const Color(0xFF6B7280),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // ── Right accent ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFFE082)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.account_tree_outlined,
+                    size: 16, color: Color(0xFFF57F17)),
+                SizedBox(width: 6),
+                Text(
+                  'PORTFOLIO VIEW',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFFF57F17),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PORTFOLIO STATUS STRIP (uses shared DashboardStatCard)
+// ═══════════════════════════════════════════════════════════
+class _PortfolioStatusStrip extends StatelessWidget {
+  const _PortfolioStatusStrip({
     required this.metrics,
     required this.onBasicTap,
     required this.onSingleTap,
     required this.onProgramTap,
     required this.onPortfolioTap,
-    required this.isStacked,
   });
 
   final _PortfolioMetrics metrics;
@@ -430,146 +922,55 @@ class _DesktopStatsRow extends StatelessWidget {
   final VoidCallback onSingleTap;
   final VoidCallback onProgramTap;
   final VoidCallback onPortfolioTap;
-  final bool isStacked;
 
   @override
   Widget build(BuildContext context) {
-    final basicProjectCount =
-        metrics.projects.where((p) => p.isBasicPlanProject).length;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isStacked = constraints.maxWidth < 920;
+        final basicProjectCount =
+            metrics.projects.where((p) => p.isBasicPlanProject).length;
 
-    final cards = [
-      _StatCardData(
-        value: '$basicProjectCount',
-        label: 'Basic Projects',
-        icon: Icons.description_outlined,
-        iconBg: const Color(0xFFE6F7F1),
-        iconColor: const Color(0xFF0D9488),
-        onTap: onBasicTap,
-      ),
-      _StatCardData(
-        value: '${metrics.projectCount}',
-        label: 'Single Projects',
-        icon: Icons.folder_outlined,
-        iconBg: const Color(0xFFE8F0FE),
-        iconColor: const Color(0xFF2563EB),
-        onTap: onSingleTap,
-      ),
-      _StatCardData(
-        value: '${metrics.programCount}',
-        label: 'Programs',
-        icon: Icons.layers_outlined,
-        iconBg: const Color(0xFFEDE9FE),
-        iconColor: const Color(0xFF7C3AED),
-        onTap: onProgramTap,
-      ),
-      _StatCardData(
-        value: '${metrics.portfolioCount}',
-        label: 'Portfolios',
-        icon: Icons.bar_chart_rounded,
-        iconBg: const Color(0xFFDCFCE7),
-        iconColor: const Color(0xFF16A34A),
-        onTap: onPortfolioTap,
-      ),
-    ];
-
-    if (isStacked) {
-      return Column(
-        children: [
-          for (int i = 0; i < cards.length; i += 2)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Expanded(child: _DesktopStatCard(data: cards[i])),
-                  const SizedBox(width: 12),
-                  if (i + 1 < cards.length)
-                    Expanded(child: _DesktopStatCard(data: cards[i + 1])),
-                ],
-              ),
-            ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        for (int i = 0; i < cards.length; i++) ...[
-          Expanded(child: _DesktopStatCard(data: cards[i])),
-          if (i != cards.length - 1) const SizedBox(width: 16),
-        ],
-      ],
-    );
-  }
-}
-
-class _DesktopStatCard extends StatelessWidget {
-  const _DesktopStatCard({required this.data});
-  final _StatCardData data;
-
-  @override
-  Widget build(BuildContext context) {
-    final card = Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+        final cards = [
+          DashboardStatCard(
+            label: 'Single Projects',
+            value: '${metrics.projectCount}',
+            subLabel: 'Active workspaces',
+            icon: Icons.folder_open_rounded,
+            color: Colors.blue.shade600,
+            onTap: onSingleTap,
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: data.iconBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(data.icon, color: data.iconColor, size: 24),
+          DashboardStatCard(
+            label: 'Basic Projects',
+            value: '$basicProjectCount',
+            subLabel: 'Basic plan workspaces',
+            icon: Icons.folder_special_rounded,
+            color: Colors.teal.shade600,
+            onTap: onBasicTap,
           ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                data.value,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                data.label,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF94A3B8),
-                ),
-              ),
-            ],
+          DashboardStatCard(
+            label: 'Programs',
+            value: '${metrics.programCount}',
+            subLabel: 'Grouped projects',
+            icon: Icons.layers_outlined,
+            color: Colors.purple.shade600,
+            onTap: onProgramTap,
           ),
-        ],
-      ),
-    );
+          DashboardStatCard(
+            label: 'Portfolios',
+            value: '${metrics.portfolioCount}',
+            subLabel: 'Executive views',
+            icon: Icons.pie_chart_outline_rounded,
+            color: Colors.green.shade600,
+            onTap: onPortfolioTap,
+          ),
+        ];
 
-    if (data.onTap == null) return card;
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: data.onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: card,
-      ),
+        return DashboardStatLayout(
+          cards: cards,
+          isStacked: isStacked,
+        );
+      },
     );
   }
 }

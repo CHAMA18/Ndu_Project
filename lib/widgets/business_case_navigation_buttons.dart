@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/utils/business_case_navigation.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
-/// Navigation buttons for Business Case screens
-class BusinessCaseNavigationButtons extends StatelessWidget {
+/// Navigation buttons for Business Case screens with built-in loading state.
+class BusinessCaseNavigationButtons extends StatefulWidget {
   final String currentScreen;
   final EdgeInsets? padding;
   final Future<void> Function()? onNext;
@@ -34,11 +34,23 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
         'I confirm that I have reviewed all information on this page before proceeding.',
   });
 
+  @override
+  State<BusinessCaseNavigationButtons> createState() =>
+      _BusinessCaseNavigationButtonsState();
+}
+
+class _BusinessCaseNavigationButtonsState
+    extends State<BusinessCaseNavigationButtons> {
+  bool _isNavigatingNext = false;
+  bool _isNavigatingBack = false;
+  bool _isNavigatingSkip = false;
+
   Future<void> _handleNextTap(
     BuildContext context,
     Future<void> Function() proceed,
   ) async {
-    final needsReview = !isNextEnabled || (showReviewGate && !reviewConfirmed);
+    final needsReview =
+        !widget.isNextEnabled || (widget.showReviewGate && !widget.reviewConfirmed);
     if (needsReview) {
       final continueAnyway = await showProceedWithoutReviewDialog(
         context,
@@ -48,28 +60,64 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
       );
       if (!continueAnyway) return;
     }
-    await proceed();
+    if (!mounted) return;
+    setState(() => _isNavigatingNext = true);
+    try {
+      await proceed();
+    } finally {
+      if (mounted) {
+        setState(() => _isNavigatingNext = false);
+      }
+    }
+  }
+
+  Future<void> _handleBackTap(
+    Future<void> Function() proceed,
+  ) async {
+    if (_isNavigatingBack) return;
+    setState(() => _isNavigatingBack = true);
+    try {
+      await proceed();
+    } finally {
+      if (mounted) {
+        setState(() => _isNavigatingBack = false);
+      }
+    }
+  }
+
+  Future<void> _handleSkipTap(
+    Future<void> Function() proceed,
+  ) async {
+    if (_isNavigatingSkip) return;
+    setState(() => _isNavigatingSkip = true);
+    try {
+      await proceed();
+    } finally {
+      if (mounted) {
+        setState(() => _isNavigatingSkip = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final hasPrevious = BusinessCaseNavigation.hasPrevious(currentScreen);
-    final hasNext = BusinessCaseNavigation.hasNext(currentScreen);
-    final Future<void> Function() handleBack = onBack == null
+    final hasPrevious = BusinessCaseNavigation.hasPrevious(widget.currentScreen);
+    final hasNext = BusinessCaseNavigation.hasNext(widget.currentScreen);
+    final Future<void> Function() handleBack = widget.onBack == null
         ? () async =>
-            BusinessCaseNavigation.navigateBack(context, currentScreen)
-        : () async => await onBack!();
-    final Future<void> Function() handleNext = onNext == null
+            BusinessCaseNavigation.navigateBack(context, widget.currentScreen)
+        : () async => await widget.onBack!();
+    final Future<void> Function() handleNext = widget.onNext == null
         ? () async =>
-            BusinessCaseNavigation.navigateForward(context, currentScreen)
-        : () async => await onNext!();
-    final hasSkip = onSkip != null;
-    final handleSkip = onSkip == null ? null : () async => await onSkip!();
+            BusinessCaseNavigation.navigateForward(context, widget.currentScreen)
+        : () async => await widget.onNext!();
+    final hasSkip = widget.onSkip != null;
+    final handleSkip = widget.onSkip == null ? null : () async => await widget.onSkip!();
 
     return Container(
       width: double.infinity,
       padding:
-          padding ?? const EdgeInsets.symmetric(vertical: 24, horizontal: 40),
+          widget.padding ?? const EdgeInsets.symmetric(vertical: 24, horizontal: 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -80,10 +128,13 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
                 _NavigationButton(
                   icon: Icons.arrow_back_ios_new,
                   label: 'Back',
-                  onPressed: () {
-                    handleBack();
-                  },
+                  onPressed: _isNavigatingBack
+                      ? null
+                      : () {
+                          _handleBackTap(handleBack);
+                        },
                   isForward: false,
+                  isLoading: _isNavigatingBack,
                 )
               else
                 const Spacer(),
@@ -92,23 +143,29 @@ class BusinessCaseNavigationButtons extends StatelessWidget {
                   if (hasSkip)
                     _NavigationButton(
                       icon: Icons.skip_next_rounded,
-                      label: skipLabel,
-                      onPressed: () {
-                        handleSkip!();
-                      },
+                      label: widget.skipLabel,
+                      onPressed: _isNavigatingSkip
+                          ? null
+                          : () {
+                              _handleSkipTap(handleSkip!);
+                            },
                       isForward: true,
                       minWidth: 120,
+                      isLoading: _isNavigatingSkip,
                     ),
                   if (hasSkip && hasNext) const SizedBox(width: 12),
                   if (hasNext)
                     _NavigationButton(
                       icon: Icons.arrow_forward_ios,
                       label: 'Next',
-                      onPressed: () {
-                        _handleNextTap(context, handleNext);
-                      },
+                      onPressed: _isNavigatingNext
+                          ? null
+                          : () {
+                              _handleNextTap(context, handleNext);
+                            },
                       isForward: true,
                       minWidth: 120,
+                      isLoading: _isNavigatingNext,
                     )
                   else
                     const Spacer(),
@@ -128,6 +185,7 @@ class _NavigationButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isForward;
   final double? minWidth;
+  final bool isLoading;
 
   const _NavigationButton({
     required this.icon,
@@ -135,6 +193,7 @@ class _NavigationButton extends StatelessWidget {
     required this.onPressed,
     required this.isForward,
     this.minWidth,
+    this.isLoading = false,
   });
 
   @override
@@ -165,26 +224,71 @@ class _NavigationButton extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!isForward) ...[
-            Icon(icon, size: 18, color: primaryText),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: primaryText,
-            ),
-          ),
-          if (isForward) ...[
-            const SizedBox(width: 8),
-            Icon(icon, size: 18, color: primaryText),
-          ],
-        ],
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        child: isLoading
+            ? Row(
+                key: const ValueKey('loading'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isForward) ...[
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          primaryText.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: primaryText.withOpacity(0.6),
+                    ),
+                  ),
+                  if (isForward) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          primaryText.withOpacity(0.6),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              )
+            : Row(
+                key: const ValueKey('idle'),
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!isForward) ...[
+                    Icon(icon, size: 18, color: primaryText),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: primaryText,
+                    ),
+                  ),
+                  if (isForward) ...[
+                    const SizedBox(width: 8),
+                    Icon(icon, size: 18, color: primaryText),
+                  ],
+                ],
+              ),
       ),
     );
   }

@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/inline_editable_text.dart';
 class PunchlistActionsScreen extends StatefulWidget {
   const PunchlistActionsScreen({super.key});
 
@@ -776,13 +777,13 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
       ];
 
   List<_DistributionRow> _defaultDistributionRows() => [
-    const _DistributionRow(category: 'Systems', openItems: 44, critical: 8, high: 10, medium: 16, low: 10, closed: 38, owner: 'Systems Team', status: 'Active', lastUpdated: '2 hrs ago'),
-    const _DistributionRow(category: 'Facilities', openItems: 28, critical: 4, high: 6, medium: 10, low: 8, closed: 22, owner: 'Facilities Mgmt', status: 'Active', lastUpdated: '4 hrs ago'),
-    const _DistributionRow(category: 'QA', openItems: 18, critical: 2, high: 2, medium: 8, low: 6, closed: 14, owner: 'QA Lead', status: 'Under Review', lastUpdated: '1 day ago'),
-    const _DistributionRow(category: 'Integration', openItems: 30, critical: 3, high: 4, medium: 12, low: 11, closed: 25, owner: 'Integration Lead', status: 'Active', lastUpdated: '6 hrs ago'),
-    const _DistributionRow(category: 'Field Ops', openItems: 22, critical: 5, high: 7, medium: 6, low: 4, closed: 18, owner: 'Field Ops Mgr', status: 'Monitoring', lastUpdated: '3 hrs ago'),
-    const _DistributionRow(category: 'Safety', openItems: 12, critical: 6, high: 4, medium: 2, low: 0, closed: 9, owner: 'Safety Officer', status: 'Active', lastUpdated: '1 hr ago'),
-    const _DistributionRow(category: 'Compliance', openItems: 8, critical: 1, high: 2, medium: 3, low: 2, closed: 7, owner: 'Compliance Lead', status: 'Under Review', lastUpdated: '5 hrs ago'),
+    _DistributionRow(category: 'Systems', openItems: 44, critical: 8, high: 10, medium: 16, low: 10, closed: 38, owner: 'Systems Team', status: 'Active', lastUpdated: '2 hrs ago'),
+    _DistributionRow(category: 'Facilities', openItems: 28, critical: 4, high: 6, medium: 10, low: 8, closed: 22, owner: 'Facilities Mgmt', status: 'Active', lastUpdated: '4 hrs ago'),
+    _DistributionRow(category: 'QA', openItems: 18, critical: 2, high: 2, medium: 8, low: 6, closed: 14, owner: 'QA Lead', status: 'Under Review', lastUpdated: '1 day ago'),
+    _DistributionRow(category: 'Integration', openItems: 30, critical: 3, high: 4, medium: 12, low: 11, closed: 25, owner: 'Integration Lead', status: 'Active', lastUpdated: '6 hrs ago'),
+    _DistributionRow(category: 'Field Ops', openItems: 22, critical: 5, high: 7, medium: 6, low: 4, closed: 18, owner: 'Field Ops Mgr', status: 'Monitoring', lastUpdated: '3 hrs ago'),
+    _DistributionRow(category: 'Safety', openItems: 12, critical: 6, high: 4, medium: 2, low: 0, closed: 9, owner: 'Safety Officer', status: 'Active', lastUpdated: '1 hr ago'),
+    _DistributionRow(category: 'Compliance', openItems: 8, critical: 1, high: 2, medium: 3, low: 2, closed: 7, owner: 'Compliance Lead', status: 'Under Review', lastUpdated: '5 hrs ago'),
   ];
 
   List<_ActionVelocityRow> _defaultVelocityRows() => [
@@ -795,22 +796,22 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
   ];
 
   List<_CapacityHealthRow> _defaultCapacityHealthRows() => [
-    const _CapacityHealthRow(team: 'Field Execution', plannedFte: 14.0, allocatedFte: 12.0, availableFte: 10.5, utilization: 87, overallocated: 1.5, fteVariance: -2.0, burnRate: 92, productivityIndex: 94, overtimeHrs: 18, absenteeismRate: 8.2, skillGap: 2, backlogWeeks: 3.2, costVariance: -4, riskLevel: 'Medium', owner: 'Field Ops Mgr', status: 'Active', lastUpdated: '2 hrs ago'),
-    const _CapacityHealthRow(team: 'QA & Verification', plannedFte: 9.0, allocatedFte: 8.0, availableFte: 7.0, utilization: 94, overallocated: 1.0, fteVariance: -1.0, burnRate: 88, productivityIndex: 102, overtimeHrs: 12, absenteeismRate: 4.5, skillGap: 1, backlogWeeks: 2.8, costVariance: -2, riskLevel: 'High', owner: 'QA Lead', status: 'At Risk', lastUpdated: '4 hrs ago'),
-    const _CapacityHealthRow(team: 'Systems Integration', plannedFte: 10.0, allocatedFte: 10.0, availableFte: 9.0, utilization: 78, overallocated: 0.0, fteVariance: 0.0, burnRate: 75, productivityIndex: 108, overtimeHrs: 6, absenteeismRate: 3.1, skillGap: 3, backlogWeeks: 4.5, costVariance: 3, riskLevel: 'Low', owner: 'Integration Lead', status: 'On Track', lastUpdated: '1 day ago'),
-    const _CapacityHealthRow(team: 'Safety & Compliance', plannedFte: 6.5, allocatedFte: 6.0, availableFte: 5.5, utilization: 91, overallocated: 0.5, fteVariance: -0.5, burnRate: 85, productivityIndex: 97, overtimeHrs: 8, absenteeismRate: 5.8, skillGap: 1, backlogWeeks: 2.1, costVariance: -1, riskLevel: 'Medium', owner: 'Safety Officer', status: 'Active', lastUpdated: '3 hrs ago'),
-    const _CapacityHealthRow(team: 'Technical Debt', plannedFte: 7.0, allocatedFte: 5.0, availableFte: 4.0, utilization: 68, overallocated: 0.0, fteVariance: -2.0, burnRate: 62, productivityIndex: 78, overtimeHrs: 4, absenteeismRate: 6.3, skillGap: 4, backlogWeeks: 6.8, costVariance: -8, riskLevel: 'High', owner: 'Platform Lead', status: 'Under Review', lastUpdated: '6 hrs ago'),
-    const _CapacityHealthRow(team: 'Remediation Ops', plannedFte: 7.5, allocatedFte: 7.0, availableFte: 6.5, utilization: 82, overallocated: 0.5, fteVariance: -0.5, burnRate: 79, productivityIndex: 105, overtimeHrs: 10, absenteeismRate: 3.7, skillGap: 1, backlogWeeks: 3.0, costVariance: 2, riskLevel: 'Low', owner: 'Operations Mgr', status: 'On Track', lastUpdated: '5 hrs ago'),
-    const _CapacityHealthRow(team: 'Electrical & Mech', plannedFte: 11.0, allocatedFte: 9.5, availableFte: 8.0, utilization: 89, overallocated: 1.5, fteVariance: -1.5, burnRate: 86, productivityIndex: 91, overtimeHrs: 22, absenteeismRate: 7.1, skillGap: 2, backlogWeeks: 3.8, costVariance: -5, riskLevel: 'Medium', owner: 'E&M Lead', status: 'Active', lastUpdated: '1 hr ago'),
+    _CapacityHealthRow(team: 'Field Execution', plannedFte: 14.0, allocatedFte: 12.0, availableFte: 10.5, utilization: 87, overallocated: 1.5, fteVariance: -2.0, burnRate: 92, productivityIndex: 94, overtimeHrs: 18, absenteeismRate: 8.2, skillGap: 2, backlogWeeks: 3.2, costVariance: -4, riskLevel: 'Medium', owner: 'Field Ops Mgr', status: 'Active', lastUpdated: '2 hrs ago'),
+    _CapacityHealthRow(team: 'QA & Verification', plannedFte: 9.0, allocatedFte: 8.0, availableFte: 7.0, utilization: 94, overallocated: 1.0, fteVariance: -1.0, burnRate: 88, productivityIndex: 102, overtimeHrs: 12, absenteeismRate: 4.5, skillGap: 1, backlogWeeks: 2.8, costVariance: -2, riskLevel: 'High', owner: 'QA Lead', status: 'At Risk', lastUpdated: '4 hrs ago'),
+    _CapacityHealthRow(team: 'Systems Integration', plannedFte: 10.0, allocatedFte: 10.0, availableFte: 9.0, utilization: 78, overallocated: 0.0, fteVariance: 0.0, burnRate: 75, productivityIndex: 108, overtimeHrs: 6, absenteeismRate: 3.1, skillGap: 3, backlogWeeks: 4.5, costVariance: 3, riskLevel: 'Low', owner: 'Integration Lead', status: 'On Track', lastUpdated: '1 day ago'),
+    _CapacityHealthRow(team: 'Safety & Compliance', plannedFte: 6.5, allocatedFte: 6.0, availableFte: 5.5, utilization: 91, overallocated: 0.5, fteVariance: -0.5, burnRate: 85, productivityIndex: 97, overtimeHrs: 8, absenteeismRate: 5.8, skillGap: 1, backlogWeeks: 2.1, costVariance: -1, riskLevel: 'Medium', owner: 'Safety Officer', status: 'Active', lastUpdated: '3 hrs ago'),
+    _CapacityHealthRow(team: 'Technical Debt', plannedFte: 7.0, allocatedFte: 5.0, availableFte: 4.0, utilization: 68, overallocated: 0.0, fteVariance: -2.0, burnRate: 62, productivityIndex: 78, overtimeHrs: 4, absenteeismRate: 6.3, skillGap: 4, backlogWeeks: 6.8, costVariance: -8, riskLevel: 'High', owner: 'Platform Lead', status: 'Under Review', lastUpdated: '6 hrs ago'),
+    _CapacityHealthRow(team: 'Remediation Ops', plannedFte: 7.5, allocatedFte: 7.0, availableFte: 6.5, utilization: 82, overallocated: 0.5, fteVariance: -0.5, burnRate: 79, productivityIndex: 105, overtimeHrs: 10, absenteeismRate: 3.7, skillGap: 1, backlogWeeks: 3.0, costVariance: 2, riskLevel: 'Low', owner: 'Operations Mgr', status: 'On Track', lastUpdated: '5 hrs ago'),
+    _CapacityHealthRow(team: 'Electrical & Mech', plannedFte: 11.0, allocatedFte: 9.5, availableFte: 8.0, utilization: 89, overallocated: 1.5, fteVariance: -1.5, burnRate: 86, productivityIndex: 91, overtimeHrs: 22, absenteeismRate: 7.1, skillGap: 2, backlogWeeks: 3.8, costVariance: -5, riskLevel: 'Medium', owner: 'E&M Lead', status: 'Active', lastUpdated: '1 hr ago'),
   ];
 
   List<_ShiftCoverageRow> _defaultShiftCoverageRows() => [
-    const _ShiftCoverageRow(shift: 'Day Shift (06:00-14:00)', requiredHeadcount: 24, actualHeadcount: 22, coveragePercent: 92, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 16, contractorFill: 1, agencyStaff: 1, absenceCount: 3, complianceStatus: 'Compliant', nextRotation: 'May 10', supervisor: 'Shift Supervisor A', riskFlag: 'Low', status: 'Covered', lastUpdated: '1 hr ago'),
-    const _ShiftCoverageRow(shift: 'Swing Shift (14:00-22:00)', requiredHeadcount: 20, actualHeadcount: 18, coveragePercent: 90, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 14, contractorFill: 0, agencyStaff: 2, absenceCount: 2, complianceStatus: 'Compliant', nextRotation: 'May 12', supervisor: 'Shift Supervisor B', riskFlag: 'Low', status: 'Covered', lastUpdated: '3 hrs ago'),
-    const _ShiftCoverageRow(shift: 'Night Shift (22:00-06:00)', requiredHeadcount: 16, actualHeadcount: 12, coveragePercent: 75, gap: 4, shiftPattern: '3 on / 4 off', overtimeHrs: 22, contractorFill: 2, agencyStaff: 1, absenceCount: 5, complianceStatus: 'Non-Compliant', nextRotation: 'May 8', supervisor: 'Night Lead', riskFlag: 'High', status: 'Understaffed', lastUpdated: '30 min ago'),
-    const _ShiftCoverageRow(shift: 'Weekend Coverage (Sat-Sun)', requiredHeadcount: 12, actualHeadcount: 10, coveragePercent: 83, gap: 2, shiftPattern: 'Alternate weekends', overtimeHrs: 8, contractorFill: 1, agencyStaff: 0, absenceCount: 2, complianceStatus: 'Compliant', nextRotation: 'May 11', supervisor: 'Weekend Lead', riskFlag: 'Medium', status: 'Covered', lastUpdated: '2 hrs ago'),
-    const _ShiftCoverageRow(shift: 'Emergency Response On-Call', requiredHeadcount: 6, actualHeadcount: 6, coveragePercent: 100, gap: 0, shiftPattern: 'Rotating standby', overtimeHrs: 4, contractorFill: 0, agencyStaff: 0, absenceCount: 0, complianceStatus: 'Compliant', nextRotation: 'May 9', supervisor: 'Safety Officer', riskFlag: 'None', status: 'Full', lastUpdated: '4 hrs ago'),
-    const _ShiftCoverageRow(shift: 'QA Inspection Team', requiredHeadcount: 8, actualHeadcount: 6, coveragePercent: 75, gap: 2, shiftPattern: '5 on / 2 off', overtimeHrs: 10, contractorFill: 1, agencyStaff: 1, absenceCount: 3, complianceStatus: 'Conditional', nextRotation: 'May 13', supervisor: 'QA Lead', riskFlag: 'Medium', status: 'Understaffed', lastUpdated: '5 hrs ago'),
+    _ShiftCoverageRow(shift: 'Day Shift (06:00-14:00)', requiredHeadcount: 24, actualHeadcount: 22, coveragePercent: 92, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 16, contractorFill: 1, agencyStaff: 1, absenceCount: 3, complianceStatus: 'Compliant', nextRotation: 'May 10', supervisor: 'Shift Supervisor A', riskFlag: 'Low', status: 'Covered', lastUpdated: '1 hr ago'),
+    _ShiftCoverageRow(shift: 'Swing Shift (14:00-22:00)', requiredHeadcount: 20, actualHeadcount: 18, coveragePercent: 90, gap: 2, shiftPattern: '4 on / 3 off', overtimeHrs: 14, contractorFill: 0, agencyStaff: 2, absenceCount: 2, complianceStatus: 'Compliant', nextRotation: 'May 12', supervisor: 'Shift Supervisor B', riskFlag: 'Low', status: 'Covered', lastUpdated: '3 hrs ago'),
+    _ShiftCoverageRow(shift: 'Night Shift (22:00-06:00)', requiredHeadcount: 16, actualHeadcount: 12, coveragePercent: 75, gap: 4, shiftPattern: '3 on / 4 off', overtimeHrs: 22, contractorFill: 2, agencyStaff: 1, absenceCount: 5, complianceStatus: 'Non-Compliant', nextRotation: 'May 8', supervisor: 'Night Lead', riskFlag: 'High', status: 'Understaffed', lastUpdated: '30 min ago'),
+    _ShiftCoverageRow(shift: 'Weekend Coverage (Sat-Sun)', requiredHeadcount: 12, actualHeadcount: 10, coveragePercent: 83, gap: 2, shiftPattern: 'Alternate weekends', overtimeHrs: 8, contractorFill: 1, agencyStaff: 0, absenceCount: 2, complianceStatus: 'Compliant', nextRotation: 'May 11', supervisor: 'Weekend Lead', riskFlag: 'Medium', status: 'Covered', lastUpdated: '2 hrs ago'),
+    _ShiftCoverageRow(shift: 'Emergency Response On-Call', requiredHeadcount: 6, actualHeadcount: 6, coveragePercent: 100, gap: 0, shiftPattern: 'Rotating standby', overtimeHrs: 4, contractorFill: 0, agencyStaff: 0, absenceCount: 0, complianceStatus: 'Compliant', nextRotation: 'May 9', supervisor: 'Safety Officer', riskFlag: 'None', status: 'Full', lastUpdated: '4 hrs ago'),
+    _ShiftCoverageRow(shift: 'QA Inspection Team', requiredHeadcount: 8, actualHeadcount: 6, coveragePercent: 75, gap: 2, shiftPattern: '5 on / 2 off', overtimeHrs: 10, contractorFill: 1, agencyStaff: 1, absenceCount: 3, complianceStatus: 'Conditional', nextRotation: 'May 13', supervisor: 'QA Lead', riskFlag: 'Medium', status: 'Understaffed', lastUpdated: '5 hrs ago'),
   ];
 
   Widget _wrapInsightCards(List<Widget> cards) {
@@ -1040,7 +1041,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         )),
                         DataCell(Text(row.owner, style: const TextStyle(fontSize: 12))),
                         DataCell(_buildStatusChip(row.status)),
-                        DataCell(Text(row.lastUpdated.isNotEmpty ? row.lastUpdated : '-', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
+                        DataCell(InlineEditableText(value: row.lastUpdated.isNotEmpty ? row.lastUpdated : '-', onChanged: (v) { setState(() { row.lastUpdated = v; }); _saveToFirestore(); }, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
                         DataCell(Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1435,7 +1436,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                         DataCell(_buildRiskChip(row.riskLevel)),
                         DataCell(Text(row.owner, style: const TextStyle(fontSize: 12))),
                         DataCell(_buildStatusChip(row.status)),
-                        DataCell(Text(row.lastUpdated.isNotEmpty ? row.lastUpdated : '-', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
+                        DataCell(InlineEditableText(value: row.lastUpdated.isNotEmpty ? row.lastUpdated : '-', onChanged: (v) { setState(() { row.lastUpdated = v; }); _saveToFirestore(); }, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
                         DataCell(Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1616,8 +1617,8 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                           )),
                         )),
                         DataCell(_buildComplianceChip(row.complianceStatus)),
-                        DataCell(Text(row.nextRotation, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                        DataCell(Text(row.supervisor, style: const TextStyle(fontSize: 12))),
+                        DataCell(InlineEditableText(value: row.nextRotation, onChanged: (v) { setState(() { row.nextRotation = v; }); _saveToFirestore(); }, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+                        DataCell(InlineEditableText(value: row.supervisor, onChanged: (v) { setState(() { row.supervisor = v; }); _saveToFirestore(); }, style: const TextStyle(fontSize: 12))),
                         DataCell(_buildRiskFlagChip(row.riskFlag)),
                         DataCell(_buildShiftStatusChip(row.status)),
                         DataCell(Text(row.lastUpdated.isNotEmpty ? row.lastUpdated : '-', style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)))),
@@ -2694,7 +2695,7 @@ class _LegendRow extends StatelessWidget {
 }
 
 class _DistributionRow {
-  const _DistributionRow({
+  _DistributionRow({
     required this.category,
     required this.openItems,
     required this.critical,
@@ -2716,7 +2717,7 @@ class _DistributionRow {
   final int closed;
   final String owner;
   final String status;
-  final String lastUpdated;
+  String lastUpdated;
 
   int get total => openItems + closed;
   double get percentComplete => total > 0 ? (closed / total * 100) : 0.0;
@@ -2801,7 +2802,7 @@ class _ActionVelocityRow {
 }
 
 class _CapacityHealthRow {
-  const _CapacityHealthRow({
+  _CapacityHealthRow({
     required this.team,
     required this.plannedFte,
     required this.allocatedFte,
@@ -2839,7 +2840,7 @@ class _CapacityHealthRow {
   final String riskLevel;
   final String owner;
   final String status;
-  final String lastUpdated;
+  String lastUpdated;
 
   Map<String, dynamic> toMap() => {
     'team': team,
@@ -2885,7 +2886,7 @@ class _CapacityHealthRow {
 }
 
 class _ShiftCoverageRow {
-  const _ShiftCoverageRow({
+  _ShiftCoverageRow({
     required this.shift,
     required this.requiredHeadcount,
     required this.actualHeadcount,
@@ -2915,8 +2916,8 @@ class _ShiftCoverageRow {
   final int agencyStaff;
   final int absenceCount;
   final String complianceStatus;
-  final String nextRotation;
-  final String supervisor;
+  String nextRotation;
+  String supervisor;
   final String riskFlag;
   final String status;
   final String lastUpdated;

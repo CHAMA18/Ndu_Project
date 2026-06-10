@@ -86,11 +86,38 @@ class _ProjectDashboardMobileShellState
   String _query = '';
   String _groupQuery = '';
   int _bottomNavIndex = 0;
+  final ValueNotifier<Set<String>> _selectedProjectIds =
+      ValueNotifier<Set<String>>({});
+
+  void _toggleSelection(String id) {
+    final current = Set<String>.from(_selectedProjectIds.value);
+    if (current.contains(id)) {
+      current.remove(id);
+    } else {
+      if (current.length >= 3) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('You can select up to three projects for a program.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+      current.add(id);
+    }
+    _selectedProjectIds.value = current;
+  }
+
+  void _clearSelection() {
+    _selectedProjectIds.value = {};
+  }
 
   @override
   void dispose() {
     _searchProjects.dispose();
     _searchGrouping.dispose();
+    _selectedProjectIds.dispose();
     super.dispose();
   }
 
@@ -374,7 +401,7 @@ class _ProjectDashboardMobileShellState
                   children: [
                     Expanded(
                       child: Text(
-                        p.name.isEmpty ? 'Untitled Project' : p.name,
+                        p.displayName,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
@@ -505,7 +532,7 @@ class _ProjectDashboardMobileShellState
             ? singles
             : singles.where((e) {
                 final q = _query.toLowerCase();
-                return e.name.toLowerCase().contains(q) ||
+                return e.displayName.toLowerCase().contains(q) ||
                     e.status.toLowerCase().contains(q) ||
                     _owner(e).toLowerCase().contains(q);
               }).toList();
@@ -513,7 +540,7 @@ class _ProjectDashboardMobileShellState
             ? singles
             : singles.where((e) {
                 final q = _groupQuery.toLowerCase();
-                return e.name.toLowerCase().contains(q) ||
+                return e.displayName.toLowerCase().contains(q) ||
                     e.status.toLowerCase().contains(q);
               }).toList();
 
@@ -819,6 +846,27 @@ class _ProjectDashboardMobileShellState
 
                                 const SizedBox(height: _Tokens.sectionGap),
 
+                                // ── Group Into Program CTA — directly below stat cards ──
+                                if (!widget.isBasicPlan) ...[
+                                  _MobileGroupProjectsCTA(
+                                    projectCount: groupingList.length,
+                                    isLoading: false,
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => _MobileGroupProjectsScreen(
+                                            projects: groupingList,
+                                            selectedIdsListenable: _selectedProjectIds,
+                                            onToggle: _toggleSelection,
+                                            onClear: _clearSelection,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(height: _Tokens.sectionGap),
+                                ],
+
                                 // ── Single Projects Section ──────────────────
                                 Container(
                                   padding:
@@ -946,158 +994,15 @@ class _ProjectDashboardMobileShellState
                                   ),
                                 ),
 
-                                const SizedBox(height: _Tokens.sectionGap),
-
-                                // ── Group Projects Section ───────────────────
-                                if (!widget.isBasicPlan)
-                                  Container(
-                                    padding: const EdgeInsets.all(
-                                        _Tokens.cardPadding),
-                                    decoration: BoxDecoration(
-                                      color: _Tokens.surfaceContainerLowest,
-                                      borderRadius: BorderRadius.circular(
-                                          _Tokens.radiusXl),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.04),
-                                          blurRadius: 20,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            const Expanded(
-                                              child: Text(
-                                                'Group Projects Into A Program',
-                                                style: TextStyle(
-                                                  fontSize: 20,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _Tokens.onSurface,
-                                                  letterSpacing: -0.01,
-                                                ),
-                                              ),
-                                            ),
-                                            TextButton(
-                                              onPressed: () {},
-                                              style: TextButton.styleFrom(
-                                                foregroundColor: _Tokens.error,
-                                                padding: EdgeInsets.zero,
-                                                minimumSize: Size.zero,
-                                                tapTargetSize:
-                                                    MaterialTapTargetSize
-                                                        .shrinkWrap,
-                                              ),
-                                              child: const Text('See All',
-                                                  style: TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                      fontSize: 15)),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        const Text(
-                                          'When you have more than three single projects, select up to three that share an outcome to create a new program.',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w400,
-                                            color: _Tokens.onSurfaceVariant,
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                            height: _Tokens.stackGap),
-
-                                        // Filter chip
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            color: _Tokens.surfaceContainerLow,
-                                            borderRadius:
-                                                BorderRadius.circular(100),
-                                            border: Border.all(
-                                              color: _Tokens.outlineVariant,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Icons.filter_list,
-                                                  size: 18,
-                                                  color:
-                                                      _Tokens.onSurfaceVariant),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                'Up to 3 projects',
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  letterSpacing: 0.05,
-                                                  color:
-                                                      _Tokens.onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                            height: _Tokens.stackGap),
-
-                                        // Search
-                                        _searchBar(
-                                          controller: _searchGrouping,
-                                          hint: 'Search projects to group...',
-                                          onChanged: (v) =>
-                                              setState(() => _groupQuery = v),
-                                        ),
-                                        const SizedBox(
-                                            height: _Tokens.stackGap),
-
-                                        // CTA / empty state
-                                        if (user == null)
-                                          Container(
-                                            padding: const EdgeInsets.all(24),
-                                            decoration: BoxDecoration(
-                                              color: _Tokens.onSecondaryFixed
-                                                  .withOpacity(0.05),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                      _Tokens.radiusXl),
-                                              border: Border.all(
-                                                color: _Tokens.onSecondaryFixed
-                                                    .withOpacity(0.1),
-                                              ),
-                                            ),
-                                            child: Center(
-                                              child: Text(
-                                                'Sign in to group projects',
-                                                style: TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w400,
-                                                  color:
-                                                      _Tokens.onSurfaceVariant,
-                                                ),
-                                              ),
-                                            ),
-                                          )
-                                        else if (groupingList.isEmpty)
-                                          _emptyState(
-                                              message: 'No projects to group')
-                                        else
-                                          ...groupingList
-                                              .take(3)
-                                              .map((p) => _projectItem(p)),
-                                      ],
-                                    ),
+                                // ── Programs & Portfolios Summary Container ────
+                                if (!widget.isBasicPlan) ...[
+                                  const SizedBox(height: _Tokens.sectionGap),
+                                  _MobileProgramsPortfoliosCard(
+                                    programCount: programCount,
+                                    portfolioCount: portfolioCount,
                                   ),
+                                ],
+
                               ],
                             ),
                           ),
@@ -1373,6 +1278,793 @@ class _PremiumUserGreeting extends StatelessWidget {
         color: Color(0xFF191C1D),
         height: 1,
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile Programs & Portfolios Summary Card – shows counts for programs/portfolios
+// ─────────────────────────────────────────────────────────────────────────────
+class _MobileProgramsPortfoliosCard extends StatelessWidget {
+  const _MobileProgramsPortfoliosCard({
+    required this.programCount,
+    required this.portfolioCount,
+  });
+
+  final int programCount;
+  final int portfolioCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(_Tokens.cardPadding),
+      decoration: BoxDecoration(
+        color: _Tokens.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(_Tokens.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFAF5FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.layers_outlined,
+                    size: 22, color: Color(0xFF9333EA)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Programs & Portfolios',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: _Tokens.onSurface,
+                        letterSpacing: -0.01,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'High-level containers for your grouped work.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: _Tokens.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFAF5FF),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF9333EA).withOpacity(0.15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.layers,
+                          size: 20, color: Color(0xFF9333EA)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$programCount',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF9333EA),
+                              ),
+                            ),
+                            const Text(
+                              'Programs',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _Tokens.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF0FDF4),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF16A34A).withOpacity(0.15),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.pie_chart_outline_rounded,
+                          size: 20, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$portfolioCount',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF16A34A),
+                              ),
+                            ),
+                            const Text(
+                              'Portfolios',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: _Tokens.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile Group Projects CTA – compact action card on mobile dashboard
+// ─────────────────────────────────────────────────────────────────────────────
+class _MobileGroupProjectsCTA extends StatelessWidget {
+  const _MobileGroupProjectsCTA({
+    required this.projectCount,
+    required this.isLoading,
+    required this.onTap,
+  });
+
+  final int projectCount;
+  final bool isLoading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasProjects = projectCount >= 3;
+
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: _Tokens.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(_Tokens.radiusXl),
+          border: Border.all(color: _Tokens.outlineVariant),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: _Tokens.primary,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: _Tokens.primary.withOpacity(0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.layers_rounded,
+                  color: Colors.white, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Group Into Program',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _Tokens.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    hasProjects
+                        ? '$projectCount projects available'
+                        : 'Need at least 3 projects',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: hasProjects
+                          ? _Tokens.onSurfaceVariant
+                          : _Tokens.error,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: _Tokens.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.arrow_forward_rounded,
+                  color: _Tokens.outline, size: 18),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mobile Group Projects Full Screen
+// ─────────────────────────────────────────────────────────────────────────────
+class _MobileGroupProjectsScreen extends StatefulWidget {
+  const _MobileGroupProjectsScreen({
+    required this.projects,
+    required this.selectedIdsListenable,
+    required this.onToggle,
+    required this.onClear,
+  });
+
+  final List<ProjectRecord> projects;
+  final ValueListenable<Set<String>> selectedIdsListenable;
+  final ValueChanged<String> onToggle;
+  final VoidCallback onClear;
+
+  @override
+  State<_MobileGroupProjectsScreen> createState() =>
+      _MobileGroupProjectsScreenState();
+}
+
+class _MobileGroupProjectsScreenState
+    extends State<_MobileGroupProjectsScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCreateProgram(Set<String> selectedIds) async {
+    if (selectedIds.length != 3) return;
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final programName = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final scheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.layers, color: scheme.primary, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text('Name Your Program'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Give a name to your new program.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+                VoiceTextFormField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Program Name',
+                    hintText: 'e.g., Terminal Modernization Program',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor:
+                        scheme.surfaceContainerHighest.withOpacity(0.3),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    if (value.trim().length < 3) {
+                      return 'Name must be at least 3 characters';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(nameController.text.trim());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Create Program'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (programName == null || !mounted) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await ProgramService.createProgram(
+        name: programName,
+        projectIds: selectedIds.toList(),
+        ownerId: user.uid,
+      );
+
+      if (!mounted) return;
+
+      widget.onClear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Program created successfully!'),
+            backgroundColor: Colors.green),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error creating program: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        title: const Text('Group Projects'),
+        backgroundColor: Colors.white,
+        elevation: 0.5,
+        foregroundColor: Colors.black87,
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Guidance
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEFF6FF), Color(0xFFEEF2FF)],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFFBFDBFE).withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 18, color: Color(0xFF3B82F6)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Select up to 3 projects that share an outcome.',
+                            style: textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFF1E40AF),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  VoiceTextField(
+                    controller: _searchController,
+                    style: const TextStyle(fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: 'Search projects...',
+                      hintStyle: const TextStyle(fontSize: 14),
+                      prefixIcon: Icon(Icons.search,
+                          color: Colors.grey.shade500, size: 20),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 18),
+                              onPressed: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                });
+                              },
+                            )
+                          : null,
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.grey.shade300, width: 1.5),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Theme.of(context).primaryColor, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                    ),
+                    onChanged: (value) {
+                      setState(() => _searchQuery = value.toLowerCase().trim());
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // Project list
+            Expanded(
+              child: user == null
+                  ? Center(
+                      child: Text('Sign in to group projects',
+                          style: textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey.shade600)))
+                  : _buildProjectList(),
+            ),
+
+            // Bottom bar
+            ValueListenableBuilder<Set<String>>(
+              valueListenable: widget.selectedIdsListenable,
+              builder: (context, selectedIds, _) {
+                final count = selectedIds.length;
+                final isActive = count == 3;
+                return Container(
+                  padding:
+                      const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                        top: BorderSide(color: Colors.grey.shade200)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Progress
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: count / 3,
+                                  minHeight: 5,
+                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isActive
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFF3B82F6),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Row(
+                              children: List.generate(3, (i) {
+                                final filled = i < count;
+                                return Container(
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 2),
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    color: filled
+                                        ? (isActive
+                                            ? const Color(0xFF10B981)
+                                            : const Color(0xFF3B82F6))
+                                        : const Color(0xFFE2E8F0),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: filled
+                                      ? const Icon(Icons.check_rounded,
+                                          size: 12, color: Colors.white)
+                                      : null,
+                                );
+                              }),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: ElevatedButton(
+                            onPressed: isActive
+                                ? () => _handleCreateProgram(selectedIds)
+                                : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isActive
+                                  ? const Color(0xFF111827)
+                                  : const Color(0xFFE2E8F0),
+                              foregroundColor:
+                                  isActive ? Colors.white : Colors.grey,
+                              elevation: isActive ? 6 : 0,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                              textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 15),
+                            ),
+                            child: Text(
+                              isActive
+                                  ? 'Create Program'
+                                  : 'Select ${3 - count} more',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectList() {
+    final filtered = _searchQuery.isEmpty
+        ? widget.projects
+        : widget.projects.where((p) {
+            return p.displayName.toLowerCase().contains(_searchQuery) ||
+                p.status.toLowerCase().contains(_searchQuery) ||
+                p.solutionTitle.toLowerCase().contains(_searchQuery);
+          }).toList();
+
+    if (widget.projects.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.folder_off_outlined,
+                size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text('No projects available',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    }
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off_rounded,
+                size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 12),
+            Text('No matching projects',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
+      );
+    }
+
+    return ValueListenableBuilder<Set<String>>(
+      valueListenable: widget.selectedIdsListenable,
+      builder: (context, selectedIds, _) {
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          itemCount: filtered.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final project = filtered[index];
+            final isSelected = selectedIds.contains(project.id);
+            return GestureDetector(
+              onTap: () => widget.onToggle(project.id),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFFFFF7E6)
+                      : const Color(0xFFF7F8FD),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isSelected
+                        ? const Color(0xFFFFCF6B)
+                        : const Color(0xFFE3E6F2),
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF3B82F6)
+                            : Colors.transparent,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF3B82F6)
+                              : const Color(0xFFCBD5E1),
+                          width: 2,
+                        ),
+                      ),
+                      child: isSelected
+                          ? const Icon(Icons.check_rounded,
+                              size: 10, color: Colors.white)
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            project.displayName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                              color: Color(0xFF101218),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            project.status.isNotEmpty
+                                ? project.status
+                                : 'Initiation',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF3B82F6).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Included',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF3B82F6),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

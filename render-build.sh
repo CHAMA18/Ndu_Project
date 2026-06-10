@@ -30,7 +30,16 @@ flutter pub get
 
 # 6. Build the web app
 echo "🏗️ Building Web App (User interface)..."
-# Using the same target as in your deploy.sh
-flutter build web --target=lib/main.dart --release --pwa-strategy=none
+flutter build web --target=lib/main.dart --release --pwa-strategy=none --no-tree-shake-icons --base-href "/"
+
+# 7. Patch flutter_bootstrap.js to use local canvaskit instead of CDN
+# This prevents CDN timeout issues that cause blank rendering
+echo "🔧 Patching flutter_bootstrap.js to use local canvaskit..."
+if [ -f "build/web/flutter_bootstrap.js" ]; then
+  sed -i 's/_flutter.loader.load({/_flutter.loader.load({\n  config: {\n    canvasKitBaseUrl: "canvaskit\/"\n  },/' build/web/flutter_bootstrap.js
+  echo "✅ Patched flutter_bootstrap.js to use local canvaskit"
+else
+  echo "⚠️ flutter_bootstrap.js not found, skipping patch"
+fi
 
 echo "✅ Build completed successfully!"

@@ -203,29 +203,34 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
 
     if (_isListening) {
       return Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         margin: const EdgeInsets.only(right: 4),
         decoration: BoxDecoration(
           color: iconColor.withOpacity(0.15),
           shape: BoxShape.circle,
         ),
         child: IconButton(
-          icon: Icon(Icons.mic, color: iconColor, size: 18),
+          icon: Icon(Icons.mic, color: iconColor, size: 22),
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           onPressed: _toggleVoiceInput,
           tooltip: 'Stop voice input',
         ),
       );
     }
 
-    return IconButton(
-      icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 18),
-      padding: const EdgeInsets.only(right: 4),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
+    return Container(
+      width: 40,
+      height: 40,
+      margin: const EdgeInsets.only(right: 4),
+      child: IconButton(
+        icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 22),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: _toggleVoiceInput,
+        tooltip: 'Voice input',
+      ),
     );
   }
 }
@@ -435,29 +440,34 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
 
     if (_isListening) {
       return Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         margin: const EdgeInsets.only(right: 4),
         decoration: BoxDecoration(
           color: iconColor.withOpacity(0.15),
           shape: BoxShape.circle,
         ),
         child: IconButton(
-          icon: Icon(Icons.mic, color: iconColor, size: 18),
+          icon: Icon(Icons.mic, color: iconColor, size: 22),
           padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
           onPressed: _toggleVoiceInput,
           tooltip: 'Stop voice input',
         ),
       );
     }
 
-    return IconButton(
-      icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 18),
-      padding: const EdgeInsets.only(right: 4),
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-      onPressed: _toggleVoiceInput,
-      tooltip: 'Voice input',
+    return Container(
+      width: 40,
+      height: 40,
+      margin: const EdgeInsets.only(right: 4),
+      child: IconButton(
+        icon: Icon(Icons.mic_none_outlined, color: iconColor, size: 22),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+        onPressed: _toggleVoiceInput,
+        tooltip: 'Voice input',
+      ),
     );
   }
 }

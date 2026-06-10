@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ndu_project/openai/openai_config.dart';
@@ -9,6 +10,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/utils/text_sanitizer.dart';
 import 'package:ndu_project/widgets/ai_error_dialog.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 /// Debouncer utility to limit API calls while typing
 class _Debouncer {
@@ -24,7 +26,7 @@ class _Debouncer {
   void dispose() => _timer?.cancel();
 }
 
-/// A text field with inline OpenAI-powered suggestions
+/// A text field with inline AI-powered suggestions
 /// - Shows suggestion chips beneath the field
 /// - Suggestions are based on current text and prior project context
 class AiSuggestingTextField extends StatefulWidget {
@@ -86,6 +88,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
   bool _showFormattingToolbar = false;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImporting = false;
   final VoiceInputService _voiceService = VoiceInputService.instance;
   StreamSubscription<VoiceResult>? _voiceResultSub;
   StreamSubscription<VoiceStatus>? _voiceStatusSub;
@@ -278,6 +281,97 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
     super.dispose();
   }
 
+  Future<void> _importFromClipboard() async {
+    final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
+    if (clipboardData?.text == null || clipboardData!.text!.trim().isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No text found in clipboard.'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+    final imported = clipboardData.text!;
+    _applyImportedText(imported);
+  }
+
+  Future<void> _importFromFile() async {
+    setState(() => _isImporting = true);
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'md', 'csv', 'json'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) {
+        if (mounted) setState(() => _isImporting = false);
+        return;
+      }
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null || bytes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not read the selected file. Try pasting from clipboard instead.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        if (mounted) setState(() => _isImporting = false);
+        return;
+      }
+      final imported = String.fromCharCodes(bytes);
+      _applyImportedText(imported);
+    } catch (e) {
+      // File picker not supported — fall back to clipboard import
+      if (mounted) {
+        _importFromClipboard();
+      }
+    } finally {
+      if (mounted) setState(() => _isImporting = false);
+    }
+  }
+
+  void _applyImportedText(String imported) {
+    final sanitized = TextSanitizer.sanitizeAiRichText(imported);
+    final currentText = _controller.text;
+    final selection = _controller.selection;
+
+    if (currentText.trim().isEmpty) {
+      // If the field is empty, replace everything
+      _controller.text = sanitized;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: _controller.text.length),
+      );
+    } else {
+      // Insert at cursor position
+      final beforeCursor = currentText.substring(0, selection.baseOffset);
+      final afterCursor = currentText.substring(selection.extentOffset);
+      final needsNewline = beforeCursor.isNotEmpty && !beforeCursor.endsWith('\n');
+      final separator = needsNewline ? '\n' : '';
+      final newText = beforeCursor + separator + sanitized + afterCursor;
+      _controller.text = newText;
+      _controller.selection = TextSelection.fromPosition(
+        TextPosition(offset: beforeCursor.length + separator.length + sanitized.length),
+      );
+    }
+    widget.onChanged?.call(_controller.text);
+    _focusNode.requestFocus();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Content imported successfully.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _handleFocusChanged() {
     if (!mounted) return;
     if (_focusNode.hasFocus) {
@@ -442,7 +536,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
       if (!OpenAiConfig.isConfigured) {
         setState(() {
           _error =
-              'OpenAI API key not configured. Please add your API key to enable AI suggestions.';
+              'AI API key not configured. Please add your API key to enable AI suggestions.';
           _loading = false;
         });
       } else {
@@ -561,6 +655,11 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                 }
               },
             ),
+            _ImportContentButton(
+              isImporting: _isImporting,
+              onImportFromClipboard: _importFromClipboard,
+              onImportFromFile: _importFromFile,
+            ),
           ],
         ),
         const SizedBox(height: 8),
@@ -571,9 +670,10 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
               Future.microtask(() => setState(() => _isHovering = false)),
           child: Stack(
             children: [
-              TextField(
+              VoiceTextField(
                 controller: _controller,
                 focusNode: _focusNode,
+                enableImport: false, // Has its own import button above
                 onTap: () {
                   if (!_showFormattingToolbar) {
                     setState(() => _showFormattingToolbar = true);
@@ -668,8 +768,8 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                 if (_voiceAvailable) ...[
                                   if (_isListening)
                                     Container(
-                                      width: 32,
-                                      height: 32,
+                                      width: 40,
+                                      height: 40,
                                       margin: const EdgeInsets.only(right: 4),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFFB800)
@@ -677,24 +777,25 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                         shape: BoxShape.circle,
                                       ),
                                       child: IconButton(
-                                        icon: const Icon(Icons.mic,
-                                            color: Color(0xFFFFB800), size: 16),
+                                        icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 22),
                                         padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(
-                                            minWidth: 32, minHeight: 32),
+                                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                                         onPressed: _toggleVoiceInput,
                                         tooltip: 'Stop voice input',
                                       ),
                                     )
                                   else
-                                    IconButton(
-                                      icon: const Icon(Icons.mic_none_outlined,
-                                          color: Color(0xFFFFB800), size: 16),
-                                      padding: const EdgeInsets.only(right: 4),
-                                      constraints: const BoxConstraints(
-                                          minWidth: 32, minHeight: 32),
-                                      onPressed: _toggleVoiceInput,
-                                      tooltip: 'Voice input',
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      margin: const EdgeInsets.only(right: 4),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 22),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                                        onPressed: _toggleVoiceInput,
+                                        tooltip: 'Voice input',
+                                      ),
                                     ),
                                 ],
                               ],
@@ -702,29 +803,33 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                       : _voiceAvailable
                           ? (_isListening
                               ? Container(
-                                  width: 36,
-                                  height: 36,
-                                  margin: const EdgeInsets.all(6),
+                                  width: 40,
+                                  height: 40,
+                                  margin: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFFB800)
                                         .withOpacity(0.15),
                                     shape: BoxShape.circle,
                                   ),
                                   child: IconButton(
-                                    icon: const Icon(Icons.mic,
-                                        color: Color(0xFFFFB800), size: 18),
+                                    icon: const Icon(Icons.mic, color: Color(0xFFFFB800), size: 22),
                                     padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                        minWidth: 36, minHeight: 36),
+                                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                                     onPressed: _toggleVoiceInput,
                                     tooltip: 'Stop voice input',
                                   ),
                                 )
-                              : IconButton(
-                                  icon: const Icon(Icons.mic_none_outlined,
-                                      color: Color(0xFFFFB800), size: 18),
-                                  onPressed: _toggleVoiceInput,
-                                  tooltip: 'Voice input',
+                              : Container(
+                                  width: 40,
+                                  height: 40,
+                                  margin: const EdgeInsets.all(4),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.mic_none_outlined, color: Color(0xFFFFB800), size: 22),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                                    onPressed: _toggleVoiceInput,
+                                    tooltip: 'Voice input',
+                                  ),
                                 ))
                           : null,
                 ),
@@ -881,6 +986,119 @@ class _AiLimitBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Import content button with a dropdown menu for clipboard and file import.
+class _ImportContentButton extends StatelessWidget {
+  const _ImportContentButton({
+    required this.isImporting,
+    required this.onImportFromClipboard,
+    required this.onImportFromFile,
+  });
+
+  final bool isImporting;
+  final VoidCallback onImportFromClipboard;
+  final VoidCallback onImportFromFile;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isImporting) {
+      return const SizedBox(
+        width: 20,
+        height: 20,
+        child: Padding(
+          padding: EdgeInsets.all(2.0),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return PopupMenuButton<String>(
+      icon: const Icon(
+        Icons.download_rounded,
+        size: 20,
+        color: Color(0xFF6B7280),
+      ),
+      tooltip: 'Import content',
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      position: PopupMenuPosition.under,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'clipboard',
+          height: 44,
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.content_paste, size: 16, color: Color(0xFFB45309)),
+              ),
+              const SizedBox(width: 10),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Paste from Clipboard',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                  ),
+                  Text(
+                    'Insert clipboard text content',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'file',
+          height: 44,
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F4FF),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.upload_file, size: 16, color: Color(0xFF4154F1)),
+              ),
+              const SizedBox(width: 10),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Import from File',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF111827)),
+                  ),
+                  Text(
+                    'TXT, MD, CSV, or JSON',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'clipboard') {
+          onImportFromClipboard();
+        } else if (value == 'file') {
+          onImportFromFile();
+        }
+      },
     );
   }
 }

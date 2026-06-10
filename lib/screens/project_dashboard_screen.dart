@@ -27,6 +27,7 @@ import 'program_dashboard_screen.dart';
 import 'project_dashboard_mobile_shell.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'project_log_screen.dart';
 class ProjectDashboardScreen extends StatefulWidget {
   const ProjectDashboardScreen({super.key, this.isBasicPlan = false});
 
@@ -74,6 +75,43 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
 
   void _clearSelection() {
     _selectedProjectIds.value = {};
+  }
+
+  void _openGroupProjectsScreen({
+    required List<ProjectRecord> projects,
+    required bool isLoading,
+    String? error,
+  }) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 400),
+        reverseTransitionDuration: const Duration(milliseconds: 350),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            _GroupProjectsExpandedScreen(
+          projects: projects,
+          isLoading: isLoading,
+          error: error,
+          selectedIdsListenable: _selectedProjectIds,
+          selectedIds: _selectedProjectIds.value,
+          onToggle: _toggleSelection,
+          onClear: _clearSelection,
+        ),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final tween = Tween(begin: const Offset(0.0, 0.05), end: Offset.zero)
+              .animate(CurvedAnimation(
+                  parent: animation, curve: Curves.easeOutCubic));
+          return SlideTransition(
+            position: tween,
+            child: FadeTransition(
+              opacity: CurvedAnimation(
+                  parent: animation, curve: Curves.easeOut),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _handleAddProject() async {
@@ -462,52 +500,58 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final isCompact = constraints.maxWidth < 1180;
-                final horizontalPadding =
-                    constraints.maxWidth < 600 ? 20.0 : 40.0;
 
                 Widget buildProjectColumns({
                   required List<ProjectRecord> projects,
                   required bool isLoading,
                   String? error,
                 }) {
-                  if (isCompact) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SingleProjectsCard(
-                          projects: projects,
-                          isLoading: isLoading,
-                          error: error,
-                          isBasicPlan: widget.isBasicPlan,
-                        ),
-                        const SizedBox(height: 24),
-                        if (!widget.isBasicPlan) ...[
-                          ValueListenableBuilder<Set<String>>(
-                            valueListenable: _selectedProjectIds,
-                            builder: (context, selectedIds, _) {
-                              return _GroupProjectsCard(
-                                projects: projects,
-                                isLoading: isLoading,
-                                error: error,
-                                selectedIds: selectedIds,
-                                selectedIdsListenable: _selectedProjectIds,
-                                onToggle: _toggleSelection,
-                                onClear: _clearSelection,
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                        const _ProgramsSummaryCard(),
-                      ],
-                    );
-                  }
-
-                  return Row(
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 7,
+                      // ── Group Into Program CTA & Project Log CTA — directly below stat cards ──
+                      if (!widget.isBasicPlan) ...[
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 20 : 40),
+                          child: Wrap(
+                            spacing: 16,
+                            runSpacing: 16,
+                            children: [
+                              SizedBox(
+                                width: isCompact ? double.infinity : (constraints.maxWidth - (isCompact ? 40 : 80) - 16) / 2,
+                                child: _GroupProjectsCTA(
+                                  projectCount: projects.length,
+                                  isLoading: isLoading,
+                                  onTap: () => _openGroupProjectsScreen(
+                                    projects: projects,
+                                    isLoading: isLoading,
+                                    error: error,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(
+                                width: isCompact ? double.infinity : (constraints.maxWidth - (isCompact ? 40 : 80) - 16) / 2,
+                                child: _ProjectLogCTA(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => ProjectLogScreen(
+                                        projectId: null,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                      ],
+                      // ── Single Projects Container ──
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 20 : 40),
                         child: _SingleProjectsCard(
                           projects: projects,
                           isLoading: isLoading,
@@ -515,30 +559,13 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                           isBasicPlan: widget.isBasicPlan,
                         ),
                       ),
+                      // ── Programs & Portfolios Summary Container ──
                       if (!widget.isBasicPlan) ...[
-                        const SizedBox(width: 24),
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            children: [
-                              ValueListenableBuilder<Set<String>>(
-                                valueListenable: _selectedProjectIds,
-                                builder: (context, selectedIds, _) {
-                                  return _GroupProjectsCard(
-                                    projects: projects,
-                                    isLoading: isLoading,
-                                    error: error,
-                                    selectedIds: selectedIds,
-                                    selectedIdsListenable: _selectedProjectIds,
-                                    onToggle: _toggleSelection,
-                                    onClear: _clearSelection,
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 24),
-                              const _ProgramsSummaryCard(),
-                            ],
-                          ),
+                        const SizedBox(height: 24),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: isCompact ? 20 : 40),
+                          child: const _ProgramsSummaryCard(),
                         ),
                       ],
                     ],
@@ -546,17 +573,24 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                 }
 
                 return SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: horizontalPadding, vertical: 36),
+                  padding: EdgeInsets.only(top: 36, bottom: 96),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _ProjectHeader(
-                        onAddProject: _handleAddProject,
-                        isBasicPlan: widget.isBasicPlan,
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 20 : 40),
+                        child: _ProjectHeader(
+                          onAddProject: _handleAddProject,
+                          isBasicPlan: widget.isBasicPlan,
+                        ),
                       ),
                       const SizedBox(height: 26),
-                      const _StatusStrip(),
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: isCompact ? 20 : 40),
+                        child: const _StatusStrip(),
+                      ),
                       const SizedBox(height: 28),
                       if (user == null)
                         buildProjectColumns(
@@ -1111,6 +1145,9 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
 
     return _FrostedSurface(
       padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+      removeBorder: true,
+      removeShadow: true,
+      removeRadius: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1355,7 +1392,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                 final firebaseProjects = _searchQuery.isEmpty
                     ? allProjects
                     : allProjects.where((project) {
-                        final name = project.name.toLowerCase();
+                        final name = project.displayName.toLowerCase();
                         final status = project.status.toLowerCase();
                         final milestone = project.milestone.toLowerCase();
                         return name.contains(_searchQuery) ||
@@ -1562,644 +1599,273 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
   }
 }
 
-class _GroupProjectsCard extends StatefulWidget {
-  const _GroupProjectsCard({
-    required this.projects,
+// ─────────────────────────────────────────────────────────────────────────────
+// Group Projects CTA – premium action button matching app theme
+// ─────────────────────────────────────────────────────────────────────────────
+class _GroupProjectsCTA extends StatefulWidget {
+  const _GroupProjectsCTA({
+    required this.projectCount,
     required this.isLoading,
-    this.error,
-    required this.selectedIds,
-    required this.onToggle,
-    required this.onClear,
-    this.expandedView = false,
-    this.selectedIdsListenable,
+    required this.onTap,
   });
 
-  final List<ProjectRecord> projects;
+  final int projectCount;
   final bool isLoading;
-  final String? error;
-  final Set<String> selectedIds;
-  final ValueChanged<String> onToggle;
-  final VoidCallback onClear;
-  final bool expandedView;
-  final ValueListenable<Set<String>>? selectedIdsListenable;
+  final VoidCallback onTap;
 
   @override
-  State<_GroupProjectsCard> createState() => _GroupProjectsCardState();
+  State<_GroupProjectsCTA> createState() => _GroupProjectsCTAState();
 }
 
-class _GroupProjectsCardState extends State<_GroupProjectsCard> {
-  bool _showAll = false;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+class _GroupProjectsCTAState extends State<_GroupProjectsCTA>
+    with TickerProviderStateMixin {
+  late AnimationController _shimmerController;
+  late AnimationController _pulseController;
+  late Animation<double> _shimmerAnim;
+  late Animation<double> _pulseAnim;
+  bool _isHovered = false;
+  bool _isPressed = false;
 
   @override
   void initState() {
     super.initState();
-    if (widget.expandedView) {
-      _showAll = true;
-    }
+
+    // Shimmer sweep across the button surface
+    _shimmerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2800),
+    )..repeat();
+    _shimmerAnim = Tween<double>(begin: -1.2, end: 2.4).animate(
+      CurvedAnimation(parent: _shimmerController, curve: Curves.easeInOut),
+    );
+
+    // Subtle pulsing accent glow
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _shimmerController.dispose();
+    _pulseController.dispose();
     super.dispose();
-  }
-
-  void _openExpandedView() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _GroupProjectsExpandedScreen(
-          projects: widget.projects,
-          isLoading: widget.isLoading,
-          error: widget.error,
-          selectedIdsListenable: widget.selectedIdsListenable,
-          selectedIds: widget.selectedIds,
-          onToggle: widget.onToggle,
-          onClear: widget.onClear,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _handleCreateProgram() async {
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final programName = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        final theme = Theme.of(dialogContext);
-        final scheme = theme.colorScheme;
-
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.layers, color: scheme.primary, size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Text('Name Your Program'),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Give a name to your new program.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-                const SizedBox(height: 20),
-                VoiceTextFormField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'Program Name',
-                    hintText: 'e.g., Terminal Modernization Program',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor:
-                        scheme.surfaceContainerHighest.withOpacity(0.3),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a name';
-                    }
-                    if (value.trim().length < 3) {
-                      return 'Name must be at least 3 characters';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(nameController.text.trim());
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: scheme.primary,
-                foregroundColor: scheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Create Program'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (programName == null || !mounted) return;
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      // Create program
-      await ProgramService.createProgram(
-        name: programName,
-        projectIds: widget.selectedIds.toList(),
-        ownerId: user.uid,
-      );
-
-      if (!mounted) return;
-
-      // Clear selection
-      widget.onClear();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Program created successfully!'),
-            backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error creating program: $e'),
-            backgroundColor: Colors.red),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final selectedCount = widget.selectedIds.length;
-    final user = FirebaseAuth.instance.currentUser;
+    final hasProjects = widget.projectCount >= 3;
+    final media = MediaQuery.of(context);
+    final isCompact = media.size.width < 600;
 
-    return _FrostedSurface(
-      padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final isColumn = constraints.maxWidth < 720;
-              final seeAllButton = widget.expandedView
-                  ? const SizedBox.shrink()
-                  : TextButton(
-                      onPressed: _openExpandedView,
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFFFF4D6D),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      child: const Text('See All'),
-                    );
-
-              final guidance = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Group Projects Into A Program',
-                    style: textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 24,
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.isLoading ? null : widget.onTap,
+        child: AnimatedBuilder(
+          animation: Listenable.merge([_shimmerController, _pulseController]),
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _isPressed
+                  ? 0.98
+                  : _isHovered
+                      ? 1.005
+                      : 1.0,
+              child: child,
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            height: 72,
+            decoration: BoxDecoration(
+              // White/light background matching app theme
+              color: _isPressed
+                  ? const Color(0xFFF0F4FF)
+                  : _isHovered
+                      ? const Color(0xFFF8FAFF)
+                      : Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
+              border: Border.all(
+                color: _isPressed
+                    ? const Color(0xFF3B82F6).withOpacity(0.5)
+                    : _isHovered
+                        ? const Color(0xFF3B82F6).withOpacity(0.35)
+                        : const Color(0xFFE4E7F3),
+                width: _isHovered || _isPressed ? 1.5 : 1.0,
+              ),
+              boxShadow: [
+                // Subtle accent glow on hover/press
+                if (_isHovered || _isPressed)
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withOpacity(
+                      _isPressed ? 0.12 : 0.08,
                     ),
+                    blurRadius: _isPressed ? 20 : 28,
+                    spreadRadius: _isPressed ? 0 : 2,
+                    offset: const Offset(0, 4),
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'When you have more than three single projects, select up to three that share an outcome to create a new program.',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: Colors.grey.shade600,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
+                // Subtle pulsing accent glow when idle
+                if (!_isHovered && !_isPressed)
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6)
+                        .withOpacity(0.04 * _pulseAnim.value),
+                    blurRadius: 24 * _pulseAnim.value,
+                    spreadRadius: 1 * _pulseAnim.value,
+                    offset: const Offset(0, 2),
                   ),
-                ],
-              );
-
-              final capChip = Align(
-                alignment:
-                    isColumn ? Alignment.centerLeft : Alignment.topCenter,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: Colors.grey.shade200),
+                // Depth shadow matching _FrostedSurface
+                BoxShadow(
+                  color: Colors.black.withOpacity(
+                    _isPressed ? 0.03 : 0.05,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.filter_alt_outlined,
-                          size: 18, color: Colors.grey.shade600),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Up to 3 projects',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
+                  blurRadius: _isPressed ? 12 : 28,
+                  offset: Offset(0, _isPressed ? 8 : 18),
                 ),
-              );
-
-              if (isColumn) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(child: guidance),
-                        seeAllButton,
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    capChip,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: guidance),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      seeAllButton,
-                      const SizedBox(height: 8),
-                      capChip,
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-          VoiceTextField(
-            controller: _searchController,
-            style: const TextStyle(fontSize: 16),
-            decoration: InputDecoration(
-              hintText: 'Search projects to group...',
-              hintStyle: const TextStyle(fontSize: 16),
-              prefixIcon:
-                  Icon(Icons.search, color: Colors.grey.shade600, size: 24),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 22),
-                      onPressed: () {
-                        setState(() {
-                          _searchController.clear();
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade300),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor, width: 2.5),
-              ),
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+              ],
             ),
-            onChanged: (value) {
-              setState(() => _searchQuery = value.toLowerCase().trim());
-            },
-          ),
-          const SizedBox(height: 24),
-          if (user == null)
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7F8FD),
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: const Color(0xFFE3E6F2)),
-              ),
-              child: Center(
-                child: Text(
-                  'Sign in to group projects',
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey.shade600,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            )
-          else if (widget.isLoading)
-            Container(
-              padding: const EdgeInsets.all(40),
-              child: const Center(child: CircularProgressIndicator()),
-            )
-          else if (widget.error != null)
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Center(
-                child: Column(
-                  children: [
-                    Icon(Icons.error_outline,
-                        size: 40, color: Colors.red.shade400),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Error loading projects',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: Colors.red.shade700,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.error!,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: Colors.grey.shade600),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            Builder(
-              builder: (context) {
-                final allProjects = widget.projects;
-
-                // Apply search filter
-                final firebaseProjects = _searchQuery.isEmpty
-                    ? allProjects
-                    : allProjects.where((project) {
-                        final name = project.name.toLowerCase();
-                        final status = project.status.toLowerCase();
-                        return name.contains(_searchQuery) ||
-                            status.contains(_searchQuery);
-                      }).toList();
-
-                if (allProjects.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'No projects available to group',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  );
-                }
-
-                if (firebaseProjects.isEmpty) {
-                  return Container(
-                    padding: const EdgeInsets.all(32),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          Icon(Icons.search_off,
-                              size: 40, color: Colors.grey.shade400),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No matching projects',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey.shade600,
-                              fontWeight: FontWeight.w600,
+            child: Stack(
+              children: [
+                // ── Shimmer sweep (subtle, theme-matched) ──
+                if (!_isHovered && !_isPressed)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
+                    child: FractionallySizedBox(
+                      widthFactor: 0.3,
+                      child: Align(
+                        alignment: Alignment(_shimmerAnim.value, 0.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF3B82F6).withOpacity(0.0),
+                                const Color(0xFF3B82F6).withOpacity(0.04),
+                                const Color(0xFF3B82F6).withOpacity(0.0),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
-                  );
-                }
-
-                // Show only 10 by default
-                final visibleCount = _showAll
-                    ? firebaseProjects.length
-                    : (firebaseProjects.length > 10
-                        ? 10
-                        : firebaseProjects.length);
-
-                // Use ValueListenableBuilder to react to selection changes
-                if (widget.selectedIdsListenable != null) {
-                  return ValueListenableBuilder<Set<String>>(
-                    valueListenable: widget.selectedIdsListenable!,
-                    builder: (context, selectedIds, _) {
-                      return Column(
-                        children: [
-                          for (int i = 0; i < visibleCount; i++) ...[
-                            _SelectableProjectRowFromFirebase(
-                              project: firebaseProjects[i],
-                              selected:
-                                  selectedIds.contains(firebaseProjects[i].id),
-                              onTap: () =>
-                                  widget.onToggle(firebaseProjects[i].id),
+                  ),
+                // ── Button content ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      // Icon badge with accent color
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: _isPressed
+                              ? const Color(0xFF3B82F6)
+                              : _isHovered
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF3B82F6).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withOpacity(
+                                _isHovered || _isPressed ? 0.3 : 0.15,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                            if (i < visibleCount - 1)
-                              const SizedBox(height: 12),
                           ],
-                          if (firebaseProjects.length > 10 &&
-                              !widget.expandedView)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 16),
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  onPressed: () {
-                                    setState(() => _showAll = !_showAll);
-                                  },
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.black87,
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 14, vertical: 10),
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(24)),
-                                  ),
-                                  icon: Icon(
-                                      _showAll
-                                          ? Icons.expand_less
-                                          : Icons.expand_more,
-                                      size: 18),
-                                  label: Text(_showAll
-                                      ? 'Show 10'
-                                      : 'View All (${firebaseProjects.length})'),
+                        ),
+                        child: widget.isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
                                 ),
+                              )
+                            : const Icon(
+                                Icons.layers_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Text
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Group Into Program',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                color: _isPressed
+                                    ? const Color(0xFF1D4ED8)
+                                    : _isHovered
+                                        ? const Color(0xFF2563EB)
+                                        : const Color(0xFF1E293B),
+                                letterSpacing: -0.2,
+                                height: 1.2,
                               ),
                             ),
-                        ],
-                      );
-                    },
-                  );
-                }
-
-                // Fallback if no ValueListenable provided
-                return Column(
-                  children: [
-                    for (int i = 0; i < visibleCount; i++) ...[
-                      _SelectableProjectRowFromFirebase(
-                        project: firebaseProjects[i],
-                        selected:
-                            widget.selectedIds.contains(firebaseProjects[i].id),
-                        onTap: () => widget.onToggle(firebaseProjects[i].id),
+                            const SizedBox(height: 2),
+                            Text(
+                              hasProjects
+                                  ? '${widget.projectCount} projects available'
+                                  : 'Need at least 3 projects',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: hasProjects
+                                    ? Colors.grey.shade600
+                                    : Colors.grey.shade400,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      if (i < visibleCount - 1) const SizedBox(height: 12),
+                      // Right arrow with accent tint
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _isHovered || _isPressed
+                              ? const Color(0xFF3B82F6).withOpacity(0.1)
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: AnimatedSlide(
+                          offset: _isHovered || _isPressed
+                              ? const Offset(0.15, 0)
+                              : Offset.zero,
+                          duration: const Duration(milliseconds: 200),
+                          child: Icon(
+                            Icons.arrow_forward_rounded,
+                            color: _isHovered || _isPressed
+                                ? const Color(0xFF3B82F6)
+                                : Colors.grey.shade500,
+                            size: 20,
+                          ),
+                        ),
+                      ),
                     ],
-                    if (firebaseProjects.length > 10 && !widget.expandedView)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton.icon(
-                            onPressed: () {
-                              setState(() => _showAll = !_showAll);
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(24)),
-                            ),
-                            icon: Icon(
-                                _showAll
-                                    ? Icons.expand_less
-                                    : Icons.expand_more,
-                                size: 18),
-                            label: Text(_showAll
-                                ? 'Show 10'
-                                : 'View All (${firebaseProjects.length})'),
-                          ),
-                        ),
-                      ),
-                  ],
-                );
-              },
-            ),
-          const SizedBox(height: 24),
-          // Use ValueListenableBuilder for selection count if available
-          widget.selectedIdsListenable != null
-              ? ValueListenableBuilder<Set<String>>(
-                  valueListenable: widget.selectedIdsListenable!,
-                  builder: (context, selectedIds, _) {
-                    final count = selectedIds.length;
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '$count/3 projects selected. Select exactly three to create a program.',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: count == 3 ? _handleCreateProgram : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF111111),
-                              foregroundColor: Colors.white,
-                              elevation: count == 3 ? 10 : 0,
-                              padding: const EdgeInsets.symmetric(vertical: 18),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16)),
-                            ),
-                            child: Text(
-                              count == 3
-                                  ? 'Create Program'
-                                  : 'Select ${3 - count} more',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$selectedCount/3 projects selected. Select exactly three to create a program.',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade700,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed:
-                            selectedCount == 3 ? _handleCreateProgram : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF111111),
-                          foregroundColor: Colors.white,
-                          elevation: selectedCount == 3 ? 10 : 0,
-                          shadowColor: Colors.black.withOpacity(0.3),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 28, vertical: 22),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(32)),
-                          textStyle: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 17,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                        child: const Text('Create program from selected'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-        ],
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -2387,7 +2053,7 @@ class _SingleProjectsExpandedScreen extends StatelessWidget {
   }
 }
 
-class _GroupProjectsExpandedScreen extends StatelessWidget {
+class _GroupProjectsExpandedScreen extends StatefulWidget {
   const _GroupProjectsExpandedScreen({
     required this.projects,
     required this.isLoading,
@@ -2407,43 +2073,645 @@ class _GroupProjectsExpandedScreen extends StatelessWidget {
   final ValueListenable<Set<String>>? selectedIdsListenable;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Group Projects Into A Program'),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        foregroundColor: Colors.black87,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: selectedIdsListenable == null
-              ? _GroupProjectsCard(
-                  projects: projects,
-                  isLoading: isLoading,
-                  error: error,
-                  selectedIds: selectedIds,
-                  onToggle: onToggle,
-                  onClear: onClear,
-                  expandedView: true,
-                )
-              : ValueListenableBuilder<Set<String>>(
-                  valueListenable: selectedIdsListenable!,
-                  builder: (context, ids, _) {
-                    return _GroupProjectsCard(
-                      projects: projects,
-                      isLoading: isLoading,
-                      error: error,
-                      selectedIds: ids,
-                      onToggle: onToggle,
-                      onClear: onClear,
-                      expandedView: true,
-                      selectedIdsListenable: selectedIdsListenable,
-                    );
+  State<_GroupProjectsExpandedScreen> createState() =>
+      _GroupProjectsExpandedScreenState();
+}
+
+class _GroupProjectsExpandedScreenState
+    extends State<_GroupProjectsExpandedScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleCreateProgram(Set<String> selectedIds) async {
+    if (selectedIds.length != 3) return;
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final programName = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        final scheme = Theme.of(dialogContext).colorScheme;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: scheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.layers, color: scheme.primary, size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text('Name Your Program'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Give a name to your new program.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+                VoiceTextFormField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Program Name',
+                    hintText: 'e.g., Terminal Modernization Program',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest.withOpacity(0.3),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    if (value.trim().length < 3) {
+                      return 'Name must be at least 3 characters';
+                    }
+                    return null;
                   },
                 ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(nameController.text.trim());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: scheme.primary,
+                foregroundColor: scheme.onPrimary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Create Program'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (programName == null || !mounted) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await ProgramService.createProgram(
+        name: programName,
+        projectIds: selectedIds.toList(),
+        ownerId: user.uid,
+      );
+
+      if (!mounted) return;
+
+      widget.onClear();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Program created successfully!'),
+            backgroundColor: Colors.green),
+      );
+
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Error creating program: $e'),
+            backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Premium Header ──
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1E293B),
+                    Color(0xFF0F172A),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF3B82F6).withOpacity(0.12),
+                    blurRadius: 24,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top bar with back button
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 16, 0),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.arrow_back_rounded,
+                              color: Colors.white70),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.08),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        // Step indicator
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: Colors.white.withOpacity(0.12)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.layers_rounded,
+                                  size: 14, color: Color(0xFF818CF8)),
+                              SizedBox(width: 6),
+                              Text(
+                                'Step 1 of 2',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF818CF8),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Title + description
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Group Projects Into A Program',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Select up to three projects that share an outcome to create a new program.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withOpacity(0.6),
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Search bar (inside dark header)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                    child: VoiceTextField(
+                      controller: _searchController,
+                      style: const TextStyle(fontSize: 16, color: Colors.white),
+                      decoration: InputDecoration(
+                        hintText: 'Search projects to group...',
+                        hintStyle: TextStyle(
+                          fontSize: 15,
+                          color: Colors.white.withOpacity(0.35),
+                        ),
+                        prefixIcon: Icon(Icons.search,
+                            color: Colors.white.withOpacity(0.4), size: 22),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: Icon(Icons.clear,
+                                    size: 20, color: Colors.white.withOpacity(0.5)),
+                                onPressed: () {
+                                  setState(() {
+                                    _searchController.clear();
+                                    _searchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.06),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.1)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: Colors.white.withOpacity(0.1), width: 1.5),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                              color: const Color(0xFF818CF8), width: 2),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 16),
+                      ),
+                      onChanged: (value) {
+                        setState(() => _searchQuery = value.toLowerCase().trim());
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Project List ──
+            Expanded(
+              child: widget.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : widget.error != null
+                      ? _buildErrorState(textTheme)
+                      : user == null
+                          ? _buildSignInState(textTheme)
+                          : _buildProjectList(),
+            ),
+
+            // ── Bottom Selection Bar ──
+            if (widget.selectedIdsListenable != null)
+              ValueListenableBuilder<Set<String>>(
+                valueListenable: widget.selectedIdsListenable!,
+                builder: (context, selectedIds, _) {
+                  return _SelectionBottomBar(
+                    selectedCount: selectedIds.length,
+                    onCreateProgram: () => _handleCreateProgram(selectedIds),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState(TextTheme textTheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const SizedBox(height: 16),
+            Text('Error loading projects',
+                style: textTheme.bodyLarge?.copyWith(
+                    color: Colors.red.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(widget.error ?? '',
+                style: textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSignInState(TextTheme textTheme) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline_rounded, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('Sign in to group projects',
+                style: textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProjectList() {
+    final allProjects = widget.projects;
+
+    // Apply search filter
+    final filteredProjects = _searchQuery.isEmpty
+        ? allProjects
+        : allProjects.where((project) {
+            final name = project.displayName.toLowerCase();
+            final status = project.status.toLowerCase();
+            return name.contains(_searchQuery) || status.contains(_searchQuery);
+          }).toList();
+
+    if (allProjects.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_off_outlined,
+                  size: 56, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text('No projects available to group',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text('Create at least 3 projects first to form a program.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade500, height: 1.5),
+                  textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (filteredProjects.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.search_off_rounded,
+                  size: 56, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              Text('No matching projects',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (widget.selectedIdsListenable != null) {
+      return ValueListenableBuilder<Set<String>>(
+        valueListenable: widget.selectedIdsListenable!,
+        builder: (context, selectedIds, _) {
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+            itemCount: filteredProjects.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final project = filteredProjects[index];
+              return _SelectableProjectRowFromFirebase(
+                project: project,
+                selected: selectedIds.contains(project.id),
+                onTap: () => widget.onToggle(project.id),
+              );
+            },
+          );
+        },
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 120),
+      itemCount: filteredProjects.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final project = filteredProjects[index];
+        return _SelectableProjectRowFromFirebase(
+          project: project,
+          selected: widget.selectedIds.contains(project.id),
+          onTap: () => widget.onToggle(project.id),
+        );
+      },
+    );
+  }
+}
+
+// ── Sticky Bottom Bar with Selection Progress ──
+class _SelectionBottomBar extends StatelessWidget {
+  const _SelectionBottomBar({
+    required this.selectedCount,
+    required this.onCreateProgram,
+  });
+
+  final int selectedCount;
+  final VoidCallback onCreateProgram;
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = selectedCount == 3;
+    final progress = selectedCount / 3;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Progress indicator
+            Row(
+              children: [
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: const Color(0xFFE2E8F0),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isActive
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFF3B82F6),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                // Selection dots with animation
+                Row(
+                  children: List.generate(3, (i) {
+                    final filled = i < selectedCount;
+                    return AnimatedContainer(
+                      duration: Duration(milliseconds: 200 + i * 80),
+                      curve: Curves.easeOutBack,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: filled
+                            ? (isActive
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFF3B82F6))
+                            : const Color(0xFFE2E8F0),
+                        shape: BoxShape.circle,
+                        boxShadow: filled
+                            ? [
+                                BoxShadow(
+                                  color: (isActive
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFF3B82F6))
+                                      .withOpacity(0.3),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: filled
+                          ? const Icon(Icons.check_rounded,
+                              size: 14, color: Colors.white)
+                          : null,
+                    );
+                  }),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Status text + button
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isActive
+                            ? 'Ready to create program!'
+                            : 'Select ${3 - selectedCount} more project${3 - selectedCount == 1 ? '' : 's'}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: isActive
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$selectedCount of 3 projects selected',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    gradient: isActive
+                        ? const LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF6366F1)],
+                          )
+                        : null,
+                    color: isActive ? null : const Color(0xFFE2E8F0),
+                    boxShadow: isActive
+                        ? [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withOpacity(0.35),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: ElevatedButton(
+                    onPressed: isActive ? onCreateProgram : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      foregroundColor: isActive ? Colors.white : Colors.grey,
+                      shadowColor: Colors.transparent,
+                      elevation: 0,
+                      disabledBackgroundColor: Colors.transparent,
+                      disabledForegroundColor: Colors.grey,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 28, vertical: 16),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isActive ? 'Create Program' : 'Select More',
+                        ),
+                        if (isActive) ...[
+                          const SizedBox(width: 8),
+                          const Icon(Icons.arrow_forward_rounded, size: 18),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -3080,7 +3348,7 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName =
-        project.name.isNotEmpty ? project.name : 'Untitled Project';
+        project.displayName;
     final phaseLabel = project.progressSnapshot.currentPhase.trim().isEmpty
         ? (project.status.isNotEmpty ? project.status : 'Initiation')
         : project.progressSnapshot.currentPhase.trim();
@@ -3537,7 +3805,7 @@ class _SelectableProjectRowFromFirebase extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final displayName =
-        project.name.isNotEmpty ? project.name : 'Untitled Project';
+        project.displayName;
     final statusLabel =
         project.status.isNotEmpty ? project.status : 'Initiation';
 
@@ -3715,10 +3983,19 @@ class _TableHeaderLabel extends StatelessWidget {
 }
 
 class _FrostedSurface extends StatelessWidget {
-  const _FrostedSurface({required this.child, this.padding});
+  const _FrostedSurface({
+    required this.child,
+    this.padding,
+    this.removeBorder = false,
+    this.removeShadow = false,
+    this.removeRadius = false,
+  });
 
   final Widget child;
   final EdgeInsetsGeometry? padding;
+  final bool removeBorder;
+  final bool removeShadow;
+  final bool removeRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -3730,9 +4007,9 @@ class _FrostedSurface extends StatelessWidget {
       padding: resolvedPadding,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.92),
-        borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
-        border: Border.all(color: const Color(0xFFE4E7F3)),
-        boxShadow: [
+        borderRadius: removeRadius ? BorderRadius.zero : BorderRadius.circular(isCompact ? 22 : 28),
+        border: removeBorder ? null : Border.all(color: const Color(0xFFE4E7F3)),
+        boxShadow: removeShadow ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 28,
@@ -3996,5 +4273,172 @@ class _DesktopPremiumGreeting extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[now.month]} ${now.day}, ${now.year}';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Project Log CTA – gold/amber accent button for task tracking
+// ─────────────────────────────────────────────────────────────────────────────
+class _ProjectLogCTA extends StatefulWidget {
+  const _ProjectLogCTA({
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  State<_ProjectLogCTA> createState() => _ProjectLogCTAState();
+}
+
+class _ProjectLogCTAState extends State<_ProjectLogCTA> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final isCompact = media.size.width < 600;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) => setState(() => _isPressed = false),
+        onTapCancel: () => setState(() => _isPressed = false),
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          height: 72,
+          decoration: BoxDecoration(
+            color: _isPressed
+                ? const Color(0xFFFFF8E1)
+                : _isHovered
+                    ? const Color(0xFFFFFBF0)
+                    : Colors.white.withOpacity(0.92),
+            borderRadius: BorderRadius.circular(isCompact ? 22 : 28),
+            border: Border.all(
+              color: _isPressed
+                  ? const Color(0xFFFABD00).withOpacity(0.6)
+                  : _isHovered
+                      ? const Color(0xFFFABD00).withOpacity(0.4)
+                      : const Color(0xFFE4E7F3),
+              width: _isHovered || _isPressed ? 1.5 : 1.0,
+            ),
+            boxShadow: [
+              if (_isHovered || _isPressed)
+                BoxShadow(
+                  color: const Color(0xFFFABD00).withOpacity(
+                    _isPressed ? 0.15 : 0.1,
+                  ),
+                  blurRadius: _isPressed ? 20 : 28,
+                  spreadRadius: _isPressed ? 0 : 2,
+                  offset: const Offset(0, 4),
+                ),
+              BoxShadow(
+                color: Colors.black.withOpacity(
+                  _isPressed ? 0.03 : 0.05,
+                ),
+                blurRadius: _isPressed ? 12 : 28,
+                offset: Offset(0, _isPressed ? 8 : 18),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              children: [
+                // Icon badge with gold/amber accent
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _isPressed
+                        ? const Color(0xFFFABD00)
+                        : _isHovered
+                            ? const Color(0xFFFFD700)
+                            : const Color(0xFFFABD00).withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFABD00).withOpacity(
+                          _isHovered || _isPressed ? 0.35 : 0.18,
+                        ),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.assignment_outlined,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Text
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Project Log',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: _isPressed
+                              ? const Color(0xFFB45309)
+                              : _isHovered
+                                  ? const Color(0xFFD97706)
+                                  : const Color(0xFF1E293B),
+                          letterSpacing: -0.2,
+                          height: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Track tasks, assignments, and deadlines',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Right arrow with gold tint
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _isHovered || _isPressed
+                        ? const Color(0xFFFABD00).withOpacity(0.1)
+                        : Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: AnimatedSlide(
+                    offset: _isHovered || _isPressed
+                        ? const Offset(0.15, 0)
+                        : Offset.zero,
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      color: _isHovered || _isPressed
+                          ? const Color(0xFFFABD00)
+                          : Colors.grey.shade500,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

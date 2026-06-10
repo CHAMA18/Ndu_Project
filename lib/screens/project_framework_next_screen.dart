@@ -15,6 +15,7 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 const Color _kAccentColor = Color(0xFFFFC107);
 const Color _kPrimaryText = Color(0xFF1E293B);
 const Color _kSecondaryText = Color(0xFF64748B);
@@ -858,17 +859,14 @@ class _ProjectFrameworkNextScreenState
       child: SizedBox(
         width: double.infinity,
         height: 48,
-        child: ElevatedButton(
+        child: LoadingNextButton(
           onPressed: _navigateToNext,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _kAccentColor,
-            foregroundColor: _kPrimaryText,
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-          ),
-          child: const Text('Next',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          backgroundColor: _kAccentColor,
+          foregroundColor: _kPrimaryText,
+          elevation: 0,
+          borderRadius: 12,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

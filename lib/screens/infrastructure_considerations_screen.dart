@@ -9,6 +9,7 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/business_case_stable_shell.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -37,6 +38,7 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/ai_error_dialog.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 enum _MissingInfrastructureAction { manual, autoFill, skip }
 
@@ -306,37 +308,19 @@ class _InfrastructureConsiderationsScreenState
     if (isMobile) {
       return _buildMobileScaffold();
     }
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-              Expanded(
-                  child: Row(children: [
-                DraggableSidebar(
-                  openWidth: sidebarWidth,
-                  child: const InitiationLikeSidebar(
-                      activeItemLabel: 'Infrastructure Considerations'),
-                ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
-            MobileSidebarHamburger(
-              sidebar: const InitiationLikeSidebar(
-                activeItemLabel: 'Infrastructure Considerations',
-              ),
-            ),
-            const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
-        ),
+    return BusinessCaseStableShell(
+      activeLabel: 'Infrastructure Considerations',
+      breadcrumbPhase: 'Initiation Phase',
+      breadcrumbTitle: 'Infrastructure Considerations',
+      scaffoldKey: _scaffoldKey,
+      showExportPdf: true,
+      onExportPdf: _exportPdf,
+      headerBottom: BusinessCaseActionButtons(
+        onExportPdf: _exportPdf,
+        showMicButton: true,
+        micController: _notesController,
       ),
+      child: _buildMainContent(),
     );
   }
 
@@ -1633,18 +1617,15 @@ class _InfrastructureConsiderationsScreenState
 
   // ignore: unused_element
   Widget _nextButton({required bool expand}) {
-    final button = ElevatedButton(
+    final button = LoadingNextButton(
       onPressed: _handleNextPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 0,
-        minimumSize: expand ? const Size.fromHeight(52) : null,
-      ),
-      child: const Text('Next',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+      backgroundColor: const Color(0xFFFFD700),
+      foregroundColor: Colors.black,
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+      borderRadius: 8,
+      elevation: 0,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
     );
     if (expand) {
       return SizedBox(width: double.infinity, child: button);

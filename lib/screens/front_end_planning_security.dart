@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -1259,20 +1260,14 @@ class _BottomOverlay extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 16),
-                  ElevatedButton(
+                  LoadingNextButton(
                     onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFC812),
-                      foregroundColor: const Color(0xFF111827),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 34, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Next',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    backgroundColor: const Color(0xFFFFC812),
+                    foregroundColor: const Color(0xFF111827),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 34, vertical: 16),
+                    borderRadius: 22,
+                    elevation: 0,
                   ),
                 ],
               ),

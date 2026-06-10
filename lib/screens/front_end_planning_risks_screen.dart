@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 import 'package:ndu_project/screens/front_end_planning_opportunities_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -1652,20 +1653,13 @@ bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton(
+                child: LoadingNextButton(
                   onPressed: _saveAndContinue,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF4B400),
-                    foregroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                  ),
-                  child: const Text(
-                    'Next',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
+                  backgroundColor: const Color(0xFFF4B400),
+                  foregroundColor: Colors.black,
+                  borderRadius: 12,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -2505,20 +2499,15 @@ class _BottomOverlays extends StatelessWidget {
                 children: [
                   _aiHint(),
                   const SizedBox(width: 16),
-                  ElevatedButton(
+                  LoadingNextButton(
                     onPressed: onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFD700),
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Next',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w600)),
+                    backgroundColor: const Color(0xFFFFD700),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 28, vertical: 14),
+                    borderRadius: 22,
+                    elevation: 0,
+                    fontWeight: FontWeight.w600,
                   ),
                 ],
               ),

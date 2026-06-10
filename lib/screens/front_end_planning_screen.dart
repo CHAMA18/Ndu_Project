@@ -10,6 +10,7 @@ import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/loading_next_button.dart';
 
 class FrontEndPlanningScreen extends StatefulWidget {
   const FrontEndPlanningScreen({super.key});
@@ -89,21 +90,18 @@ class _FrontEndPlanningScreenState extends State<FrontEndPlanningScreen> {
                 Positioned(
                   right: padding,
                   bottom: padding,
-                  child: ElevatedButton(
+                  child: LoadingNextButton(
                     onPressed: () {
                       FrontEndPlanningWorkspaceScreen.open(context);
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFFFD700),
-                      foregroundColor: Colors.black,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(22)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Next',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    backgroundColor: const Color(0xFFFFD700),
+                    foregroundColor: Colors.black,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    borderRadius: 22,
+                    elevation: 0,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ],
