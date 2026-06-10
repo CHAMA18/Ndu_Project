@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ndu_project/models/user_role.dart';
 import 'package:ndu_project/services/permission_service.dart';
 import 'user_management_screen.dart';
@@ -511,7 +512,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             icon: Icons.mail_outline,
             label: 'Send Invitations',
             color: const Color(0xFF6366F1),
-            onTap: () {},
+            onTap: () {
+              // Navigate to Settings > Access & Collaborators section
+              Navigator.of(context).pop(); // Close admin dashboard first
+              context.go('/settings');
+            },
           ),
           const SizedBox(height: 12),
           _buildActionButton(

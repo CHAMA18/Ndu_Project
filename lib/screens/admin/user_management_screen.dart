@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/models/user_role.dart';
 import 'package:ndu_project/services/permission_service.dart';
 import 'package:ndu_project/widgets/permission_aware_widgets.dart';
@@ -720,16 +722,47 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
     if (result != true) return;
 
-    // In production, this would send an invitation email
-    // For now, we'll show a success message
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Invitation sent to ${emailController.text}'),
-          backgroundColor: const Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    // Create a collaboration invite in Firestore (triggers email via Cloud Function)
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      await FirebaseFirestore.instance.collection('collaboration_invites').add({
+        'email': emailController.text.trim().toLowerCase(),
+        'displayName': nameController.text.trim(),
+        'siteRole': selectedRole.name,
+        'resourceAccessLevel': ResourceAccessLevel.editor.name,
+        'scope': 'All projects',
+        'projectId': '',
+        'projectName': '',
+        'customPermissions': <String>[],
+        'message': 'You have been invited to collaborate on NDU Project.',
+        'status': 'pending',
+        'requireMfa': false,
+        'notifyOnAccessChange': true,
+        'invitedByUid': user?.uid,
+        'invitedByEmail': user?.email,
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt': null,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invitation sent to ${emailController.text}'),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send invitation: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

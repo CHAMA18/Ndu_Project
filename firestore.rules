@@ -289,7 +289,51 @@ service cloud.firestore {
     match /coupons/{couponId} {
       allow read, write: if isAdmin();
     }
-    
+
+    // Collaboration invites - authenticated users can create; inviter + admin can read;
+    // Cloud Functions handle status updates (writes from admin context)
+    match /collaboration_invites/{inviteId} {
+      allow create: if isAuthenticated();
+      allow read: if isAuthenticated() &&
+        (resource.data.invitedByUid == request.auth.uid || isAdmin());
+      allow update: if isAdmin() ||
+        // Allow the Cloud Function service account to update status/inviteToken
+        (isAuthenticated() && resource.data.invitedByUid == request.auth.uid
+          && request.resource.data.status == resource.data.status);
+      allow delete: if isAdmin();
+    }
+
+    // RBAC audit events - any authenticated user can create; admin can read
+    match /rbac_audit_events/{eventId} {
+      allow create: if isAuthenticated();
+      allow read: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
+    // User roles - users can read their own; admin can manage all
+    match /user_roles/{roleId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAdmin() || isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Invoices collection - admin management + user read own
+    match /invoices/{invoiceId} {
+      allow read: if isAuthenticated() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Settings collection - admin write, authenticated read for ai_config
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;

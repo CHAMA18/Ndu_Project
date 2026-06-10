@@ -101,6 +101,7 @@ import 'package:ndu_project/screens/scope_completion_screen.dart';
 import 'package:ndu_project/screens/requirements_implementation_screen.dart';
 import 'package:ndu_project/screens/privacy_policy_screen.dart';
 import 'package:ndu_project/screens/terms_conditions_screen.dart';
+import 'package:ndu_project/screens/invitation_acceptance_screen.dart';
 import 'package:ndu_project/screens/backend_design_screen.dart';
 import 'package:ndu_project/screens/technical_debt_management_screen.dart';
 import 'package:ndu_project/screens/risk_tracking_workspace_screen.dart';
@@ -246,6 +247,7 @@ class AppRoutes {
   static const requirementsImplementation = 'requirements-implementation';
   static const privacyPolicy = 'privacy-policy';
   static const termsConditions = 'terms-conditions';
+  static const invite = 'invite';
 
   // SSHER suite
   static const ssherStacked = 'ssher-stacked';
@@ -295,9 +297,10 @@ class AppRouter {
         '/', '/${AppRoutes.signIn}', '/${AppRoutes.createAccount}',
         '/${AppRoutes.splash}', '/${AppRoutes.onboarding}',
         '/${AppRoutes.mobilePricing}', '/${AppRoutes.privacyPolicy}',
-        '/${AppRoutes.termsConditions}',
+        '/${AppRoutes.termsConditions}', '/${AppRoutes.invite}',
       ];
-      final isPublicRoute = publicRoutes.contains(state.matchedLocation);
+      final isPublicRoute = publicRoutes.contains(state.matchedLocation)
+          || state.matchedLocation.startsWith('/${AppRoutes.invite}');
       if (user == null && !isPublicRoute) {
         return '/${AppRoutes.signIn}';
       }
@@ -794,6 +797,18 @@ class AppRouter {
           name: AppRoutes.termsConditions,
           path: '/${AppRoutes.termsConditions}',
           pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const TermsConditionsScreen())),
+      // Invitation acceptance (deep link from email)
+      GoRoute(
+          name: AppRoutes.invite,
+          path: '/${AppRoutes.invite}',
+          pageBuilder: (c, s) {
+            final token = s.uri.queryParameters['token'] ?? '';
+            final status = s.uri.queryParameters['status'];
+            return shimmerTransitionPage(
+              state: s,
+              child: InvitationAcceptanceScreen(token: token, status: status),
+            );
+          }),
       // SSHER suite
       GoRoute(
           name: AppRoutes.ssherStacked,

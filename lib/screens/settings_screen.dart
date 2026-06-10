@@ -3995,7 +3995,7 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
       if (!mounted) return;
       _emailController.clear();
       _nameController.clear();
-      _showSnack('Invitation staged for $email.');
+      _showSnack('Invitation sent to $email.');
     } catch (e) {
       if (!mounted) return;
       _showSnack('Could not create invitation: $e');

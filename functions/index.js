@@ -1,5 +1,7 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const crypto = require('crypto');
+const { Resend } = require('resend');
 
 // Initialize admin only if not already initialized
 if (!admin.apps.length) {
@@ -1802,9 +1804,450 @@ exports.cancelSubscription = functions
       });
       
       res.json({ success: true, message: 'Subscription cancelled successfully' });
-      
+
     } catch (error) {
       console.error('Cancel subscription error:', error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+// ============================================================================
+// EMAIL INVITATION FUNCTIONS
+// ============================================================================
+
+/**
+ * Send Invitation Email — Firestore Trigger
+ *
+ * Fires when a new document is created in the collaboration_invites collection.
+ * Sends a professional invitation email via Resend and updates the document status.
+ *
+ * Setup: firebase functions:secrets:set RESEND_API_KEY
+ */
+exports.sendInvitationEmail = functions
+  .runWith({
+    secrets: ['RESEND_API_KEY'],
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .firestore.document('collaboration_invites/{inviteId}')
+  .onCreate(async (snap, context) => {
+    const inviteData = snap.data();
+
+    // Skip if status is not 'pending' (avoid re-sending)
+    if (inviteData.status !== 'pending') {
+      console.log(`Skipping invite ${context.params.inviteId}: status is '${inviteData.status}', not 'pending'`);
+      return null;
+    }
+
+    try {
+      // Generate a secure invite token
+      const inviteToken = crypto.randomUUID();
+
+      // Build the acceptance URL
+      const acceptanceUrl = `https://ndu-d3f60.web.app/invite?token=${inviteToken}`;
+
+      // Create the Resend instance
+      const resend = new Resend(process.env.RESEND_API_KEY);
+
+      const projectName = inviteData.projectName || 'a project';
+      const invitedByEmail = inviteData.invitedByEmail || 'A project member';
+      const siteRole = inviteData.siteRole || 'collaborator';
+      const personalMessage = inviteData.personalMessage || '';
+
+      // Build the personal message section
+      const personalMessageSection = personalMessage
+        ? `
+        <tr>
+          <td style="padding: 16px 24px; background: #0f172a; border-radius: 8px; margin-top: 8px;">
+            <p style="margin: 0; color: #94a3b8; font-size: 14px; font-style: italic;">Personal message:</p>
+            <p style="margin: 8px 0 0; color: #e2e8f0; font-size: 15px; line-height: 1.6;">${personalMessage}</p>
+          </td>
+        </tr>
+        `
+        : '';
+
+      // Professional dark-themed HTML email matching NDU Project design system
+      const htmlBody = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You're invited to collaborate on ${projectName}</title>
+</head>
+<body style="margin: 0; padding: 0; background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+
+  <!-- Header -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #0f172a;">
+    <tr>
+      <td align="center" style="padding: 40px 24px 0;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px;">
+          <tr>
+            <td style="text-align: center;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #e2e8f0; letter-spacing: -0.5px;">
+                NDU <span style="color: #3b82f6;">Project</span>
+              </h1>
+              <div style="width: 48px; height: 3px; background: #3b82f6; border-radius: 2px; margin: 16px auto 0;"></div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Main Card -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #0f172a;">
+    <tr>
+      <td align="center" style="padding: 32px 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px; background: #1e293b; border-radius: 16px; border: 1px solid #334155; overflow: hidden;">
+
+          <!-- Invite Content -->
+          <tr>
+            <td style="padding: 40px 32px 24px;">
+              <h2 style="margin: 0 0 8px; font-size: 22px; font-weight: 600; color: #e2e8f0;">
+                You're Invited to Collaborate
+              </h2>
+              <p style="margin: 0 0 24px; font-size: 15px; color: #94a3b8; line-height: 1.6;">
+                <strong style="color: #e2e8f0;">${invitedByEmail}</strong> has invited you to join their project on NDU Project.
+              </p>
+
+              <!-- Project & Role Details -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+                <tr>
+                  <td style="padding: 16px 24px; background: #0f172a; border-radius: 8px 8px 0 0; border-bottom: 1px solid #1e293b;">
+                    <p style="margin: 0; color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Project</p>
+                    <p style="margin: 4px 0 0; color: #e2e8f0; font-size: 16px; font-weight: 600;">${projectName}</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 16px 24px; background: #0f172a; border-radius: 0 0 8px 8px;">
+                    <p style="margin: 0; color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Role</p>
+                    <p style="margin: 4px 0 0; color: #3b82f6; font-size: 16px; font-weight: 600;">${siteRole}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Personal Message -->
+              ${personalMessageSection}
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 32px;">
+                <tr>
+                  <td align="center">
+                    <a href="${acceptanceUrl}" target="_blank" style="display: inline-block; padding: 14px 40px; background: #3b82f6; color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.3px;">
+                      Accept Invitation
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top: 16px;">
+                    <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">
+                      If the button above doesn't work, copy and paste this link into your browser:
+                    </p>
+                    <p style="margin: 4px 0 0; font-size: 13px;">
+                      <a href="${acceptanceUrl}" target="_blank" style="color: #3b82f6; word-break: break-all;">${acceptanceUrl}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Expiry Notice -->
+          <tr>
+            <td style="padding: 0 32px 24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #0f172a; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 12px 16px;">
+                    <p style="margin: 0; font-size: 13px; color: #94a3b8; line-height: 1.5;">
+                      ⏳ <strong style="color: #e2e8f0;">This invitation will expire.</strong> Please accept it promptly to gain access to the project.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Footer -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #0f172a;">
+    <tr>
+      <td align="center" style="padding: 24px 24px 40px;">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 560px;">
+          <tr>
+            <td style="text-align: center; border-top: 1px solid #1e293b; padding-top: 24px;">
+              <p style="margin: 0; font-size: 13px; color: #475569;">
+                Sent by NDU Project &mdash; Collaborative project management
+              </p>
+              <p style="margin: 8px 0 0; font-size: 12px; color: #334155;">
+                If you weren't expecting this invitation, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
+
+      // Send the email
+      const { error: sendError } = await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: inviteData.email,
+        subject: `You're invited to collaborate on ${projectName} — NDU Project`,
+        html: htmlBody,
+      });
+
+      if (sendError) {
+        throw new Error(sendError.message || 'Resend API returned an error');
+      }
+
+      // Update the invite document with success status
+      await snap.ref.update({
+        status: 'sent',
+        sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        inviteToken: inviteToken,
+      });
+
+      console.log(`Invitation email sent successfully to ${inviteData.email} for project ${projectName} (invite: ${context.params.inviteId})`);
+
+      return null;
+
+    } catch (error) {
+      console.error(`Failed to send invitation email for invite ${context.params.inviteId}:`, error);
+
+      // Update the invite document with failure status
+      try {
+        await snap.ref.update({
+          status: 'failed',
+          errorMessage: error.message,
+        });
+      } catch (updateError) {
+        console.error(`Also failed to update invite status for ${context.params.inviteId}:`, updateError);
+      }
+
+      return null;
+    }
+  });
+
+/**
+ * Accept Invitation — HTTPS Request Function
+ *
+ * Handles invitation acceptance via GET (email link clicks) and POST (API calls).
+ * On GET: validates the token and redirects or shows an error page.
+ * On POST: creates the role assignment and marks the invite as accepted.
+ *
+ * Setup: firebase functions:secrets:set RESEND_API_KEY
+ */
+exports.acceptInvitation = functions
+  .runWith({
+    secrets: ['RESEND_API_KEY'],
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    // ── Helper: return a dark-themed HTML error/info page ──────────────
+    function renderHtmlPage(title, message, isError = true) {
+      const accentColor = isError ? '#ef4444' : '#3b82f6';
+      const icon = isError ? '✕' : '✓';
+      return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .card { background: #1e293b; border-radius: 16px; border: 1px solid #334155; padding: 48px 40px; max-width: 460px; width: 90%; text-align: center; }
+    .icon { width: 64px; height: 64px; border-radius: 50%; background: ${accentColor}20; color: ${accentColor}; font-size: 28px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; }
+    h1 { color: #e2e8f0; font-size: 22px; font-weight: 600; margin-bottom: 12px; }
+    p { color: #94a3b8; font-size: 15px; line-height: 1.6; }
+    a { color: #3b82f6; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">${icon}</div>
+    <h1>${title}</h1>
+    <p>${message}</p>
+  </div>
+</body>
+</html>`;
+    }
+
+    // ── GET: Email link click ──────────────────────────────────────────
+    if (req.method === 'GET') {
+      try {
+        const token = req.query.token;
+
+        if (!token) {
+          res.status(400).send(renderHtmlPage('Missing Token', 'No invitation token was provided. Please check your invitation link and try again.'));
+          return;
+        }
+
+        // Look up the invite document by inviteToken field
+        const inviteSnapshot = await db.collection('collaboration_invites')
+          .where('inviteToken', '==', token)
+          .limit(1)
+          .get();
+
+        if (inviteSnapshot.empty) {
+          res.status(404).send(renderHtmlPage('Invitation Not Found', 'We couldn\'t find an invitation matching this token. It may have been revoked or the link may be incorrect.'));
+          return;
+        }
+
+        const inviteDoc = inviteSnapshot.docs[0];
+        const invite = inviteDoc.data();
+
+        // Check if already accepted
+        if (invite.status === 'accepted') {
+          res.status(200).send(renderHtmlPage('Already Accepted', 'This invitation has already been accepted. You can sign in to access the project.', false));
+          return;
+        }
+
+        // Check if expired
+        if (invite.expiresAt) {
+          const expiresAt = invite.expiresAt.toDate ? invite.expiresAt.toDate() : new Date(invite.expiresAt);
+          if (expiresAt < new Date()) {
+            res.status(410).send(renderHtmlPage('Invitation Expired', 'This invitation has expired. Please request a new invitation from the project owner.'));
+            return;
+          }
+        }
+
+        // Check if failed or revoked
+        if (invite.status === 'failed' || invite.status === 'revoked') {
+          res.status(410).send(renderHtmlPage('Invitation Unavailable', `This invitation is no longer valid (status: ${invite.status}). Please contact the project owner.`));
+          return;
+        }
+
+        // Valid invitation — redirect to Flutter app
+        res.redirect(302, `https://ndu-d3f60.web.app/invite?token=${token}&status=valid`);
+
+      } catch (error) {
+        console.error('Accept invitation GET error:', error);
+        res.status(500).send(renderHtmlPage('Server Error', 'Something went wrong while processing your invitation. Please try again later.'));
+      }
+      return;
+    }
+
+    // ── POST: API call to accept the invitation ───────────────────────
+    if (req.method === 'POST') {
+      try {
+        const { token, uid } = req.body;
+
+        if (!token) {
+          res.status(400).json({ error: 'Missing required field: token' });
+          return;
+        }
+
+        // Look up the invite by token
+        const inviteSnapshot = await db.collection('collaboration_invites')
+          .where('inviteToken', '==', token)
+          .limit(1)
+          .get();
+
+        if (inviteSnapshot.empty) {
+          res.status(404).json({ error: 'Invitation not found' });
+          return;
+        }
+
+        const inviteDoc = inviteSnapshot.docs[0];
+        const invite = inviteDoc.data();
+
+        // Validate it's still pending/valid
+        if (invite.status === 'accepted') {
+          res.status(409).json({ error: 'Invitation has already been accepted' });
+          return;
+        }
+
+        if (invite.status === 'revoked') {
+          res.status(410).json({ error: 'Invitation has been revoked' });
+          return;
+        }
+
+        // Check expiry
+        if (invite.expiresAt) {
+          const expiresAt = invite.expiresAt.toDate ? invite.expiresAt.toDate() : new Date(invite.expiresAt);
+          if (expiresAt < new Date()) {
+            res.status(410).json({ error: 'Invitation has expired' });
+            return;
+          }
+        }
+
+        if (invite.status !== 'sent' && invite.status !== 'pending') {
+          res.status(400).json({ error: `Invitation is not in an acceptable state (status: ${invite.status})` });
+          return;
+        }
+
+        // Create a user_roles document with the role assignment
+        const userRoleRef = db.collection('user_roles').doc();
+        await userRoleRef.set({
+          uid: uid || '',
+          email: invite.email,
+          siteRole: invite.siteRole,
+          resourceAccessLevel: invite.resourceAccessLevel || null,
+          scope: invite.scope || null,
+          projectId: invite.projectId || null,
+          customPermissions: invite.customPermissions || [],
+          assignedBy: invite.invitedByUid || null,
+          assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        // Update the invite as accepted
+        await inviteDoc.ref.update({
+          status: 'accepted',
+          acceptedAt: admin.firestore.FieldValue.serverTimestamp(),
+          acceptedByUid: uid || null,
+        });
+
+        // Create an audit event in rbac_audit_events
+        const auditRef = db.collection('rbac_audit_events').doc();
+        await auditRef.set({
+          action: 'collaborator_accepted',
+          actorUid: uid || null,
+          actorEmail: invite.email,
+          targetUid: uid || null,
+          targetEmail: invite.email,
+          resourceType: 'project',
+          resourceId: invite.projectId || null,
+          details: {
+            inviteId: inviteDoc.id,
+            siteRole: invite.siteRole,
+            scope: invite.scope || null,
+            resourceAccessLevel: invite.resourceAccessLevel || null,
+            invitedByUid: invite.invitedByUid || null,
+          },
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        console.log(`Invitation ${inviteDoc.id} accepted by ${uid || 'unknown'} for ${invite.email}`);
+
+        res.json({ success: true });
+
+      } catch (error) {
+        console.error('Accept invitation POST error:', error);
+        res.status(500).json({ error: 'Failed to accept invitation', message: error.message });
+      }
+      return;
+    }
+
+    // Other methods not allowed
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
   });
