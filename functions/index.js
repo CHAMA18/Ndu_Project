@@ -375,7 +375,7 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
 
 exports.openaiProxy = functions
   .runWith({
-    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
+    secrets: ['OPENAI_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })
