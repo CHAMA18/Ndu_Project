@@ -1852,7 +1852,7 @@ exports.sendInvitationEmail = functions
       const projectName = inviteData.projectName || 'a project';
       const invitedByEmail = inviteData.invitedByEmail || 'A project member';
       const siteRole = inviteData.siteRole || 'collaborator';
-      const personalMessage = inviteData.personalMessage || '';
+      const personalMessage = inviteData.personalMessage || inviteData.message || '';
 
       // Build the personal message section
       const personalMessageSection = personalMessage
@@ -1997,16 +1997,35 @@ exports.sendInvitationEmail = functions
 </html>`;
 
       // Send the email
-      const { error: sendError } = await resend.emails.send({
-        from: 'onboarding@resend.dev',
+      // NOTE: onboarding@resend.dev can ONLY send to the email registered on
+      // the Resend account. For production, verify a custom domain and update
+      // the 'from' address below.
+      const fromAddress = process.env.RESEND_FROM_ADDRESS || 'onboarding@resend.dev';
+      console.log(`Sending invitation email from=${fromAddress} to=${inviteData.email} project=${projectName}`);
+
+      const { data: sendData, error: sendError } = await resend.emails.send({
+        from: fromAddress,
         to: inviteData.email,
         subject: `You're invited to collaborate on ${projectName} — NDU Project`,
         html: htmlBody,
       });
 
       if (sendError) {
-        throw new Error(sendError.message || 'Resend API returned an error');
+        console.error('Resend API error details:', JSON.stringify(sendError));
+        // Provide a helpful message for the common onboarding@resend.dev restriction
+        const errorMsg = sendError.message || 'Resend API returned an error';
+        if (errorMsg.includes('not allowed') || errorMsg.includes('not verified') || errorMsg.includes('restricted')) {
+          throw new Error(
+            `Cannot send to ${inviteData.email}: The onboarding@resend.dev sender can only ` +
+            `deliver to the email address registered on your Resend account. ` +
+            `To send to other addresses, verify a custom domain in Resend and set ` +
+            `RESEND_FROM_ADDRESS secret. Original error: ${errorMsg}`
+          );
+        }
+        throw new Error(errorMsg);
       }
+
+      console.log(`Resend email ID: ${sendData?.id || 'unknown'}`);
 
       // Update the invite document with success status
       await snap.ref.update({
