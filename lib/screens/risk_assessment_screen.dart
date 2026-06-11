@@ -2106,7 +2106,7 @@ Widget _dialogDropdownField({
   return Padding(
     padding: const EdgeInsets.only(bottom: 12),
     child: DropdownButtonFormField<String>(
-      initialValue: selected,
+      value: selected,
       onChanged: enabled
           ? (next) {
               if (next == null) return;

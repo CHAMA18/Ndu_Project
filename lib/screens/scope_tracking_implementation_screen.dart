@@ -595,7 +595,7 @@ class _ScopeTrackingImplementationScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedScopeItem,
+                    value: selectedScopeItem,
                     decoration: const InputDecoration(
                       labelText: 'Scope Item/Deliverable',
                       hintText: 'Select from Scope Statement or enter new',
@@ -632,7 +632,7 @@ class _ScopeTrackingImplementationScreenState
                       ),
                     ),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
+                    value: selectedStatus,
                     decoration: const InputDecoration(
                         labelText: 'Implementation Status'),
                     items: [
@@ -653,7 +653,7 @@ class _ScopeTrackingImplementationScreenState
                     },
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedOwner,
+                    value: selectedOwner,
                     decoration: const InputDecoration(labelText: 'Owner'),
                     items: _availableRoles.map((role) {
                       return DropdownMenuItem<String>(
@@ -666,7 +666,7 @@ class _ScopeTrackingImplementationScreenState
                     },
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedVerificationMethod,
+                    value: selectedVerificationMethod,
                     decoration:
                         const InputDecoration(labelText: 'Verification Method'),
                     items: ['Testing', 'UAT', 'Stakeholder Review']

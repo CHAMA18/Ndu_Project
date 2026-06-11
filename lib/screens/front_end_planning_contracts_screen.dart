@@ -2282,7 +2282,7 @@ class _ContractDropdownField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      initialValue: value,
+      value: value,
       onChanged: onChanged,
       validator: validator,
       items: items
@@ -4856,7 +4856,7 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 220),
                             child: DropdownButtonFormField<String>(
-                              initialValue: _selectedView,
+                              value: _selectedView,
                               items: const [
                                 DropdownMenuItem(
                                     value: 'Overview', child: Text('Overview')),
@@ -6875,7 +6875,7 @@ class _ContractorStatusDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      initialValue: selectedStatus,
+      value: selectedStatus,
       items: _ContractorsDirectorySection._statusFilters
           .map((status) => DropdownMenuItem(value: status, child: Text(status)))
           .toList(),
@@ -7380,7 +7380,7 @@ class _ContractExecutionSection extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 300),
                 child: DropdownButtonFormField<String>(
-                  initialValue: selectedContract,
+                  value: selectedContract,
                   onChanged: (value) =>
                       onContractChanged(value ?? selectedContract),
                   items: availableContracts

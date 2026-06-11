@@ -1162,7 +1162,7 @@ class _NewIssueDialogState extends State<_NewIssueDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedType,
+                  value: _selectedType,
                   items: _types
                       .map((type) =>
                           DropdownMenuItem(value: type, child: Text(type)))
@@ -1173,7 +1173,7 @@ class _NewIssueDialogState extends State<_NewIssueDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedSeverity,
+                  value: _selectedSeverity,
                   items: _severities
                       .map((severity) => DropdownMenuItem(
                           value: severity, child: Text(severity)))
@@ -1184,7 +1184,7 @@ class _NewIssueDialogState extends State<_NewIssueDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedStatus,
+                  value: _selectedStatus,
                   items: _statuses
                       .map((status) =>
                           DropdownMenuItem(value: status, child: Text(status)))

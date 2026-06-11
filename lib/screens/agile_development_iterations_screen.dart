@@ -596,7 +596,7 @@ class _AgileDevelopmentIterationsScreenState
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     key: assignedRoleFieldKey,
-                    initialValue: _availableRoles.isEmpty
+                    value: _availableRoles.isEmpty
                         ? null
                         : (_availableRoles.contains(selectedRole)
                             ? selectedRole
@@ -630,7 +630,7 @@ class _AgileDevelopmentIterationsScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    initialValue: selectedStoryPoints,
+                    value: selectedStoryPoints,
                     decoration:
                         const InputDecoration(labelText: 'Story Points *'),
                     items: const [1, 2, 3, 5, 8].map((points) {
@@ -641,7 +641,7 @@ class _AgileDevelopmentIterationsScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedPriority,
+                    value: selectedPriority,
                     decoration: const InputDecoration(labelText: 'Priority *'),
                     items: const ['Critical', 'High', 'Medium', 'Low'].map((p) {
                       return DropdownMenuItem<String>(value: p, child: Text(p));
@@ -650,7 +650,7 @@ class _AgileDevelopmentIterationsScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
+                    value: selectedStatus,
                     decoration: const InputDecoration(labelText: 'Status *'),
                     items: const ['To-Do', 'In-Progress', 'Testing', 'Done']
                         .map((s) {

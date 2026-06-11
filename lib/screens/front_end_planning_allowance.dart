@@ -409,7 +409,7 @@ class _FrontEndPlanningAllowanceScreenState
                   const SizedBox(height: 12),
                   fieldLabel('Type'),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedType,
+                    value: selectedType,
                     isExpanded: true,
                     decoration: fieldDecoration(hintText: 'Select type'),
                     items: const [
@@ -438,7 +438,7 @@ class _FrontEndPlanningAllowanceScreenState
                   const SizedBox(height: 12),
                   fieldLabel('Release Status'),
                   DropdownButtonFormField<String>(
-                    initialValue: releaseStatus,
+                    value: releaseStatus,
                     isExpanded: true,
                     decoration: fieldDecoration(hintText: 'Select status'),
                     items: const [

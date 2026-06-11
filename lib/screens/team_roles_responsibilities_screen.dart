@@ -571,7 +571,7 @@ class _TeamRolesResponsibilitiesScreenState
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _coverageStatusOptions.contains(row.status)
+              value: _coverageStatusOptions.contains(row.status)
                   ? row.status
                   : _coverageStatusOptions.first,
               decoration: _inlineInputDecoration('Status'),
@@ -699,7 +699,7 @@ class _TeamRolesResponsibilitiesScreenState
           const SizedBox(width: 12),
           Expanded(
             child: DropdownButtonFormField<String>(
-              initialValue: _hiringStatusOptions.contains(row.status)
+              value: _hiringStatusOptions.contains(row.status)
                   ? row.status
                   : _hiringStatusOptions.first,
               decoration: _inlineInputDecoration('Status'),
@@ -1796,7 +1796,7 @@ class _WorkProgressEntryEditor extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
-            initialValue: draft.status,
+            value: draft.status,
             onChanged: (value) {
               if (value == null) return;
               onStatusChanged(value);
@@ -2351,9 +2351,9 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
 
   // --- AI Suggestion Helper (now in dialog state) ---
   Future<String> fetchOpenAiSuggestion(String field) async {
-    // Replace with your actual OpenAI API key and endpoint
+    // Replace with your actual Claude API key and endpoint
     const apiKey = 'YOUR_OPENAI_API_KEY';
-    const endpoint = 'https://api.openai.com/v1/chat/completions';
+    const endpoint = 'https://api.anthropic.com/v1/messages';
 
     final prompt = _buildPromptForField(field);
     final response = await http.post(

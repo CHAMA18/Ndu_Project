@@ -1271,7 +1271,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: contractType,
+                        value: contractType,
                         items: [
                           'Not Sure',
                           'Lump Sum (Fixed Price)',
@@ -1292,7 +1292,7 @@ void _showCreateContractDialog(BuildContext context, String? projectId) {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: paymentType,
+                        value: paymentType,
                         items: ['TBD', 'Monthly', 'Milestone-Based', 'Upfront']
                             .map((v) => DropdownMenuItem(
                                 value: v,
@@ -1436,7 +1436,7 @@ Future<void> _showEditPackageDialog(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 DropdownButtonFormField<String?>(
-                  initialValue: scopeOptions.any((item) => item.id == selectedScopeId)
+                  value: scopeOptions.any((item) => item.id == selectedScopeId)
                       ? selectedScopeId
                       : null,
                   isExpanded: true,
@@ -1524,7 +1524,7 @@ Future<void> _showEditPackageDialog(
                   Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: selectedAwardStrategy,
+                        value: selectedAwardStrategy,
                         isExpanded: true,
                         items: const [
                           DropdownMenuItem(
@@ -1544,7 +1544,7 @@ Future<void> _showEditPackageDialog(
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedContractType,
+                        value: selectedContractType,
                         isExpanded: true,
                         items: const [
                           DropdownMenuItem(
@@ -1570,7 +1570,7 @@ Future<void> _showEditPackageDialog(
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedAwardStrategy,
+                          value: selectedAwardStrategy,
                           isExpanded: true,
                           items: const [
                             DropdownMenuItem(
@@ -1592,7 +1592,7 @@ Future<void> _showEditPackageDialog(
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedContractType,
+                          value: selectedContractType,
                           isExpanded: true,
                           items: const [
                             DropdownMenuItem(
@@ -2547,7 +2547,7 @@ void _showRfpDialog(
                   builder: (context, snap) {
                     final packages = snap.data ?? const [];
                     return DropdownButtonFormField<String>(
-                      initialValue: linkedPackageId.isNotEmpty ? linkedPackageId : null,
+                      value: linkedPackageId.isNotEmpty ? linkedPackageId : null,
                       isExpanded: true,
                       items: packages
                           .map((pkg) => DropdownMenuItem(
@@ -2575,7 +2575,7 @@ void _showRfpDialog(
                         border: OutlineInputBorder())),
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
-                  initialValue: rfqStatus,
+                  value: rfqStatus,
                   isExpanded: true,
                   items: const [
                     DropdownMenuItem(value: 'Draft', child: Text('Draft')),
@@ -3152,7 +3152,7 @@ Future<void> _showEvaluationDialog(
               children: [
                 if (rfqs.isNotEmpty)
                   DropdownButtonFormField<String>(
-                    initialValue: selectedRfqId.isNotEmpty ? selectedRfqId : null,
+                    value: selectedRfqId.isNotEmpty ? selectedRfqId : null,
                     items: rfqs
                         .map((rfq) => DropdownMenuItem(
                               value: rfq.id,
@@ -3182,7 +3182,7 @@ Future<void> _showEvaluationDialog(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: technicalGate,
+                        value: technicalGate,
                         items: const [
                           DropdownMenuItem(
                               value: 'Pending Technical',
@@ -3291,7 +3291,7 @@ Future<void> _showEvaluationDialog(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: pmReview,
+                        value: pmReview,
                         items: const [
                           DropdownMenuItem(
                               value: 'Pending', child: Text('Pending')),
@@ -3311,7 +3311,7 @@ Future<void> _showEvaluationDialog(
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: sponsorApproval,
+                        value: sponsorApproval,
                         items: const [
                           DropdownMenuItem(
                               value: 'Pending', child: Text('Pending')),
@@ -3672,7 +3672,7 @@ class _EvaluationScoreEditor extends StatelessWidget {
                     SizedBox(
                       width: 170,
                       child: DropdownButtonFormField<String>(
-                        initialValue: screening.status,
+                        value: screening.status,
                         items: const [
                           DropdownMenuItem(
                               value: 'Pending', child: Text('Pending')),
@@ -4391,7 +4391,7 @@ Future<void> _showNegotiationDialog(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: authority,
+                        value: authority,
                         items: const [
                           DropdownMenuItem(value: 'Not Set', child: Text('Not Set')),
                           DropdownMenuItem(
@@ -4414,7 +4414,7 @@ Future<void> _showNegotiationDialog(
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: status,
+                        value: status,
                         items: const [
                           DropdownMenuItem(
                               value: 'Not Started', child: Text('Not Started')),
@@ -5194,7 +5194,7 @@ class _CriteriaRowState extends State<_CriteriaRow> {
           SizedBox(
             width: 120,
             child: DropdownButtonFormField<String>(
-              initialValue: widget.criterion.category,
+              value: widget.criterion.category,
               isExpanded: true,
               isDense: true,
               decoration: const InputDecoration(

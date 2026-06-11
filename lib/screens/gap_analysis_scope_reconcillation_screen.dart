@@ -1250,7 +1250,7 @@ class _GapRegisterCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
+                    value: selectedCategory,
                     decoration: const InputDecoration(
                       labelText: 'Category *',
                       isDense: true,
@@ -1267,7 +1267,7 @@ class _GapRegisterCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedSeverity,
+                          value: selectedSeverity,
                           decoration: const InputDecoration(
                             labelText: 'Severity *',
                             isDense: true,
@@ -1283,7 +1283,7 @@ class _GapRegisterCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _priorityOptions.contains(selectedStage)
+                          value: _priorityOptions.contains(selectedStage)
                               ? selectedStage
                               : _priorityOptions.first,
                           decoration: const InputDecoration(
@@ -1741,7 +1741,7 @@ class _GapAnalysisRootCauseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedCategory,
+                    value: selectedCategory,
                     decoration: const InputDecoration(
                       labelText: 'Category *',
                       isDense: true,
@@ -1758,7 +1758,7 @@ class _GapAnalysisRootCauseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedMethod,
+                    value: selectedMethod,
                     decoration: const InputDecoration(
                       labelText: 'Analysis method *',
                       isDense: true,
@@ -1778,7 +1778,7 @@ class _GapAnalysisRootCauseCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedImpact,
+                          value: selectedImpact,
                           decoration: const InputDecoration(
                             labelText: 'Impact *',
                             isDense: true,
@@ -1797,7 +1797,7 @@ class _GapAnalysisRootCauseCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           decoration: const InputDecoration(
                             labelText: 'Status *',
                             isDense: true,
@@ -2707,7 +2707,7 @@ class _ReconciliationPlanningCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPhase,
+                          value: selectedPhase,
                           decoration: const InputDecoration(
                             labelText: 'Phase *',
                             isDense: true,
@@ -2726,7 +2726,7 @@ class _ReconciliationPlanningCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _statusOptions.contains(selectedStatus)
+                          value: _statusOptions.contains(selectedStatus)
                               ? selectedStatus
                               : _statusOptions.first,
                           decoration: const InputDecoration(
@@ -3117,7 +3117,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedDomain,
+                          value: selectedDomain,
                           decoration: const InputDecoration(
                             labelText: 'Domain *',
                             isDense: true,
@@ -3136,7 +3136,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _ratingOptions.contains(selectedRating)
+                          value: _ratingOptions.contains(selectedRating)
                               ? selectedRating
                               : _ratingOptions.first,
                           decoration: const InputDecoration(
@@ -3161,7 +3161,7 @@ class _ImpactAssessmentCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _trendOptions.contains(selectedTrend)
+                          value: _trendOptions.contains(selectedTrend)
                               ? selectedTrend
                               : _trendOptions.first,
                           decoration: const InputDecoration(
@@ -4078,7 +4078,7 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                   decoration: const InputDecoration(labelText: 'Owner')),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                  initialValue: category,
+                  value: category,
                   items: ['Custom', 'Impact', 'Gap', 'Plan']
                       .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                       .toList(),
@@ -4088,7 +4088,7 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
               Row(children: [
                 Expanded(
                     child: DropdownButtonFormField<int>(
-                        initialValue: severity,
+                        value: severity,
                         items: [1, 2, 3]
                             .map((i) => DropdownMenuItem(
                                 value: i, child: Text('Severity $i')))
@@ -4099,7 +4099,7 @@ class _ScenarioMatrixDialogState extends State<_ScenarioMatrixDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                     child: DropdownButtonFormField<int>(
-                        initialValue: likelihood,
+                        value: likelihood,
                         items: [1, 2, 3]
                             .map((i) => DropdownMenuItem(
                                 value: i, child: Text('Likelihood $i')))
@@ -4913,7 +4913,7 @@ class _ReconciliationWorkflowCardState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: status,
+                  value: status,
                   items: _columns
                       .map((col) => DropdownMenuItem<String>(
                             value: col.label,

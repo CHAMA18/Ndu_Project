@@ -1507,7 +1507,7 @@ class _UpdateOpsMaintenancePlansScreenState
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: status,
+                              value: status,
                               items: _planStatuses
                                   .map((option) => DropdownMenuItem(
                                       value: option, child: Text(option)))

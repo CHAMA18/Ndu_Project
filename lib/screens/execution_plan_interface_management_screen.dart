@@ -314,7 +314,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                         const InputDecoration(labelText: 'Interface Name *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: interfaceType,
+                  value: interfaceType,
                   decoration: const InputDecoration(labelText: 'Type *'),
                   items: interfaceTypes
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -332,7 +332,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                     decoration: const InputDecoration(labelText: 'Party B *')),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: status,
+                  value: status,
                   decoration: const InputDecoration(labelText: 'Status *'),
                   items: statuses
                       .map((s) => DropdownMenuItem(value: s, child: Text(s)))
@@ -341,7 +341,7 @@ class _InterfaceRegisterTable extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: frequency,
+                  value: frequency,
                   decoration: const InputDecoration(labelText: 'Frequency *'),
                   items: frequencies
                       .map((f) => DropdownMenuItem(value: f, child: Text(f)))

@@ -467,7 +467,7 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                 children: [
                   // Meeting Type
                   DropdownButtonFormField<String>(
-                    initialValue: selectedMeetingType.isEmpty
+                    value: selectedMeetingType.isEmpty
                         ? null
                         : selectedMeetingType,
                     decoration: const InputDecoration(
@@ -500,7 +500,7 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   const SizedBox(height: 12),
                   // Frequency
                   DropdownButtonFormField<String>(
-                    initialValue:
+                    value:
                         selectedFrequency.isEmpty ? null : selectedFrequency,
                     decoration: const InputDecoration(
                       labelText: 'Frequency *',
@@ -629,7 +629,7 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   const SizedBox(height: 12),
                   // Status
                   DropdownButtonFormField<String>(
-                    initialValue:
+                    value:
                         selectedStatus.isEmpty ? null : selectedStatus,
                     decoration: const InputDecoration(
                       labelText: 'Status',

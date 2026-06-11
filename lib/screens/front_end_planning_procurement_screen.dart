@@ -561,7 +561,7 @@ class _FrontEndPlanningProcurementScreenState
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: unit,
+                        value: unit,
                         decoration: const InputDecoration(labelText: 'Unit'),
                         items: const [
                           DropdownMenuItem(value: 'week', child: Text('Week')),
@@ -4115,7 +4115,7 @@ class _FrontEndPlanningProcurementScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<StrategyStatus>(
-                  initialValue: selectedStatus,
+                  value: selectedStatus,
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: StrategyStatus.values
                       .map(
@@ -9181,7 +9181,7 @@ class _ProcurementWorkflowPlannerCard extends StatelessWidget {
                 SizedBox(
                   width: 320,
                   child: DropdownButtonFormField<String>(
-                    initialValue: selectedScopeId,
+                    value: selectedScopeId,
                     decoration: const InputDecoration(
                       labelText: 'Procurement Scope',
                       isDense: true,

@@ -120,7 +120,7 @@ void main() async {
     debugPrint(stack.toString());
   }
 
-  // Initialize OpenAI API key from environment (if provided)
+  // Initialize Claude API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
   // Warm common local stores in background to reduce first-navigation latency.
   unawaited(UserPreferencesService.warmUp());

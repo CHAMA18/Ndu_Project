@@ -135,7 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     });
     // Load saved preferences
     _loadPreferences();
-    // Ensure user-specific OpenAI key is loaded from Firestore if present
+    // Ensure user-specific Claude key is loaded from Firestore if present
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ApiKeyManager.ensureLoadedForSignedInUser();
       if (mounted) setState(() {});
@@ -304,7 +304,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               value: value,
               onChanged: onChanged,
               activeColor: accent,
-              activeTrackColor: accent.withOpacity(0.4),
+              trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? accent.withOpacity(0.4) : null),
             ),
           ],
         ),
@@ -743,7 +743,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Widget _integrationsPanel() {
     final bool isEnvManaged =
-        const String.fromEnvironment('OPENAI_PROXY_API_KEY').trim().isNotEmpty;
+        const String.fromEnvironment('CLAUDE_PROXY_API_KEY').trim().isNotEmpty;
     final bool isConfigured = OpenAiConfig.isConfigured;
 
     return ListView(
@@ -1515,7 +1515,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         onChanged: canEdit
                             ? (_) => contentProvider.toggleEditMode()
                             : null,
-                        activeThumbColor: Colors.green,
+                        thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? Colors.green : null),
                       ),
                     ],
                   ),
@@ -1661,7 +1661,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                             ? (_) =>
                                 contentProvider.toggleEditButtonVisibility()
                             : null,
-                        activeThumbColor: Colors.red,
+                        thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? Colors.red : null),
                       ),
                     ],
                   ),
@@ -4198,7 +4198,7 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<SiteRole>(
-                  initialValue: _selectedRole,
+                  value: _selectedRole,
                   isExpanded: true,
                   menuMaxHeight: 280,
                   decoration:
@@ -4224,7 +4224,7 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<ResourceAccessLevel>(
-                  initialValue: _selectedAccess,
+                  value: _selectedAccess,
                   isExpanded: true,
                   menuMaxHeight: 280,
                   decoration: _fieldDecoration('Resource access',
@@ -4248,7 +4248,7 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  initialValue: _selectedScope,
+                  value: _selectedScope,
                   isExpanded: true,
                   menuMaxHeight: 280,
                   decoration: _fieldDecoration('Access scope',
@@ -4271,7 +4271,7 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  initialValue: _selectedExpiry,
+                  value: _selectedExpiry,
                   isExpanded: true,
                   menuMaxHeight: 280,
                   decoration: _fieldDecoration('Invite expires',

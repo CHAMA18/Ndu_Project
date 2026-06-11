@@ -308,7 +308,7 @@ void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
                         ),
                         const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           decoration: const InputDecoration(
                               labelText: 'Initial Status'),
                           items: const [
@@ -330,7 +330,7 @@ void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
                         if (parentId.isEmpty && _isHybridOverall) ...[
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
-                            initialValue: selectedFramework.isEmpty
+                            value: selectedFramework.isEmpty
                                 ? null
                                 : selectedFramework,
                             decoration: const InputDecoration(
@@ -671,7 +671,7 @@ void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
     final normalizedValue =
         _criteriaOptions.any((o) => o['value'] == value) ? value : null;
     return DropdownButtonFormField<String>(
-      initialValue: normalizedValue,
+      value: normalizedValue,
       decoration: InputDecoration(
         filled: true,
         fillColor: Colors.white,
@@ -1165,7 +1165,7 @@ void _migrateFromGoalsToTree(List<List<WorkItem>> goalWorkItems) {
     }
 
     return DropdownButtonFormField<String>(
-      initialValue: item.framework.isEmpty ? null : item.framework,
+      value: item.framework.isEmpty ? null : item.framework,
       isDense: true,
       decoration: InputDecoration(
         contentPadding:

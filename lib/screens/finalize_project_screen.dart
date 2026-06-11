@@ -920,7 +920,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              initialValue: item.status,
+              value: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _checklistStatuses
                   .map((status) =>
@@ -1011,7 +1011,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              initialValue: item.status,
+              value: item.status,
               decoration: _inputDecoration('Status', dense: true),
               items: _signOffStatuses
                   .map((status) =>

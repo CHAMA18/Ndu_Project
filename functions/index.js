@@ -8,7 +8,6 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-const DEFAULT_OPENAI_WORKFLOW_ID = 'wf_69f1f5acc7ec819082fb76bbbf79b64d088ea0e514080150';
 
 // Lazy-load config to avoid deployment timeouts
 function getRuntimeConfig() {
@@ -91,150 +90,76 @@ function setCorsHeaders(req, res) {
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-function getConfiguredOpenAiWorkflowId(req) {
-  // Only use workflow when EXPLICITLY requested by the client.
-  // Removed DEFAULT_OPENAI_WORKFLOW_ID fallback to avoid routing all
-  // requests through the Workflows API (which injects unsupported
-  // parameters like 'reasoning' causing 400 errors).
-  const explicitWorkflowId =
-    req.body?.workflow_id ||
-    req.body?.workflowId ||
-    req.body?.payload?.workflow_id ||
-    req.body?.payload?.workflowId ||
-    process.env.OPENAI_WORKFLOW_ID ||
-    '';  // No default workflow — direct API calls by default
-
-  const workflowId = String(explicitWorkflowId || '').trim();
-  return workflowId.startsWith('wf_') ? workflowId : '';
-}
-
-function stripWorkflowFields(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return payload;
-  }
-  const { workflow_id, workflowId, ...rest } = payload;
-  return rest;
-}
-
 /**
- * Strip parameters that are not supported by the target OpenAI model.
- * The 'reasoning' parameter is only valid for o-series reasoning models
- * (o1, o3, etc.) and causes a 400 error with gpt-4o / gpt-4o-mini.
+ * Transform an OpenAI-style request body into Anthropic Claude Messages API format.
+ *
+ * Key transformations:
+ *  - Extract `system` messages from the messages array and move to top-level `system` param
+ *  - Replace `max_completion_tokens` / `max_output_tokens` with `max_tokens`
+ *  - Remove `response_format` (not supported by Claude)
+ *  - Remove `workflow_id` / `workflowId` (OpenAI-specific)
+ *  - Remove `reasoning` (OpenAI o-series specific)
+ *  - Remove `endpoint` (internal routing param)
+ *  - Ensure `max_tokens` is present (required by Claude, default 1200)
  */
-function stripInvalidModelParams(payload) {
+function transformToClaudeFormat(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return payload;
-  }
-  const { reasoning, ...rest } = payload;
-  if (reasoning) {
-    console.log('Stripped unsupported "reasoning" parameter from request payload.');
-  }
-  return rest;
-}
-
-function normalizeWorkflowInput(payload) {
-  if (payload && Array.isArray(payload.input)) {
-    return payload.input;
+    return { model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: String(payload || '') }] };
   }
 
-  if (payload && Array.isArray(payload.messages)) {
-    return payload.messages.map((message) => {
-      const role = message?.role || 'user';
-      const content = message?.content;
-      if (Array.isArray(content)) {
-        return { role, content };
-      }
-      return {
-        role,
-        content: [
-          {
-            type: role === 'assistant' ? 'output_text' : 'input_text',
-            text: String(content || '')
-          }
-        ]
-      };
-    });
-  }
+  // Extract the raw messages array
+  const rawMessages = Array.isArray(payload.messages) ? payload.messages : [];
 
-  return [
-    {
-      role: 'user',
-      content: [
-        {
-          type: 'input_text',
-          text: typeof payload === 'string' ? payload : JSON.stringify(payload || {})
-        }
-      ]
-    }
-  ];
-}
+  // Separate system messages from conversation messages
+  const systemParts = [];
+  const conversationMessages = [];
 
-function extractWorkflowText(value) {
-  if (typeof value === 'string') return value;
-  if (!value || typeof value !== 'object') return '';
-
-  const preferredKeys = ['output_text', 'final_output', 'text', 'content'];
-  for (const key of preferredKeys) {
-    const candidate = value[key];
-    if (typeof candidate === 'string' && candidate.trim()) {
-      return candidate;
+  for (const msg of rawMessages) {
+    if (msg.role === 'system') {
+      // System messages become a top-level `system` parameter in Claude
+      const text = typeof msg.content === 'string'
+        ? msg.content
+        : Array.isArray(msg.content)
+          ? msg.content
+              .filter((b) => b.type === 'text' || typeof b === 'string')
+              .map((b) => (typeof b === 'string' ? b : b.text || ''))
+              .join('\n')
+          : String(msg.content || '');
+      if (text.trim()) systemParts.push(text.trim());
+    } else {
+      conversationMessages.push(msg);
     }
   }
 
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = extractWorkflowText(item);
-      if (found.trim()) return found;
-    }
-    return '';
-  }
+  // Determine max_tokens
+  const maxTokens =
+    payload.max_tokens ||
+    payload.max_completion_tokens ||
+    payload.max_output_tokens ||
+    1200;
 
-  for (const nested of Object.values(value)) {
-    const found = extractWorkflowText(nested);
-    if (found.trim()) return found;
-  }
-
-  return '';
-}
-
-function normalizeWorkflowResponse(data, endpoint, workflowId) {
-  const text = extractWorkflowText(data);
-  if (endpoint === '/responses') {
-    return {
-      id: data?.id || data?.workflow_run?.id || `resp-${workflowId}`,
-      object: 'response',
-      output: [
-        {
-          type: 'message',
-          role: 'assistant',
-          content: [
-            {
-              type: 'output_text',
-              text
-            }
-          ]
-        }
-      ],
-      workflow_run: data?.workflow_run || data
-    };
-  }
-
-  return {
-    id: data?.id || data?.workflow_run?.id || `chatcmpl-${workflowId}`,
-    object: 'chat.completion',
-    model: `openai-workflow-${workflowId}`,
-    choices: [
-      {
-        index: 0,
-        message: {
-          role: 'assistant',
-          content: text
-        },
-        finish_reason: 'stop'
-      }
-    ],
-    workflow_run: data?.workflow_run || data
+  // Build the Claude request body
+  const claudeBody = {
+    model: payload.model || 'claude-sonnet-4-20250514',
+    max_tokens: maxTokens,
+    messages: conversationMessages.length > 0
+      ? conversationMessages
+      : [{ role: 'user', content: 'Hello' }],
   };
+
+  // Add top-level system parameter if we extracted any system messages
+  if (systemParts.length > 0) {
+    claudeBody.system = systemParts.join('\n\n');
+  }
+
+  // Pass through supported optional parameters
+  if (payload.temperature !== undefined) claudeBody.temperature = payload.temperature;
+  if (payload.top_p !== undefined) claudeBody.top_p = payload.top_p;
+  if (payload.top_k !== undefined) claudeBody.top_k = payload.top_k;
+  if (payload.stop_sequences !== undefined) claudeBody.stop_sequences = payload.stop_sequences;
+  if (payload.stream !== undefined) claudeBody.stream = payload.stream;
+
+  return claudeBody;
 }
 
 function getRequestOrigin(req) {
@@ -347,21 +272,21 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
 }
 
 /**
- * Secure OpenAI API Proxy
+ * Secure Anthropic Claude API Proxy
  * 
- * This Cloud Function acts as a secure proxy to OpenAI's API, keeping the API key
- * server-side and never exposing it to client code or version control.
+ * This Cloud Function acts as a secure proxy to Anthropic's Claude Messages API,
+ * keeping the API key server-side and never exposing it to client code or version control.
  * 
  * Setup Instructions:
- * 1. Set your OpenAI API key as a secret in Firebase:
- *    firebase functions:secrets:set OPENAI_API_KEY
+ * 1. Set your Anthropic API key as a secret in Firebase:
+ *    firebase functions:secrets:set ANTHROPIC_API_KEY
  *    
  * 2. Deploy this function:
  *    firebase deploy --only functions
  *    
  * 3. Update lib/services/api_config_secure.dart:
  *    Change baseUrl to your Cloud Function URL:
- *    'https://YOUR_REGION-YOUR_PROJECT_ID.cloudfunctions.net/openaiProxy'
+ *    'https://YOUR_REGION-YOUR_PROJECT_ID.cloudfunctions.net/claudeProxy'
  * 
  * Security Features:
  * - API key stored as Firebase secret (never in code or environment)
@@ -371,9 +296,9 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
  * - Rate limiting per user (optional)
  */
 
-exports.openaiProxy = functions
+exports.claudeProxy = functions
   .runWith({
-    secrets: ['OPENAI_API_KEY'],
+    secrets: ['ANTHROPIC_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })
@@ -411,70 +336,59 @@ exports.openaiProxy = functions
       // Check Firestore for user's request count and block if exceeded
       */
       
-      // Get OpenAI API key from Firebase secrets
-      const apiKey = process.env.OPENAI_API_KEY;
+      // Get Anthropic API key from Firebase secrets
+      const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
-        console.error('OPENAI_API_KEY secret not configured');
+        console.error('ANTHROPIC_API_KEY secret not configured');
         res.status(500).json({ error: 'Service configuration error' });
         return;
       }
       
-      const workflowId = getConfiguredOpenAiWorkflowId(req);
+      // Transform the request payload from OpenAI format to Claude format
+      const rawPayload = req.body.payload || req.body;
+      const claudeBody = transformToClaudeFormat(rawPayload);
 
-      // Determine endpoint path from request payload
-      // If client provides explicit endpoint, use it. Otherwise, infer:
-      // - Presence of `input` usually means Responses API
-      // - Otherwise default to Chat Completions
-      let endpoint = req.body.endpoint;
-      if (!endpoint) {
-        if (req.body && (typeof req.body === 'object') && ('input' in req.body)) {
-          endpoint = '/responses';
-        } else {
-          endpoint = '/chat/completions';
-        }
-      }
-      const requestPayload = stripInvalidModelParams(stripWorkflowFields(req.body.payload || req.body));
-      const openaiUrl = workflowId
-        ? `https://api.openai.com/v1/workflows/${workflowId}/run`
-        : `https://api.openai.com/v1${endpoint}`;
-      const openaiPayload = workflowId
-        ? {
-            input_data: {
-              input: normalizeWorkflowInput(requestPayload)
-            },
-            state_values: [],
-            session: true,
-            tracing: { enabled: true },
-            stream: false
-          }
-        : requestPayload;
+      // Always target the Anthropic Messages API endpoint
+      const claudeUrl = 'https://api.anthropic.com/v1/messages';
       
-      // Forward the request to OpenAI
-      const openaiResponse = await fetch(openaiUrl, {
+      // Forward the request to Anthropic Claude API
+      const claudeResponse = await fetch(claudeUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'content-type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
         },
-        body: JSON.stringify(openaiPayload)
+        body: JSON.stringify(claudeBody)
       });
       
-      const data = await openaiResponse.json();
+      const data = await claudeResponse.json();
       
-      // Return OpenAI's response to the client
-      res.status(openaiResponse.status).json(
-        workflowId && openaiResponse.ok
-          ? normalizeWorkflowResponse(data, endpoint, workflowId)
-          : data
-      );
+      // Return Claude's response to the client
+      res.status(claudeResponse.status).json(data);
       
     } catch (error) {
-      console.error('OpenAI proxy error:', error);
+      console.error('Claude proxy error:', error);
       res.status(500).json({ 
         error: 'Failed to process request',
         message: error.message 
       });
     }
+  });
+
+/**
+ * Backward-compatible alias for claudeProxy.
+ * Existing clients still calling openaiProxy will be redirected to claudeProxy.
+ */
+exports.openaiProxy = functions
+  .runWith({
+    secrets: ['ANTHROPIC_API_KEY'],
+    timeoutSeconds: 60,
+    memory: '256MB'
+  })
+  .https.onRequest(async (req, res) => {
+    // Reuse the same handler as claudeProxy
+    return exports.claudeProxy(req, res);
   });
 
 // ============================================================================

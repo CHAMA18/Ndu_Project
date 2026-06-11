@@ -1187,7 +1187,7 @@ class _LessonDialogState extends State<_LessonDialog> {
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _selectedType,
+                          value: _selectedType,
                           decoration: _inputDecoration('Type'),
                           items: const [
                             DropdownMenuItem(
@@ -1207,7 +1207,7 @@ class _LessonDialogState extends State<_LessonDialog> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: _selectedImpact,
+                          value: _selectedImpact,
                           decoration: _inputDecoration('Impact'),
                           items: const [
                             DropdownMenuItem(
@@ -1308,7 +1308,7 @@ class _LessonDialogState extends State<_LessonDialog> {
                     onChanged: (value) => setState(() => _highlightRow = value),
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Highlight this lesson in the table'),
-                    activeThumbColor: const Color(0xFFFFD700),
+                    thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFFFFD700) : null),
                   ),
                   const SizedBox(height: 24),
                   Row(

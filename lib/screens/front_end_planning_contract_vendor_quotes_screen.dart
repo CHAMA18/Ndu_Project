@@ -579,7 +579,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedUnit,
+                  value: selectedUnit,
                   decoration: const InputDecoration(labelText: 'Duration Unit'),
                   items: _workflowDurationUnits
                       .map(
@@ -887,7 +887,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
               SizedBox(
                 width: 130,
                 child: DropdownButtonFormField<String>(
-                  initialValue: step.unit,
+                  value: step.unit,
                   decoration: const InputDecoration(
                     isDense: true,
                     labelText: 'Unit',
@@ -1000,7 +1000,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                 SizedBox(
                   width: 320,
                   child: DropdownButtonFormField<String>(
-                    initialValue: effectiveScopeId,
+                    value: effectiveScopeId,
                     decoration: const InputDecoration(
                       labelText: 'Contract Scope',
                       isDense: true,
@@ -1734,7 +1734,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                 SizedBox(
                   width: 240,
                   child: DropdownButtonFormField<String>(
-                    initialValue: actingRole,
+                    value: actingRole,
                     decoration: const InputDecoration(
                       labelText: 'Acting Role',
                       isDense: true,
@@ -1855,7 +1855,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                                   SizedBox(
                                     width: 260,
                                     child: DropdownButtonFormField<String>(
-                                      initialValue: availableRoles
+                                      value: availableRoles
                                               .contains(state.authorizedRole)
                                           ? state.authorizedRole
                                           : _defaultAuthorizedRole(
@@ -2463,7 +2463,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: contractType,
+                    value: contractType,
                     items: _contractTypeOptions
                         .map((option) => DropdownMenuItem<String>(
                               value: option,
@@ -2495,7 +2495,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: biddingRequired,
+                    value: biddingRequired,
                     items: _biddingOptions
                         .map((option) => DropdownMenuItem<String>(
                               value: option,
@@ -2511,7 +2511,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: startStage,
+                    value: startStage,
                     items: _startStageOptions
                         .map((option) => DropdownMenuItem<String>(
                               value: option,
@@ -2778,7 +2778,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue:
+                      value:
                           candidates.isNotEmpty ? candidates.first : null,
                       items: candidates
                           .map((name) => DropdownMenuItem<String>(
@@ -3713,7 +3713,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: selected.id,
+                      value: selected.id,
                       decoration: const InputDecoration(labelText: 'Scope'),
                       items: scopes
                           .map((scope) => DropdownMenuItem<String>(
@@ -3739,7 +3739,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       decoration:
                           const InputDecoration(labelText: 'Tracking Status'),
                       items: _trackingStatusOptions
@@ -3806,7 +3806,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: status,
+                        value: status,
                         decoration: const InputDecoration(labelText: 'Status'),
                         items: _reportStatusOptions
                             .map((option) => DropdownMenuItem<String>(
@@ -6573,7 +6573,7 @@ class _ContractScopeDetailCardState extends State<_ContractScopeDetailCard> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            initialValue: stage,
+            value: stage,
             decoration: const InputDecoration(
               labelText: 'Contracting Start Stage',
               isDense: true,

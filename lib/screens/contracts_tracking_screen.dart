@@ -1214,7 +1214,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: selectedType,
+                              value: selectedType,
                               decoration: const InputDecoration(
                                 labelText: 'Contract type',
                                 isDense: true,
@@ -1231,7 +1231,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: selectedAction,
+                              value: selectedAction,
                               decoration: const InputDecoration(
                                 labelText: 'Renewal action',
                                 isDense: true,
@@ -1330,7 +1330,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedStatus,
+                        value: selectedStatus,
                         decoration: const InputDecoration(
                           labelText: 'Renewal status',
                           isDense: true,
@@ -1508,7 +1508,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: selectedStatus,
+                              value: selectedStatus,
                               decoration: const InputDecoration(
                                 labelText: 'Status',
                               ),
@@ -1708,7 +1708,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: selectedDepartment,
+                              value: selectedDepartment,
                               decoration: const InputDecoration(
                                 labelText: 'Department',
                                 isDense: true,
@@ -1730,7 +1730,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                         children: [
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: selectedPriority,
+                              value: selectedPriority,
                               decoration: const InputDecoration(
                                 labelText: 'Priority',
                                 isDense: true,
@@ -1748,7 +1748,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: DropdownButtonFormField<String>(
-                              initialValue: selectedStatus,
+                              value: selectedStatus,
                               decoration: const InputDecoration(
                                 labelText: 'Status',
                                 isDense: true,
@@ -1992,7 +1992,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: contractTypeController.text.isEmpty
+                  value: contractTypeController.text.isEmpty
                       ? null
                       : contractTypeController.text,
                   decoration: const InputDecoration(
@@ -2028,7 +2028,7 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedStatus.isEmpty ? null : selectedStatus,
+                  value: selectedStatus.isEmpty ? null : selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Status *',
                     isDense: true,

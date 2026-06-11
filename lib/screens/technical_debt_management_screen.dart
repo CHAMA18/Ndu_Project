@@ -1172,7 +1172,7 @@ class _TechnicalDebtManagementScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedSeverity,
+                  value: selectedSeverity,
                   decoration: const InputDecoration(labelText: 'Severity'),
                   items: const ['Critical', 'High', 'Medium', 'Low']
                       .map((value) =>
@@ -1186,7 +1186,7 @@ class _TechnicalDebtManagementScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedStatus,
+                  value: selectedStatus,
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: const ['Backlog', 'In progress', 'Blocked', 'Done']
                       .map((value) =>
@@ -1367,7 +1367,7 @@ class _TechnicalDebtManagementScreenState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
-                    initialValue: selectedColorValue,
+                    value: selectedColorValue,
                     decoration: const InputDecoration(labelText: 'Risk color'),
                     items: _governanceColorOptions
                         .map((option) => DropdownMenuItem<int>(
@@ -1507,7 +1507,7 @@ class _TechnicalDebtManagementScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedTier,
+                    value: selectedTier,
                     decoration: const InputDecoration(labelText: 'Risk tier'),
                     items: const [
                       DropdownMenuItem(
@@ -1524,7 +1524,7 @@ class _TechnicalDebtManagementScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    initialValue: selectedColorValue,
+                    value: selectedColorValue,
                     decoration:
                         const InputDecoration(labelText: 'Severity color'),
                     items: _governanceColorOptions
@@ -1689,7 +1689,7 @@ class _TechnicalDebtManagementScreenState
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<int>(
-                    initialValue: selectedColorValue,
+                    value: selectedColorValue,
                     decoration:
                         const InputDecoration(labelText: 'Workstream color'),
                     items: _governanceColorOptions

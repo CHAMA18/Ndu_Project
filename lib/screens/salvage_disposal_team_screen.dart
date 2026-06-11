@@ -1753,7 +1753,7 @@ Execution snapshot:
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: selectedStatus,
+                  value: selectedStatus,
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: const ['Active', 'On Leave', 'Inactive']
                       .map((value) =>
@@ -1979,7 +1979,7 @@ Execution snapshot:
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: conditionController.text.isEmpty
+                          value: conditionController.text.isEmpty
                               ? 'Good'
                               : conditionController.text,
                           decoration: const InputDecoration(
@@ -2014,7 +2014,7 @@ Execution snapshot:
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedDisposalMethod,
+                          value: selectedDisposalMethod,
                           decoration: const InputDecoration(
                             labelText: 'Disposal Method',
                             border: OutlineInputBorder(),
@@ -2036,7 +2036,7 @@ Execution snapshot:
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           decoration: const InputDecoration(
                             labelText: 'Status',
                             border: OutlineInputBorder(),
@@ -2059,7 +2059,7 @@ Execution snapshot:
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPriority,
+                          value: selectedPriority,
                           decoration: const InputDecoration(
                             labelText: 'Priority',
                             border: OutlineInputBorder(),
@@ -3720,14 +3720,14 @@ Execution snapshot:
                   const SizedBox(height: 14),
                   Row(children: [
                     Expanded(child: DropdownButtonFormField<String>(
-                      initialValue: category,
+                      value: category,
                       decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                       items: ['Environmental', 'Safety', 'Health', 'Legal', 'Financial', 'Quality'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                       onChanged: (v) => setDialogState(() => category = v ?? 'Environmental'),
                     )),
                     const SizedBox(width: 10),
                     Expanded(child: DropdownButtonFormField<String>(
-                      initialValue: complianceStatus,
+                      value: complianceStatus,
                       decoration: const InputDecoration(labelText: 'Compliance Status', border: OutlineInputBorder()),
                       items: ['Compliant', 'Non-Compliant', 'Conditional', 'Renewal Due', 'Pending', 'Expired'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                       onChanged: (v) => setDialogState(() => complianceStatus = v ?? 'Compliant'),
@@ -3750,21 +3750,21 @@ Execution snapshot:
                   const SizedBox(height: 14),
                   Row(children: [
                     Expanded(child: DropdownButtonFormField<String>(
-                      initialValue: riskLevel,
+                      value: riskLevel,
                       decoration: const InputDecoration(labelText: 'Risk Level', border: OutlineInputBorder()),
                       items: ['Critical', 'High', 'Medium', 'Low'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                       onChanged: (v) => setDialogState(() => riskLevel = v ?? 'Low'),
                     )),
                     const SizedBox(width: 10),
                     Expanded(child: DropdownButtonFormField<String>(
-                      initialValue: priority,
+                      value: priority,
                       decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
                       items: ['P1', 'P2', 'P3', 'P4'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                       onChanged: (v) => setDialogState(() => priority = v ?? 'P3'),
                     )),
                     const SizedBox(width: 10),
                     Expanded(child: DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       decoration: const InputDecoration(labelText: 'Workflow', border: OutlineInputBorder()),
                       items: ['Active', 'Under Review', 'Closed'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                       onChanged: (v) => setDialogState(() => status = v ?? 'Active'),
@@ -4271,7 +4271,7 @@ Execution snapshot:
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPhase,
+                          value: selectedPhase,
                           decoration: const InputDecoration(
                             labelText: 'Phase',
                             border: OutlineInputBorder(),
@@ -4287,7 +4287,7 @@ Execution snapshot:
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           decoration: const InputDecoration(
                             labelText: 'Status',
                             border: OutlineInputBorder(),
@@ -4319,7 +4319,7 @@ Execution snapshot:
                       const SizedBox(width: 12),
                       Expanded(
                         child: DropdownButtonFormField<String>(
-                          initialValue: selectedPriority,
+                          value: selectedPriority,
                           decoration: const InputDecoration(
                             labelText: 'Priority',
                             border: OutlineInputBorder(),

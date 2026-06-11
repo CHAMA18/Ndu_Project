@@ -346,7 +346,7 @@ class _StakeholderAlignmentScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: selectedStakeholder,
+                    value: selectedStakeholder,
                     decoration: const InputDecoration(
                       labelText: 'Stakeholder Name/Role',
                       hintText: 'Select from Core Stakeholders or enter new',
@@ -395,7 +395,7 @@ class _StakeholderAlignmentScreenState
                     ),
                   ],
                   DropdownButtonFormField<String>(
-                    initialValue: selectedStatus,
+                    value: selectedStatus,
                     decoration:
                         const InputDecoration(labelText: 'Alignment Status'),
                     items: ['Aligned', 'Neutral', 'Concerned', 'Resistent']
@@ -411,7 +411,7 @@ class _StakeholderAlignmentScreenState
                     },
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: selectedKeyInterest,
+                    value: selectedKeyInterest,
                     decoration:
                         const InputDecoration(labelText: 'Key Interest/Value'),
                     items: [

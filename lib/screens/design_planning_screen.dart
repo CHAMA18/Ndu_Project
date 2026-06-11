@@ -3350,7 +3350,7 @@ class _MappingCard extends StatelessWidget {
           ),
           if (specificationOptions.isNotEmpty)
             DropdownButtonFormField<String>(
-              initialValue: selectedId,
+              value: selectedId,
               isExpanded: true,
               decoration: _inputDecoration('Select specification item'),
               items: specificationOptions
@@ -3886,7 +3886,7 @@ class _SpecificationDeviationCard extends StatelessWidget {
           ),
           if (specificationOptions.isNotEmpty)
             DropdownButtonFormField<String>(
-              initialValue: selectedId,
+              value: selectedId,
               isExpanded: true,
               decoration: _inputDecoration('Select specification item'),
               items: specificationOptions
@@ -4482,7 +4482,7 @@ class _DropdownField extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          initialValue: selected,
+          value: selected,
           isExpanded: true,
           decoration: _inputDecoration(''),
           items: items

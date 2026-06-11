@@ -79,7 +79,7 @@ class _FrontEndPlanningRequirementsScreenState
   @override
   void initState() {
     super.initState();
-    // Ensure OpenAI key/env is loaded for per-row regenerate.
+    // Ensure Claude key/env is loaded for per-row regenerate.
     ApiKeyManager.initializeApiKey();
     _requirementsHorizontalController.addListener(_updateScrollHints);
     _requirementsVerticalController.addListener(_updateScrollHints);
@@ -446,10 +446,10 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
           if (message.contains('OpenAI API key') ||
               message.contains('not configured')) {
             _initialGenerationError =
-                'OpenAI API key is not configured. Please add a valid key in Settings to use AI.';
+                'Claude API key is not configured. Please add a valid key in Settings to use AI.';
           } else if (message.contains('response_format')) {
             _initialGenerationError =
-                'AI response formatting failed. Please retry or check your OpenAI proxy configuration.';
+                'AI response formatting failed. Please retry or check your Claude proxy configuration.';
           } else {
             _initialGenerationError =
                 'AI requirements suggestion failed. Please try again.';

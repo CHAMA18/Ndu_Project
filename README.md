@@ -1,132 +1,125 @@
-# ndu_project
+# FlutterFlow AI Workspace
 
-A new Flutter project.
+This workspace is scaffolded for the FlutterFlow AI DSL.
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-
-## Firebase Cloud Functions Setup
-
-### Set Secrets
-
-Before deploying, configure the required secrets using Firebase CLI:
+## Quickstart
 
 ```bash
-firebase functions:secrets:set OPENAI_API_KEY
-firebase functions:secrets:set STRIPE_SECRET_KEY
-firebase functions:secrets:set PAYPAL_CLIENT_ID
-firebase functions:secrets:set PAYPAL_CLIENT_SECRET
-firebase functions:secrets:set PAYSTACK_SECRET_KEY
+dart pub get
+dart test
+flutterflow ai validate dsl/create.dart
+flutterflow ai run dsl/create.dart --project-name "My App" --commit-message "Initial app"
 ```
 
-Each command will prompt you to enter the secret value securely.
+Treat `flutterflow ai validate` as a real preflight check. If it reports wiring or validation failures, fix them before attempting `flutterflow ai run`.
 
-### Deploy Functions
+If a new-project `flutterflow ai run` fails before a successful push, FlutterFlow AI will not bind that project into `.flutterflow/workspace.json`. It also does not delete remote projects automatically, so use `--find-or-create` on a retry when you want to reuse a project that may already exist.
 
-After setting all secrets, deploy the Cloud Functions:
+For an existing project:
 
 ```bash
-firebase deploy --only functions
+flutterflow ai inspect <project-id> --page HomePage
+flutterflow ai validate dsl/edit.dart --project-id <project-id>
+flutterflow ai run dsl/edit.dart --project-id <project-id> --commit-message "Update existing app"
 ```
 
----
+## Files
 
-## Payment Integration Setup
+- `dsl/create.dart`: starter create DSL file
+- `dsl/edit.dart`: starter edit flow
+- `test/app_test.dart`: starter compile test
+- `references/`: working DSL examples copied locally into the workspace
+- `patterns/`: edit helper patterns
+- `PROJECT_CONTEXT.md`: project summary for bound edit workspaces
+- `context/`: expanded project details written by FlutterFlow AI context generation
+- `generated_code/`: local Flutter export snapshot when `flutterflow_cli` is available during `flutterflow ai init --project <id>`
+- `.flutterflow/` (SDK-managed: run artifacts, plus router-managed config): local runtime artifacts such as history, traces, and support outputs
 
-This app supports three payment providers: **Stripe**, **PayPal**, and **Paystack**. All API keys are securely stored using Firebase Secret Manager.
+## Edit Context
 
-### 1. Stripe Setup
+- `flutterflow ai init --project <id>` writes `PROJECT_CONTEXT.md` when credentials are available.
+- After the first successful push from a new unbound workspace, FlutterFlow AI also exports `generated_code/` when `flutterflow` CLI is available.
+- Treat `generated_code/` as read-only reference context. Use it to inspect generated structure and map generated files back to FlutterFlow entities.
+- Do not edit files in `generated_code/` directly. Apply changes in FlutterFlow AI-managed source such as `dsl/edit.dart`, then push with `flutterflow ai run`.
+- If a task starts from a generated Dart file, use that file to identify the relevant page, component, or resource, then make the change through FlutterFlow AI instead of patching generated output.
+- After a successful FlutterFlow AI push, `generated_code/` is marked stale instead of silently treated as current.
+- Run `flutterflow ai codegen status` to see whether the snapshot is fresh or stale and which entities/files are likely affected.
+- Run `flutterflow ai codegen refresh` to regenerate `generated_code/` for the bound project when you need a fresh snapshot.
+- Run `flutterflow ai refresh-context <project-id>` after meaningful remote changes.
+- Run `flutterflow ai context-check` if you are not sure whether local context is current.
+- Use `flutterflow ai inspect` and `flutterflow ai resources` for exact current page, component, and resource details.
+- Use `flutterflow ai inspect --dsl-json`, `--tree`, `--outline`, `--debug`, or `--deep` when you need a specific inspection mode rather than the default whole-project summary.
+- Use `flutterflow ai inspect --selector-path <path>` or `--selector-key <key>` (with `--page` or `--component`) to target a single widget directly.
 
-1. Create a Stripe account at [stripe.com](https://stripe.com)
-2. Get your **Secret Key** from the Stripe Dashboard → Developers → API Keys
-3. Set the secret:
-   ```bash
-   firebase functions:secrets:set STRIPE_SECRET_KEY
+## FlutterFlow AI Selector Workflow
+
+When the user pastes a `FlutterFlow AI Selector v1` block:
+
+```
+FlutterFlow AI Selector v1
+project_id: abc123
+scope_kind: page
+scope_name: HomePage
+selector_path: HomePage.body[0].children[1]
+node_key: xyz789
+node_name: MyButton
+node_type: Button
+```
+
+1. Run: `flutterflow ai inspect abc123 --page HomePage --selector-path "HomePage.body[0].children[1]" --dsl-json`
+2. Verify the returned widget matches expectations.
+3. Patch with `findByPath(...)` in `dsl/edit.dart`:
+   ```dart
+   app.editPage('HomePage', (page) {
+     page.findByPath('HomePage.body[0].children[1]').update((patch) {
+       // modify properties
+     });
+   });
    ```
-4. (Optional) Configure webhooks in Stripe Dashboard for real-time payment status updates
+4. Run `dart test`, `flutterflow ai validate`, `flutterflow ai run`.
 
-**Available Functions:**
-- `createStripeCheckout` - Creates a Stripe Checkout session
-- `verifyStripePayment` - Verifies payment completion
+## Guardrails
 
-### 2. PayPal Setup
+- When a page or component contains multiple backend actions with outputs, set `outputAs:` explicitly on each one. This is especially important for multiple `ApiCall(...)` actions on the same page or trigger.
+- Prefer updating an existing edit trigger chain instead of adding a second API call to the same trigger unless both outputs are deliberately named.
+- Size loading indicators explicitly. Use `ProgressBar.circular(size: 40, thickness: 4)` rather than the unsized default.
+- Avoid `shrinkWrap: true` on dynamic `ListView(...)` widgets unless the list truly must live inside another scrollable. Prefer giving the list bounded space and leaving shrink wrap off.
 
-1. Create a PayPal Developer account at [developer.paypal.com](https://developer.paypal.com)
-2. Create an app in the PayPal Dashboard to get your **Client ID** and **Client Secret**
-3. Set the secrets:
-   ```bash
-   firebase functions:secrets:set PAYPAL_CLIENT_ID
-   firebase functions:secrets:set PAYPAL_CLIENT_SECRET
-   ```
-4. For production, ensure you're using live credentials (not sandbox)
+## Runtime Artifacts
 
-**Available Functions:**
-- `createPayPalOrder` - Creates a PayPal order for checkout
-- `verifyPayPalPayment` - Captures and verifies the PayPal payment
+- `.flutterflow/runs.jsonl`: local run history
+- `.flutterflow/history/<run-id>/`: archived source files and plan
+- `.flutterflow/traces/<run-id>.json`: canonical run trace
+- `flutterflow ai history`, `flutterflow ai trace latest`, and `flutterflow ai support inspect <run-id>` are the main debugging entry points
 
-### 3. Paystack Setup
+## Source Tracking
 
-1. Create a Paystack account at [paystack.com](https://paystack.com)
-2. Get your **Secret Key** from Paystack Dashboard → Settings → API Keys
-3. Set the secret:
-   ```bash
-   firebase functions:secrets:set PAYSTACK_SECRET_KEY
-   ```
+FlutterFlow AI keeps the source that produced each run for auditability and replay.
 
-**Available Functions:**
-- `createPaystackTransaction` - Initializes a Paystack transaction
-- `verifyPaystackPayment` - Verifies Paystack payment status
+- By default, `flutterflow ai run dsl/create.dart` or `flutterflow ai run dsl/edit.dart` tracks the executed DSL script.
+- `flutterflow ai support bundle`, `flutterflow ai support replay`, and `flutterflow ai support case` build shareable or reproducible artifacts from traced runs.
 
-### 4. Coupon System
+## References
 
-Coupons work across all payment platforms. Manage coupons via the admin dashboard at `admin.nduproject.com`.
+Start with a reference app before writing new DSL:
 
-**Available Functions:**
-- `applyCoupon` - Validates and calculates discounted price
-- `useCoupon` - Increments coupon usage count after payment
-
-### 5. Invoice History
-
-Invoices are automatically recorded after successful payments and can be viewed in the admin dashboard.
-
-**Available Functions:**
-- `getUserInvoices` - Fetches payment history from all providers
-- `recordInvoice` - Manually records an invoice
-
-### 6. Subscription Management
-
-**Available Functions:**
-- `cancelSubscription` - Cancels an active subscription
-
-### Deployment Checklist
-
-1. **Set all required secrets** (see commands above)
-2. **Deploy Cloud Functions:**
-   ```bash
-   firebase deploy --only functions
-   ```
-3. **Update CORS origins** in `functions/index.js` to include your production domains
-4. **Configure Firestore indexes** if needed for invoice/subscription queries
-5. **Test each payment flow** in sandbox/test mode before going live
-
-### Pricing Configuration
-
-Subscription prices are defined in `functions/index.js` in the `getSubscriptionPrice()` function:
-
-| Tier       | Monthly   | Annual     |
-|------------|-----------|------------|
-| Project    | $79.00    | $790.00    |
-| Program    | $189.00   | $1,890.00  |
-| Portfolio  | $449.00   | $4,490.00  |
-
-To modify pricing, update the `prices` object in the function and redeploy.
+- For the broader DSL API surface, run `flutterflow ai docs api-surface`.
+- For the widget/action authoring catalog, run `flutterflow ai docs ui`.
+- `references/shopflow_dsl.dart`
+- `references/taskboard_dsl.dart`
+- `references/auth_shell_dsl.dart`
+- `references/supabase_crud_auth_shell_dsl.dart`
+- `references/social_feed_data_dsl.dart`
+- `references/workflow_forms_dsl.dart`
+- `references/commerce_shell_dsl.dart`
+- `references/content_companion_dsl.dart`
+- `references/resource_library_dsl.dart`
+- `references/postgres_compile_only_dsl.dart`
+- `references/action_block_showcase_dsl.dart`
+- `references/app_event_showcase_dsl.dart`
+- `references/genui_catalog_assistant_dsl.dart`
+- `references/multi_api_call_dsl.dart`
+- `references/local_state_crud_dsl.dart`
+- `references/styled_profile_dsl.dart`
+- `references/media_browser_dsl.dart`
+- `references/asset_and_reference_surface_dsl.dart`

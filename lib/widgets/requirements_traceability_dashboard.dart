@@ -1258,7 +1258,7 @@ class RequirementsTraceabilityDashboard extends StatelessWidget {
               color: Color(0xFF475569))),
       const SizedBox(height: 8),
       DropdownButtonFormField<String>(
-        initialValue: options.first,
+        value: options.first,
         isExpanded: true,
         decoration: InputDecoration(
           filled: true,

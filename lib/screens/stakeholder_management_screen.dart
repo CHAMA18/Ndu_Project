@@ -1679,7 +1679,7 @@ class _DropdownCell extends StatelessWidget {
     return _TableFieldShell(
       child: DropdownButtonFormField<String>(
         key: ValueKey(fieldKey),
-        initialValue: resolvedValue,
+        value: resolvedValue,
         items: options
             .map((option) => DropdownMenuItem(
                 value: option,

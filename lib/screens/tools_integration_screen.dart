@@ -1644,7 +1644,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: providerCtl.text,
+                    value: providerCtl.text,
                     items: ['Figma', 'Draw.io', 'Miro', 'Whiteboard', 'Jira', 'GitHub', 'Custom']
                         .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                         .toList(),
@@ -1671,7 +1671,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   VoiceTextField(controller: subtitleCtl, decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: status,
+                    value: status,
                     items: ['Connected', 'Degraded', 'Not connected', 'Expired']
                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                         .toList(),
@@ -1868,7 +1868,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: severity,
+                        value: severity,
                         items: ['Critical', 'High', 'Medium', 'Low'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => severity = v); },
                         decoration: const InputDecoration(labelText: 'Severity', border: OutlineInputBorder()),
@@ -1877,7 +1877,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: category,
+                        value: category,
                         items: ['Connectivity', 'Authentication', 'Governance', 'Security', 'Performance'].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => category = v); },
                         decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
@@ -1890,7 +1890,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: status,
+                        value: status,
                         items: ['Open', 'Monitoring', 'Resolved', 'Escalated'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -1970,7 +1970,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: priority,
+                        value: priority,
                         items: ['Critical', 'High', 'Medium', 'Low'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => priority = v); },
                         decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
@@ -1985,7 +1985,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: status,
+                        value: status,
                         items: ['Not Started', 'In Progress', 'Pending', 'Completed'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -2325,7 +2325,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: department,
+                        value: department,
                         items: ['Security', 'Data', 'Operations', 'Quality', 'Procurement', 'Executive', 'Other']
                             .map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => department = v); },
@@ -2337,7 +2337,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: priority,
+                        value: priority,
                         items: ['Critical', 'High', 'Medium', 'Low'].map((p) => DropdownMenuItem(value: p, child: Text(p))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => priority = v); },
                         decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
@@ -2346,7 +2346,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: status,
+                        value: status,
                         items: ['Not Started', 'In Review', 'Pending', 'Approved', 'Rejected'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
@@ -2457,7 +2457,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: apiMethodCtl.text,
+                        value: apiMethodCtl.text,
                         items: ['REST GET', 'REST POST', 'REST POST/PUT', 'REST PUT', 'WebSocket', 'GraphQL', 'Webhook']
                             .map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                         onChanged: (v) { if (v != null) apiMethodCtl.text = v; },
@@ -2469,7 +2469,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                   Row(children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: frequencyCtl.text.isEmpty ? 'On change' : frequencyCtl.text,
+                        value: frequencyCtl.text.isEmpty ? 'On change' : frequencyCtl.text,
                         items: ['Real-time', 'On change', 'Scheduled', 'Manual'].map((f) => DropdownMenuItem(value: f, child: Text(f))).toList(),
                         onChanged: (v) { if (v != null) frequencyCtl.text = v; },
                         decoration: const InputDecoration(labelText: 'Frequency', border: OutlineInputBorder()),
@@ -2478,7 +2478,7 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: status,
+                        value: status,
                         items: ['Active', 'Degraded', 'Disabled', 'Pending'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
                         onChanged: (v) { if (v != null) setDialogState(() => status = v); },
                         decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
