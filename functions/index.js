@@ -289,17 +289,82 @@ async function getUsdToNgnRate() {
   }
 }
 
+// ============================================================================
+// DYNAMIC PRICING CONFIG
+// ============================================================================
+
+/** Hardcoded fallback — matches SubscriptionService.defaults */
+const FALLBACK_PRICING = {
+  project:   { monthlyPriceCents: 7900,  annualPriceCents: 79000,  includedSeats: 3,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 10  },
+  program:   { monthlyPriceCents: 18900, annualPriceCents: 189000, includedSeats: 8,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 25  },
+  portfolio: { monthlyPriceCents: 44900, annualPriceCents: 449000, includedSeats: 15, perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 50  },
+};
+
+/** In-memory cache for pricing config (refreshed on each read) */
+let _pricingConfigCache = null;
+let _pricingConfigCacheExpiry = 0;
+const PRICING_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Get subscription pricing in cents
+ * Load pricing config from Firestore settings/pricing_config.
+ * Falls back to hardcoded defaults if unavailable.
+ * Results are cached for 5 minutes to avoid excessive Firestore reads.
  */
-function getSubscriptionPrice(tier, isAnnual) {
-  const prices = {
-    project: { monthly: 7900, annual: 79000 },
-    program: { monthly: 18900, annual: 189000 },
-    portfolio: { monthly: 44900, annual: 449000 }
-  };
-  const tierPrices = prices[tier] || prices.project;
-  return isAnnual ? tierPrices.annual : tierPrices.monthly;
+async function loadPricingConfig() {
+  const now = Date.now();
+  if (_pricingConfigCache && now - _pricingConfigCacheExpiry < PRICING_CACHE_TTL_MS) {
+    return _pricingConfigCache;
+  }
+
+  try {
+    const doc = await db.collection('settings').doc('pricing_config').get();
+    if (doc.exists && doc.data()?.tiers) {
+      _pricingConfigCache = doc.data();
+      _pricingConfigCacheExpiry = now;
+      return _pricingConfigCache;
+    }
+  } catch (e) {
+    console.warn('Failed to load pricing config from Firestore, using fallback:', e.message);
+  }
+
+  // Build fallback config in the same shape as Firestore document
+  _pricingConfigCache = { tiers: FALLBACK_PRICING, trialDurationDays: 3, defaultCurrency: 'USD' };
+  _pricingConfigCacheExpiry = now;
+  return _pricingConfigCache;
+}
+
+/**
+ * Get the tier config from the dynamic pricing config.
+ * Falls back to FALLBACK_PRICING if the tier is not found.
+ */
+async function getTierConfig(tier) {
+  const config = await loadPricingConfig();
+  return config.tiers?.[tier] || FALLBACK_PRICING[tier] || FALLBACK_PRICING.project;
+}
+
+/**
+ * Get subscription base pricing in cents (without seats).
+ * Reads from dynamic Firestore config, falls back to hardcoded.
+ */
+async function getSubscriptionPrice(tier, isAnnual) {
+  const tierConfig = await getTierConfig(tier);
+  return isAnnual ? tierConfig.annualPriceCents : tierConfig.monthlyCents;
+}
+
+/**
+ * Get total subscription price in cents, including per-seat add-ons.
+ * @param {string} tier - Tier key (project, program, portfolio)
+ * @param {boolean} isAnnual - Annual billing flag
+ * @param {number} seats - Total number of seats (default: includedSeats)
+ * @returns {Promise<number>} Total price in cents
+ */
+async function getSubscriptionPriceWithSeats(tier, isAnnual, seats) {
+  const tierConfig = await getTierConfig(tier);
+  const includedSeats = tierConfig.includedSeats || 1;
+  const basePrice = isAnnual ? tierConfig.annualPriceCents : tierConfig.monthlyCents;
+  const additionalSeats = Math.max(0, (seats || includedSeats) - includedSeats);
+  const perSeatPrice = isAnnual ? tierConfig.perSeatAnnualCents : tierConfig.perSeatMonthlyCents;
+  return basePrice + (additionalSeats * perSeatPrice);
 }
 
 /**
@@ -626,9 +691,10 @@ exports.createStripeCheckout = functions
         return;
       }
       
-      const { tier, isAnnual, email, couponCode } = req.body;
+      const { tier, isAnnual, email, couponCode, seats } = req.body;
       const userId = decodedToken.uid;
-      let priceInCents = getSubscriptionPrice(tier, isAnnual);
+      const seatCount = parseInt(seats, 10) || (await getTierConfig(tier)).includedSeats || 1;
+      let priceInCents = await getSubscriptionPriceWithSeats(tier, isAnnual, seatCount);
       let couponId = null;
 
       if (couponCode) {
@@ -651,6 +717,7 @@ exports.createStripeCheckout = functions
         status: 'pending',
         provider: 'stripe',
         isAnnual: isAnnual || false,
+        seats: seatCount,
         couponId: couponId || null,
         couponCode: couponCode ? couponCode.toUpperCase() : null,
         discountedPriceCents: priceInCents,
@@ -858,9 +925,10 @@ exports.createPayPalOrder = functions
         return;
       }
       
-      const { tier, isAnnual, couponCode } = req.body;
+      const { tier, isAnnual, couponCode, seats } = req.body;
       const userId = decodedToken.uid;
-      let priceInCents = getSubscriptionPrice(tier, isAnnual);
+      const seatCount = parseInt(seats, 10) || (await getTierConfig(tier)).includedSeats || 1;
+      let priceInCents = await getSubscriptionPriceWithSeats(tier, isAnnual, seatCount);
       let couponId = null;
 
       if (couponCode) {
@@ -884,6 +952,7 @@ exports.createPayPalOrder = functions
         status: 'pending',
         provider: 'paypal',
         isAnnual: isAnnual || false,
+        seats: seatCount,
         couponId: couponId || null,
         couponCode: couponCode ? couponCode.toUpperCase() : null,
         discountedPriceCents: priceInCents,
@@ -1121,9 +1190,10 @@ exports.createPaystackTransaction = functions
         return;
       }
       
-      const { tier, isAnnual, email, couponCode } = req.body;
+      const { tier, isAnnual, email, couponCode, seats } = req.body;
       const userId = decodedToken.uid;
-      let priceInCents = getSubscriptionPrice(tier, isAnnual);
+      const seatCount = parseInt(seats, 10) || (await getTierConfig(tier)).includedSeats || 1;
+      let priceInCents = await getSubscriptionPriceWithSeats(tier, isAnnual, seatCount);
       let couponId = null;
 
       if (couponCode) {
@@ -1166,6 +1236,7 @@ exports.createPaystackTransaction = functions
         status: 'pending',
         provider: 'paystack',
         isAnnual: isAnnual || false,
+        seats: seatCount,
         couponId: couponId || null,
         couponCode: couponCode ? couponCode.toUpperCase() : null,
         discountedPriceCents: priceInCents,
@@ -2269,4 +2340,49 @@ exports.acceptInvitation = functions
     // Other methods not allowed
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.status(405).json({ error: 'Method not allowed. Use GET or POST.' });
+  });
+
+// ============================================================================
+// PRICING CONFIG ENDPOINT
+// ============================================================================
+
+/**
+ * Get Pricing Config — HTTPS Request Function
+ *
+ * Returns the current pricing configuration from Firestore.
+ * This allows the Flutter app to fetch dynamic pricing without
+ * reading Firestore directly (useful for unauthenticated users
+ * on the pricing page).
+ */
+exports.getPricingConfig = functions
+  .runWith({
+    timeoutSeconds: 10,
+    memory: '128MB'
+  })
+  .https.onRequest(async (req, res) => {
+    setCorsHeaders(req, res);
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    if (req.method !== 'GET') {
+      res.status(405).json({ error: 'Method not allowed. Use GET.' });
+      return;
+    }
+
+    try {
+      const config = await loadPricingConfig();
+      // Strip internal fields before sending to client
+      const clientConfig = {
+        tiers: config.tiers,
+        trialDurationDays: config.trialDurationDays || 3,
+        defaultCurrency: config.defaultCurrency || 'USD',
+      };
+      res.status(200).json(clientConfig);
+    } catch (error) {
+      console.error('Failed to load pricing config:', error);
+      res.status(500).json({ error: 'Failed to load pricing configuration' });
+    }
   });

@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/app_logo.dart';
 
 import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
 import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
+import 'package:ndu_project/screens/admin/admin_pricing_config_screen.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 const Color _adminBackgroundColor = Color(0xFFF6F7FB);
@@ -382,6 +383,16 @@ class AdminHomeScreen extends StatelessWidget {
               color: _adminAccentColor,
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => const AdminHintsScreen())),
+              width: cardWidth,
+            ),
+            _ActionCard(
+              title: 'Pricing Config',
+              description:
+                  'Manage subscription tiers, per-seat pricing, trial duration, and feature lists',
+              icon: Icons.attach_money,
+              color: _adminAccentColor,
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AdminPricingConfigScreen())),
               width: cardWidth,
             ),
           ],

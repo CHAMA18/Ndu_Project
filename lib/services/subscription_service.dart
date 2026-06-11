@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:ndu_project/firebase_options.dart';
+import 'package:ndu_project/services/pricing_config_service.dart';
 
 /// Payment provider types supported by the app
 enum PaymentProvider { stripe, paypal, paystack }
@@ -190,8 +191,8 @@ class SubscriptionService {
     return 'https://us-central1-$projectId.cloudfunctions.net';
   }
 
-  /// Free trial duration in days
-  static const int trialDurationDays = 3;
+  /// Free trial duration — reads from dynamic config, falls back to 3 days
+  static int get trialDurationDays => PricingConfigService.current.trialDurationDays;
 
   /// Check if user is eligible for a free trial (first-time users only)
   static Future<bool> isEligibleForFreeTrial() async {
@@ -700,23 +701,35 @@ class SubscriptionService {
     }
   }
 
-  /// Get price for a tier
+  /// Get price for a tier — reads from dynamic PricingConfigService
   static Map<String, String> getPriceForTier(SubscriptionTier tier,
-      {bool annual = false}) {
-    switch (tier) {
-      case SubscriptionTier.project:
-        return annual
-            ? {'price': '\$790', 'period': 'per year'}
-            : {'price': '\$79', 'period': 'per month'};
-      case SubscriptionTier.program:
-        return annual
-            ? {'price': '\$1,890', 'period': 'per year'}
-            : {'price': '\$189', 'period': 'per month'};
-      case SubscriptionTier.portfolio:
-        return annual
-            ? {'price': '\$4,490', 'period': 'per year'}
-            : {'price': '\$449', 'period': 'per month'};
-    }
+      {bool annual = false, int seats = 1}) {
+    final tierConfig = PricingConfigService.tierConfigForKey(tier.name);
+    final totalCents = tierConfig.totalPriceCents(seats: seats, isAnnual: annual);
+    final dollars = totalCents / 100;
+    final priceStr = dollars.toStringAsFixed(dollars.truncateToDouble() == dollars ? 0 : 2);
+    return annual
+        ? {'price': '\$$priceStr', 'period': 'per year'}
+        : {'price': '\$$priceStr', 'period': 'per month'};
+  }
+
+  /// Get the per-seat monthly price for a tier
+  static String getPerSeatPrice(SubscriptionTier tier, {bool annual = false}) {
+    final tierConfig = PricingConfigService.tierConfigForKey(tier.name);
+    final price = annual ? tierConfig.perSeatAnnualDollars : tierConfig.perSeatMonthlyDollars;
+    return '\$${price.toStringAsFixed(price.truncateToDouble() == price ? 0 : 2)}';
+  }
+
+  /// Get included seats for a tier
+  static int getIncludedSeats(SubscriptionTier tier) {
+    final tierConfig = PricingConfigService.tierConfigForKey(tier.name);
+    return tierConfig.includedSeats;
+  }
+
+  /// Get max seats for a tier
+  static int getMaxSeats(SubscriptionTier tier) {
+    final tierConfig = PricingConfigService.tierConfigForKey(tier.name);
+    return tierConfig.maxSeats;
   }
 
   /// Get tier display name

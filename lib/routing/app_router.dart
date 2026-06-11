@@ -131,6 +131,7 @@ import 'package:ndu_project/screens/admin/admin_projects_screen.dart';
 import 'package:ndu_project/screens/admin/admin_users_screen.dart';
 import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
 import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
+import 'package:ndu_project/screens/admin/admin_pricing_config_screen.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/screens/pricing/mobile_pricing_screen.dart';
 import 'package:ndu_project/routing/shimmer_page_transition.dart';
@@ -263,6 +264,7 @@ class AppRoutes {
   static const adminUsers = 'admin-users';
   static const adminCoupons = 'admin-coupons';
   static const adminSubscriptionLookup = 'admin-subscription-lookup';
+  static const adminPricingConfig = 'admin-pricing-config';
   static const adminPortal = 'admin';
 }
 
@@ -369,6 +371,11 @@ class AppRouter {
         name: AppRoutes.adminSubscriptionLookup,
         path: '/${AppRoutes.adminSubscriptionLookup}',
         pageBuilder: (context, state) => shimmerTransitionPage(state: state, child: const AdminAuthWrapper(child: AdminSubscriptionLookupScreen())),
+      ),
+      GoRoute(
+        name: AppRoutes.adminPricingConfig,
+        path: '/${AppRoutes.adminPricingConfig}',
+        pageBuilder: (context, state) => shimmerTransitionPage(state: state, child: const AdminAuthWrapper(child: AdminPricingConfigScreen())),
       ),
       GoRoute(
         name: AppRoutes.signIn,
@@ -934,6 +941,11 @@ class AppRouter {
         name: AppRoutes.adminSubscriptionLookup,
         path: '/${AppRoutes.adminSubscriptionLookup}',
         pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminSubscriptionLookupScreen())),
+      ),
+      GoRoute(
+        name: AppRoutes.adminPricingConfig,
+        path: '/${AppRoutes.adminPricingConfig}',
+        pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminPricingConfigScreen())),
       ),
       GoRoute(
         name: AppRoutes.settings,

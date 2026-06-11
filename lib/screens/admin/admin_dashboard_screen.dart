@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ndu_project/models/user_role.dart';
 import 'package:ndu_project/services/permission_service.dart';
 import 'user_management_screen.dart';
+import 'admin_pricing_config_screen.dart';
 
 /// World-class Admin Dashboard for platform management
 /// Provides comprehensive overview and management capabilities
@@ -148,7 +149,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _buildNavItem(
           icon: Icons.settings_outlined,
           label: 'Settings',
-          onTap: () {},
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const AdminPricingConfigScreen())),
         ),
         _buildNavItem(
           icon: Icons.analytics_outlined,
