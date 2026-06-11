@@ -401,6 +401,7 @@ class SubscriptionService {
     required SubscriptionTier tier,
     required bool isAnnual,
     String? couponCode,
+    String? pricingTierKey,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -420,6 +421,8 @@ class SubscriptionService {
           'isAnnual': isAnnual,
           'userId': user.uid,
           'email': user.email,
+          if (pricingTierKey != null && pricingTierKey != tier.name)
+            'pricingTierKey': pricingTierKey,
           if (couponCode != null && couponCode.isNotEmpty)
             'couponCode': couponCode,
         }),
@@ -450,6 +453,7 @@ class SubscriptionService {
     required SubscriptionTier tier,
     required bool isAnnual,
     String? couponCode,
+    String? pricingTierKey,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -469,6 +473,8 @@ class SubscriptionService {
           'isAnnual': isAnnual,
           'userId': user.uid,
           'email': user.email,
+          if (pricingTierKey != null && pricingTierKey != tier.name)
+            'pricingTierKey': pricingTierKey,
           if (couponCode != null && couponCode.isNotEmpty)
             'couponCode': couponCode,
         }),
@@ -499,6 +505,7 @@ class SubscriptionService {
     required SubscriptionTier tier,
     required bool isAnnual,
     String? couponCode,
+    String? pricingTierKey,
   }) async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -518,6 +525,8 @@ class SubscriptionService {
           'isAnnual': isAnnual,
           'userId': user.uid,
           'email': user.email,
+          if (pricingTierKey != null && pricingTierKey != tier.name)
+            'pricingTierKey': pricingTierKey,
           if (couponCode != null && couponCode.isNotEmpty)
             'couponCode': couponCode,
         }),

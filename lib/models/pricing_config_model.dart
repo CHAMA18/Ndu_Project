@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class TierConfig {
   final String key; // e.g. 'project', 'program', 'portfolio'
   final String label; // Display name e.g. 'Project Plan'
+  final String subtitle; // Short description shown below the label
   final int monthlyPriceCents; // Price in USD cents per month
   final int annualPriceCents; // Price in USD cents per year
   final int includedSeats; // Seats included in base price
@@ -19,6 +20,7 @@ class TierConfig {
     required this.label,
     required this.monthlyPriceCents,
     required this.annualPriceCents,
+    this.subtitle = '',
     this.includedSeats = 1,
     this.perSeatMonthlyCents = 1500,
     this.perSeatAnnualCents = 16500,
@@ -51,6 +53,7 @@ class TierConfig {
   Map<String, dynamic> toJson() => {
         'key': key,
         'label': label,
+        'subtitle': subtitle,
         'monthlyPriceCents': monthlyPriceCents,
         'annualPriceCents': annualPriceCents,
         'includedSeats': includedSeats,
@@ -66,6 +69,7 @@ class TierConfig {
     return TierConfig(
       key: json['key'] ?? '',
       label: json['label'] ?? '',
+      subtitle: json['subtitle'] ?? '',
       monthlyPriceCents: json['monthlyPriceCents'] ?? 7900,
       annualPriceCents: json['annualPriceCents'] ?? 79000,
       includedSeats: json['includedSeats'] ?? 1,
@@ -81,6 +85,7 @@ class TierConfig {
   TierConfig copyWith({
     String? key,
     String? label,
+    String? subtitle,
     int? monthlyPriceCents,
     int? annualPriceCents,
     int? includedSeats,
@@ -94,6 +99,7 @@ class TierConfig {
     return TierConfig(
       key: key ?? this.key,
       label: label ?? this.label,
+      subtitle: subtitle ?? this.subtitle,
       monthlyPriceCents: monthlyPriceCents ?? this.monthlyPriceCents,
       annualPriceCents: annualPriceCents ?? this.annualPriceCents,
       includedSeats: includedSeats ?? this.includedSeats,
@@ -136,9 +142,32 @@ class PricingConfig {
         trialDurationDays: 3,
         defaultCurrency: 'USD',
         tiers: {
+          'basic_project': TierConfig(
+            key: 'basic_project',
+            label: 'Basic Project',
+            subtitle: 'No Fuss routine project delivered at a fraction of the cost',
+            monthlyPriceCents: 3900,
+            annualPriceCents: 39000,
+            includedSeats: 1,
+            perSeatMonthlyCents: 1500,
+            perSeatAnnualCents: 16500,
+            maxSeats: 1,
+            isActive: true,
+            features: [
+              'Free for the first month',
+              '1 user',
+              'Full project delivery from initiation to Launch',
+              'Auto AI assist',
+              'One-time incremental AI assist per section',
+              'Limited Documentation features',
+              'Upgrade tier any time',
+            ],
+            sortOrder: 0,
+          ),
           'project': TierConfig(
             key: 'project',
             label: 'Project Plan',
+            subtitle: 'Robust project delivered at an affordable rate',
             monthlyPriceCents: 7900,
             annualPriceCents: 79000,
             includedSeats: 3,
@@ -147,16 +176,19 @@ class PricingConfig {
             maxSeats: 10,
             isActive: true,
             features: [
-              'Full project delivery',
-              'Risk matrix & assessment',
-              'Cost analysis & estimation',
-              'Stakeholder management',
+              'Maximum 7 users',
+              'Robust project delivery with full features including organization planning, design, change management, work breakdown structure, and more',
+              'Auto AI assist',
+              'One-time incremental AI assist per section',
+              'Document print out feature',
+              'Upgrade tier anytime',
             ],
             sortOrder: 1,
           ),
           'program': TierConfig(
             key: 'program',
             label: 'Program Plan',
+            subtitle: 'Up to 3 projects at a discounted rate with interface management',
             monthlyPriceCents: 18900,
             annualPriceCents: 189000,
             includedSeats: 8,
@@ -165,16 +197,19 @@ class PricingConfig {
             maxSeats: 25,
             isActive: true,
             features: [
-              'Up to 3 projects',
+              'Everything in Project',
+              'Maximum 12 users',
+              'Monthly. Annual at a discount.',
               'Interface management',
-              'Program-level reporting',
-              'All Project features',
+              'Project dependency tracking',
+              'Program level reports for cost, schedule, scope tracking',
             ],
             sortOrder: 2,
           ),
           'portfolio': TierConfig(
             key: 'portfolio',
             label: 'Portfolio Plan',
+            subtitle: 'Up to 9 projects at a bulk rate with integrated stewarding',
             monthlyPriceCents: 44900,
             annualPriceCents: 449000,
             includedSeats: 15,
@@ -183,10 +218,9 @@ class PricingConfig {
             maxSeats: 50,
             isActive: true,
             features: [
-              'Up to 9 projects',
-              'Portfolio reports & dashboards',
-              'Executive dashboard',
-              'All Program features',
+              'Everything in Program',
+              'Maximum 24 users',
+              'Portfolio level reports for cost, schedule, scope tracking',
             ],
             sortOrder: 3,
           ),

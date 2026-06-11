@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ndu_project/models/pricing_config_model.dart';
 import 'package:ndu_project/screens/basic_plan_dashboard_screen.dart';
 import 'package:ndu_project/screens/management_level_screen.dart';
+import 'package:ndu_project/services/pricing_config_service.dart';
 import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
 
@@ -20,19 +22,36 @@ class PricingScreen extends StatefulWidget {
 
 class _PricingScreenState extends State<PricingScreen> {
   static final NumberFormat _currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
-  _PlanTier _selectedTier = _PlanTier.program;
+  String? _selectedTierKey;
   // ignore: unused_field
   bool _isCheckingSubscription = false;
   bool _isAnnual = false;
 
-  Future<void> _handlePlanSelection(BuildContext context, _PricingPlan plan) async {
+  /// Map a tier key from PricingConfig to SubscriptionTier for payment processing.
+  /// basic_project maps to project tier for subscription purposes.
+  SubscriptionTier _convertToSubscriptionTier(String tierKey) {
+    switch (tierKey) {
+      case 'basic_project':
+        return SubscriptionTier.project;
+      case 'project':
+        return SubscriptionTier.project;
+      case 'program':
+        return SubscriptionTier.program;
+      case 'portfolio':
+        return SubscriptionTier.portfolio;
+      default:
+        return SubscriptionTier.project;
+    }
+  }
+
+  Future<void> _handlePlanSelection(BuildContext context, TierConfig tier) async {
     setState(() => _isCheckingSubscription = true);
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     
     try {
-      final isBasicPlan = plan.tier == _PlanTier.basicProject;
-      final subscriptionTier = _convertToSubscriptionTier(plan.tier);
+      final isBasicPlan = tier.key == 'basic_project';
+      final subscriptionTier = _convertToSubscriptionTier(tier.key);
       final hasSubscription = await SubscriptionService.hasActiveSubscription(tier: subscriptionTier);
       
       if (!context.mounted) return;
@@ -40,13 +59,14 @@ class _PricingScreenState extends State<PricingScreen> {
       if (hasSubscription) {
         _navigateToManagementLevel(navigator, isBasicPlan: isBasicPlan);
       } else {
-        final price = _priceForPlan(plan);
+        final priceInfo = _priceForTier(tier);
         final paymentResult = await PaymentDialog.show(
           context: context,
           tier: subscriptionTier,
           isAnnual: _isAnnual,
-          displayTierName: plan.label,
-          displayPrice: price.price,
+          displayTierName: tier.label,
+          displayPrice: priceInfo.price,
+          pricingTierKey: tier.key,
           displayPeriod: _isAnnual ? 'Billed annually' : 'Billed monthly',
           onPaymentComplete: () {
             if (!mounted) return;
@@ -74,19 +94,6 @@ class _PricingScreenState extends State<PricingScreen> {
     }
   }
   
-  SubscriptionTier _convertToSubscriptionTier(_PlanTier tier) {
-    switch (tier) {
-      case _PlanTier.basicProject:
-        return SubscriptionTier.project;
-      case _PlanTier.project:
-        return SubscriptionTier.project;
-      case _PlanTier.program:
-        return SubscriptionTier.program;
-      case _PlanTier.portfolio:
-        return SubscriptionTier.portfolio;
-    }
-  }
-  
   void _navigateToManagementLevel(NavigatorState navigator, {bool isBasicPlan = false}) {
     final screen = isBasicPlan
         ? const BasicPlanDashboardScreen()
@@ -94,90 +101,24 @@ class _PricingScreenState extends State<PricingScreen> {
     navigator.push(MaterialPageRoute(builder: (_) => screen));
   }
 
-  _PlanPrice _priceForPlan(_PricingPlan plan) {
-    final String? note = plan.tier == _PlanTier.basicProject ? 'First month free' : null;
+  _PlanPrice _priceForTier(TierConfig tier) {
+    final String? note = tier.key == 'basic_project' ? 'First month free' : null;
     if (_isAnnual) {
-      final double annualPrice = plan.monthlyPrice * 11;
-      final double annualOriginal = plan.monthlyPrice * 12;
+      final double annualPrice = tier.annualPriceDollars;
+      final double annualOriginal = tier.monthlyPriceDollars * 12;
       return _PlanPrice(
         price: _currencyFormatter.format(annualPrice),
-        originalPrice: _currencyFormatter.format(annualOriginal),
+        originalPrice: annualOriginal != annualPrice ? _currencyFormatter.format(annualOriginal) : null,
         period: 'per year',
         note: note,
       );
     }
     return _PlanPrice(
-      price: _currencyFormatter.format(plan.monthlyPrice),
-      originalPrice: _currencyFormatter.format(plan.monthlyOriginalPrice),
+      price: _currencyFormatter.format(tier.monthlyPriceDollars),
       period: 'per month',
       note: note,
     );
   }
-
-  static const List<_PricingPlan> _plans = [
-    _PricingPlan(
-      tier: _PlanTier.basicProject,
-      label: 'Basic Project',
-      badgeColor: _themeColor,
-      subtitle: 'No Fuss routine project delivered at a fraction of the cost',
-      monthlyPrice: 39,
-      monthlyOriginalPrice: 79,
-      features: [
-        'Free for the first month',
-        '1 user',
-        'Full project delivery from initiation to Launch',
-        'Auto AI assist',
-        'One-time incremental AI assist per section',
-        'Limited Documentation features',
-        'Upgrade tier any time',
-      ],
-    ),
-    _PricingPlan(
-      tier: _PlanTier.project,
-      label: 'Project',
-      badgeColor: _themeColor,
-      subtitle: 'Robust project delivered at an affordable rate',
-      monthlyPrice: 129,
-      monthlyOriginalPrice: 179,
-      features: [
-        'Maximum 7 users',
-        'Robust project delivery with full features including organization planning, design, change management, work breakdown structure, and more',
-        'Auto AI assist',
-        'One-time incremental AI assist per section',
-        'Document print out feature',
-        'Upgrade tier anytime',
-      ],
-    ),
-    _PricingPlan(
-      tier: _PlanTier.program,
-      label: 'Program',
-      badgeColor: _themeColor,
-      subtitle: 'Up to 3 projects at a discounted rate with interface management',
-      monthlyPrice: 319,
-      monthlyOriginalPrice: 1000,
-      features: [
-        'Everything in Project',
-        'Maximum 12 users',
-        'Monthly. Annual at a discount.',
-        'Interface management',
-        'Project dependency tracking',
-        'Program level reports for cost, schedule, scope tracking',
-      ],
-    ),
-    _PricingPlan(
-      tier: _PlanTier.portfolio,
-      label: 'Portfolio',
-      badgeColor: _themeColor,
-      subtitle: 'Up to 9 projects at a bulk rate with integrated stewarding',
-      monthlyPrice: 750,
-      monthlyOriginalPrice: 1400,
-      features: [
-        'Everything in Program',
-        'Maximum 24 users',
-        'Portfolio level reports for cost, schedule, scope tracking',
-      ],
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -200,13 +141,113 @@ class _PricingScreenState extends State<PricingScreen> {
               const SizedBox(height: 32),
               _buildSectionHeader(isDesktop || isTablet),
               const SizedBox(height: 24),
-              // Plans grid
-              _buildPlansGrid(isDesktop, isTablet),
+              // Plans grid — loaded dynamically from PricingConfigService
+              _buildDynamicPlansGrid(isDesktop, isTablet),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Build the plans grid using dynamic pricing from PricingConfigService
+  Widget _buildDynamicPlansGrid(bool isDesktop, bool isTablet) {
+    return StreamBuilder<PricingConfig>(
+      stream: PricingConfigService.watchConfig(),
+      initialData: PricingConfigService.current,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(48),
+              child: CircularProgressIndicator(color: _themeColor),
+            ),
+          );
+        }
+
+        final config = snapshot.data ?? PricingConfig.defaults;
+        final tiers = config.sortedTiers;
+
+        if (tiers.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(48),
+              child: Column(
+                children: [
+                  Icon(Icons.price_check_outlined, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text('No plans available yet',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600])),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final plans = tiers.map((tier) => _DynamicPricingPlan(
+          tier: tier,
+          price: _priceForTier(tier),
+          isSelected: _selectedTierKey == tier.key,
+          onSelect: () {
+            setState(() => _selectedTierKey = tier.key);
+            _handlePlanSelection(context, tier);
+          },
+        )).toList();
+
+        if (isDesktop) {
+          return IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: plans.map((plan) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: _DynamicPlanColumn(plan: plan),
+                ),
+              )).toList(),
+            ),
+          );
+        } else if (isTablet) {
+          return Column(
+            children: _buildTabletGrid(plans),
+          );
+        } else {
+          return Column(
+            children: plans.map((plan) => Padding(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: _DynamicPlanColumn(plan: plan),
+            )).toList(),
+          );
+        }
+      },
+    );
+  }
+
+  /// Build a 2x2 tablet grid from the list of plans
+  List<Widget> _buildTabletGrid(List<_DynamicPricingPlan> plans) {
+    final rows = <Widget>[];
+    for (var i = 0; i < plans.length; i += 2) {
+      final rowChildren = <Widget>[];
+      for (var j = i; j < i + 2 && j < plans.length; j++) {
+        rowChildren.add(Expanded(child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: _DynamicPlanColumn(plan: plans[j]),
+        )));
+      }
+      // If odd number and last row, add spacer
+      if (rowChildren.length == 1) {
+        rowChildren.add(const Expanded(child: SizedBox()));
+      }
+      rows.add(IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: rowChildren,
+        ),
+      ));
+      if (i + 2 < plans.length) {
+        rows.add(const SizedBox(height: 16));
+      }
+    }
+    return rows;
   }
 
   Widget _buildSectionHeader(bool showInlineToggle) {
@@ -307,116 +348,6 @@ class _PricingScreenState extends State<PricingScreen> {
         ),
       ],
     );
-  }
-
-  Widget _buildPlansGrid(bool isDesktop, bool isTablet) {
-    if (isDesktop) {
-      // 4 columns on desktop
-      return IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: _plans.map((plan) => Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _PlanColumn(
-                plan: plan,
-                isSelected: _selectedTier == plan.tier,
-                price: _priceForPlan(plan),
-                onSelect: () {
-                  setState(() => _selectedTier = plan.tier);
-                  _handlePlanSelection(context, plan);
-                },
-              ),
-            ),
-          )).toList(),
-        ),
-      );
-    } else if (isTablet) {
-      // 2x2 grid on tablet
-      return Column(
-        children: [
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _plans[0],
-                    isSelected: _selectedTier == _plans[0].tier,
-                    price: _priceForPlan(_plans[0]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _plans[0].tier);
-                      _handlePlanSelection(context, _plans[0]);
-                    },
-                  ),
-                )),
-                Expanded(child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _plans[1],
-                    isSelected: _selectedTier == _plans[1].tier,
-                    price: _priceForPlan(_plans[1]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _plans[1].tier);
-                      _handlePlanSelection(context, _plans[1]);
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _plans[2],
-                    isSelected: _selectedTier == _plans[2].tier,
-                    price: _priceForPlan(_plans[2]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _plans[2].tier);
-                      _handlePlanSelection(context, _plans[2]);
-                    },
-                  ),
-                )),
-                Expanded(child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _plans[3],
-                    isSelected: _selectedTier == _plans[3].tier,
-                    price: _priceForPlan(_plans[3]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _plans[3].tier);
-                      _handlePlanSelection(context, _plans[3]);
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-        ],
-      );
-    } else {
-      // Single column on mobile
-      return Column(
-        children: _plans.map((plan) => Padding(
-          padding: const EdgeInsets.only(bottom: 24),
-          child: _PlanColumn(
-            plan: plan,
-            isSelected: _selectedTier == plan.tier,
-            price: _priceForPlan(plan),
-            onSelect: () {
-              setState(() => _selectedTier = plan.tier);
-              _handlePlanSelection(context, plan);
-            },
-          ),
-        )).toList(),
-      );
-    }
   }
 }
 
@@ -523,22 +454,30 @@ class _BillingToggleButton extends StatelessWidget {
   }
 }
 
-class _PlanColumn extends StatelessWidget {
-  const _PlanColumn({
-    required this.plan,
-    required this.isSelected,
+/// Dynamic plan data — built from TierConfig + computed price
+class _DynamicPricingPlan {
+  final TierConfig tier;
+  final _PlanPrice price;
+  final bool isSelected;
+  final VoidCallback onSelect;
+
+  const _DynamicPricingPlan({
+    required this.tier,
     required this.price,
+    required this.isSelected,
     required this.onSelect,
   });
+}
 
-  final _PricingPlan plan;
-  final bool isSelected;
-  final _PlanPrice price;
-  final VoidCallback onSelect;
+class _DynamicPlanColumn extends StatelessWidget {
+  const _DynamicPlanColumn({required this.plan});
+
+  final _DynamicPricingPlan plan;
 
   @override
   Widget build(BuildContext context) {
     final Color accent = _themeColor;
+    final tier = plan.tier;
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
@@ -552,8 +491,8 @@ class _PlanColumn extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         border: Border.all(
-          color: isSelected ? accent : Colors.black12,
-          width: isSelected ? 1.4 : 1,
+          color: plan.isSelected ? accent : Colors.black12,
+          width: plan.isSelected ? 1.4 : 1,
         ),
         boxShadow: [
           BoxShadow(
@@ -562,7 +501,7 @@ class _PlanColumn extends StatelessWidget {
             offset: const Offset(0, 12),
             spreadRadius: -6,
           ),
-          if (isSelected)
+          if (plan.isSelected)
             BoxShadow(
               color: accent.withOpacity(0.14),
               blurRadius: 26,
@@ -597,7 +536,7 @@ class _PlanColumn extends StatelessWidget {
                   ],
                 ),
                 child: Text(
-                  plan.label,
+                  tier.label,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -607,7 +546,7 @@ class _PlanColumn extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              if (isSelected)
+              if (plan.isSelected)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
@@ -633,8 +572,11 @@ class _PlanColumn extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
+          // Subtitle: from config, with fallback
           Text(
-            plan.subtitle,
+            tier.subtitle.isNotEmpty
+                ? tier.subtitle
+                : 'Includes ${tier.includedSeats} seat${tier.includedSeats > 1 ? 's' : ''}${tier.maxSeats > tier.includedSeats ? ', up to ${tier.maxSeats} total' : ''}',
             style: const TextStyle(
               color: _primaryText,
               fontSize: 15,
@@ -647,20 +589,20 @@ class _PlanColumn extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              if (price.originalPrice != null) ...[
+              if (plan.price.originalPrice != null) ...[
                 Text(
-                  price.originalPrice!,
+                  plan.price.originalPrice!,
                   style: const TextStyle(
                     color: _secondaryText,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.lineThrough,
+                    decoration: TextDecoration.line_through,
                   ),
                 ),
                 const SizedBox(width: 6),
               ],
               Text(
-                price.price,
+                plan.price.price,
                 style: const TextStyle(
                   color: _primaryText,
                   fontSize: 28,
@@ -672,7 +614,7 @@ class _PlanColumn extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  price.period,
+                  plan.price.period,
                   style: const TextStyle(
                     color: _secondaryText,
                     fontSize: 12,
@@ -682,10 +624,22 @@ class _PlanColumn extends StatelessWidget {
               ),
             ],
           ),
-          if (price.note != null) ...[
+          // Show per-seat pricing if tier supports additional seats
+          if (tier.maxSeats > tier.includedSeats) ...[
+            const SizedBox(height: 4),
+            Text(
+              '+ \$${tier.perSeatMonthlyDollars.toStringAsFixed(0)}/mo per extra seat',
+              style: const TextStyle(
+                color: _secondaryText,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          if (plan.price.note != null) ...[
             const SizedBox(height: 6),
             Text(
-              price.note!,
+              plan.price.note!,
               style: const TextStyle(
                 color: _secondaryText,
                 fontSize: 12,
@@ -698,7 +652,7 @@ class _PlanColumn extends StatelessWidget {
             child: SingleChildScrollView(
               padding: EdgeInsets.zero,
               child: Column(
-                children: plan.features.map((feature) => Padding(
+                children: tier.features.map((feature) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -737,46 +691,27 @@ class _PlanColumn extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: onSelect,
+              onPressed: plan.onSelect,
               style: ElevatedButton.styleFrom(
-                backgroundColor: isSelected ? accent : Colors.white,
-                foregroundColor: isSelected ? Colors.white : accent,
-                elevation: isSelected ? 8 : 2,
+                backgroundColor: plan.isSelected ? accent : Colors.white,
+                foregroundColor: plan.isSelected ? Colors.white : accent,
+                elevation: plan.isSelected ? 8 : 2,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(color: accent, width: 1.4),
                 ),
                 textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                shadowColor: accent.withOpacity(isSelected ? 0.3 : 0.15),
+                shadowColor: accent.withOpacity(plan.isSelected ? 0.3 : 0.15),
               ),
-              child: Text(isSelected ? 'Selected' : 'Select Plan'),
+              child: Text(plan.isSelected ? 'Selected' : 'Select Plan'),
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _PricingPlan {
-  const _PricingPlan({
-    required this.tier,
-    required this.label,
-    required this.badgeColor,
-    required this.subtitle,
-    required this.features,
-    required this.monthlyPrice,
-    required this.monthlyOriginalPrice,
-  });
-
-  final _PlanTier tier;
-  final String label;
-  final Color badgeColor;
-  final String subtitle;
-  final List<String> features;
-  final double monthlyPrice;
-  final double monthlyOriginalPrice;
 }
 
 class _PlanPrice {
@@ -787,5 +722,3 @@ class _PlanPrice {
   final String? note;
   final String? originalPrice;
 }
-
-enum _PlanTier { basicProject, project, program, portfolio }

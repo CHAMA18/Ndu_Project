@@ -295,9 +295,10 @@ async function getUsdToNgnRate() {
 
 /** Hardcoded fallback — matches SubscriptionService.defaults */
 const FALLBACK_PRICING = {
-  project:   { monthlyPriceCents: 7900,  annualPriceCents: 79000,  includedSeats: 3,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 10  },
-  program:   { monthlyPriceCents: 18900, annualPriceCents: 189000, includedSeats: 8,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 25  },
-  portfolio: { monthlyPriceCents: 44900, annualPriceCents: 449000, includedSeats: 15, perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 50  },
+  basic_project: { monthlyPriceCents: 3900,  annualPriceCents: 39000,  includedSeats: 1,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 1   },
+  project:      { monthlyPriceCents: 7900,  annualPriceCents: 79000,  includedSeats: 3,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 10  },
+  program:      { monthlyPriceCents: 18900, annualPriceCents: 189000, includedSeats: 8,  perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 25  },
+  portfolio:    { monthlyPriceCents: 44900, annualPriceCents: 449000, includedSeats: 15, perSeatMonthlyCents: 1500,  perSeatAnnualCents: 16500,  maxSeats: 50  },
 };
 
 /** In-memory cache for pricing config (refreshed on each read) */
@@ -348,7 +349,7 @@ async function getTierConfig(tier) {
  */
 async function getSubscriptionPrice(tier, isAnnual) {
   const tierConfig = await getTierConfig(tier);
-  return isAnnual ? tierConfig.annualPriceCents : tierConfig.monthlyCents;
+  return isAnnual ? tierConfig.annualPriceCents : tierConfig.monthlyPriceCents;
 }
 
 /**
@@ -361,7 +362,7 @@ async function getSubscriptionPrice(tier, isAnnual) {
 async function getSubscriptionPriceWithSeats(tier, isAnnual, seats) {
   const tierConfig = await getTierConfig(tier);
   const includedSeats = tierConfig.includedSeats || 1;
-  const basePrice = isAnnual ? tierConfig.annualPriceCents : tierConfig.monthlyCents;
+  const basePrice = isAnnual ? tierConfig.annualPriceCents : tierConfig.monthlyPriceCents;
   const additionalSeats = Math.max(0, (seats || includedSeats) - includedSeats);
   const perSeatPrice = isAnnual ? tierConfig.perSeatAnnualCents : tierConfig.perSeatMonthlyCents;
   return basePrice + (additionalSeats * perSeatPrice);
@@ -691,15 +692,16 @@ exports.createStripeCheckout = functions
         return;
       }
       
-      const { tier, isAnnual, email, couponCode, seats } = req.body;
+      const { tier, isAnnual, email, couponCode, seats, pricingTierKey } = req.body;
       const userId = decodedToken.uid;
-      const seatCount = parseInt(seats, 10) || (await getTierConfig(tier)).includedSeats || 1;
-      let priceInCents = await getSubscriptionPriceWithSeats(tier, isAnnual, seatCount);
+      const effectiveTierKey = pricingTierKey || tier;
+      const seatCount = parseInt(seats, 10) || (await getTierConfig(effectiveTierKey)).includedSeats || 1;
+      let priceInCents = await getSubscriptionPriceWithSeats(effectiveTierKey, isAnnual, seatCount);
       let couponId = null;
 
       if (couponCode) {
         try {
-          const couponResult = await validateCouponForTier(couponCode, tier, priceInCents);
+          const couponResult = await validateCouponForTier(couponCode, effectiveTierKey, priceInCents);
           priceInCents = couponResult.discountedPriceCents;
           couponId = couponResult.couponId;
         } catch (err) {
@@ -925,15 +927,16 @@ exports.createPayPalOrder = functions
         return;
       }
       
-      const { tier, isAnnual, couponCode, seats } = req.body;
+      const { tier, isAnnual, couponCode, seats, pricingTierKey } = req.body;
       const userId = decodedToken.uid;
-      const seatCount = parseInt(seats, 10) || (await getTierConfig(tier)).includedSeats || 1;
-      let priceInCents = await getSubscriptionPriceWithSeats(tier, isAnnual, seatCount);
+      const effectiveTierKey = pricingTierKey || tier;
+      const seatCount = parseInt(seats, 10) || (await getTierConfig(effectiveTierKey)).includedSeats || 1;
+      let priceInCents = await getSubscriptionPriceWithSeats(effectiveTierKey, isAnnual, seatCount);
       let couponId = null;
 
       if (couponCode) {
         try {
-          const couponResult = await validateCouponForTier(couponCode, tier, priceInCents);
+          const couponResult = await validateCouponForTier(couponCode, effectiveTierKey, priceInCents);
           priceInCents = couponResult.discountedPriceCents;
           couponId = couponResult.couponId;
         } catch (err) {
@@ -1190,15 +1193,16 @@ exports.createPaystackTransaction = functions
         return;
       }
       
-      const { tier, isAnnual, email, couponCode, seats } = req.body;
+      const { tier, isAnnual, email, couponCode, seats, pricingTierKey } = req.body;
       const userId = decodedToken.uid;
-      const seatCount = parseInt(seats, 10) || (await getTierConfig(tier)).includedSeats || 1;
-      let priceInCents = await getSubscriptionPriceWithSeats(tier, isAnnual, seatCount);
+      const effectiveTierKey = pricingTierKey || tier;
+      const seatCount = parseInt(seats, 10) || (await getTierConfig(effectiveTierKey)).includedSeats || 1;
+      let priceInCents = await getSubscriptionPriceWithSeats(effectiveTierKey, isAnnual, seatCount);
       let couponId = null;
 
       if (couponCode) {
         try {
-          const couponResult = await validateCouponForTier(couponCode, tier, priceInCents);
+          const couponResult = await validateCouponForTier(couponCode, effectiveTierKey, priceInCents);
           priceInCents = couponResult.discountedPriceCents;
           couponId = couponResult.couponId;
         } catch (err) {

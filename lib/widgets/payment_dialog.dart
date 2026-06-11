@@ -18,6 +18,7 @@ class PaymentDialog extends StatefulWidget {
     this.displayTierName,
     this.displayPrice,
     this.displayPeriod,
+    this.pricingTierKey,
   });
 
   final SubscriptionTier tier;
@@ -26,6 +27,7 @@ class PaymentDialog extends StatefulWidget {
   final String? displayTierName;
   final String? displayPrice;
   final String? displayPeriod;
+  final String? pricingTierKey;
 
   /// Show the payment dialog
   static Future<bool> show({
@@ -36,6 +38,7 @@ class PaymentDialog extends StatefulWidget {
     String? displayTierName,
     String? displayPrice,
     String? displayPeriod,
+    String? pricingTierKey,
   }) async {
     final result = await showDialog<bool>(
       context: context,
@@ -47,6 +50,7 @@ class PaymentDialog extends StatefulWidget {
         displayTierName: displayTierName,
         displayPrice: displayPrice,
         displayPeriod: displayPeriod,
+        pricingTierKey: pricingTierKey,
       ),
     );
     return result ?? false;
@@ -200,6 +204,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             tier: widget.tier,
             isAnnual: widget.isAnnual,
             couponCode: _appliedCoupon?.code,
+            pricingTierKey: widget.pricingTierKey,
           );
           break;
         case PaymentProvider.paypal:
@@ -207,6 +212,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             tier: widget.tier,
             isAnnual: widget.isAnnual,
             couponCode: _appliedCoupon?.code,
+            pricingTierKey: widget.pricingTierKey,
           );
           break;
         case PaymentProvider.paystack:
@@ -214,6 +220,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
             tier: widget.tier,
             isAnnual: widget.isAnnual,
             couponCode: _appliedCoupon?.code,
+            pricingTierKey: widget.pricingTierKey,
           );
           break;
       }

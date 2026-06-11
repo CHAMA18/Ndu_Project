@@ -456,9 +456,22 @@ class _TierCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Text(tier.label,
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(tier.label,
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.w700)),
+                            if (tier.subtitle.isNotEmpty)
+                              Text(tier.subtitle,
+                                  style: TextStyle(
+                                      fontSize: 12, color: Colors.grey[600]),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -827,6 +840,7 @@ class _TierFormDialogState extends State<_TierFormDialog> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _keyController;
   late TextEditingController _labelController;
+  late TextEditingController _subtitleController;
   late TextEditingController _monthlyPriceController;
   late TextEditingController _annualPriceController;
   late TextEditingController _includedSeatsController;
@@ -846,6 +860,7 @@ class _TierFormDialogState extends State<_TierFormDialog> {
     final t = widget.existingTier;
     _keyController = TextEditingController(text: t?.key ?? '');
     _labelController = TextEditingController(text: t?.label ?? '');
+    _subtitleController = TextEditingController(text: t?.subtitle ?? '');
     _monthlyPriceController = TextEditingController(
         text: t != null ? (t.monthlyPriceDollars).toStringAsFixed(0) : '');
     _annualPriceController = TextEditingController(
@@ -869,6 +884,7 @@ class _TierFormDialogState extends State<_TierFormDialog> {
   void dispose() {
     _keyController.dispose();
     _labelController.dispose();
+    _subtitleController.dispose();
     _monthlyPriceController.dispose();
     _annualPriceController.dispose();
     _includedSeatsController.dispose();
@@ -895,6 +911,7 @@ class _TierFormDialogState extends State<_TierFormDialog> {
       final tier = TierConfig(
         key: _keyController.text.trim().toLowerCase(),
         label: _labelController.text.trim(),
+        subtitle: _subtitleController.text.trim(),
         monthlyPriceCents: (int.parse(_monthlyPriceController.text) * 100),
         annualPriceCents: (int.parse(_annualPriceController.text) * 100),
         includedSeats: int.parse(_includedSeatsController.text),
@@ -985,6 +1002,19 @@ class _TierFormDialogState extends State<_TierFormDialog> {
                   ),
                   validator: (v) =>
                       v == null || v.trim().isEmpty ? 'Required' : null,
+                ),
+                const SizedBox(height: 16),
+
+                // Subtitle
+                TextFormField(
+                  controller: _subtitleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Subtitle',
+                    hintText: 'e.g. Robust project delivered at an affordable rate',
+                    border: OutlineInputBorder(),
+                    helperText: 'Short description shown below the plan name on the pricing page',
+                  ),
+                  maxLines: 2,
                 ),
                 const SizedBox(height: 16),
 
