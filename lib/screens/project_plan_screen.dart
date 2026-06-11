@@ -3337,7 +3337,7 @@ class _LabeledDropdown extends StatelessWidget {
                 color: Color(0xFF374151))),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          initialValue: value,
+          value: value,
           items: options
               .map((option) =>
                   DropdownMenuItem(value: option, child: Text(option)))
@@ -3503,7 +3503,7 @@ class _DropdownCell extends StatelessWidget {
     final resolvedValue = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      initialValue: resolvedValue,
+      value: resolvedValue,
       items: options
           .map((option) => DropdownMenuItem(value: option, child: Text(option)))
           .toList(),

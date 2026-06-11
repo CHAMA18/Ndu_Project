@@ -215,7 +215,7 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
 
   void _zoom(double factor) {
     final next = Matrix4.copy(_transform.value)
-      ..scaleByDouble(factor, factor, 1.0, 1.0);
+      ..multiply(Matrix4.diagonal3Values(factor, factor, 1.0));
     setState(() => _transform.value = next);
   }
 

@@ -1609,7 +1609,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         ? options
         : [normalized, ...options];
     return DropdownButtonFormField<String>(
-      initialValue: normalized.isEmpty ? items.first : normalized,
+      value: normalized.isEmpty ? items.first : normalized,
       alignment: Alignment.center,
       isExpanded: true,
       style: TextStyle(
@@ -4458,7 +4458,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         ? _statusOptions
         : [normalized, ..._statusOptions];
     return DropdownButtonFormField<String>(
-      initialValue: normalized.isEmpty ? items.first : normalized,
+      value: normalized.isEmpty ? items.first : normalized,
       alignment: Alignment.center,
       isExpanded: true,
       style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
@@ -4513,7 +4513,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
         ? options
         : [normalized, ...options];
     return DropdownButtonFormField<String>(
-      initialValue: normalized.isEmpty ? items.first : normalized,
+      value: normalized.isEmpty ? items.first : normalized,
       alignment: Alignment.center,
       isExpanded: true,
       style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),

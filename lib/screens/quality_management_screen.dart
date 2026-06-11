@@ -3523,7 +3523,7 @@ class _QualityObjectiveDialogState extends State<_QualityObjectiveDialog> {
                     children: [
                       _FieldLabel('Owner'),
                       DropdownButtonFormField<String>(
-                        initialValue: _owner,
+                        value: _owner,
                         decoration: _inputDecoration(context, ''),
                         items: widget.ownerOptions
                             .map((e) =>
@@ -3695,7 +3695,7 @@ class _WorkflowControlDialogState extends State<_WorkflowControlDialog> {
                     children: [
                       _FieldLabel('Owner'),
                       DropdownButtonFormField<String>(
-                        initialValue: _owner,
+                        value: _owner,
                         decoration: _inputDecoration(context, ''),
                         items: widget.ownerOptions
                             .map((e) =>
@@ -3884,7 +3884,7 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
                     children: [
                       _FieldLabel('Responsible'),
                       DropdownButtonFormField<String>(
-                        initialValue: _responsible,
+                        value: _responsible,
                         decoration: _inputDecoration(context, ''),
                         items: widget.ownerOptions
                             .map((e) =>
@@ -3942,7 +3942,7 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
                     children: [
                       _FieldLabel('Status'),
                       DropdownButtonFormField<QualityTaskStatus>(
-                        initialValue: _status,
+                        value: _status,
                         decoration: _inputDecoration(context, ''),
                         items: const [
                           DropdownMenuItem(
@@ -3972,7 +3972,7 @@ class _QualityTaskDialogState extends State<_QualityTaskDialog> {
                     children: [
                       _FieldLabel('Priority'),
                       DropdownButtonFormField<QualityTaskPriority>(
-                        initialValue: _priority,
+                        value: _priority,
                         decoration: _inputDecoration(context, ''),
                         items: const [
                           DropdownMenuItem(
@@ -4192,7 +4192,7 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
                     children: [
                       _FieldLabel('Owner'),
                       DropdownButtonFormField<String>(
-                        initialValue: _owner,
+                        value: _owner,
                         decoration: _inputDecoration(context, ''),
                         items: widget.ownerOptions
                             .map((e) =>
@@ -4212,7 +4212,7 @@ class _QualityAuditDialogState extends State<_QualityAuditDialog> {
                     children: [
                       _FieldLabel('Result'),
                       DropdownButtonFormField<AuditResultStatus>(
-                        initialValue: _result,
+                        value: _result,
                         decoration: _inputDecoration(context, ''),
                         items: const [
                           DropdownMenuItem(
@@ -4418,7 +4418,7 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
                     children: [
                       _FieldLabel('Owner'),
                       DropdownButtonFormField<String>(
-                        initialValue: _owner,
+                        value: _owner,
                         decoration: _inputDecoration(context, ''),
                         items: widget.ownerOptions
                             .map((e) =>
@@ -4450,7 +4450,7 @@ class _CorrectiveActionDialogState extends State<_CorrectiveActionDialog> {
             const SizedBox(height: 10),
             _FieldLabel('Status'),
             DropdownButtonFormField<CorrectiveActionStatus>(
-              initialValue: _status,
+              value: _status,
               decoration: _inputDecoration(context, ''),
               items: const [
                 DropdownMenuItem(
@@ -5036,7 +5036,7 @@ class _MetricsEditDialogState extends State<_MetricsEditDialog> {
             const SizedBox(width: 8),
             Expanded(
               child: DropdownButtonFormField<String>(
-                initialValue: trend,
+                value: trend,
                 decoration: _inputDecoration(context, ''),
                 items: const [
                   DropdownMenuItem(value: 'neutral', child: Text('Neutral')),

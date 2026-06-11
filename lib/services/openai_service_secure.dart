@@ -11,6 +11,19 @@ import 'package:ndu_project/models/meeting_row.dart';
 // Remove markdown bold markers commonly produced by the model (e.g. *text* or **text**)
 String _stripAsterisks(String s) => s.replaceAll('*', '');
 
+/// Strips markdown code fences (```json ... ```) and extracts raw JSON text.
+/// Claude may wrap JSON responses in markdown code blocks, so this ensures
+/// jsonDecode receives clean JSON.
+String _extractJson(String text) {
+  final codeBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
+  final match = codeBlockRegex.firstMatch(text);
+  if (match != null) return match.group(1)?.trim() ?? text.trim();
+  final jsonStart = text.indexOf('{');
+  final jsonEnd = text.lastIndexOf('}');
+  if (jsonStart >= 0 && jsonEnd > jsonStart) return text.substring(jsonStart, jsonEnd + 1);
+  return text.trim();
+}
+
 /// Approximate USD-to-target exchange rates for AI prompt hints.
 /// These are rough mid-2025 rates used ONLY to instruct the AI model to
 /// convert values — they are NOT used for client-side conversion.
@@ -481,10 +494,7 @@ class OpenAiServiceSecure {
 
     return _runSerialized(() async {
       final uri = OpenAiConfig.chatUri();
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-      };
+      final headers = OpenAiConfig.headers();
 
       final body = jsonEncode(OpenAiConfig.wrapBody({
         'model': OpenAiConfig.model,
@@ -509,12 +519,12 @@ class OpenAiServiceSecure {
           .timeout(const Duration(seconds: 16));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
+          OpenAiConfig.extractContent(data);
       return content.trim();
     });
   }
@@ -535,10 +545,7 @@ class OpenAiServiceSecure {
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = _fepSectionPrompt(section: section, context: trimmedContext);
     final body = jsonEncode(OpenAiConfig.wrapBody({
@@ -570,13 +577,13 @@ class OpenAiServiceSecure {
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final text =
           (parsed['text'] ?? parsed['section'] ?? parsed['content'] ?? '')
               .toString()
@@ -612,10 +619,7 @@ class OpenAiServiceSecure {
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -644,13 +648,13 @@ class OpenAiServiceSecure {
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
+          OpenAiConfig.extractContent(data);
       final parsed = _decodeJsonSafely(content);
       if (parsed == null) {
         return _fallbackQualitySeedBundle(trimmedContext, section);
@@ -957,10 +961,7 @@ class OpenAiServiceSecure {
     if (!OpenAiConfig.isConfigured) return {'in': [], 'out': []};
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -989,8 +990,8 @@ class OpenAiServiceSecure {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       List<String> toList(dynamic val) {
         if (val is List) {
@@ -1020,10 +1021,7 @@ class OpenAiServiceSecure {
     if (!OpenAiConfig.isConfigured) return {'risks': [], 'constraints': []};
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -1052,8 +1050,8 @@ class OpenAiServiceSecure {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       List<RiskRegisterItem> risks = [];
       if (parsed['risks'] is List) {
@@ -1103,10 +1101,7 @@ class OpenAiServiceSecure {
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = _buildMitigationPrompt(trimmedRisks, context);
 
@@ -1139,8 +1134,8 @@ class OpenAiServiceSecure {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final mitigations = <String, String>{};
       if (parsed['mitigations'] is List) {
@@ -1209,10 +1204,7 @@ class OpenAiServiceSecure {
     if (!OpenAiConfig.isConfigured) return {};
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -1241,8 +1233,8 @@ class OpenAiServiceSecure {
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final itMap = parsed['it'] as Map<String, dynamic>? ?? {};
       final infraMap = parsed['infra'] as Map<String, dynamic>? ?? {};
@@ -1287,10 +1279,7 @@ class OpenAiServiceSecure {
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = '''
 You are a senior project manager. Based on the project context below, generate a list of specific, actionable items for the "$section" section.
@@ -1337,14 +1326,14 @@ Rules:
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final rawItems = parsed['items'] as List?;
       if (rawItems == null) return [];
@@ -1379,10 +1368,7 @@ Rules:
     if (!OpenAiConfig.isConfigured) return '';
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = '''
 You are a senior project planning assistant. Using the project context below, write a concise project objective summary.
@@ -1421,14 +1407,14 @@ Return ONLY valid JSON: {"objective": "..." }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final objective = _stripAsterisks(
         (parsed['objective'] ?? '').toString().trim(),
       );
@@ -1452,10 +1438,7 @@ Return ONLY valid JSON: {"objective": "..." }
     if (!OpenAiConfig.isConfigured) return {};
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final fieldLines = fields.entries
         .map((entry) => '- ${entry.key}: ${entry.value}'.trim())
@@ -1512,14 +1495,14 @@ $trimmedContext
           .timeout(const Duration(seconds: 16));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final rawFields = parsed['fields'] is Map
           ? (parsed['fields'] as Map).cast<String, dynamic>()
@@ -1874,10 +1857,7 @@ $trimmedContext
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -1913,8 +1893,8 @@ Use concise professional language. Status should use In progress, Pending, In re
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final pipeline = (parsed['pipeline'] as List?)
               ?.map((e) => DesignDeliverablePipelineItem.fromJson(
@@ -1963,10 +1943,7 @@ Use concise professional language. Status should use In progress, Pending, In re
     if (!OpenAiConfig.isConfigured) return {};
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -2001,8 +1978,8 @@ Use concise professional language. Status must be one of: Approved, Aligned, Rea
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       return parsed;
     } catch (e) {
@@ -2022,10 +1999,7 @@ Use concise professional language. Status must be one of: Approved, Aligned, Rea
     if (!OpenAiConfig.isConfigured) return SpecializedDesignData();
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -2058,8 +2032,8 @@ Return JSON with:
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final security = (parsed['security'] as List?)
               ?.map((e) => SecurityPatternRow.fromMap(e))
@@ -2226,10 +2200,7 @@ Return JSON with:
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': temperature,
@@ -2254,15 +2225,12 @@ Return JSON with:
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final result = AiProjectFrameworkAndGoals.fromMap(parsed);
@@ -2278,7 +2246,7 @@ Return JSON with:
       // Let callers handle the failure and show an explicit error state
       rethrow;
     }
-    throw Exception('OpenAI did not return framework goals');
+    throw Exception('Claude did not return framework goals');
   }
 
   // OPPORTUNITIES
@@ -2292,10 +2260,7 @@ Return JSON with:
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -2328,13 +2293,13 @@ Return JSON with:
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final list = (parsed['opportunities'] as List? ?? []);
       final result = <OpportunityItem>[];
       for (final item in list) {
@@ -2383,7 +2348,7 @@ Return JSON with:
         ));
       }
       if (result.isNotEmpty) return result.take(12).toList();
-      throw Exception('OpenAI returned no opportunities');
+      throw Exception('Claude returned no opportunities');
     } catch (e) {
       rethrow;
     }
@@ -2540,10 +2505,7 @@ $c
     final scaleConstraints = _scaleFinancialConstraints(projectScale);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = _singleItemEstimatePrompt(
       itemName: trimmed,
@@ -2594,14 +2556,14 @@ $c
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final dynamic value =
           parsed['estimated_cost'] ?? parsed['cost'] ?? parsed['value'];
       final estimated = _toDouble(value);
@@ -2815,10 +2777,7 @@ $scaleConstraints
     final scaleConstraints = _scaleFinancialConstraints(projectScale);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -2858,14 +2817,14 @@ $scaleConstraints
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final list = (parsed['items'] as List?)?.map((e) {
             final map = e as Map<String, dynamic>;
@@ -2904,10 +2863,7 @@ $scaleConstraints
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -2938,13 +2894,13 @@ $scaleConstraints
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final list = (parsed['items'] as List? ?? []);
 
       final result = <AllowanceItem>[];
@@ -2986,7 +2942,7 @@ $scaleConstraints
         ));
       }
       if (result.isNotEmpty) return result;
-      throw Exception('OpenAI returned no allowance items');
+      throw Exception('Claude returned no allowance items');
     } catch (e) {
       rethrow;
     }
@@ -3175,7 +3131,7 @@ $domainHints
         if (attempt == maxRetries - 1) rethrow;
       }
     }
-    throw Exception('OpenAI returned no solutions');
+    throw Exception('Claude returned no solutions');
   }
 
   Future<List<AiSolutionItem>> _attemptSolutionsApiCall(
@@ -3183,10 +3139,7 @@ $domainHints
     String contextNotes = '',
   }) async {
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.7,
@@ -3217,21 +3170,21 @@ $domainHints
         .post(uri, headers: headers, body: body)
         .timeout(const Duration(seconds: 12));
     if (response.statusCode == 429) {
-      throw Exception('API quota exceeded. Please check your OpenAI billing.');
+      throw Exception('API quota exceeded. Please check your Claude billing.');
     }
     if (response.statusCode == 401) {
-      throw Exception('Invalid API key. Please check your OpenAI API key.');
+      throw Exception('Invalid API key. Please check your Claude API key.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-          'OpenAI API error ${response.statusCode}: ${response.body}');
+          'Claude API error ${response.statusCode}: ${response.body}');
     }
 
     final data =
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final content =
-        (data['choices'] as List).first['message']['content'] as String;
-    final parsed = jsonDecode(content) as Map<String, dynamic>;
+        OpenAiConfig.extractContent(data);
+    final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
     final items = (parsed['solutions'] as List? ?? [])
         .map((e) => AiSolutionItem.fromMap(e as Map<String, dynamic>))
         .where((e) => e.title.isNotEmpty && e.description.isNotEmpty)
@@ -3247,10 +3200,7 @@ $domainHints
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
@@ -3277,13 +3227,13 @@ $domainHints
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final List list = (parsed['risks'] as List? ?? []);
       final Map<String, List<String>> result = {};
@@ -3370,7 +3320,7 @@ $domainHints
         if (attempt == maxRetries - 1) rethrow;
       }
     }
-    throw Exception('OpenAI returned no requirements');
+    throw Exception('Claude returned no requirements');
   }
 
   Future<List<Map<String, String>>> _attemptRequirementsApiCall(
@@ -3409,7 +3359,7 @@ $domainHints
     }
 
     if (parsed == null) {
-      throw Exception('OpenAI returned invalid JSON for requirements.');
+      throw Exception('Claude returned invalid JSON for requirements.');
     }
 
     final list = parsed['requirements'] ?? parsed['items'];
@@ -3417,7 +3367,7 @@ $domainHints
       return _normalizeRequirementItems(list).take(20).toList();
     }
 
-    throw Exception('OpenAI returned no requirements.');
+    throw Exception('Claude returned no requirements.');
   }
 
   Future<Map<String, dynamic>> _postRequirementsRequest(
@@ -3425,10 +3375,7 @@ $domainHints
     required bool includeResponseFormat,
   }) async {
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final payload = {
       'model': OpenAiConfig.model,
       'temperature': 0.7,
@@ -3455,10 +3402,10 @@ $domainHints
         .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
         .timeout(const Duration(seconds: 15));
     if (response.statusCode == 429) {
-      throw Exception('API quota exceeded. Please check your OpenAI billing.');
+      throw Exception('API quota exceeded. Please check your Claude billing.');
     }
     if (response.statusCode == 401) {
-      throw Exception('Invalid API key. Please check your OpenAI API key.');
+      throw Exception('Invalid API key. Please check your Claude API key.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final bodyText = utf8.decode(response.bodyBytes).toLowerCase();
@@ -3466,7 +3413,7 @@ $domainHints
         throw const _ResponseFormatUnsupportedException();
       }
       throw Exception(
-          'OpenAI API error ${response.statusCode}: ${response.body}');
+          'Claude API error ${response.statusCode}: ${response.body}');
     }
 
     return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -3539,47 +3486,25 @@ $domainHints
   }
 
   String? _extractTextFromOpenAiPayload(Map<String, dynamic> data) {
-    if (data['choices'] is List) {
-      final choices = data['choices'] as List;
-      if (choices.isNotEmpty) {
-        final message = choices.first['message'];
-        if (message is Map && message['content'] is String) {
-          return message['content'] as String;
-        }
-      }
-    }
-
-    final output = data['output'];
-    if (output is List) {
-      final buffer = StringBuffer();
-      for (final entry in output) {
-        if (entry is Map<String, dynamic>) {
-          final content = entry['content'];
-          if (content is List) {
-            for (final item in content) {
-              if (item is Map<String, dynamic>) {
-                final text = item['text'];
-                if (text is String) {
-                  buffer.write(text);
-                }
-              }
-            }
-          }
-        }
-      }
-      final extracted = buffer.toString().trim();
-      if (extracted.isNotEmpty) return extracted;
-    }
-
-    if (data['content'] is String) return data['content'] as String;
-    return null;
+    // Delegate to OpenAiConfig.extractContent which handles both Claude and legacy formats
+    final result = OpenAiConfig.extractContent(data);
+    return result.isEmpty ? null : result;
   }
 
   List<dynamic>? _decodeJsonListSafely(String content) {
-    final trimmed = content.trim();
-    if (!trimmed.startsWith('[')) return null;
+    // Strip markdown code fences that Claude may wrap around JSON arrays
+    String cleaned = content.trim();
+    final codeBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
+    final match = codeBlockRegex.firstMatch(cleaned);
+    if (match != null) cleaned = match.group(1)?.trim() ?? cleaned;
+    if (!cleaned.startsWith('[')) {
+      // Try to find the first [ character
+      final idx = cleaned.indexOf('[');
+      if (idx >= 0) cleaned = cleaned.substring(idx);
+      else return null;
+    }
     try {
-      final decoded = jsonDecode(trimmed);
+      final decoded = jsonDecode(cleaned);
       if (decoded is List) return decoded;
     } catch (_) {
       return null;
@@ -3587,7 +3512,7 @@ $domainHints
     return null;
   }
 
-  // Fallback requirements removed. OpenAI failures should surface to the UI.
+  // Fallback requirements removed. Claude failures should surface to the UI.
 
   // TECHNOLOGIES
   Future<Map<String, List<String>>> generateTechnologiesForSolutions(
@@ -3597,10 +3522,7 @@ $domainHints
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -3630,13 +3552,13 @@ $domainHints
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final List list = (parsed['technologies'] as List? ?? []);
       final Map<String, List<String>> result = {};
@@ -3690,10 +3612,7 @@ $domainHints
         _financialDomainHints(context: contextNotes, solutions: solutions);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.45,
@@ -3728,13 +3647,13 @@ $domainHints
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final List list = (parsed['cost_breakdown'] as List? ?? []);
       final Map<String, List<AiCostItem>> result = {};
@@ -4980,10 +4899,7 @@ Domain guardrail: $guardrails
 
     final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.4,
@@ -5018,13 +4934,13 @@ Domain guardrail: $guardrails
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final valueMap =
           (parsed['project_value'] ?? parsed) as Map<String, dynamic>;
       final insights = AiProjectValueInsights.fromMap(valueMap);
@@ -5330,10 +5246,7 @@ $domainHints
   }) async {
     if (!OpenAiConfig.isConfigured) throw const OpenAiNotConfiguredException();
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
@@ -5362,12 +5275,12 @@ Return plain text only.'''
         .post(uri, headers: headers, body: body)
         .timeout(const Duration(seconds: 18));
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
+      throw Exception('Claude error ${response.statusCode}: ${response.body}');
     }
     final data =
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
     final content =
-        (data['choices'] as List).first['message']['content'] as String;
+        OpenAiConfig.extractContent(data);
     return _stripAsterisks(content).trim();
   }
 
@@ -5397,10 +5310,7 @@ Return plain text only.'''
 
     final scaleHint = _projectScaleLabel(detectedScale);
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final list = solutions
         .map((s) =>
             '{"title":"${_escape(s.title)}","description":"${_escape(s.description)}"}')
@@ -5452,8 +5362,8 @@ Return plain text only.'''
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final seen = <String>{};
       final items = (parsed['items'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
@@ -5776,10 +5686,7 @@ Return ONLY JSON.
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.4,
@@ -5815,22 +5722,22 @@ Return ONLY JSON.
           .post(uri, headers: headers, body: body)
           .timeout(const Duration(seconds: 14));
       if (response.statusCode == 401) {
-        throw Exception('Invalid API key. Please check your OpenAI API key.');
+        throw Exception('Invalid API key. Please check your Claude API key.');
       }
       if (response.statusCode == 429) {
         throw Exception(
-            'API quota exceeded. Please check your OpenAI billing.');
+            'API quota exceeded. Please check your Claude billing.');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final scenarios = (parsed['savings_scenarios'] as List? ?? [])
           .map((e) {
             final raw = AiBenefitSavingsSuggestion.fromMap(
@@ -5991,10 +5898,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     if (!OpenAiConfig.isConfigured) return _fallbackInfrastructure(solutions);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -6024,13 +5928,13 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final List list = (parsed['infrastructure'] as List? ?? []);
       final Map<String, List<String>> result = {};
@@ -6178,10 +6082,7 @@ Context notes (optional): $notes
     if (!OpenAiConfig.isConfigured) return _fallbackStakeholders(solutions);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -6206,13 +6107,13 @@ Context notes (optional): $notes
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final Map<String, List<String>> internalResult = {};
       final Map<String, List<String>> externalResult = {};
@@ -6553,10 +6454,7 @@ Context notes (optional): $notes
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final existingRisksText = existingRisks.isEmpty
         ? 'None yet'
@@ -6603,14 +6501,14 @@ Make each suggestion:
           .post(uri, headers: headers, body: body)
           .timeout(const Duration(seconds: 10));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('OpenAI error ${response.statusCode}');
+        throw Exception('Claude error ${response.statusCode}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final suggestions = (parsed['suggestions'] as List? ?? [])
           .map((e) => e.toString().trim())
@@ -6686,10 +6584,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -6715,15 +6610,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         final summary = parsed != null
             ? (parsed['summary'] ?? parsed['text'] ?? '').toString().trim()
@@ -6750,10 +6642,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -6779,15 +6668,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final entries = _parseSsherEntries(parsed, itemsPerCategory);
@@ -6815,10 +6701,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -6850,15 +6733,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final entries =
@@ -6889,10 +6769,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -6924,15 +6801,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final roles = _parseStaffingRoleSuggestions(parsed);
@@ -7011,10 +6885,7 @@ $escaped
     final staffingGuidance = _scaleStaffingCostGuidance(projectScale);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -7045,15 +6916,12 @@ $escaped
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final rows = _parseStaffingRows(parsed, maxRows, projectScale);
@@ -7229,10 +7097,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -7264,15 +7129,12 @@ $escaped
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final rows = _parseMeetingRows(parsed, maxRows);
@@ -7415,10 +7277,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -7450,15 +7309,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final results =
@@ -7635,10 +7491,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -7665,15 +7518,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final result = _parseMeetingObjective(parsed);
@@ -8937,21 +8787,11 @@ $escaped
   }
 
   Map<String, dynamic>? _decodeJsonSafely(String content) {
-    final trimmed = content.trim();
-    if (trimmed.isEmpty) return null;
+    final cleaned = _extractJson(content);
+    if (cleaned.isEmpty) return null;
     try {
-      return jsonDecode(trimmed) as Map<String, dynamic>;
+      return jsonDecode(cleaned) as Map<String, dynamic>;
     } catch (_) {
-      final start = trimmed.indexOf('{');
-      final end = trimmed.lastIndexOf('}');
-      if (start >= 0 && end > start) {
-        try {
-          return jsonDecode(trimmed.substring(start, end + 1))
-              as Map<String, dynamic>;
-        } catch (_) {
-          return null;
-        }
-      }
       return null;
     }
   }
@@ -9002,10 +8842,7 @@ Context notes (optional): $notes
     final count = minCount < 3 ? 3 : minCount;
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
@@ -9054,13 +8891,13 @@ Return JSON in this format:
           .timeout(const Duration(seconds: 15));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final risks = (parsed['risks'] as List? ?? [])
           .map((e) {
             final item = e as Map<String, dynamic>;
@@ -9105,10 +8942,7 @@ Return JSON in this format:
     if (!OpenAiConfig.isConfigured) return [];
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -9141,13 +8975,13 @@ Return JSON in this format:
           .timeout(const Duration(seconds: 22));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       final List rawWbs = parsed['wbs'] as List? ?? [];
 
       final items = rawWbs
@@ -9269,10 +9103,7 @@ Additional Context: $contextNotes
     final durationGuidance = _scaleDurationGuidance(projectScale);
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -9298,15 +9129,12 @@ Additional Context: $contextNotes
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final list = parsed['activities'];
@@ -9397,10 +9225,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
@@ -9431,13 +9256,13 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       return {
         'name': _stripAsterisks((parsed['name'] ?? '').toString().trim()),
@@ -9542,10 +9367,7 @@ Return ONLY valid JSON.
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.6,
@@ -9576,13 +9398,13 @@ Return ONLY valid JSON.
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final budget =
           (parsed['budget'] is num) ? (parsed['budget'] as num).toInt() : 50000;
@@ -9724,10 +9546,7 @@ Return ONLY valid JSON.
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.45,
@@ -9899,14 +9718,14 @@ Return ONLY valid JSON.
           .timeout(const Duration(seconds: 16));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
 
       final contracts = normalizeContracts(parsed['contracts']);
       final items = normalizeScopeItems(
@@ -10213,10 +10032,7 @@ Return ONLY valid JSON in this exact structure:
   }) async {
     if (!OpenAiConfig.isConfigured) return [];
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -10252,8 +10068,8 @@ Return ONLY JSON: {"items":[...]}'''
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       return (parsed['items'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -10271,10 +10087,7 @@ Return ONLY JSON: {"items":[...]}'''
   }) async {
     if (!OpenAiConfig.isConfigured) return [];
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -10310,8 +10123,8 @@ Return ONLY JSON: {"items":[...]}'''
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       return (parsed['items'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -10329,10 +10142,7 @@ Return ONLY JSON: {"items":[...]}'''
   }) async {
     if (!OpenAiConfig.isConfigured) return [];
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}'
-    };
+    final headers = OpenAiConfig.headers();
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
@@ -10367,8 +10177,8 @@ Return ONLY JSON: {"items":[...]}'''
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+          OpenAiConfig.extractContent(data);
+      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
       return (parsed['items'] as List? ?? [])
           .map((e) => Map<String, dynamic>.from(e as Map))
           .toList();
@@ -10466,10 +10276,7 @@ Return ONLY JSON: {"items":[...]}'''
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -10643,10 +10450,7 @@ $escaped
         : '0';
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -10769,10 +10573,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final tasksText = completedTasks.join('\n');
 
@@ -10870,10 +10671,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -10975,10 +10773,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -11081,10 +10876,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -11190,10 +10982,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -11297,10 +11086,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -11332,15 +11118,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final result = parsed['verificationSteps']?.toString().trim() ?? '';
@@ -11411,10 +11194,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -11440,15 +11220,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final result = parsed['acceptanceCriteria']?.toString().trim() ?? '';
@@ -11521,10 +11298,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
@@ -11562,15 +11336,12 @@ $escaped
           .timeout(const Duration(seconds: 12));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final choices = data['choices'] as List<dynamic>? ?? [];
-      if (choices.isNotEmpty) {
-        final firstMessage =
-            choices.first['message'] as Map<String, dynamic>? ?? {};
-        final content = (firstMessage['content'] as String?)?.trim() ?? '';
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
         final parsed = _decodeJsonSafely(content);
         if (parsed != null) {
           final result = parsed['engagementStrategy']?.toString().trim() ?? '';
@@ -11661,10 +11432,7 @@ $escaped
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = '''
 Based on this goal description, generate a concise, impactful title in the format "G$goalNumber [ACTION_KEYWORD]".
@@ -11706,13 +11474,13 @@ Return only the title, no additional text.''';
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'OpenAI error ${response.statusCode}: ${response.body}');
+            'Claude error ${response.statusCode}: ${response.body}');
       }
 
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content =
-          (data['choices'] as List).first['message']['content'] as String;
+          OpenAiConfig.extractContent(data);
       final title = content.trim().toUpperCase();
 
       // Ensure it starts with G[goalNumber]
@@ -11772,10 +11540,7 @@ IMPORTANT RULES:
 
     try {
       final uri = OpenAiConfig.chatUri();
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-      };
+      final headers = OpenAiConfig.headers();
 
       final body = jsonEncode(OpenAiConfig.wrapBody({
         'model': OpenAiConfig.model,
@@ -11801,7 +11566,7 @@ IMPORTANT RULES:
         final content =
             parsed['choices']?[0]?['message']?['content']?.toString();
         if (content != null) {
-          final result = jsonDecode(content) as Map<String, dynamic>;
+          final result = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
           final items = result['scopeItems'];
           if (items is List) {
             return items

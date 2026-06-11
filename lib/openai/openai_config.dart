@@ -10,10 +10,10 @@ import 'package:ndu_project/utils/diagram_model.dart';
 
 // Dreamflow env bindings (must exist with these exact names)
 // Do not rename: Dreamflow injects values via --dart-define at build time
-const String apiKey = String.fromEnvironment('OPENAI_PROXY_API_KEY');
-const String endpoint = String.fromEnvironment('OPENAI_PROXY_ENDPOINT');
+const String apiKey = String.fromEnvironment('CLAUDE_PROXY_API_KEY');
+const String endpoint = String.fromEnvironment('CLAUDE_PROXY_ENDPOINT');
 
-/// Central configuration for OpenAI access.
+/// Central configuration for Anthropic Claude access.
 class OpenAiConfig {
   static String get _trimmedEnvEndpoint => endpoint.trim().isEmpty
       ? ''
@@ -27,20 +27,20 @@ class OpenAiConfig {
 
   /// Base endpoint preference: environment overrides default REST endpoint.
   /// IMPORTANT: If running on web and no proxy endpoint is provided, direct
-  /// calls to api.openai.com will be blocked by CORS. The UI will surface
+  /// calls to api.anthropic.com will be blocked by CORS. The UI will surface
   /// a clear error so the user can configure the proxy.
   static String get baseEndpoint {
     if (_trimmedEnvEndpoint.isNotEmpty) return _trimmedEnvEndpoint;
     // Fallback to project Cloud Function proxy if env not provided
     final projectId = DefaultFirebaseOptions.currentPlatform.projectId;
-    return 'https://us-central1-$projectId.cloudfunctions.net/openaiProxy';
+    return 'https://us-central1-$projectId.cloudfunctions.net/claudeProxy';
   }
 
-  /// Model used for light-weight autocomplete suggestions.
+  /// Model used for Claude API requests.
   static String get model => SecureAPIConfig.model;
 
-  /// OpenAI Agent Builder workflow used by the Firebase proxy.
-  static String get workflowId => SecureAPIConfig.workflowId;
+  /// Anthropic API version.
+  static String get anthropicVersion => SecureAPIConfig.anthropicVersion;
 
   // Consider configured if using a proxy endpoint (no client API key needed)
   static bool get isConfigured => _isProxyEndpoint || apiKeyValue.isNotEmpty;
@@ -48,71 +48,262 @@ class OpenAiConfig {
   /// Determine if we're using a proxy endpoint (Cloud Function, server, etc.)
   /// Proxies in this app expect requests to the BASE URL with NO extra path.
   static bool get _isProxyEndpoint {
-    // Treat any non-openai.com endpoint as a proxy
-    return !baseEndpoint.contains('openai.com');
+    // Treat any non-anthropic.com endpoint as a proxy
+    return !baseEndpoint.contains('anthropic.com');
   }
 
-  /// Responses API endpoint. When using a proxy endpoint, do NOT append a path.
-  static Uri responsesUri() {
+  /// Claude Messages API endpoint. When using a proxy endpoint, do NOT append a path.
+  static Uri messagesUri() {
     final base = baseEndpoint.endsWith('/')
         ? baseEndpoint.substring(0, baseEndpoint.length - 1)
         : baseEndpoint;
     if (_isProxyEndpoint) return Uri.parse(base);
-    return Uri.parse('$base/responses');
+    return Uri.parse('$base/v1/messages');
   }
 
-  /// Chat Completions endpoint. When using a proxy endpoint, do NOT append a path.
-  static Uri chatUri() {
-    final base = baseEndpoint.endsWith('/')
-        ? baseEndpoint.substring(0, baseEndpoint.length - 1)
-        : baseEndpoint;
-    if (_isProxyEndpoint) return Uri.parse(base);
-    return Uri.parse('$base/chat/completions');
-  }
+  /// Alias for backward compatibility with code referencing chatUri().
+  static Uri chatUri() => messagesUri();
 
-  /// Wraps a request body map with a workflow_id override that tells the
-  /// Firebase Cloud Function proxy to skip the default OpenAI Workflow and
-  /// forward the request directly to the Chat Completions / Responses API.
-  /// This prevents the workflow from injecting unsupported parameters (e.g.
-  /// 'reasoning') that cause 400 errors with models like gpt-4o.
-  ///
-  /// When the proxy receives `workflow_id: 'none'`, it evaluates to a truthy
-  /// string but does NOT start with 'wf_', so `getConfiguredOpenAiWorkflowId`
-  /// returns '' and the request goes directly to OpenAI.
-  ///
-  /// For reasoning models (o3, o4, o1), this also:
-  /// - Removes `temperature` parameter (reasoning models only support default value of 1)
-  /// - Removes any legacy token parameters that are not accepted by the API
-  /// The Chat Completions API now requires `max_completion_tokens` for o3/o4
-  /// models. The legacy `max_tokens` parameter causes a 400 error.
+  /// Alias for backward compatibility with code referencing responsesUri().
+  static Uri responsesUri() => messagesUri();
+
+  /// Wraps a request body map for the Anthropic Claude Messages API.
+  /// Transforms OpenAI-style request bodies into Anthropic Claude format:
+  /// - Extracts the system message from messages array into top-level `system` param
+  /// - Replaces `max_completion_tokens` with `max_tokens`
+  /// - Removes `response_format` (not supported by Claude; JSON is prompted)
+  /// - Removes `temperature` restrictions for reasoning models (not applicable to Claude)
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
     final result = Map<String, dynamic>.from(body);
 
-    // Strip unsupported params for reasoning models
-    if (SecureAPIConfig.isReasoningModel) {
-      // The Chat Completions API now requires `max_completion_tokens` for
-      // reasoning models (o3, o4). The legacy `max_tokens` parameter causes:
-      //   - max_tokens → 400 "Unsupported parameter: 'max_tokens' is not supported with this model"
-      //   - max_output_tokens → 400 "Unknown parameter"
-      // So we remove the legacy variants and keep max_completion_tokens.
-      result.remove('max_tokens');
-      result.remove('max_output_tokens');
+    // Extract system message from messages and move to top-level 'system' param
+    // Anthropic Claude requires system as a top-level parameter, not in messages
+    if (result.containsKey('messages') && result['messages'] is List) {
+      final messages = List<Map<String, dynamic>>.from(
+        (result['messages'] as List).map((m) => Map<String, dynamic>.from(m as Map)),
+      );
 
-      // Reasoning models (o3, o4, o1) only support temperature=1 (default).
-      // Sending any other value causes a 400 error:
-      // "'temperature' does not support X with this model. Only the default (1) value is supported."
-      result.remove('temperature');
+      // Find and extract system messages
+      final systemMessages = <String>[];
+      messages.removeWhere((msg) {
+        if (msg['role'] == 'system') {
+          final content = msg['content'];
+          if (content is String) {
+            systemMessages.add(content);
+          } else if (content is List) {
+            // OpenAI Responses API format: content is list of input_text objects
+            for (final item in content) {
+              if (item is Map) {
+                final text = item['text'] ?? item['content'] ?? '';
+                if (text is String && text.isNotEmpty) {
+                  systemMessages.add(text);
+                }
+              }
+            }
+          }
+          return true;
+        }
+        return false;
+      });
+
+      if (systemMessages.isNotEmpty && !result.containsKey('system')) {
+        result['system'] = systemMessages.join('\n\n');
+      }
+
+      // Transform user/assistant messages content format
+      // OpenAI Responses API uses content as list of input_text/output_text
+      // Anthropic Claude uses content as plain string or list of content blocks
+      final transformedMessages = <Map<String, dynamic>>[];
+      for (final msg in messages) {
+        final role = msg['role'] as String?;
+        final content = msg['content'];
+
+        if (content is List) {
+          // OpenAI Responses API format: extract text from content blocks
+          final textParts = <String>[];
+          for (final item in content) {
+            if (item is Map) {
+              final type = item['type'];
+              final text = item['text'] ?? item['content'] ?? '';
+              if (text is String && text.isNotEmpty) {
+                textParts.add(text);
+              }
+            } else if (item is String) {
+              textParts.add(item);
+            }
+          }
+          transformedMessages.add({
+            'role': role ?? 'user',
+            'content': textParts.join('\n'),
+          });
+        } else {
+          transformedMessages.add(msg);
+        }
+      }
+
+      result['messages'] = transformedMessages;
+    }
+
+    // Handle OpenAI Responses API 'input' format
+    // The OpenAI Responses API uses 'input' instead of 'messages'
+    if (result.containsKey('input') && !result.containsKey('messages')) {
+      final input = result['input'];
+      if (input is List) {
+        final messages = <Map<String, dynamic>>[];
+        final systemParts = <String>[];
+
+        for (final item in input) {
+          if (item is Map<String, dynamic>) {
+            final role = item['role'] as String?;
+            final content = item['content'];
+
+            if (role == 'system') {
+              if (content is String) {
+                systemParts.add(content);
+              } else if (content is List) {
+                for (final block in content) {
+                  if (block is Map) {
+                    final text = block['text'] ?? '';
+                    if (text is String && text.isNotEmpty) {
+                      systemParts.add(text);
+                    }
+                  }
+                }
+              }
+            } else {
+              if (content is String) {
+                messages.add({'role': role ?? 'user', 'content': content});
+              } else if (content is List) {
+                final textParts = <String>[];
+                for (final block in content) {
+                  if (block is Map) {
+                    final text = block['text'] ?? block['content'] ?? '';
+                    if (text is String && text.isNotEmpty) {
+                      textParts.add(text);
+                    }
+                  }
+                }
+                messages.add({'role': role ?? 'user', 'content': textParts.join('\n')});
+              }
+            }
+          }
+        }
+
+        if (systemParts.isNotEmpty) {
+          result['system'] = systemParts.join('\n\n');
+        }
+        result['messages'] = messages;
+        result.remove('input');
+      }
+    }
+
+    // Replace max_completion_tokens with max_tokens (Claude uses max_tokens)
+    if (result.containsKey('max_completion_tokens')) {
+      result['max_tokens'] = result.remove('max_completion_tokens');
+    }
+    if (result.containsKey('max_output_tokens')) {
+      result['max_tokens'] = result.remove('max_output_tokens');
+    }
+
+    // Ensure max_tokens exists (required by Claude API)
+    if (!result.containsKey('max_tokens')) {
+      result['max_tokens'] = 1200;
+    }
+
+    // Remove response_format (not supported by Claude; JSON is prompted)
+    result.remove('response_format');
+
+    // Remove OpenAI-specific fields not applicable to Claude
+    result.remove('workflow_id');
+    result.remove('workflowId');
+
+    // Ensure model is set
+    if (!result.containsKey('model') || (result['model'] as String).isEmpty) {
+      result['model'] = model;
     }
 
     return result;
+  }
+
+  /// Returns headers for Anthropic Claude API requests.
+  static Map<String, String> headers() {
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'x-api-key': apiKeyValue,
+      'anthropic-version': anthropicVersion,
+    };
+    return headers;
+  }
+
+  /// Extracts text content from an Anthropic Claude API response.
+  /// Claude returns content as: { "content": [ { "type": "text", "text": "..." } ] }
+  static String extractContent(Map<String, dynamic> data) {
+    // Try Anthropic Claude format first
+    final content = data['content'];
+    if (content is List && content.isNotEmpty) {
+      final buffer = StringBuffer();
+      for (final block in content) {
+        if (block is Map<String, dynamic>) {
+          if (block['type'] == 'text' && block['text'] is String) {
+            buffer.write(block['text']);
+          }
+        }
+      }
+      if (buffer.isNotEmpty) return buffer.toString();
+    }
+
+    // Fallback: try OpenAI format for backward compatibility
+    final choices = data['choices'];
+    if (choices is List && choices.isNotEmpty) {
+      final first = choices.first;
+      if (first is Map<String, dynamic>) {
+        final message = first['message'];
+        if (message is Map<String, dynamic>) {
+          final messageContent = message['content'];
+          if (messageContent is String) return messageContent;
+          if (messageContent is List) {
+            return messageContent
+                .map((e) => e is Map<String, dynamic> ? (e['text'] ?? '') : (e ?? ''))
+                .join();
+          }
+        }
+        final text = first['text'];
+        if (text is String) return text;
+      }
+    }
+
+    // Try output format (OpenAI Responses API)
+    final output = data['output'];
+    if (output is List) {
+      final buffer = StringBuffer();
+      for (final entry in output) {
+        if (entry is Map<String, dynamic>) {
+          final entryContent = entry['content'];
+          if (entryContent is List) {
+            for (final item in entryContent) {
+              if (item is Map<String, dynamic>) {
+                final type = item['type'];
+                final text = item['text'];
+                if (text is String && (type == 'output_text' || type == 'text')) {
+                  buffer.write(text);
+                }
+              }
+            }
+          }
+        }
+      }
+      if (buffer.isNotEmpty) return buffer.toString();
+    }
+
+    return '';
   }
 
   /// Helpful diagnostic used by UI to provide actionable error messages
   static String? configurationWarning() {
     if (!kIsWeb) return null;
     if (_isProxyEndpoint) return null; // ok, using proxy
-    // On web with direct OpenAI endpoint: likely to hit CORS
-    return 'OpenAI proxy endpoint not configured. Using direct OpenAI endpoint may fail due to CORS. Set OPENAI_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
+    // On web with direct Anthropic endpoint: likely to hit CORS
+    return 'Claude proxy endpoint not configured. Using direct Anthropic endpoint may fail due to CORS. Set CLAUDE_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
   }
 }
 
@@ -121,10 +312,10 @@ class OpenAiNotConfiguredException implements Exception {
 
   @override
   String toString() =>
-      'OpenAI API key is not configured. Please add a valid key to enable suggestions.';
+      'Claude API key is not configured. Please add a valid key to enable suggestions.';
 }
 
-/// Lightweight autocomplete service backed by OpenAI Responses API.
+/// Lightweight autocomplete service backed by Anthropic Claude Messages API.
 class OpenAiAutocompleteService {
   OpenAiAutocompleteService._internal({http.Client? client})
       : _client = client ?? http.Client();
@@ -149,63 +340,44 @@ class OpenAiAutocompleteService {
     }
 
     final uri = OpenAiConfig.responsesUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final payload = {
       'model': OpenAiConfig.model,
       'temperature': _temperature,
-      // Give the model more headroom for higher-quality continuations
-      'max_completion_tokens': 300,
-      'input': [
-        {
-          'role': 'system',
-          'content': [
-            {
-              'type': 'input_text',
-              'text':
-                  'You help business analysts finish their writing. Provide up to $maxSuggestions polished continuation suggestions that extend the user\'s draft. Do not repeat the existing text, do not number or bullet responses, and avoid placeholders.'
-            }
-          ]
-        },
+      'max_tokens': 300,
+      'system': 'You help business analysts finish their writing. Provide up to $maxSuggestions polished continuation suggestions that extend the user\'s draft. Do not repeat the existing text, do not number or bullet responses, and avoid placeholders. Return each suggestion on its own line.',
+      'messages': [
         {
           'role': 'user',
-          'content': [
-            {
-              'type': 'input_text',
-              'text':
-                  'Field: $fieldName\nCurrent draft: """${_escape(currentText)}"""\nAdditional context: """${_escape(context)}"""\nReturn up to $maxSuggestions unique continuations, each on its own line.'
-            }
-          ]
+          'content': 'Field: $fieldName\nCurrent draft: """${_escape(currentText)}"""\nAdditional context: """${_escape(context)}"""\nReturn up to $maxSuggestions unique continuations, each on its own line.'
         }
-      ]
+      ],
     };
 
     try {
       final warn = OpenAiConfig.configurationWarning();
       if (warn != null) {
-        debugPrint('OpenAI configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
+        debugPrint('Claude configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
       }
       final response = await _client
           .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
           .timeout(_timeout);
 
       if (response.statusCode == 429) {
-        throw Exception('OpenAI rate limit reached. Please try again shortly.');
+        throw Exception('Claude rate limit reached. Please try again shortly.');
       }
       if (response.statusCode == 401) {
-        throw Exception('OpenAI rejected the API key. Please verify it.');
+        throw Exception('Claude rejected the API key. Please verify it.');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-          'OpenAI request failed (${response.statusCode}): ${response.body}',
+          'Claude request failed (${response.statusCode}): ${response.body}',
         );
       }
 
       final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final combined = _extractText(data).trim();
+      final combined = OpenAiConfig.extractContent(data).trim();
       final suggestions = combined
           .split('\n')
           .map((line) => line.trim())
@@ -217,63 +389,10 @@ class OpenAiAutocompleteService {
 
       return _fallbackSuggestions(currentText, maxSuggestions);
     } on TimeoutException {
-      throw Exception('OpenAI request timed out. Please retry in a moment.');
+      throw Exception('Claude request timed out. Please retry in a moment.');
     } on FormatException catch (e) {
-      throw Exception('Failed to parse OpenAI response: $e');
+      throw Exception('Failed to parse Claude response: $e');
     }
-  }
-
-  static String _extractText(Map<String, dynamic> payload) {
-    final output = payload['output'];
-    if (output is List) {
-      final buffer = StringBuffer();
-      for (final entry in output) {
-        if (entry is Map<String, dynamic>) {
-          final content = entry['content'];
-          if (content is List) {
-            for (final item in content) {
-              if (item is Map<String, dynamic>) {
-                final type = item['type'];
-                final text = item['text'];
-                if (text is String &&
-                    (type == 'output_text' || type == 'text')) {
-                  buffer.write(text);
-                }
-              } else if (item is String) {
-                buffer.write(item);
-              }
-            }
-          }
-        } else if (entry is String) {
-          buffer.write(entry);
-        }
-      }
-  if (buffer.isNotEmpty) return buffer.toString().replaceAll('*', '');
-    }
-
-    final choices = payload['choices'];
-    if (choices is List && choices.isNotEmpty) {
-      final first = choices.first;
-      if (first is Map<String, dynamic>) {
-        final message = first['message'];
-        if (message is Map<String, dynamic>) {
-          final content = message['content'];
-          if (content is String) return content.replaceAll('*', '');
-          if (content is List) {
-            return content
-                .map((e) => e is Map<String, dynamic> ? (e['text'] ?? '') : (e ?? ''))
-                .join()
-                .replaceAll('*', '');
-          }
-        }
-        final text = first['text'];
-  if (text is String) return text.replaceAll('*', '');
-      } else if (first is String) {
-  return first.toString().replaceAll('*', '');
-      }
-    }
-
-    return '';
   }
 
   static List<String> _fallbackSuggestions(String currentText, int count) {
@@ -316,21 +435,14 @@ class OpenAiDiagramService {
     }
 
     final uri = OpenAiConfig.chatUri();
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ${OpenAiConfig.apiKeyValue}',
-    };
+    final headers = OpenAiConfig.headers();
 
     final prompt = _diagramPrompt(section: section, context: contextText, refinementHint: refinementHint);
     final body = jsonEncode(OpenAiConfig.wrapBody({
       'model': OpenAiConfig.model,
       'temperature': 0.5,
-      'max_completion_tokens': maxTokens,
-      'response_format': {'type': 'json_object'},
-      'messages': [
-        {
-          'role': 'system',
-          'content': '''You are an expert strategic planning architect specializing in executive-level project visualization. Your diagrams are exceptional because they:
+      'max_tokens': maxTokens,
+      'system': '''You are an expert strategic planning architect specializing in executive-level project visualization. Your diagrams are exceptional because they:
 1. Show REASONING and LOGIC, not just process steps
 2. Illustrate strategic thinking with decision criteria and branching paths
 3. Highlight dependencies, risks, and validation checkpoints
@@ -339,8 +451,8 @@ class OpenAiDiagramService {
 
 You create diagrams that executives and stakeholders can use to understand the "WHY" behind each step, not just the "WHAT". Every node and edge must serve a strategic purpose. Generic placeholders are never acceptable.
 
-Always return ONLY a valid JSON object with nodes and edges arrays.'''
-        },
+Always return ONLY a valid JSON object with nodes and edges arrays.''',
+      'messages': [
         {
           'role': 'user',
           'content': prompt,
@@ -351,17 +463,36 @@ Always return ONLY a valid JSON object with nodes and edges arrays.'''
     try {
       final response = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 16));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('OpenAI diagram error ${response.statusCode}: ${response.body}');
+        throw Exception('Claude diagram error ${response.statusCode}: ${response.body}');
       }
       final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      final content = (data['choices'] as List).first['message']['content'] as String;
-      final parsed = jsonDecode(content) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      // Extract JSON from the response (may be wrapped in markdown code block)
+      final jsonStr = _extractJson(content);
+      final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
       return _parseDiagram(parsed);
     } catch (e) {
-      debugPrint('OpenAI diagram generation failed: $e');
+      debugPrint('Claude diagram generation failed: $e');
       // Fallback contextual diagram based on section
       return _createFallbackDiagram(section);
     }
+  }
+
+  /// Extracts JSON from a string that may contain markdown code fences.
+  static String _extractJson(String text) {
+    // Try to find JSON within markdown code blocks
+    final codeBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
+    final match = codeBlockRegex.firstMatch(text);
+    if (match != null) {
+      return match.group(1)?.trim() ?? text.trim();
+    }
+    // Try to find raw JSON object
+    final jsonStart = text.indexOf('{');
+    final jsonEnd = text.lastIndexOf('}');
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      return text.substring(jsonStart, jsonEnd + 1);
+    }
+    return text.trim();
   }
 
   String _diagramPrompt({required String section, required String context, String? refinementHint}) {
@@ -463,7 +594,7 @@ Generate a diagram that demonstrates STRATEGIC REASONING for executing this plan
   /// Creates a contextual fallback diagram when API fails
   DiagramModel _createFallbackDiagram(String section) {
     final sectionLower = section.toLowerCase();
-    
+
     // Executive Plan Outline specific fallback
     if (sectionLower.contains('executive') || sectionLower.contains('outline')) {
       return const DiagramModel(

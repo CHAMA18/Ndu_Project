@@ -8,7 +8,7 @@ import 'package:ndu_project/services/api_config_secure.dart';
 class ApiKeyManager {
   static bool _isInitialized = false;
   static const String _usersCollection = 'users';
-  static const String _keyField = 'openaiApiKey';
+  static const String _keyField = 'claudeApiKey';
   
   /// Initialize the API key securely
   /// Call this method once when your app starts

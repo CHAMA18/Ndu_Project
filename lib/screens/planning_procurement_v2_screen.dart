@@ -1802,7 +1802,7 @@ class _PlanningProcurementV2ScreenState
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: unit,
+                        value: unit,
                         decoration: const InputDecoration(labelText: 'Unit'),
                         items: const [
                           DropdownMenuItem(value: 'week', child: Text('Week')),

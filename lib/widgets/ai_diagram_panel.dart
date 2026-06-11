@@ -676,7 +676,7 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
   // ── Programmatic zoom ──────────────────────────────────────────────────
   void _zoom(double factor) {
     final next = Matrix4.copy(_transformationController.value)
-      ..scaleByDouble(factor, factor, 1.0, 1.0);
+      ..multiply(Matrix4.diagonal3Values(factor, factor, 1.0));
     _transformationController.value = next;
   }
 
@@ -1315,7 +1315,7 @@ class _DiagramFullscreenViewState extends State<_DiagramFullscreenView> {
             tooltip: 'Zoom out',
             onPressed: () {
               final next = Matrix4.copy(_transformationController.value)
-                ..scaleByDouble(0.85, 0.85, 1.0, 1.0);
+                ..multiply(Matrix4.diagonal3Values(0.85, 0.85, 1.0));
               _transformationController.value = next;
             },
           ),
@@ -1324,7 +1324,7 @@ class _DiagramFullscreenViewState extends State<_DiagramFullscreenView> {
             tooltip: 'Zoom in',
             onPressed: () {
               final next = Matrix4.copy(_transformationController.value)
-                ..scaleByDouble(1.15, 1.15, 1.0, 1.0);
+                ..multiply(Matrix4.diagonal3Values(1.15, 1.15, 1.0));
               _transformationController.value = next;
             },
           ),

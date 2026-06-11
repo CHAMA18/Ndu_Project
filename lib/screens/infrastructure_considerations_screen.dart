@@ -206,7 +206,7 @@ class _InfrastructureConsiderationsScreenState
             isAiGenerated: true);
       }
 
-      // Generate infrastructure suggestions (with tailored fallback if OpenAI not configured)
+      // Generate infrastructure suggestions (with tailored fallback if Claude not configured)
       final result = await _openAi.generateInfrastructureForSolutions(
         _solutions,
         contextNotes: _notesController.text,

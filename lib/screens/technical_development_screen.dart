@@ -1696,7 +1696,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _workstreamStatusOptions.contains(status)
+                  value: _workstreamStatusOptions.contains(status)
                       ? status
                       : _workstreamStatusOptions.first,
                   items: _workstreamStatusOptions
@@ -1886,7 +1886,7 @@ class _TechnicalDevelopmentScreenState
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _buildStatusOptions.contains(status)
+                        value: _buildStatusOptions.contains(status)
                             ? status
                             : _buildStatusOptions.first,
                         items: _buildStatusOptions
@@ -1909,7 +1909,7 @@ class _TechnicalDevelopmentScreenState
                     const SizedBox(width: 12),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: type,
+                        value: type,
                         items: ['Software', 'Physical', 'Mixed']
                             .map((option) => DropdownMenuItem(
                                   value: option,
@@ -2061,7 +2061,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _integrationStatusOptions.contains(status)
+                  value: _integrationStatusOptions.contains(status)
                       ? status
                       : _integrationStatusOptions.first,
                   items: _integrationStatusOptions
@@ -2199,7 +2199,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _severityOptions.contains(severity)
+                  value: _severityOptions.contains(severity)
                       ? severity
                       : _severityOptions[1],
                   items: _severityOptions
@@ -2351,7 +2351,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _severityOptions.contains(severity)
+                  value: _severityOptions.contains(severity)
                       ? severity
                       : _severityOptions[1],
                   items: _severityOptions
@@ -2504,7 +2504,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _ownerOptions(currentValue: owner).contains(owner)
+                  value: _ownerOptions(currentValue: owner).contains(owner)
                       ? owner
                       : _ownerOptions(currentValue: owner).first,
                   items: _ownerOptions(currentValue: owner)
@@ -2525,7 +2525,7 @@ class _TechnicalDevelopmentScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: _readinessStatusOptions.contains(status)
+                  value: _readinessStatusOptions.contains(status)
                       ? status
                       : _readinessStatusOptions.first,
                   items: _readinessStatusOptions

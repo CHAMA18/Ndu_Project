@@ -1559,7 +1559,7 @@ class _DropdownField<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<T>(
-      initialValue: items.contains(value) ? value : null,
+      value: items.contains(value) ? value : null,
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),

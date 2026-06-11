@@ -200,7 +200,7 @@ class _FrontEndPlanningPersonnelScreenState
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                initialValue: status,
+                                value: status,
                                 decoration: const InputDecoration(
                                   labelText: 'Status',
                                   border: OutlineInputBorder(),

@@ -339,7 +339,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                   if (uniqueOpts.isEmpty) return <Widget>[];
                   return [
                     DropdownButtonFormField<String>(
-                      initialValue: (_wbsLevel2Id != null &&
+                      value: (_wbsLevel2Id != null &&
                               _wbsLevel2Id!.isNotEmpty &&
                               seenIds.contains(_wbsLevel2Id))
                           ? _wbsLevel2Id
@@ -408,7 +408,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _packageClassification.isEmpty
+                        value: _packageClassification.isEmpty
                             ? null
                             : _packageClassification,
                         decoration: const InputDecoration(
@@ -444,7 +444,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                   ],
                 ),
                 DropdownButtonFormField<String>(
-                  initialValue: _releaseStatus,
+                  value: _releaseStatus,
                   decoration:
                       const InputDecoration(labelText: 'Release Status'),
                   items: const [
@@ -466,7 +466,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _type,
+                        value: _type,
                         decoration: const InputDecoration(labelText: 'Type'),
                         items: const [
                           DropdownMenuItem(
@@ -491,7 +491,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                     const SizedBox(width: 16),
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        initialValue: _phase,
+                        value: _phase,
                         decoration: const InputDecoration(labelText: 'Phase'),
                         items: const [
                           DropdownMenuItem(
@@ -509,7 +509,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                   ],
                 ),
                 DropdownButtonFormField<String>(
-                  initialValue: _status,
+                  value: _status,
                   decoration: const InputDecoration(labelText: 'Status'),
                   items: const [
                     DropdownMenuItem(

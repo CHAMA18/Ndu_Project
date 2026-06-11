@@ -928,7 +928,7 @@ class _ProjectBaselineScreenState extends State<ProjectBaselineScreen> {
           Switch(
             value: _showComparison,
             onChanged: (value) => setState(() => _showComparison = value),
-            activeTrackColor: const Color(0xFFFFC812),
+            trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFFFFC812) : null),
             thumbColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
                 return Colors.white;

@@ -1546,7 +1546,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedLevel,
+                          value: selectedLevel,
                           items: ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1574,7 +1574,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           items: ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1692,7 +1692,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedLevel,
+                          value: selectedLevel,
                           items: ['L1-Operational', 'L2-Management', 'L3-Executive', 'L4-Board/C-Suite']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1718,7 +1718,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           items: ['Ready', 'Pending', 'In progress', 'Escalated', 'Deferred']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -1937,7 +1937,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedImpact,
+                        value: selectedImpact,
                         items: const ['Low', 'Medium', 'High']
                             .map((impact) => DropdownMenuItem(
                                 value: impact, child: Text(impact)))
@@ -1951,7 +1951,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedStatus,
+                        value: selectedStatus,
                         items: const [
                           'Mitigating',
                           'Monitoring',
@@ -2064,7 +2064,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedImpact,
+                        value: selectedImpact,
                         items: ['Low', 'Medium', 'High']
                             .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                             .toList(),
@@ -2073,7 +2073,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedStatus,
+                        value: selectedStatus,
                         items: ['Mitigating', 'Monitoring', 'Escalated', 'Accepted']
                             .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                             .toList(),
@@ -2204,7 +2204,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedCategory,
+                          value: selectedCategory,
                           items: ['Integrations', 'Compliance', 'Data team', 'Cybersecurity', 'Finance', 'General']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2213,7 +2213,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           items: ['Not started', 'In progress', 'On track', 'At risk', 'Completed']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2246,7 +2246,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedEffectiveness,
+                          value: selectedEffectiveness,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2255,7 +2255,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedResidual,
+                          value: selectedResidual,
                           items: ['Low', 'Medium', 'High']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2344,7 +2344,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedCategory,
+                          value: selectedCategory,
                           items: ['Integrations', 'Compliance', 'Data team', 'Cybersecurity', 'Finance', 'General']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2353,7 +2353,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           items: ['Not started', 'In progress', 'On track', 'At risk', 'Completed']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2385,7 +2385,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedEffectiveness,
+                          value: selectedEffectiveness,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2394,7 +2394,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedResidual,
+                          value: selectedResidual,
                           items: ['Low', 'Medium', 'High']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2508,7 +2508,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedCategory,
+                          value: selectedCategory,
                           items: ['Leading', 'Lagging']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2517,7 +2517,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedSeverity,
+                          value: selectedSeverity,
                           items: ['Critical', 'High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2526,7 +2526,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedConfidence,
+                          value: selectedConfidence,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2548,7 +2548,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedTrend,
+                          value: selectedTrend,
                           items: ['Increasing', 'Stable', 'Decreasing']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2628,7 +2628,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedCategory,
+                          value: selectedCategory,
                           items: ['Leading', 'Lagging']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2637,7 +2637,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedSeverity,
+                          value: selectedSeverity,
                           items: ['Critical', 'High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2646,7 +2646,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedConfidence,
+                          value: selectedConfidence,
                           items: ['High', 'Medium', 'Low']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
@@ -2667,7 +2667,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedTrend,
+                          value: selectedTrend,
                           items: ['Increasing', 'Stable', 'Decreasing']
                               .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),

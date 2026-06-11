@@ -6894,7 +6894,7 @@ class _AddCostItemDialogState extends State<_AddCostItemDialog> {
     required ValueChanged<T?> onChanged,
   }) {
     return DropdownButtonFormField<T>(
-      initialValue: value,
+      value: value,
       items: items,
       onChanged: onChanged,
       decoration: _inputDecoration(label),

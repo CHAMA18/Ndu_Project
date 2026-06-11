@@ -328,7 +328,7 @@ class _RecurringRowWidgetState extends State<_RecurringRowWidget> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedFrequency,
+                          value: selectedFrequency,
                           decoration: const InputDecoration(
                             labelText: 'Frequency',
                             border: OutlineInputBorder(),
@@ -352,7 +352,7 @@ class _RecurringRowWidgetState extends State<_RecurringRowWidget> {
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: selectedStatus,
+                          value: selectedStatus,
                           decoration: const InputDecoration(
                             labelText: 'Status',
                             border: OutlineInputBorder(),

@@ -622,7 +622,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              initialValue: _typeFilter,
+              value: _typeFilter,
               decoration: InputDecoration(
                 labelText: 'Type',
                 labelStyle: const TextStyle(fontSize: 11),
@@ -640,7 +640,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              initialValue: _statusFilter,
+              value: _statusFilter,
               decoration: InputDecoration(
                 labelText: 'Status',
                 labelStyle: const TextStyle(fontSize: 11),
@@ -658,7 +658,7 @@ class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
           SizedBox(
             width: 140,
             child: DropdownButtonFormField<String>(
-              initialValue: _priorityFilter,
+              value: _priorityFilter,
               decoration: InputDecoration(
                 labelText: 'Priority',
                 labelStyle: const TextStyle(fontSize: 11),
@@ -1191,7 +1191,7 @@ class _InterfaceEntryDialogState extends State<_InterfaceEntryDialog> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: DropdownButtonFormField<String>(
-        initialValue: items.contains(value) ? value : items.first,
+        value: items.contains(value) ? value : items.first,
         decoration: InputDecoration(
           labelText: label,
           border:

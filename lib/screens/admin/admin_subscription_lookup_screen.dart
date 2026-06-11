@@ -521,7 +521,7 @@ class _AdminSubscriptionLookupScreenState
               Text('Grant a subscription to ${_selectedUser!.displayName}'),
               const SizedBox(height: 16),
               DropdownButtonFormField<SubscriptionTier>(
-                initialValue: selectedTier,
+                value: selectedTier,
                 decoration: const InputDecoration(
                   labelText: 'Subscription Tier',
                   border: OutlineInputBorder(),
@@ -623,7 +623,7 @@ class _AdminSubscriptionLookupScreenState
               Text('Extend trial for ${_selectedUser!.displayName}'),
               const SizedBox(height: 16),
               DropdownButtonFormField<int>(
-                initialValue: daysToExtend,
+                value: daysToExtend,
                 decoration: const InputDecoration(
                   labelText: 'Days to extend',
                   border: OutlineInputBorder(),

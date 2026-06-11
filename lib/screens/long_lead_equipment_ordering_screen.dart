@@ -488,7 +488,7 @@ class _LongLeadEquipmentOrderingScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: criticality,
+                  value: criticality,
                   items: _criticalityOptions
                       .map((option) => DropdownMenuItem(
                             value: option,
@@ -612,7 +612,7 @@ class _LongLeadEquipmentOrderingScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: status,
+                  value: status,
                   items: _equipmentStatusOptions
                       .map((option) => DropdownMenuItem(
                             value: option,
@@ -712,7 +712,7 @@ class _LongLeadEquipmentOrderingScreenState
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  initialValue: status,
+                  value: status,
                   items: _actionStatusOptions
                       .map((option) => DropdownMenuItem(
                             value: option,
@@ -1207,7 +1207,7 @@ class _DropdownCell extends StatelessWidget {
     final resolvedValue = options.contains(value) ? value : options.first;
     return DropdownButtonFormField<String>(
       key: ValueKey(fieldKey),
-      initialValue: resolvedValue,
+      value: resolvedValue,
       items: options
           .map((option) => DropdownMenuItem(value: option, child: Text(option)))
           .toList(),

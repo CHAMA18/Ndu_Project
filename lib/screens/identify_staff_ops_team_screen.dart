@@ -943,7 +943,7 @@ class _IdentifyStaffOpsTeamScreenState
                       const InputDecoration(labelText: 'Responsibility *')),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                initialValue: statusController.text,
+                value: statusController.text,
                 decoration: const InputDecoration(labelText: 'Status *'),
                 items: ['Active', 'Pending', 'Inactive']
                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))

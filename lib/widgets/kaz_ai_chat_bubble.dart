@@ -518,7 +518,7 @@ class _KazAiChatPopupState extends State<_KazAiChatPopup>
   /// Multi-turn AI response with full conversation history
   Future<String> _getAiResponse(String userMessage) async {
     if (!OpenAiConfig.isConfigured) {
-      return 'Please configure your OpenAI API key in **Settings** to enable KAZ AI. I\'ll be ready to help once the connection is established.';
+      return 'Please configure your Claude API key in **Settings** to enable KAZ AI. I\'ll be ready to help once the connection is established.';
     }
 
     try {
@@ -564,10 +564,10 @@ class _KazAiChatPopupState extends State<_KazAiChatPopup>
           .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 401) {
-        return 'Invalid API key. Please check your OpenAI configuration in **Settings**.';
+        return 'Invalid API key. Please check your Claude configuration in **Settings**.';
       }
       if (response.statusCode == 429) {
-        return 'API quota exceeded. Please check your OpenAI billing or try again shortly.';
+        return 'API quota exceeded. Please check your Claude billing or try again shortly.';
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return 'I encountered a server error (${response.statusCode}). Please try again.';

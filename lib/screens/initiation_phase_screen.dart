@@ -1017,18 +1017,18 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
   String _formatSuggestionError(Object error) {
     if (error is OpenAiNotConfiguredException) {
-      return 'Add your OpenAI API key to enable AI suggestions.';
+      return 'Add your Claude API key to enable AI suggestions.';
     }
     final message = error.toString();
     final lower = message.toLowerCase();
     if (lower.contains('timed out')) {
-      return 'OpenAI request timed out. Try again in a moment.';
+      return 'Claude request timed out. Try again in a moment.';
     }
     if (lower.contains('rate limit')) {
-      return 'OpenAI rate limit reached. Try again shortly.';
+      return 'Claude rate limit reached. Try again shortly.';
     }
     if (lower.contains('api key')) {
-      return 'OpenAI rejected the API key. Please verify it.';
+      return 'Claude rejected the API key. Please verify it.';
     }
     final sanitized = message.replaceFirst(RegExp(r'^Exception: '), '').trim();
     if (sanitized.length > 180) {

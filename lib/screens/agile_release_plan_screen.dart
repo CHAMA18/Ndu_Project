@@ -490,7 +490,7 @@ class _ReleasePlanEditDialogState extends State<_ReleasePlanEditDialog> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              initialValue: _status,
+              value: _status,
               decoration: const InputDecoration(
                   labelText: 'Status', border: OutlineInputBorder()),
               items: ['Draft', 'Ready', 'Approved']

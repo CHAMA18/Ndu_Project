@@ -2200,7 +2200,7 @@ class _RiskTrackingWorkspaceScreenState
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: probability,
+                            value: probability,
                             items: const ['Low', 'Medium', 'High']
                                 .map((v) =>
                                     DropdownMenuItem(value: v, child: Text(v)))
@@ -2214,7 +2214,7 @@ class _RiskTrackingWorkspaceScreenState
                         const SizedBox(width: 14),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: impact,
+                            value: impact,
                             items: const ['Low', 'Medium', 'High', 'Critical']
                                 .map((v) =>
                                     DropdownMenuItem(value: v, child: Text(v)))
@@ -2228,7 +2228,7 @@ class _RiskTrackingWorkspaceScreenState
                         const SizedBox(width: 14),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: status,
+                            value: status,
                             items: const [
                               'Open',
                               'Monitoring',
@@ -2486,7 +2486,7 @@ class _RiskTrackingWorkspaceScreenState
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: severity,
+                            value: severity,
                             items: const ['Low', 'Medium', 'High', 'Critical']
                                 .map((v) =>
                                     DropdownMenuItem(value: v, child: Text(v)))
@@ -2500,7 +2500,7 @@ class _RiskTrackingWorkspaceScreenState
                         const SizedBox(width: 14),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: confidenceLevel,
+                            value: confidenceLevel,
                             items: const ['Low', 'Medium', 'High']
                                 .map((v) =>
                                     DropdownMenuItem(value: v, child: Text(v)))
@@ -2515,7 +2515,7 @@ class _RiskTrackingWorkspaceScreenState
                     ),
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
-                      initialValue: associatedRiskIdController.text.isEmpty
+                      value: associatedRiskIdController.text.isEmpty
                           ? null
                           : associatedRiskIdController.text,
                       items: _risks
@@ -2739,7 +2739,7 @@ class _RiskTrackingWorkspaceScreenState
                         const SizedBox(width: 14),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            initialValue: status,
+                            value: status,
                             items: const [
                               'Planning',
                               'In Progress',
@@ -2795,7 +2795,7 @@ class _RiskTrackingWorkspaceScreenState
                     ),
                     const SizedBox(height: 14),
                     DropdownButtonFormField<String>(
-                      initialValue: associatedRiskIdController.text.isEmpty
+                      value: associatedRiskIdController.text.isEmpty
                           ? null
                           : associatedRiskIdController.text,
                       items: _risks

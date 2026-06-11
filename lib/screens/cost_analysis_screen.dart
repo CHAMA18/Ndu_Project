@@ -2900,7 +2900,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
             final basisControl = SizedBox(
               width: isVeryNarrow ? constraints.maxWidth : basisWidth,
               child: DropdownButtonFormField<String>(
-                initialValue: _basisFrequency,
+                value: _basisFrequency,
                 items: _frequencyOptions
                     .map((f) => DropdownMenuItem(value: f, child: Text(f)))
                     .toList(),
@@ -3645,7 +3645,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     DropdownButtonFormField<String>(
-                      initialValue: selectedCategory,
+                      value: selectedCategory,
                       items: _projectValueFields
                           .map(
                             (field) => DropdownMenuItem<String>(
@@ -6985,7 +6985,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       required ValueChanged<int> onChanged}) {
     final boundedValue = _boundedIndex(value, options.length);
     return DropdownButtonFormField<int>(
-      initialValue: boundedValue,
+      value: boundedValue,
       itemHeight: null, // allow multi-line menu entries without overflow
       menuMaxHeight: 320,
       isExpanded: true, // Prevent overflow by expanding to fill available space

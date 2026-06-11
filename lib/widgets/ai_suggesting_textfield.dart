@@ -23,7 +23,7 @@ class _Debouncer {
   void dispose() => _timer?.cancel();
 }
 
-/// A text field with inline OpenAI-powered suggestions
+/// A text field with inline Claude-powered suggestions
 /// - Shows suggestion chips beneath the field
 /// - Suggestions are based on current text and prior project context
 class AiSuggestingTextField extends StatefulWidget {
@@ -436,10 +436,10 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        // Check if OpenAI is configured
+        // Check if Claude is configured
         if (!OpenAiConfig.isConfigured) {
           _error =
-              'OpenAI API key not configured. Please add your API key to enable AI suggestions.';
+              'Claude API key not configured. Please add your API key to enable AI suggestions.';
         } else {
           final warn = OpenAiConfig.configurationWarning();
           _error = warn ?? e.toString();

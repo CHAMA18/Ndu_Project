@@ -229,7 +229,7 @@ class _FrontEndPlanningInfrastructureScreenState
                         ),
                         const SizedBox(height: 12),
                         DropdownButtonFormField<String>(
-                          initialValue: status,
+                          value: status,
                           decoration: const InputDecoration(
                             labelText: 'Status',
                             border: OutlineInputBorder(),

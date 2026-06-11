@@ -1545,8 +1545,8 @@ class _SettingToggleRow extends StatelessWidget {
         Switch.adaptive(
           value: value,
           onChanged: onChanged,
-          activeThumbColor: const Color(0xFF2563EB),
-          activeTrackColor: const Color(0xFF2563EB),
+          thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFF2563EB) : null),
+          trackColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? const Color(0xFF2563EB) : null),
         ),
       ],
     );

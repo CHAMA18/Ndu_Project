@@ -459,7 +459,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: _dropdownValue(
+                      value: _dropdownValue(
                           contractTypeOptions, selectedContractType),
                       decoration: const InputDecoration(
                         labelText: 'Contract Type *',
@@ -478,7 +478,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue:
+                      value:
                           _dropdownValue(statusOptions, selectedStatus),
                       decoration: const InputDecoration(
                         labelText: 'Status *',

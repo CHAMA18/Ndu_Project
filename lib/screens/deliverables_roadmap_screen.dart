@@ -1364,7 +1364,7 @@ Future<Map<String, dynamic>?> _showDeliverableDialog(
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue:
+                    value:
                         sprints.any((s) => s.id == sprintId) ? sprintId : null,
                     decoration: const InputDecoration(labelText: 'Sprint'),
                     items: sprints
@@ -1383,7 +1383,7 @@ Future<Map<String, dynamic>?> _showDeliverableDialog(
                       Expanded(
                         child:
                             DropdownButtonFormField<RoadmapDeliverableStatus>(
-                          initialValue: status,
+                          value: status,
                           decoration:
                               const InputDecoration(labelText: 'Status'),
                           items: RoadmapDeliverableStatus.values
@@ -1401,7 +1401,7 @@ Future<Map<String, dynamic>?> _showDeliverableDialog(
                       Expanded(
                         child:
                             DropdownButtonFormField<RoadmapDeliverablePriority>(
-                          initialValue: priority,
+                          value: priority,
                           decoration:
                               const InputDecoration(labelText: 'Priority'),
                           items: RoadmapDeliverablePriority.values
@@ -1422,7 +1422,7 @@ Future<Map<String, dynamic>?> _showDeliverableDialog(
                     children: [
                       Expanded(
                         child: DropdownButtonFormField<int>(
-                          initialValue: storyPoints,
+                          value: storyPoints,
                           decoration:
                               const InputDecoration(labelText: 'Story Points'),
                           items: [1, 2, 3, 5, 8, 13, 21]

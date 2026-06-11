@@ -1489,7 +1489,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: owner,
+                      value: owner,
                       items: const [
                         DropdownMenuItem(value: 'Design Lead', child: Text('Design Lead')),
                         DropdownMenuItem(value: 'Architecture', child: Text('Architecture')),
@@ -1503,7 +1503,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       items: const [
                         DropdownMenuItem(value: 'In progress', child: Text('In progress')),
                         DropdownMenuItem(value: 'In review', child: Text('In review')),
@@ -1521,7 +1521,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: risk,
+                      value: risk,
                       items: const [
                         DropdownMenuItem(value: 'Low', child: Text('Low')),
                         DropdownMenuItem(value: 'Medium', child: Text('Medium')),
@@ -1747,7 +1747,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                             labelText: 'Agile/Hybrid Evidence')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: decision,
+                      value: decision,
                       items: const [
                         DropdownMenuItem(value: 'Required', child: Text('Required')),
                         DropdownMenuItem(value: 'Conditional', child: Text('Conditional')),
@@ -1858,7 +1858,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                         decoration: const InputDecoration(labelText: 'Approver')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: priority,
+                      value: priority,
                       items: const [
                         DropdownMenuItem(value: 'Critical', child: Text('Critical')),
                         DropdownMenuItem(value: 'High', child: Text('High')),
@@ -1871,7 +1871,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       items: const [
                         DropdownMenuItem(value: 'Not Started', child: Text('Not Started')),
                         DropdownMenuItem(value: 'In Review', child: Text('In Review')),
@@ -1993,7 +1993,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                             labelText: 'Owner / Responsible Party')),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: priority,
+                      value: priority,
                       items: const [
                         DropdownMenuItem(
                             value: 'Critical', child: Text('Critical')),
@@ -2011,7 +2011,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       items: const [
                         DropdownMenuItem(
                             value: 'Open', child: Text('Open')),
@@ -2132,7 +2132,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                             labelText: 'Stage or deliverable')),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       items: const [
                         DropdownMenuItem(value: 'In progress', child: Text('In progress')),
                         DropdownMenuItem(value: 'Pending', child: Text('Pending')),
@@ -2195,7 +2195,7 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
                             labelText: 'Stage or deliverable')),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      initialValue: status,
+                      value: status,
                       items: const [
                         DropdownMenuItem(value: 'In progress', child: Text('In progress')),
                         DropdownMenuItem(value: 'Pending', child: Text('Pending')),

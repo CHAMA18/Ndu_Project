@@ -249,7 +249,7 @@ class _OrganizationRolesResponsibilitiesScreenState
           children: [
             PremiumEditDialog.fieldLabel('Title'),
             DropdownButtonFormField<String>(
-              initialValue: selectedTitle,
+              value: selectedTitle,
               items: [
                 ..._roleTitleOptions,
                 _customRoleOption,
@@ -329,7 +329,7 @@ class _OrganizationRolesResponsibilitiesScreenState
           children: [
             PremiumEditDialog.fieldLabel('Title'),
             DropdownButtonFormField<String>(
-              initialValue: selectedTitle,
+              value: selectedTitle,
               items: [
                 ..._roleTitleOptions,
                 _customRoleOption,
@@ -773,7 +773,7 @@ class _OrganizationStaffingPlanScreenState
                     children: [
                       PremiumEditDialog.fieldLabel('Employment'),
                       DropdownButtonFormField<String>(
-                        initialValue: empType,
+                        value: empType,
                         items: ['FT', 'PT']
                             .map((s) =>
                                 DropdownMenuItem(value: s, child: Text(s)))
@@ -797,7 +797,7 @@ class _OrganizationStaffingPlanScreenState
                     children: [
                       PremiumEditDialog.fieldLabel('Category'),
                       DropdownButtonFormField<String>(
-                        initialValue: employeeType,
+                        value: employeeType,
                         items: ['Employee', 'Contractor']
                             .map((s) =>
                                 DropdownMenuItem(value: s, child: Text(s)))

@@ -218,7 +218,7 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
     return [
       Expanded(
         child: DropdownButtonFormField<String>(
-          initialValue: _department,
+          value: _department,
           items: [
             for (final option in widget.departmentOptions)
               DropdownMenuItem(value: option, child: Text(option)),
@@ -241,7 +241,7 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
       const SizedBox(width: 12),
       Expanded(
         child: DropdownButtonFormField<String>(
-          initialValue: _riskLevel,
+          value: _riskLevel,
           items: const [
             DropdownMenuItem(value: 'Low', child: Text('Low')),
             DropdownMenuItem(value: 'Medium', child: Text('Medium')),

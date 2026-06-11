@@ -316,7 +316,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                     decoration: const InputDecoration(labelText: 'Cost'),
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: status,
+                    value: status,
                     decoration: const InputDecoration(labelText: 'Status'),
                     items: _statusOptions
                         .map((s) => DropdownMenuItem<String>(
@@ -445,7 +445,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
                     decoration: const InputDecoration(labelText: 'Description'),
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: status,
+                    value: status,
                     decoration: const InputDecoration(labelText: 'Status'),
                     items: _statusOptions
                         .map((s) => DropdownMenuItem<String>(
@@ -1172,7 +1172,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
               width: 280,
               child: DropdownButtonFormField<String>(
                 isExpanded: true,
-                initialValue: _categories.contains(_inventoryCategory)
+                value: _categories.contains(_inventoryCategory)
                     ? _inventoryCategory
                     : 'All Categories',
                 items: _categories
