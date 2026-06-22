@@ -9,6 +9,7 @@ import 'package:ndu_project/routing/platform_router.dart';
 import 'package:ndu_project/screens/landing_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/screens/create_account_screen.dart';
+import 'package:ndu_project/screens/profile_onboarding_screen.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/mobile_dashboard_screen.dart';
@@ -131,6 +132,9 @@ import 'package:ndu_project/screens/admin/admin_users_screen.dart';
 import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
 import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
 import 'package:ndu_project/services/access_policy.dart';
+import 'package:ndu_project/services/activity_auto_logger.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/pricing/mobile_pricing_screen.dart';
 import 'package:ndu_project/routing/shimmer_page_transition.dart';
 
@@ -141,6 +145,7 @@ class AppRoutes {
   static const landing = 'landing';
   static const signIn = 'sign-in';
   static const createAccount = 'create-account';
+  static const profileOnboarding = 'profile-onboarding';
   static const forgotPassword = 'forgot-password';
   static const pricing = 'pricing';
   static const mobilePricing = 'mobile-pricing';
@@ -294,6 +299,7 @@ class AppRouter {
       final publicRoutes = [
         '/', '/${AppRoutes.signIn}', '/${AppRoutes.createAccount}',
         '/${AppRoutes.splash}', '/${AppRoutes.onboarding}',
+        '/${AppRoutes.profileOnboarding}',
         '/${AppRoutes.mobilePricing}', '/${AppRoutes.privacyPolicy}',
         '/${AppRoutes.termsConditions}',
       ];
@@ -313,6 +319,33 @@ class AppRouter {
       // Friendly default: if authenticated and on the root, go to dashboard
       if (user != null && state.matchedLocation == '/') {
         return '/${AppRoutes.dashboard}';
+      }
+
+      // ── Auto-log page visits to the project activity log ──
+      // Every navigation to a project screen (anything other than the public
+      // routes) is recorded so the activity log is a live document of who
+      // visited what, when. Skipped for unauthenticated users and public
+      // routes to avoid noise. The ActivityAutoLogger throttles repeat
+      // visits to the same page within 30 seconds.
+      if (user != null) {
+        final loc = state.matchedLocation;
+        final isPublic = const [
+          '/', '/sign-in', '/create-account', '/splash', '/onboarding',
+          '/profile-onboarding', '/mobile-pricing', '/privacy-policy',
+          '/terms-conditions', '/pricing',
+        ].contains(loc);
+        if (!isPublic) {
+          final pageMeta = _describeRoute(loc);
+          if (pageMeta != null) {
+            // Fire-and-forget — never block navigation on a log write.
+            ActivityAutoLogger.instance.logPageVisit(
+              projectId: _activeProjectIdForUser(user.uid),
+              route: loc,
+              pageTitle: pageMeta.$1,
+              phase: pageMeta.$2,
+            );
+          }
+        }
       }
       return null;
     },
@@ -376,6 +409,11 @@ class AppRouter {
         name: AppRoutes.createAccount,
         path: '/${AppRoutes.createAccount}',
         pageBuilder: (context, state) => shimmerTransitionPage(state: state, child: const CreateAccountScreen()),
+      ),
+      GoRoute(
+        name: AppRoutes.profileOnboarding,
+        path: '/${AppRoutes.profileOnboarding}',
+        pageBuilder: (context, state) => shimmerTransitionPage(state: state, child: const ProfileOnboardingScreen()),
       ),
       GoRoute(
         name: AppRoutes.forgotPassword,
@@ -929,6 +967,80 @@ class AppRouter {
     errorBuilder: (context, state) =>
         _RouteNotFound(path: state.uri.toString()),
   );
+
+  // ── Helpers for the activity auto-logger ──────────────────────────────────
+
+  /// Returns the most-recently-known project ID for the current user, or
+  /// an empty string if none is known. Used by the redirect callback to
+  /// attribute page visits to a project.
+  static String _activeProjectIdForUser(String userId) {
+    // ProjectDataProvider.lastKnownProjectId is updated whenever a project
+    // is loaded or saved. It's a process-wide static — good enough for
+    // single-user-at-a-time apps.
+    return ProjectDataProvider.lastKnownProjectId ?? '';
+  }
+
+  /// Maps a route path to a human-readable (pageTitle, phase) tuple, or
+  /// null if the route isn't a project page worth logging.
+  static (String, String)? _describeRoute(String location) {
+    // Strip query string
+    final path = location.split('?').first;
+
+    // Dashboard / portfolio / program dashboards
+    if (path == '/dashboard') return ('Project Dashboard', 'Initiation');
+    if (path == '/program-dashboard') return ('Program Dashboard', 'Program');
+    if (path == '/portfolio-dashboard') return ('Portfolio Dashboard', 'Portfolio');
+
+    // Design phase routes
+    if (path.contains('design')) return ('Design Phase', 'Design');
+    if (path.contains('engineering')) return ('Engineering Design', 'Design');
+    if (path.contains('ui-ux')) return ('UI/UX Design', 'Design');
+    if (path.contains('backend')) return ('Backend Design', 'Design');
+
+    // Execution phase routes
+    if (path.contains('execution')) return ('Execution Plan', 'Execution');
+    if (path.contains('agile')) return ('Agile Delivery', 'Execution');
+    if (path.contains('sprint')) return ('Sprint Planning', 'Execution');
+    if (path.contains('work-breakdown')) return ('Work Breakdown Structure', 'Execution');
+
+    // FEP / planning routes
+    if (path.contains('front-end-planning') || path.contains('fep')) {
+      return ('Front-End Planning', 'Planning');
+    }
+    if (path.contains('project-plan')) return ('Project Plan', 'Planning');
+    if (path.contains('project-framework')) return ('Project Framework', 'Planning');
+    if (path.contains('project-charter')) return ('Project Charter', 'Planning');
+
+    // Cost / procurement / contracts
+    if (path.contains('cost')) return ('Cost Analysis', 'Planning');
+    if (path.contains('procurement')) return ('Procurement', 'Planning');
+    if (path.contains('contract')) return ('Contracts', 'Planning');
+
+    // Risk / SSHER
+    if (path.contains('risk')) return ('Risk Assessment', 'Planning');
+    if (path.contains('ssher')) return ('SSHER', 'Planning');
+
+    // Activities log itself — don't log a visit to the log page
+    if (path.contains('activities-log') || path.contains('activity-log')) {
+      return null;
+    }
+
+    // Settings / admin — group as 'Admin'
+    if (path.contains('settings')) return ('Settings', 'Admin');
+    if (path.startsWith('/admin')) return ('Admin', 'Admin');
+
+    // Generic fallback — still log so nothing is missed
+    final seg = path.split('/').where((s) => s.isNotEmpty).lastOrNull ?? 'Page';
+    return (_titleCase(seg), 'Project');
+  }
+
+  static String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s.split('-').map((w) {
+      if (w.isEmpty) return w;
+      return w[0].toUpperCase() + w.substring(1);
+    }).join(' ');
+  }
 }
 
 class _RouteNotFound extends StatelessWidget {

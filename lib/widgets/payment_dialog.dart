@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/subscription_service.dart';
+import 'package:ndu_project/services/subscription_pricing_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/addon_users_selector.dart';
 const Color _pageBackground = Color(0xFFF5F6F8);
 const Color _primaryText = Color(0xFF0F0F0F);
 const Color _secondaryText = Color(0xFF5A5C60);
@@ -18,6 +20,7 @@ class PaymentDialog extends StatefulWidget {
     this.displayTierName,
     this.displayPrice,
     this.displayPeriod,
+    this.pricingTierId,
   });
 
   final SubscriptionTier tier;
@@ -26,6 +29,11 @@ class PaymentDialog extends StatefulWidget {
   final String? displayTierName;
   final String? displayPrice;
   final String? displayPeriod;
+
+  /// Optional: the [PricingTierId] from the editable pricing config.
+  /// When provided, the dialog shows an add-on user selector and uses the
+  /// config's per-role add-on prices to compute the live total.
+  final PricingTierId? pricingTierId;
 
   /// Show the payment dialog
   static Future<bool> show({
@@ -36,6 +44,7 @@ class PaymentDialog extends StatefulWidget {
     String? displayTierName,
     String? displayPrice,
     String? displayPeriod,
+    PricingTierId? pricingTierId,
   }) async {
     final result = await showDialog<bool>(
       context: context,
@@ -47,6 +56,7 @@ class PaymentDialog extends StatefulWidget {
         displayTierName: displayTierName,
         displayPrice: displayPrice,
         displayPeriod: displayPeriod,
+        pricingTierId: pricingTierId,
       ),
     );
     return result ?? false;
@@ -69,6 +79,11 @@ class _PaymentDialogState extends State<PaymentDialog> {
   bool _isValidatingCoupon = false;
   String? _couponError;
 
+  // Add-on user selection state
+  SubscriptionPricingConfig? _pricingConfig;
+  AddonUserSelection _addonSelection = const AddonUserSelection();
+  bool _showAddonSelector = false;
+
   String get _tierName => SubscriptionService.getTierName(widget.tier);
   Map<String, String> get _price =>
       SubscriptionService.getPriceForTier(widget.tier, annual: widget.isAnnual);
@@ -83,12 +98,45 @@ class _PaymentDialogState extends State<PaymentDialog> {
     return double.tryParse(priceStr) ?? 0;
   }
 
-  double get _finalPrice => _appliedCoupon?.discountedPrice ?? _originalPrice;
+  /// Per-month add-on cost for the currently selected add-on users, or 0
+  /// if no pricing config / no add-ons selected.
+  double get _addonMonthlyCost {
+    final tier = _effectivePricingTier;
+    if (tier == null) return 0;
+    return _addonSelection.monthlyAddonCost(tier);
+  }
+
+  /// The add-on cost prorated for the billing period (annual or monthly).
+  /// Annual: multiply by 12 (full year).
+  /// Monthly: as-is.
+  double get _addonPeriodCost {
+    if (_addonMonthlyCost == 0) return 0;
+    return widget.isAnnual ? _addonMonthlyCost * 12 : _addonMonthlyCost;
+  }
+
+  TierPricingConfig? get _effectivePricingTier {
+    if (widget.pricingTierId == null || _pricingConfig == null) return null;
+    return _pricingConfig!.tier(widget.pricingTierId!);
+  }
+
+  double get _finalPrice =>
+      (_appliedCoupon?.discountedPrice ?? _originalPrice) + _addonPeriodCost;
 
   @override
   void initState() {
     super.initState();
     _checkTrialEligibility();
+    _loadPricingConfig();
+  }
+
+  Future<void> _loadPricingConfig() async {
+    if (widget.pricingTierId == null) return;
+    try {
+      final config = await SubscriptionPricingService.load();
+      if (mounted) setState(() => _pricingConfig = config);
+    } catch (e) {
+      debugPrint('[PaymentDialog] pricing config load error: $e');
+    }
   }
 
   @override
@@ -138,6 +186,76 @@ class _PaymentDialogState extends State<PaymentDialog> {
       _couponController.clear();
       _couponError = null;
     });
+  }
+
+  /// Build the collapsible add-on user selector section. Shows a header
+  /// row with the running add-on total and a toggle to expand/collapse the
+  /// full per-role stepper UI.
+  Widget _buildAddonSection() {
+    final tier = _effectivePricingTier!;
+    final currencySymbol = _pricingConfig?.currencySymbol ?? r'$';
+    final addonTotal = _addonSelection.monthlyAddonCost(tier);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () =>
+              setState(() => _showAddonSelector = !_showAddonSelector),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.group_add, size: 18, color: Color(0xFF0F172A)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Add team members',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                      Text(
+                        '${tier.includedUsers} included · '
+                        '${_addonSelection.total} add-on'
+                        '${_addonSelection.total == 1 ? '' : 's'}'
+                        '${addonTotal > 0 ? ' · $currencySymbol${addonTotal.toStringAsFixed(2)}/mo' : ''}',
+                        style: const TextStyle(
+                            color: Color(0xFF64748B), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _showAddonSelector
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  color: const Color(0xFF64748B),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_showAddonSelector) ...[
+          const SizedBox(height: 8),
+          AddonUsersSelector(
+            tier: tier,
+            currencySymbol: currencySymbol,
+            selection: _addonSelection,
+            onChanged: (sel) => setState(() => _addonSelection = sel),
+          ),
+        ],
+      ],
+    );
   }
 
   Future<void> _checkTrialEligibility() async {
@@ -411,6 +529,34 @@ class _PaymentDialogState extends State<PaymentDialog> {
                                   color: Color(0xFF16A34A),
                                 ),
                               ),
+                            ] else if (_addonPeriodCost > 0) ...[
+                              // No coupon, but add-on users selected — show
+                              // the original price strikethrough and the
+                              // total including add-ons.
+                              Text(
+                                _displayPrice,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: _secondaryText,
+                                  decoration: TextDecoration.lineThrough,
+                                ),
+                              ),
+                              Text(
+                                '\$${_finalPrice.toStringAsFixed(0)}',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ),
+                              Text(
+                                'incl. \$${_addonPeriodCost.toStringAsFixed(0)} add-ons',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: _secondaryText,
+                                ),
+                              ),
                             ] else
                               Text(
                                 _displayPrice,
@@ -464,6 +610,13 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 ),
               ),
               const SizedBox(height: 16),
+              // Add-on user selector (only when the tier supports it)
+              if (_effectivePricingTier != null &&
+                  _effectivePricingTier!.maxUsers >
+                      _effectivePricingTier!.includedUsers) ...[
+                _buildAddonSection(),
+                const SizedBox(height: 16),
+              ],
               // Coupon input
               if (_appliedCoupon == null) ...[
                 Row(

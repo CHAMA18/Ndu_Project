@@ -13,6 +13,7 @@ import '../services/firebase_auth_service.dart';
 import '../services/navigation_context_service.dart';
 import '../services/portfolio_service.dart';
 import '../services/program_service.dart';
+import '../services/profile_onboarding_service.dart';
 import '../services/project_service.dart';
 import '../services/user_service.dart';
 import '../services/project_navigation_service.dart';
@@ -43,6 +44,24 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
   void initState() {
     super.initState();
     _selectedProjectIds = ValueNotifier<Set<String>>({});
+    // First-time-user check: if the signed-in user hasn't completed profile
+    // onboarding yet, redirect them there before they land on the dashboard.
+    // Runs once, post-frame, so we don't block the build.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkProfileOnboarding());
+  }
+
+  Future<void> _checkProfileOnboarding() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final completed = await ProfileOnboardingService.hasCompleted();
+      if (!completed && mounted) {
+        context.go('/${AppRoutes.profileOnboarding}');
+      }
+    } catch (e) {
+      // Don't block the dashboard on a Firestore read failure — just log.
+      debugPrint('[ProjectDashboardScreen] profile onboarding check failed: $e');
+    }
   }
 
   @override

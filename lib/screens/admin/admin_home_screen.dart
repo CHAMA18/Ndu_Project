@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/app_logo.dart';
 
 import 'package:ndu_project/screens/admin/admin_coupons_screen.dart';
 import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart';
+import 'package:ndu_project/screens/admin/admin_pricing_config_screen.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
 const Color _adminBackgroundColor = Color(0xFFF6F7FB);
@@ -360,6 +361,18 @@ class AdminHomeScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                       builder: (_) => const AdminCouponsScreen())),
+              width: cardWidth,
+            ),
+            _ActionCard(
+              title: 'Subscription Pricing',
+              description:
+                  'Edit base prices, max users, and per-role add-on pricing for all 4 tiers',
+              icon: Icons.attach_money,
+              color: _adminAccentColor,
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminPricingConfigScreen())),
               width: cardWidth,
             ),
             _ActionCard(

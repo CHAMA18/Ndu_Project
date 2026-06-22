@@ -21,6 +21,7 @@ import '../screens/basic_plan_dashboard_screen.dart';
 import '../screens/portfolio_dashboard_screen.dart';
 import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
+import '../widgets/aggregated_business_systems_card.dart';
 
 class ProgramDashboardScreen extends StatefulWidget {
   const ProgramDashboardScreen({super.key, this.programId});
@@ -256,6 +257,12 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
                             const _InterfaceCard(),
                             const SizedBox(height: 18),
                             const _RollupCard(),
+                            const SizedBox(height: 18),
+                            if (_currentProgram != null)
+                              AggregatedBusinessSystemsCard(
+                                programId: _currentProgram!.id,
+                                programName: _currentProgram!.name,
+                              ),
                           ],
                         ),
                       ],

@@ -3,6 +3,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
+import 'package:ndu_project/widgets/activity_log_app_bar_button.dart';
 
 /// A responsive scaffold that adapts sidebar behavior based on screen size.
 /// - Desktop/Tablet: Shows sidebar in a Row layout with draggable handle
@@ -144,6 +145,12 @@ class _MobileScaffold extends StatelessWidget {
             Positioned.fill(
               child: body,
             ),
+            // Universal activity-log button, top-right, on mobile screens too.
+            const Positioned(
+              top: 8,
+              right: 12,
+              child: ActivityLogAppBarButton(compact: true),
+            ),
             if (floatingActionButton != null)
               Positioned(
                 bottom: 24,
@@ -191,6 +198,15 @@ class _DesktopScaffold extends StatelessWidget {
                 children: [
                   Positioned.fill(
                     child: body,
+                  ),
+                  // Universal activity-log button, top-right, on every screen
+                  // that uses ResponsiveScaffold. Ensures the log is always
+                  // reachable without each screen having to wire it into its
+                  // own AppBar. Sits above the body but below any FAB.
+                  const Positioned(
+                    top: 12,
+                    right: 16,
+                    child: ActivityLogAppBarButton(compact: true),
                   ),
                   if (floatingActionButton != null)
                     Positioned(

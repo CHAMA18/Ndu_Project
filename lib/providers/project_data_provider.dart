@@ -5,10 +5,21 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
+import 'package:ndu_project/services/activity_auto_logger.dart';
+import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/services/project_intelligence_service.dart';
 
 /// Provider that manages project data state across the entire application
 class ProjectDataProvider extends ChangeNotifier {
+  ProjectDataProvider();
+
+  /// Most-recently-loaded project ID across all [ProjectDataProvider]
+  /// instances in the app. Used by the router-level [ActivityAutoLogger]
+  /// to attribute page visits to a project when the user navigates between
+  /// screens without an explicit project context (e.g. via the sidebar).
+  /// Updated by [_loadFromFirebaseInternal] and [saveToFirebase].
+  static String? lastKnownProjectId;
+
   ProjectDataModel _projectData = ProjectDataModel();
   bool _isSaving = false;
   String? _lastError;
@@ -184,12 +195,30 @@ class ProjectDataProvider extends ChangeNotifier {
       }
 
       final projectId = _projectData.projectId;
+      // Track the most-recently-saved project for router-level auto-logging.
+      if (projectId != null && projectId.isNotEmpty) {
+        lastKnownProjectId = projectId;
+      }
       if (checkpoint != null && projectId != null && projectId.isNotEmpty) {
         unawaited(
           ActivityLogService.instance.logCheckpointActivity(
             projectId: projectId,
             checkpoint: checkpoint,
             action: 'Saved page changes',
+          ),
+        );
+        // Also record via the auto-logger so the entry includes the
+        // 'auto: true' flag and a normalized phase label.
+        final phase = SidebarNavigationService.phaseForCheckpoint(checkpoint) ??
+            'Project';
+        final item = SidebarNavigationService.instance
+            .findItemByCheckpoint(checkpoint);
+        unawaited(
+          ActivityAutoLogger.instance.logDataSave(
+            projectId: projectId,
+            checkpoint: checkpoint,
+            page: item?.label ?? checkpoint,
+            phase: phase,
           ),
         );
       }
@@ -231,6 +260,9 @@ class ProjectDataProvider extends ChangeNotifier {
   Future<bool> _loadFromFirebaseInternal(String projectId) async {
     const cacheValidationTimeout = Duration(seconds: 8);
     const projectLoadTimeout = Duration(seconds: 25);
+
+    // Track the most-recently-loaded project for router-level auto-logging.
+    lastKnownProjectId = projectId;
 
     // Skip if already loaded and cached, but only if data is valid
     if (_cachedProjectId == projectId &&

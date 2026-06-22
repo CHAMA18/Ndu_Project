@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:ndu_project/screens/basic_plan_dashboard_screen.dart';
 import 'package:ndu_project/screens/management_level_screen.dart';
 import 'package:ndu_project/services/subscription_service.dart';
+import 'package:ndu_project/services/subscription_pricing_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
 
 const Color _pageBackground = Color(0xFFF5F6F8);
@@ -48,6 +49,7 @@ class _PricingScreenState extends State<PricingScreen> {
           displayTierName: plan.label,
           displayPrice: price.price,
           displayPeriod: _isAnnual ? 'Billed annually' : 'Billed monthly',
+          pricingTierId: _pricingTierIdFor(plan.tier),
           onPaymentComplete: () {
             if (!mounted) return;
             messenger.showSnackBar(
@@ -84,6 +86,21 @@ class _PricingScreenState extends State<PricingScreen> {
         return SubscriptionTier.program;
       case _PlanTier.portfolio:
         return SubscriptionTier.portfolio;
+    }
+  }
+
+  /// Map the internal [_PlanTier] enum to the editable pricing config's
+  /// [PricingTierId] so the payment dialog can load admin-set add-on prices.
+  PricingTierId _pricingTierIdFor(_PlanTier tier) {
+    switch (tier) {
+      case _PlanTier.basicProject:
+        return PricingTierId.basicProject;
+      case _PlanTier.project:
+        return PricingTierId.project;
+      case _PlanTier.program:
+        return PricingTierId.program;
+      case _PlanTier.portfolio:
+        return PricingTierId.portfolio;
     }
   }
   
