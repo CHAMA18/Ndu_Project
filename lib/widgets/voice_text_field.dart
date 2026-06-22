@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
+import 'package:ndu_project/services/docx_import_service.dart';
 
 /// A drop-in replacement for [TextField] that adds a microphone button
 /// for voice-to-text input.
@@ -59,6 +60,9 @@ class VoiceTextField extends StatefulWidget {
     this.enableVoice = true,
     this.voiceIconColor,
     this.onTapOutside,
+    this.enableDocxImport = true,
+    this.docxImportIconColor,
+    this.docxImportTooltip = 'Import from .docx / .doc',
   });
 
   final TextEditingController? controller;
@@ -110,6 +114,18 @@ class VoiceTextField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow if not specified.
   final Color? voiceIconColor;
 
+  /// Whether to show the document-import button next to the mic icon.
+  /// When enabled, the user can tap the icon to pick a .docx / .doc / .txt /
+  /// .md / .csv / .rtf file and have its extracted text fill the field.
+  /// Defaults to true.
+  final bool enableDocxImport;
+
+  /// Color of the document-import icon. Defaults to a teal/brand color.
+  final Color? docxImportIconColor;
+
+  /// Tooltip shown on the import icon.
+  final String docxImportTooltip;
+
   @override
   State<VoiceTextField> createState() => _VoiceTextFieldState();
 }
@@ -121,6 +137,47 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
   StreamSubscription<VoiceStatus>? _statusSubscription;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImportingDoc = false;
+
+  /// Picks a .docx/.doc/.txt/.md/.csv/.rtf file and fills the field with its
+  /// extracted plain-text content. Shows a loading spinner on the import
+  /// icon during parsing and a success/error SnackBar afterwards.
+  Future<void> _importDocument() async {
+    if (_isImportingDoc) return;
+    setState(() => _isImportingDoc = true);
+    try {
+      final outcome = await DocxImportService.pickAndExtract(context);
+      if (!mounted) return;
+      switch (outcome) {
+        case DocxImportSuccess(:final result):
+          _controller.text = result.text;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: result.text.length),
+          );
+          widget.onChanged?.call(result.text);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Imported ${result.wordCount} words from ${result.fileName}'),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        case DocxImportError(:final reason, :final message):
+          if (reason == DocxImportFailure.cancelledByUser) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message ?? 'Import failed: $reason'),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isImportingDoc = false);
+    }
+  }
 
   @override
   void initState() {
@@ -221,7 +278,8 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
   Widget build(BuildContext context) {
     final voiceEnabled =
         widget.enableVoice && _voiceAvailable && !widget.obscureText;
-    final effectiveDecoration = _buildDecoration(voiceEnabled);
+    final docxEnabled = widget.enableDocxImport && !widget.obscureText;
+    final effectiveDecoration = _buildDecoration(voiceEnabled, docxEnabled);
 
     return TextField(
       controller: _controller,
@@ -269,29 +327,69 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
     );
   }
 
-  InputDecoration _buildDecoration(bool voiceEnabled) {
+  InputDecoration _buildDecoration(bool voiceEnabled, bool docxEnabled) {
     final base = widget.decoration ?? const InputDecoration();
-    final micIcon = _buildMicIcon();
 
-    if (!voiceEnabled) return base;
+    final icons = <Widget>[];
+    if (docxEnabled) icons.add(_buildDocxImportIcon());
+    if (voiceEnabled) icons.add(_buildMicIcon());
 
-    // Merge the mic icon with any existing suffixIcon
+    if (icons.isEmpty) return base;
+
     final existingSuffix = base.suffixIcon;
     Widget suffixWidget;
+    final merged = icons.length == 1
+        ? icons.first
+        : Row(mainAxisSize: MainAxisSize.min, children: icons);
 
     if (existingSuffix != null) {
       suffixWidget = Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          existingSuffix,
-          micIcon,
-        ],
+        children: [existingSuffix, merged],
       );
     } else {
-      suffixWidget = micIcon;
+      suffixWidget = merged;
     }
 
     return base.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildDocxImportIcon() {
+    final iconColor =
+        widget.docxImportIconColor ?? const Color(0xFF0EA5E9);
+    if (_isImportingDoc) {
+      return Container(
+        width: 36,
+        height: 36,
+        margin: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: iconColor,
+            ),
+          ),
+        ),
+      );
+    }
+    return IconButton(
+      icon: Icon(
+        Icons.upload_file,
+        color: iconColor,
+        size: 18,
+      ),
+      padding: const EdgeInsets.only(right: 4),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      onPressed: _importDocument,
+      tooltip: widget.docxImportTooltip,
+    );
   }
 
   Widget _buildMicIcon() {
@@ -392,6 +490,9 @@ class VoiceTextFormField extends StatefulWidget {
     this.restorationId,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableDocxImport = true,
+    this.docxImportIconColor,
+    this.docxImportTooltip = 'Import from .docx / .doc',
   });
 
   final TextEditingController? controller;
@@ -450,6 +551,18 @@ class VoiceTextFormField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow if not specified.
   final Color? voiceIconColor;
 
+  /// Whether to show the document-import button next to the mic icon.
+  /// When enabled, the user can tap the icon to pick a .docx / .doc / .txt /
+  /// .md / .csv / .rtf file and have its extracted text fill the field.
+  /// Defaults to true.
+  final bool enableDocxImport;
+
+  /// Color of the document-import icon. Defaults to a sky-blue brand color.
+  final Color? docxImportIconColor;
+
+  /// Tooltip shown on the import icon.
+  final String docxImportTooltip;
+
   @override
   State<VoiceTextFormField> createState() => _VoiceTextFormFieldState();
 }
@@ -461,6 +574,47 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   StreamSubscription<VoiceStatus>? _statusSubscription;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImportingDoc = false;
+
+  /// Picks a .docx/.doc/.txt/.md/.csv/.rtf file and fills the field with its
+  /// extracted plain-text content. Shows a loading spinner on the import
+  /// icon during parsing and a success/error SnackBar afterwards.
+  Future<void> _importDocument() async {
+    if (_isImportingDoc) return;
+    setState(() => _isImportingDoc = true);
+    try {
+      final outcome = await DocxImportService.pickAndExtract(context);
+      if (!mounted) return;
+      switch (outcome) {
+        case DocxImportSuccess(:final result):
+          _controller.text = result.text;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: result.text.length),
+          );
+          widget.onChanged?.call(result.text);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Imported ${result.wordCount} words from ${result.fileName}'),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        case DocxImportError(:final reason, :final message):
+          if (reason == DocxImportFailure.cancelledByUser) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message ?? 'Import failed: $reason'),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isImportingDoc = false);
+    }
+  }
 
   @override
   void initState() {
@@ -566,7 +720,9 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   Widget build(BuildContext context) {
     final voiceEnabled =
         widget.enableVoice && _voiceAvailable && !widget.obscureText;
-    final effectiveDecoration = _buildDecoration(voiceEnabled);
+    final docxEnabled = widget.enableDocxImport && !widget.obscureText;
+    final effectiveDecoration =
+        _buildDecoration(voiceEnabled, docxEnabled);
 
     return TextFormField(
       controller: _controller,
@@ -620,28 +776,69 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
     );
   }
 
-  InputDecoration _buildDecoration(bool voiceEnabled) {
+  InputDecoration _buildDecoration(bool voiceEnabled, bool docxEnabled) {
     final base = widget.decoration ?? const InputDecoration();
-    final micIcon = _buildMicIcon();
 
-    if (!voiceEnabled) return base;
+    final icons = <Widget>[];
+    if (docxEnabled) icons.add(_buildDocxImportIcon());
+    if (voiceEnabled) icons.add(_buildMicIcon());
+
+    if (icons.isEmpty) return base;
 
     final existingSuffix = base.suffixIcon;
     Widget suffixWidget;
+    final merged = icons.length == 1
+        ? icons.first
+        : Row(mainAxisSize: MainAxisSize.min, children: icons);
 
     if (existingSuffix != null) {
       suffixWidget = Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          existingSuffix,
-          micIcon,
-        ],
+        children: [existingSuffix, merged],
       );
     } else {
-      suffixWidget = micIcon;
+      suffixWidget = merged;
     }
 
     return base.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildDocxImportIcon() {
+    final iconColor =
+        widget.docxImportIconColor ?? const Color(0xFF0EA5E9);
+    if (_isImportingDoc) {
+      return Container(
+        width: 36,
+        height: 36,
+        margin: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: iconColor,
+            ),
+          ),
+        ),
+      );
+    }
+    return IconButton(
+      icon: Icon(
+        Icons.upload_file,
+        color: iconColor,
+        size: 18,
+      ),
+      padding: const EdgeInsets.only(right: 4),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      onPressed: _importDocument,
+      tooltip: widget.docxImportTooltip,
+    );
   }
 
   Widget _buildMicIcon() {

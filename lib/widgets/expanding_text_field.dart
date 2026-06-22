@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
+import 'package:ndu_project/services/docx_import_service.dart';
 
 /// A drop-in TextField that grows vertically as the user types,
 /// with optional voice-to-text input via a microphone button.
@@ -27,6 +28,7 @@ class ExpandingTextField extends StatefulWidget {
     this.onSubmitted,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableDocxImport = true,
   });
 
   final TextEditingController? controller;
@@ -50,6 +52,9 @@ class ExpandingTextField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow.
   final Color? voiceIconColor;
 
+  /// Whether to show the document-import button. Defaults to true.
+  final bool enableDocxImport;
+
   @override
   State<ExpandingTextField> createState() => _ExpandingTextFieldState();
 }
@@ -61,6 +66,44 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
   StreamSubscription<VoiceStatus>? _statusSubscription;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImportingDoc = false;
+
+  Future<void> _importDocument() async {
+    if (_isImportingDoc) return;
+    setState(() => _isImportingDoc = true);
+    try {
+      final outcome = await DocxImportService.pickAndExtract(context);
+      if (!mounted) return;
+      switch (outcome) {
+        case DocxImportSuccess(:final result):
+          _controller.text = result.text;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: result.text.length),
+          );
+          widget.onChanged?.call(result.text);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Imported ${result.wordCount} words from ${result.fileName}'),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        case DocxImportError(:final reason, :final message):
+          if (reason == DocxImportFailure.cancelledByUser) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message ?? 'Import failed: $reason'),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isImportingDoc = false);
+    }
+  }
 
   @override
   void initState() {
@@ -150,12 +193,14 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
   @override
   Widget build(BuildContext context) {
     final voiceEnabled = widget.enableVoice && _voiceAvailable;
+    final docxEnabled = widget.enableDocxImport;
     final InputDecoration baseDecoration = widget.decoration ?? const InputDecoration(
       border: OutlineInputBorder(),
       isDense: true,
     );
 
-    final effectiveDecoration = _buildDecoration(baseDecoration, voiceEnabled);
+    final effectiveDecoration =
+        _buildDecoration(baseDecoration, voiceEnabled, docxEnabled);
 
     return TextField(
       controller: _controller,
@@ -174,28 +219,65 @@ class _ExpandingTextFieldState extends State<ExpandingTextField> {
     );
   }
 
-  InputDecoration _buildDecoration(InputDecoration base, bool voiceEnabled) {
+  InputDecoration _buildDecoration(
+      InputDecoration base, bool voiceEnabled, bool docxEnabled) {
     final decorated = base.copyWith(
       hintText: widget.hintText ?? base.hintText,
       labelText: widget.labelText ?? base.labelText,
     );
 
-    if (!voiceEnabled) return decorated;
+    final icons = <Widget>[];
+    if (docxEnabled) icons.add(_buildDocxImportIcon());
+    if (voiceEnabled) icons.add(_buildMicIcon());
 
-    final micIcon = _buildMicIcon();
+    if (icons.isEmpty) return decorated;
+
     final existingSuffix = decorated.suffixIcon;
     Widget suffixWidget;
+    final merged = icons.length == 1
+        ? icons.first
+        : Row(mainAxisSize: MainAxisSize.min, children: icons);
 
     if (existingSuffix != null) {
       suffixWidget = Row(
         mainAxisSize: MainAxisSize.min,
-        children: [existingSuffix, micIcon],
+        children: [existingSuffix, merged],
       );
     } else {
-      suffixWidget = micIcon;
+      suffixWidget = merged;
     }
 
     return decorated.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildDocxImportIcon() {
+    const iconColor = Color(0xFF0EA5E9);
+    if (_isImportingDoc) {
+      return Container(
+        width: 36,
+        height: 36,
+        margin: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: iconColor),
+          ),
+        ),
+      );
+    }
+    return IconButton(
+      icon: const Icon(Icons.upload_file, color: iconColor, size: 18),
+      padding: const EdgeInsets.only(right: 4),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      onPressed: _importDocument,
+      tooltip: 'Import from .docx / .doc',
+    );
   }
 
   Widget _buildMicIcon() {
@@ -253,6 +335,7 @@ class ExpandingTextFormField extends StatefulWidget {
     this.autovalidateMode,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableDocxImport = true,
   });
 
   final TextEditingController? controller;
@@ -279,6 +362,9 @@ class ExpandingTextFormField extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow.
   final Color? voiceIconColor;
 
+  /// Whether to show the document-import button. Defaults to true.
+  final bool enableDocxImport;
+
   @override
   State<ExpandingTextFormField> createState() => _ExpandingTextFormFieldState();
 }
@@ -290,6 +376,44 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
   StreamSubscription<VoiceStatus>? _statusSubscription;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImportingDoc = false;
+
+  Future<void> _importDocument() async {
+    if (_isImportingDoc) return;
+    setState(() => _isImportingDoc = true);
+    try {
+      final outcome = await DocxImportService.pickAndExtract(context);
+      if (!mounted) return;
+      switch (outcome) {
+        case DocxImportSuccess(:final result):
+          _controller.text = result.text;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: result.text.length),
+          );
+          widget.onChanged?.call(result.text);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Imported ${result.wordCount} words from ${result.fileName}'),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        case DocxImportError(:final reason, :final message):
+          if (reason == DocxImportFailure.cancelledByUser) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message ?? 'Import failed: $reason'),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isImportingDoc = false);
+    }
+  }
 
   @override
   void initState() {
@@ -379,12 +503,14 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
   @override
   Widget build(BuildContext context) {
     final voiceEnabled = widget.enableVoice && _voiceAvailable;
+    final docxEnabled = widget.enableDocxImport;
     final InputDecoration baseDecoration = widget.decoration ?? const InputDecoration(
       border: OutlineInputBorder(),
       isDense: true,
     );
 
-    final effectiveDecoration = _buildDecoration(baseDecoration, voiceEnabled);
+    final effectiveDecoration =
+        _buildDecoration(baseDecoration, voiceEnabled, docxEnabled);
 
     return TextFormField(
       controller: _controller,
@@ -406,28 +532,65 @@ class _ExpandingTextFormFieldState extends State<ExpandingTextFormField> {
     );
   }
 
-  InputDecoration _buildDecoration(InputDecoration base, bool voiceEnabled) {
+  InputDecoration _buildDecoration(
+      InputDecoration base, bool voiceEnabled, bool docxEnabled) {
     final decorated = base.copyWith(
       hintText: widget.hintText ?? base.hintText,
       labelText: widget.labelText ?? base.labelText,
     );
 
-    if (!voiceEnabled) return decorated;
+    final icons = <Widget>[];
+    if (docxEnabled) icons.add(_buildDocxImportIcon());
+    if (voiceEnabled) icons.add(_buildMicIcon());
 
-    final micIcon = _buildMicIcon();
+    if (icons.isEmpty) return decorated;
+
     final existingSuffix = decorated.suffixIcon;
     Widget suffixWidget;
+    final merged = icons.length == 1
+        ? icons.first
+        : Row(mainAxisSize: MainAxisSize.min, children: icons);
 
     if (existingSuffix != null) {
       suffixWidget = Row(
         mainAxisSize: MainAxisSize.min,
-        children: [existingSuffix, micIcon],
+        children: [existingSuffix, merged],
       );
     } else {
-      suffixWidget = micIcon;
+      suffixWidget = merged;
     }
 
     return decorated.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildDocxImportIcon() {
+    const iconColor = Color(0xFF0EA5E9);
+    if (_isImportingDoc) {
+      return Container(
+        width: 36,
+        height: 36,
+        margin: const EdgeInsets.only(right: 4),
+        decoration: BoxDecoration(
+          color: iconColor.withOpacity(0.15),
+          shape: BoxShape.circle,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2, color: iconColor),
+          ),
+        ),
+      );
+    }
+    return IconButton(
+      icon: const Icon(Icons.upload_file, color: iconColor, size: 18),
+      padding: const EdgeInsets.only(right: 4),
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+      onPressed: _importDocument,
+      tooltip: 'Import from .docx / .doc',
+    );
   }
 
   Widget _buildMicIcon() {

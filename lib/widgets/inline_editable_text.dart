@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
+import 'package:ndu_project/services/docx_import_service.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 
 /// Inline editable text widget - clicking text turns it into an input field
@@ -24,6 +25,7 @@ class InlineEditableText extends StatefulWidget {
     this.canUndo = false,
     this.enableVoice = true,
     this.voiceIconColor,
+    this.enableDocxImport = true,
   });
 
   final String value;
@@ -47,6 +49,9 @@ class InlineEditableText extends StatefulWidget {
   /// Color of the mic icon. Defaults to brand yellow.
   final Color? voiceIconColor;
 
+  /// Whether to show the document-import button. Defaults to true.
+  final bool enableDocxImport;
+
   @override
   State<InlineEditableText> createState() => _InlineEditableTextState();
 }
@@ -60,6 +65,46 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   StreamSubscription<VoiceStatus>? _voiceStatusSub;
   bool _isListening = false;
   bool _voiceAvailable = true;
+  bool _isImportingDoc = false;
+
+  /// Picks a .docx/.doc/.txt/.md/.csv/.rtf file and fills the field with its
+  /// extracted plain-text content.
+  Future<void> _importDocument() async {
+    if (_isImportingDoc) return;
+    setState(() => _isImportingDoc = true);
+    try {
+      final outcome = await DocxImportService.pickAndExtract(context);
+      if (!mounted) return;
+      switch (outcome) {
+        case DocxImportSuccess(:final result):
+          _controller.text = result.text;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: result.text.length),
+          );
+          widget.onChanged(result.text);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Imported ${result.wordCount} words from ${result.fileName}'),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        case DocxImportError(:final reason, :final message):
+          if (reason == DocxImportFailure.cancelledByUser) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message ?? 'Import failed: $reason'),
+              duration: const Duration(seconds: 4),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.red.shade700,
+            ),
+          );
+      }
+    } finally {
+      if (mounted) setState(() => _isImportingDoc = false);
+    }
+  }
 
   @override
   void initState() {
@@ -203,6 +248,25 @@ class _InlineEditableTextState extends State<InlineEditableText> {
                       const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
               if (voiceEnabled) _buildMicIcon(),
+              if (widget.enableDocxImport)
+                IconButton(
+                  icon: _isImportingDoc
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0EA5E9),
+                          ),
+                        )
+                      : const Icon(Icons.upload_file,
+                          size: 16, color: Color(0xFF0EA5E9)),
+                  onPressed: _isImportingDoc ? null : _importDocument,
+                  tooltip: 'Import from .docx / .doc',
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
             ],
           ),
           // Text field
