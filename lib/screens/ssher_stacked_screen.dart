@@ -3,6 +3,7 @@ import 'package:ndu_project/screens/ssher_add_safety_item_dialog.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -882,7 +883,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                 ],
               ),
               const SizedBox(height: 10),
-              TextField(
+              VoiceTextField(
                 controller: _notesController,
                 maxLines: 2,
                 onChanged: (_) => _saveNotes(),

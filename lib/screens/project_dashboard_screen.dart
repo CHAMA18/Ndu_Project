@@ -29,6 +29,7 @@ import 'initiation_phase_screen.dart';
 import 'portfolio_dashboard_screen.dart';
 import 'program_dashboard_screen.dart';
 import 'project_dashboard_mobile_shell.dart';
+import 'project_activities_log_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ProjectDashboardScreen extends StatefulWidget {
@@ -524,65 +525,24 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                           isBasicPlan: widget.isBasicPlan,
                         ),
                         const SizedBox(height: 24),
-                        if (!widget.isBasicPlan) ...[
-                          ValueListenableBuilder<Set<String>>(
-                            valueListenable: _selectedProjectIds,
-                            builder: (context, selectedIds, _) {
-                              return _GroupProjectsCard(
-                                projects: projects,
-                                isLoading: isLoading,
-                                error: error,
-                                selectedIds: selectedIds,
-                                selectedIdsListenable: _selectedProjectIds,
-                                onToggle: _toggleSelection,
-                                onClear: _clearSelection,
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                        ],
                         const _ProgramsSummaryCard(),
                       ],
                     );
                   }
 
-                  return Row(
+                  // Single Projects at full width, Programs & Portfolios below
+                  return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 7,
-                        child: _SingleProjectsCard(
-                          projects: projects,
-                          isLoading: isLoading,
-                          error: error,
-                          isBasicPlan: widget.isBasicPlan,
-                        ),
+                      _SingleProjectsCard(
+                        projects: projects,
+                        isLoading: isLoading,
+                        error: error,
+                        isBasicPlan: widget.isBasicPlan,
                       ),
                       if (!widget.isBasicPlan) ...[
-                        const SizedBox(width: 24),
-                        Expanded(
-                          flex: 5,
-                          child: Column(
-                            children: [
-                              ValueListenableBuilder<Set<String>>(
-                                valueListenable: _selectedProjectIds,
-                                builder: (context, selectedIds, _) {
-                                  return _GroupProjectsCard(
-                                    projects: projects,
-                                    isLoading: isLoading,
-                                    error: error,
-                                    selectedIds: selectedIds,
-                                    selectedIdsListenable: _selectedProjectIds,
-                                    onToggle: _toggleSelection,
-                                    onClear: _clearSelection,
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 24),
-                              const _ProgramsSummaryCard(),
-                            ],
-                          ),
-                        ),
+                        const SizedBox(height: 24),
+                        const _ProgramsSummaryCard(),
                       ],
                     ],
                   );
@@ -601,6 +561,52 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                       const SizedBox(height: 26),
                       const _StatusStrip(),
                       const SizedBox(height: 28),
+                      // ── Compact action button row: Group Into A Program + Project Logs ──
+                      if (!widget.isBasicPlan)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _CompactActionButton(
+                                  label: 'Group Into A Program',
+                                  subtitle:
+                                      'Select up to 3 projects to combine',
+                                  icon: Icons.layers_outlined,
+                                  accent: const Color(0xFF8B5CF6),
+                                  onTap: () {
+                                    // Open the expanded grouping view
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            _GroupProjectsExpandedScreen(
+                                          projects: const [],
+                                          isLoading: false,
+                                          selectedIdsListenable:
+                                              _selectedProjectIds,
+                                          selectedIds: _selectedProjectIds.value,
+                                          onToggle: _toggleSelection,
+                                          onClear: _clearSelection,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _CompactActionButton(
+                                  label: 'Project Logs',
+                                  subtitle: 'Activity across all projects',
+                                  icon: Icons.fact_check_outlined,
+                                  accent: const Color(0xFFFCD34D),
+                                  onTap: () => ProjectActivitiesLogScreen.open(
+                                      context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // ── Past-due + Assigned-to-me + Project metrics ──
                       if (_isLoadingMetrics)
                         const Padding(
@@ -4075,5 +4081,117 @@ class _DesktopPremiumGreeting extends StatelessWidget {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${months[now.month]} ${now.day}, ${now.year}';
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Compact Action Button — horizontal button used for "Group Into A Program"
+// and "Project Logs" on the project dashboard.
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _CompactActionButton extends StatefulWidget {
+  const _CompactActionButton({
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  State<_CompactActionButton> createState() => _CompactActionButtonState();
+}
+
+class _CompactActionButtonState extends State<_CompactActionButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: _isHovered
+                ? widget.accent.withOpacity(0.08)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: _isHovered
+                  ? widget.accent.withOpacity(0.4)
+                  : const Color(0xFFE2E8F0),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(_isHovered ? 0.06 : 0.03),
+                blurRadius: _isHovered ? 12 : 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: widget.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(widget.icon, size: 20, color: widget.accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        decoration: TextDecoration.none,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF0F172A),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.subtitle,
+                      style: const TextStyle(
+                        decoration: TextDecoration.none,
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: _isHovered
+                      ? widget.accent
+                      : const Color(0xFF94A3B8)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

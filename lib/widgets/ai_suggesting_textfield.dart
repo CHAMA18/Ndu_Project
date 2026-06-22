@@ -717,7 +717,9 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                         ? null
                                         : _importDocument,
                                   ),
-                                if (_voiceAvailable) ...[
+                                // Always show the mic button — even if
+                                // the browser doesn't support voice input.
+                                if (widget.enableAi) ...[
                                   if (_isListening)
                                     Container(
                                       width: 32,
@@ -746,7 +748,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                 ],
                               ],
                             ))
-                      : _voiceAvailable || widget.enableDocxImport
+                      : widget.enableAi || widget.enableDocxImport
                           ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -767,7 +769,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
                                         ? null
                                         : _importDocument,
                                   ),
-                                if (_voiceAvailable)
+                                if (widget.enableAi)
                                   (_isListening
                                       ? Container(
                                           width: 36,

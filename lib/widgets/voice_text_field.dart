@@ -276,8 +276,11 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled =
-        widget.enableVoice && _voiceAvailable && !widget.obscureText;
+    // Always show the mic button when enableVoice is true and the field
+    // isn't a password field — even if the browser doesn't support voice
+    // input. Tapping the mic on an unsupported browser shows a helpful
+    // message instead of silently failing.
+    final voiceEnabled = widget.enableVoice && !widget.obscureText;
     final docxEnabled = widget.enableDocxImport && !widget.obscureText;
     final effectiveDecoration = _buildDecoration(voiceEnabled, docxEnabled);
 
@@ -718,8 +721,10 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled =
-        widget.enableVoice && _voiceAvailable && !widget.obscureText;
+    // Always show the mic button — even if the browser doesn't support
+    // voice input. Tapping it on an unsupported browser shows a helpful
+    // message instead of silently failing.
+    final voiceEnabled = widget.enableVoice && !widget.obscureText;
     final docxEnabled = widget.enableDocxImport && !widget.obscureText;
     final effectiveDecoration =
         _buildDecoration(voiceEnabled, docxEnabled);

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as _math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -63,6 +64,13 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
   final TextEditingController _industryController = TextEditingController();
   final TextEditingController _useCaseController = TextEditingController();
   bool _isSaving = false;
+  bool _isCelebrating = false;
+
+  // Celebration animation (plays when user taps Finish)
+  late final AnimationController _celebrationController;
+  late final Animation<double> _celebrationScale;
+  late final Animation<double> _celebrationOpacity;
+  late final Animation<double> _confettiOpacity;
 
   static const int _pageCount = 7;
 
@@ -112,6 +120,35 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _revealController, curve: Curves.easeOut));
     _revealController.forward();
+
+    // Celebration animation: scale-up + fade-out of the dialog, plus a
+    // confetti burst overlay. Total 1400ms — long enough to feel celebratory,
+    // short enough to not annoy.
+    _celebrationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    );
+    // Check icon pops in with a spring (0–40%)
+    _celebrationScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _celebrationController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOutBack),
+      ),
+    );
+    // Dialog fades out (60–100%)
+    _celebrationOpacity = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(
+        parent: _celebrationController,
+        curve: const Interval(0.6, 1.0, curve: Curves.easeIn),
+      ),
+    );
+    // Confetti burst (0–70%, then fades)
+    _confettiOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _celebrationController,
+        curve: const Interval(0.0, 0.15, curve: Curves.easeOut),
+      ),
+    );
   }
 
   @override
@@ -121,6 +158,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
     _useCaseController.dispose();
     _entranceController.dispose();
     _revealController.dispose();
+    _celebrationController.dispose();
     super.dispose();
   }
 
@@ -133,7 +171,10 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
 
   Future<void> _next() async {
     if (_currentPage < _pageCount - 1) {
-      await _saveIncremental();
+      // Save incrementally but NEVER block navigation on a save failure.
+      await _saveIncremental().catchError((e) {
+        debugPrint('[Onboarding] incremental save failed (non-blocking): $e');
+      });
       if (!mounted) return;
       await _pageController.nextPage(
         duration: const Duration(milliseconds: 360),
@@ -193,6 +234,9 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
             : _useCaseController.text.trim(),
       );
       await ProfileOnboardingService.save(_answers);
+    } catch (e) {
+      // Swallow save errors — never block the user's navigation.
+      debugPrint('[Onboarding] save error (non-blocking): $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -211,9 +255,23 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
         skipped: false,
       );
       await ProfileOnboardingService.markComplete(_answers);
+    } catch (e) {
+      debugPrint('[Onboarding] finish save error (non-blocking): $e');
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+
+    if (!mounted) return;
+
+    // ── Play the celebration animation ──────────────────────────────────
+    // Triggers a full-screen confetti burst + scales the check icon with a
+    // spring, then fades the dialog out. After 1400ms, closes the dialog
+    // and navigates to the dashboard.
+    setState(() => _isCelebrating = true);
+    _celebrationController.forward();
+
+    // Wait for the celebration to finish, then close.
+    await Future.delayed(const Duration(milliseconds: 1400));
     if (!mounted) return;
     _close();
   }
@@ -250,7 +308,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
     final dialogHeight = (screenSize.height * 0.88).clamp(560.0, 760.0);
 
     return AnimatedBuilder(
-      animation: _entranceController,
+      animation: Listenable.merge([_entranceController, _celebrationController]),
       builder: (context, child) {
         return Stack(
           children: [
@@ -270,12 +328,13 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                 ),
               ),
             ),
-            // ── Centered dialog ───────────────────────────────────────────
+            // ── Centered dialog (fades out during celebration) ────────────
             Center(
               child: Transform.scale(
                 scale: _entranceScale.value,
                 child: Opacity(
-                  opacity: _entranceOpacity.value,
+                  opacity: _entranceOpacity.value *
+                      (_isCelebrating ? _celebrationOpacity.value : 1.0),
                   child: Container(
                     width: dialogWidth,
                     height: dialogHeight,
@@ -330,6 +389,17 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                 ),
               ),
             ),
+            // ── Celebration overlay (confetti + giant check) ───────────────
+            if (_isCelebrating)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: _CelebrationOverlay(
+                    controller: _celebrationController,
+                    scale: _celebrationScale,
+                    confettiOpacity: _confettiOpacity,
+                  ),
+                ),
+              ),
           ],
         );
       },
@@ -363,30 +433,27 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                 children: [
                   TextSpan(
                     text: '${(_currentPage + 1).toString().padLeft(2, '0')}',
-                    style: const TextStyle(
+                    style: const TextStyle(decoration: TextDecoration.none,
                       color: _gold,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
-                      fontFamily: 'Satoshi',
                     ),
                   ),
                   const TextSpan(
                     text: ' / ',
-                    style: TextStyle(
+                    style: TextStyle(decoration: TextDecoration.none,
                       color: _textMuted,
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      fontFamily: 'Satoshi',
                     ),
                   ),
                   TextSpan(
                     text: '$_pageCount'.padLeft(2, '0'),
-                    style: const TextStyle(
+                    style: const TextStyle(decoration: TextDecoration.none,
                       color: _textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      fontFamily: 'Satoshi',
                     ),
                   ),
                 ],
@@ -500,34 +567,31 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
 
   Widget _eyebrow(String text) => Text(
         text.toUpperCase(),
-        style: const TextStyle(
+        style: const TextStyle(decoration: TextDecoration.none,
           color: _gold,
           fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 1.6,
-          fontFamily: 'Satoshi',
         ),
       );
 
   Widget _heading(String text) => Text(
         text,
-        style: const TextStyle(
+        style: const TextStyle(decoration: TextDecoration.none,
           color: _textPrimary,
           fontSize: 26,
           fontWeight: FontWeight.w700,
           height: 1.2,
           letterSpacing: -0.5,
-          fontFamily: 'Satoshi',
         ),
       );
 
   Widget _subheading(String text) => Text(
         text,
-        style: const TextStyle(
+        style: const TextStyle(decoration: TextDecoration.none,
           color: _textSecondary,
           fontSize: 14.5,
           height: 1.55,
-          fontFamily: 'Satoshi',
         ),
       );
 
@@ -542,6 +606,39 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: children,
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Reusable page header: eyebrow + heading + subheading, consistently
+  /// padded across all question pages.
+  Widget _pageHeader(String step, String heading, String subheading) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _eyebrow(step),
+          const SizedBox(height: 10),
+          _heading(heading),
+          const SizedBox(height: 8),
+          _subheading(subheading),
+        ],
+      ),
+    );
+  }
+
+  /// Reusable section label for sub-sections within a page.
+  Widget _sectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 0),
+      child: Text(
+        text,
+        style: const TextStyle(decoration: TextDecoration.none,
+          color: _textPrimary,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );
@@ -581,13 +678,12 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
         child: Text(
           'Welcome to NDU',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: TextStyle(decoration: TextDecoration.none,
             color: _textPrimary,
             fontSize: 32,
             fontWeight: FontWeight.w800,
             height: 1.1,
             letterSpacing: -0.8,
-            fontFamily: 'Satoshi',
           ),
         ),
       ),
@@ -596,12 +692,11 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
       const Center(
         child: Text(
           'NAVIGATE  ·  DELIVER  ·  UPGRADE',
-          style: TextStyle(
+          style: TextStyle(decoration: TextDecoration.none,
             color: _gold,
             fontSize: 11,
             fontWeight: FontWeight.w700,
             letterSpacing: 3.2,
-            fontFamily: 'Satoshi',
           ),
         ),
       ),
@@ -614,11 +709,10 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
           'workspace — show the right templates, the right dashboards, and the '
           'right starting point for your first project.',
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: TextStyle(decoration: TextDecoration.none,
             color: _textSecondary,
             fontSize: 14.5,
             height: 1.6,
-            fontFamily: 'Satoshi',
           ),
         ),
       ),
@@ -650,12 +744,11 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
         children: [
           const Text(
             'WHAT HAPPENS NEXT',
-            style: TextStyle(
+            style: TextStyle(decoration: TextDecoration.none,
               color: _gold,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.8,
-              fontFamily: 'Satoshi',
             ),
           ),
           const SizedBox(height: 16),
@@ -701,11 +794,10 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
             child: Center(
               child: Text(
                 n,
-                style: const TextStyle(
+                style: const TextStyle(decoration: TextDecoration.none,
                   color: Color(0xFF0B1120),
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
-                  fontFamily: 'Satoshi',
                 ),
               ),
             ),
@@ -717,21 +809,19 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: const TextStyle(decoration: TextDecoration.none,
                     color: _textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    fontFamily: 'Satoshi',
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: const TextStyle(decoration: TextDecoration.none,
                     color: _textMuted,
                     fontSize: 12.5,
                     height: 1.4,
-                    fontFamily: 'Satoshi',
                   ),
                 ),
               ],
@@ -745,132 +835,73 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
   // ── Page 2: Role ─────────────────────────────────────────────────────────
 
   Widget _buildRolePage(ThemeData theme) {
+    final roles = [
+      (UserRole.projectManager, 'Project Manager', 'PM, delivery lead, program owner', Icons.assignment_ind_outlined, const Color(0xFF3B82F6)),
+      (UserRole.engineer, 'Engineer', 'Software, civil, mechanical, electrical', Icons.engineering_outlined, const Color(0xFF10B981)),
+      (UserRole.designer, 'Designer / UX', 'Product, UI/UX, service designer', Icons.palette_outlined, const Color(0xFF8B5CF6)),
+      (UserRole.executive, 'Executive / Sponsor', 'Director, VP, C-level, sponsor', Icons.business_center_outlined, const Color(0xFFEF4444)),
+      (UserRole.consultant, 'Consultant / Advisor', 'External advisor, SME', Icons.support_agent_outlined, const Color(0xFFF59E0B)),
+      (UserRole.analyst, 'Analyst', 'Business, data, systems analyst', Icons.analytics_outlined, const Color(0xFF0EA5E9)),
+      (UserRole.other, 'Other', 'Anything else', Icons.more_horiz_rounded, const Color(0xFF64748B)),
+    ];
     return _bodyScroll([
+      _pageHeader('Step 1', 'What best describes your role?',
+          'This shapes what dashboards and templates we surface first.'),
+      const SizedBox(height: 20),
       Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _eyebrow('Step 1'),
-            const SizedBox(height: 10),
-            _heading('What best describes your role?'),
-            const SizedBox(height: 8),
-            _subheading(
-                'This shapes what dashboards and templates we surface first.'),
-          ],
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 480;
+          return Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: roles.map((r) {
+              return _RoleCard(
+                role: r.$1,
+                label: r.$2,
+                subtitle: r.$3,
+                icon: r.$4,
+                accent: r.$5,
+                isSelected: _answers.role == r.$1,
+                onTap: _setRole,
+                width: isWide ? (constraints.maxWidth - 30) / 2 : double.infinity,
+              );
+            }).toList(),
+          );
+        }),
       ),
-      ...UserRole.values.map((r) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 4),
-            child: _optionCard<UserRole>(
-              value: r,
-              selected: _answers.role,
-              title: r.label,
-              subtitle: r.description,
-              onTap: _setRole,
-            ),
-          )),
-      const SizedBox(height: 16),
+      const SizedBox(height: 24),
     ]);
   }
 
   // ── Page 3: Experience ───────────────────────────────────────────────────
 
   Widget _buildExperiencePage(ThemeData theme) {
-    return _bodyScroll([
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _eyebrow('Step 2'),
-            const SizedBox(height: 10),
-            _heading('How experienced are you?'),
-            const SizedBox(height: 8),
-            _subheading(
-                'We adjust the level of guidance and the depth of default reporting.'),
-          ],
-        ),
-      ),
-      ...ExperienceLevel.values.map((e) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 4),
-            child: _optionCard<ExperienceLevel>(
-              value: e,
-              selected: _answers.experience,
-              title: e.label,
-              subtitle: e.description,
-              onTap: _setExperience,
-            ),
-          )),
-      const SizedBox(height: 16),
-    ]);
-  }
-
-  // ── Page 4: Industry ─────────────────────────────────────────────────────
-
-  Widget _buildIndustryPage(ThemeData theme) {
-    const suggestions = [
-      'Technology / SaaS',
-      'Financial services',
-      'Healthcare',
-      'Construction & engineering',
-      'Government / public sector',
-      'Manufacturing',
-      'Energy & utilities',
-      'Telecommunications',
-      'Education',
-      'Non-profit',
-      'Other',
+    final levels = [
+      (ExperienceLevel.beginner, 'Beginner', 'New to project delivery or this kind of work', 1, const Color(0xFF10B981)),
+      (ExperienceLevel.intermediate, 'Intermediate', 'Some experience, comfortable with basics', 2, const Color(0xFF3B82F6)),
+      (ExperienceLevel.expert, 'Expert', 'Years of hands-on delivery experience', 3, const Color(0xFF8B5CF6)),
+      (ExperienceLevel.executive, 'Executive overview', 'Need high-level dashboards, not detail', 4, const Color(0xFFF59E0B)),
     ];
     return _bodyScroll([
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _eyebrow('Step 3'),
-            const SizedBox(height: 10),
-            _heading('What industry do you work in?'),
-            const SizedBox(height: 8),
-            _subheading(
-                'Type your own, or pick a common one. Used for benchmarking and template matching.'),
-          ],
-        ),
-      ),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: _PremiumTextField(
-          controller: _industryController,
-          hint: 'e.g. Technology / SaaS',
-        ),
-      ),
+      _pageHeader('Step 2', 'How experienced are you?',
+          'We adjust the level of guidance and the depth of default reporting.'),
       const SizedBox(height: 20),
-      const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 24),
-        child: Text(
-          'SUGGESTIONS',
-          style: TextStyle(
-            color: _textMuted,
-            fontSize: 10.5,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.4,
-            fontFamily: 'Satoshi',
-          ),
-        ),
-      ),
-      const SizedBox(height: 10),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: suggestions.map((s) {
-            return _SuggestionChip(
-              label: s,
-              onTap: () {
-                setState(() => _industryController.text = s);
-                HapticFeedback.selectionClick();
-              },
+        child: Column(
+          children: levels.map((l) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _ExperienceCard(
+                level: l.$1,
+                label: l.$2,
+                subtitle: l.$3,
+                bars: l.$4,
+                accent: l.$5,
+                isSelected: _answers.experience == l.$1,
+                onTap: _setExperience,
+              ),
             );
           }).toList(),
         ),
@@ -879,201 +910,330 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
     ]);
   }
 
+  // ── Page 4: Industry ─────────────────────────────────────────────────────
+
+  Widget _buildIndustryPage(ThemeData theme) {
+    final suggestions = [
+      ('Technology / SaaS', Icons.code_rounded, const Color(0xFF3B82F6)),
+      ('Financial services', Icons.account_balance_rounded, const Color(0xFF10B981)),
+      ('Healthcare', Icons.medical_services_outlined, const Color(0xFFEF4444)),
+      ('Construction & engineering', Icons.construction_outlined, const Color(0xFFF59E0B)),
+      ('Government / public sector', Icons.account_balance_outlined, const Color(0xFF8B5CF6)),
+      ('Manufacturing', Icons.factory_outlined, const Color(0xFF0EA5E9)),
+      ('Energy & utilities', Icons.bolt_outlined, const Color(0xFFFCD34D)),
+      ('Telecommunications', Icons.wifi_outlined, const Color(0xFF06B6D4)),
+      ('Education', Icons.school_outlined, const Color(0xFFEC4899)),
+      ('Non-profit', Icons.volunteer_activism_outlined, const Color(0xFF14B8A6)),
+      ('Other', Icons.category_outlined, const Color(0xFF64748B)),
+    ];
+    return _bodyScroll([
+      _pageHeader('Step 3', 'What industry do you work in?',
+          'Type your own, or pick a common one. Used for benchmarking and template matching.'),
+      const SizedBox(height: 20),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: _PremiumTextField(
+          controller: _industryController,
+          hint: 'e.g. Technology / SaaS',
+          prefixIcon: Icons.search_outlined,
+        ),
+      ),
+      const SizedBox(height: 20),
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Text(
+          'SUGGESTIONS',
+          style: TextStyle(decoration: TextDecoration.none,
+            color: _textMuted,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.4,
+          ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 480;
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: suggestions.map((s) {
+              return _IndustryChip(
+                label: s.$1,
+                icon: s.$2,
+                accent: s.$3,
+                isSelected: _industryController.text == s.$1,
+                onTap: () {
+                  setState(() => _industryController.text = s.$1);
+                  HapticFeedback.selectionClick();
+                },
+                width: isWide ? (constraints.maxWidth - 24) / 3 : double.infinity,
+              );
+            }).toList(),
+          );
+        }),
+      ),
+      const SizedBox(height: 24),
+    ]);
+  }
+
   // ── Page 5: Team size ────────────────────────────────────────────────────
 
   Widget _buildTeamSizePage(ThemeData theme) {
-    const bands = [
-      (1, 'Just me', 'Solo founder, contractor, or individual contributor.'),
-      (5, '2–5 people', 'Small team, startup, or focused delivery squad.'),
-      (15, '6–15 people', 'Cross-functional team or small department.'),
-      (50, '16–50 people', 'Multiple teams, mid-size program.'),
-      (200, '51–200 people', 'Department or large program.'),
-      (500, '200+ people', 'Enterprise / organisation-wide delivery.'),
+    final bands = [
+      (1, 'Just me', 'Solo founder, contractor, or individual contributor.', 1, const Color(0xFF64748B)),
+      (5, '2–5 people', 'Small team, startup, or focused delivery squad.', 3, const Color(0xFF10B981)),
+      (15, '6–15 people', 'Cross-functional team or small department.', 7, const Color(0xFF3B82F6)),
+      (50, '16–50 people', 'Multiple teams, mid-size program.', 12, const Color(0xFF8B5CF6)),
+      (200, '51–200 people', 'Department or large program.', 18, const Color(0xFFF59E0B)),
+      (500, '200+ people', 'Enterprise / organisation-wide delivery.', 24, const Color(0xFFEF4444)),
     ];
     return _bodyScroll([
+      _pageHeader('Step 4', 'How big is your team or organisation?',
+          'We right-size the collaboration, governance, and reporting defaults.'),
+      const SizedBox(height: 20),
       Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _eyebrow('Step 4'),
-            const SizedBox(height: 10),
-            _heading('How big is your team or organisation?'),
-            const SizedBox(height: 8),
-            _subheading(
-                'We right-size the collaboration, governance, and reporting defaults.'),
-          ],
+          children: bands.map((b) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _TeamSizeCard(
+                value: b.$1,
+                label: b.$2,
+                subtitle: b.$3,
+                avatarCount: b.$4,
+                accent: b.$5,
+                isSelected: _answers.teamSize == b.$1,
+                onTap: _setTeamSize,
+              ),
+            );
+          }).toList(),
         ),
       ),
-      ...bands.map((b) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 4),
-            child: _optionCard<int>(
-              value: b.$1,
-              selected: _answers.teamSize,
-              title: b.$2,
-              subtitle: b.$3,
-              onTap: _setTeamSize,
-            ),
-          )),
-      const SizedBox(height: 16),
+      const SizedBox(height: 24),
     ]);
   }
 
   // ── Page 6: Project preferences ──────────────────────────────────────────
 
   Widget _buildProjectPrefsPage(ThemeData theme) {
+    final projectTypes = [
+      (PrimaryProjectType.software, 'Software / IT', Icons.code_rounded, const Color(0xFF3B82F6)),
+      (PrimaryProjectType.construction, 'Construction', Icons.construction_rounded, const Color(0xFFF59E0B)),
+      (PrimaryProjectType.hardware, 'Hardware / Product', Icons.memory_rounded, const Color(0xFF8B5CF6)),
+      (PrimaryProjectType.services, 'Services / Ops', Icons.settings_suggest_outlined, const Color(0xFF10B981)),
+      (PrimaryProjectType.hybrid, 'Hybrid / Cross-domain', Icons.hub_outlined, const Color(0xFF0EA5E9)),
+    ];
+    final methodologies = [
+      (PreferredMethodology.agile, 'Agile', Icons.speed_rounded, const Color(0xFF10B981)),
+      (PreferredMethodology.waterfall, 'Waterfall', Icons.waterfall_chart_outlined, const Color(0xFF3B82F6)),
+      (PreferredMethodology.hybrid, 'Hybrid', Icons.merge_outlined, const Color(0xFF8B5CF6)),
+      (PreferredMethodology.notSure, 'Not sure yet', Icons.help_outline_rounded, const Color(0xFF64748B)),
+    ];
     return _bodyScroll([
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _eyebrow('Step 5'),
-            const SizedBox(height: 10),
-            _heading('What are you here to deliver?'),
-            const SizedBox(height: 8),
-            _subheading(
-                'Three quick picks so we scaffold your first project correctly.'),
-          ],
-        ),
-      ),
-      const Padding(
-        padding: EdgeInsets.fromLTRB(24, 8, 24, 6),
-        child: Text(
-          'Primary use case',
-          style: TextStyle(
-            color: _textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Satoshi',
-          ),
-        ),
-      ),
+      _pageHeader('Step 5', 'What are you here to deliver?',
+          'Three quick picks so we scaffold your first project correctly.'),
+      const SizedBox(height: 16),
+      // Use case
+      _sectionLabel('Primary use case'),
+      const SizedBox(height: 8),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: _PremiumTextField(
           controller: _useCaseController,
-          hint:
-              'e.g. Deliver a software platform on time and on budget; track procurement...',
+          hint: 'e.g. Deliver a software platform on time and on budget; track procurement...',
           maxLines: 3,
         ),
       ),
       const SizedBox(height: 20),
-      const Padding(
-        padding: EdgeInsets.fromLTRB(24, 4, 24, 6),
-        child: Text(
-          'Project type',
-          style: TextStyle(
-            color: _textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Satoshi',
-          ),
-        ),
+      // Project type
+      _sectionLabel('Project type'),
+      const SizedBox(height: 10),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 480;
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: projectTypes.map((t) {
+              return _IconOptionCard<PrimaryProjectType>(
+                value: t.$1,
+                label: t.$2,
+                icon: t.$3,
+                accent: t.$4,
+                isSelected: _answers.projectType == t.$1,
+                onTap: _setProjectType,
+                width: isWide ? (constraints.maxWidth - 16) / 2 : double.infinity,
+              );
+            }).toList(),
+          );
+        }),
       ),
-      ...PrimaryProjectType.values.map((t) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 3, 24, 3),
-            child: _optionCard<PrimaryProjectType>(
-              value: t,
-              selected: _answers.projectType,
-              title: t.label,
-              subtitle: t.description,
-              onTap: _setProjectType,
-            ),
-          )),
-      const SizedBox(height: 12),
-      const Padding(
-        padding: EdgeInsets.fromLTRB(24, 4, 24, 6),
-        child: Text(
-          'Preferred methodology',
-          style: TextStyle(
-            color: _textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
-            fontFamily: 'Satoshi',
-          ),
-        ),
+      const SizedBox(height: 20),
+      // Methodology
+      _sectionLabel('Preferred methodology'),
+      const SizedBox(height: 10),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: LayoutBuilder(builder: (context, constraints) {
+          final isWide = constraints.maxWidth > 480;
+          return Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: methodologies.map((m) {
+              return _IconOptionCard<PreferredMethodology>(
+                value: m.$1,
+                label: m.$2,
+                icon: m.$3,
+                accent: m.$4,
+                isSelected: _answers.methodology == m.$1,
+                onTap: _setMethodology,
+                width: isWide ? (constraints.maxWidth - 16) / 2 : double.infinity,
+              );
+            }).toList(),
+          );
+        }),
       ),
-      ...PreferredMethodology.values.map((m) => Padding(
-            padding: const EdgeInsets.fromLTRB(24, 3, 24, 3),
-            child: _optionCard<PreferredMethodology>(
-              value: m,
-              selected: _answers.methodology,
-              title: m.label,
-              subtitle: m.description,
-              onTap: _setMethodology,
-            ),
-          )),
-      const SizedBox(height: 16),
+      const SizedBox(height: 24),
     ]);
   }
 
   // ── Page 7: Review ───────────────────────────────────────────────────────
 
   Widget _buildReviewPage(ThemeData theme) {
+    final industryText = _industryController.text.trim().isNotEmpty
+        ? _industryController.text.trim()
+        : _answers.industry;
+    final useCaseText = _useCaseController.text.trim().isNotEmpty
+        ? _useCaseController.text.trim()
+        : _answers.primaryUseCase;
+    final completionCount = [
+      _answers.role,
+      _answers.experience,
+      industryText,
+      _answers.teamSize,
+      useCaseText,
+      _answers.projectType,
+      _answers.methodology,
+    ].where((v) => v != null && v.toString().isNotEmpty).length;
+
     return _bodyScroll([
-      Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _eyebrow('Final step'),
-            const SizedBox(height: 10),
-            _heading('Review your answers'),
-            const SizedBox(height: 8),
-            _subheading(
-                'You can change any of these later in Settings. Tap Finish to open your tailored dashboard.'),
-          ],
+      const SizedBox(height: 12),
+      // Celebration icon
+      Center(
+        child: Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF10B981), Color(0xFF059669)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF10B981).withOpacity(0.3),
+                blurRadius: 24,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.check_circle_rounded,
+              color: Colors.white, size: 40),
         ),
       ),
+      const SizedBox(height: 20),
+      const Center(
+        child: Text(
+          'You\'re all set',
+          style: TextStyle(decoration: TextDecoration.none,
+            color: _textPrimary,
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            height: 1.2,
+            letterSpacing: -0.5,
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+      Center(
+        child: Text(
+          '$completionCount of 7 answers captured',
+          style: const TextStyle(decoration: TextDecoration.none,
+            color: _gold,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+      const SizedBox(height: 8),
+      const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 32),
+          child: Text(
+            'Review your answers below. You can change any of these later in Settings.',
+            textAlign: TextAlign.center,
+            style: TextStyle(decoration: TextDecoration.none,
+              color: _textSecondary,
+              fontSize: 14,
+              height: 1.5,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 28),
+      // Summary card with grouped rows
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Container(
           decoration: BoxDecoration(
             color: _bgSurface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(color: _border, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             children: [
-              _reviewRow('Role', _answers.role?.label),
+              _reviewRow('Role', _answers.role?.label, Icons.assignment_ind_outlined),
               _reviewDivider(),
-              _reviewRow('Experience', _answers.experience?.label),
+              _reviewRow('Experience', _answers.experience?.label, Icons.trending_up_outlined),
               _reviewDivider(),
-              _reviewRow(
-                  'Industry',
-                  _industryController.text.trim().isNotEmpty
-                      ? _industryController.text.trim()
-                      : _answers.industry),
+              _reviewRow('Industry', industryText, Icons.business_outlined),
               _reviewDivider(),
-              _reviewRow(
-                  'Team size',
-                  _answers.teamSize == null
-                      ? null
-                      : _teamSizeLabel(_answers.teamSize!)),
+              _reviewRow('Team size',
+                  _answers.teamSize == null ? null : _teamSizeLabel(_answers.teamSize!),
+                  Icons.group_outlined),
               _reviewDivider(),
-              _reviewRow(
-                  'Primary use case',
-                  _useCaseController.text.trim().isNotEmpty
-                      ? _useCaseController.text.trim()
-                      : _answers.primaryUseCase),
+              _reviewRow('Primary use case', useCaseText, Icons.lightbulb_outline_rounded),
               _reviewDivider(),
-              _reviewRow('Project type', _answers.projectType?.label),
+              _reviewRow('Project type', _answers.projectType?.label, Icons.folder_outlined),
               _reviewDivider(),
-              _reviewRow('Methodology', _answers.methodology?.label),
+              _reviewRow('Methodology', _answers.methodology?.label, Icons.route_outlined),
             ],
           ),
         ),
       ),
-      const SizedBox(height: 16),
+      const SizedBox(height: 20),
       const Padding(
         padding: EdgeInsets.symmetric(horizontal: 24),
         child: Text(
           'After you finish, you\'ll land on your project dashboard. From there '
           'you can create your first project and we\'ll scaffold a WBS, cost '
           'framework, and reporting tailored to your answers.',
-          style: TextStyle(
-              color: _textMuted, fontSize: 12.5, height: 1.5, fontFamily: 'Satoshi'),
+          style: TextStyle(decoration: TextDecoration.none,
+              color: _textMuted, fontSize: 12.5, height: 1.5),
         ),
       ),
       const SizedBox(height: 24),
@@ -1083,17 +1243,30 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
   Widget _reviewDivider() =>
       const Divider(height: 1, color: _border, indent: 16, endIndent: 16);
 
-  Widget _reviewRow(String label, String? value) {
+  Widget _reviewRow(String label, String? value, IconData icon) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A2440),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: const Color(0xFF94A3B8)),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             flex: 2,
-            child: Text(label,
-                style: const TextStyle(
-                    color: _textMuted, fontSize: 12.5, fontFamily: 'Satoshi')),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(label,
+                  style: const TextStyle(decoration: TextDecoration.none,
+                      color: _textMuted, fontSize: 12.5)),
+            ),
           ),
           Expanded(
             flex: 3,
@@ -1101,14 +1274,13 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               value == null || value.isEmpty
                   ? '— skipped —'
                   : (value.length > 80 ? '${value.substring(0, 80)}…' : value),
-              style: TextStyle(
+              style: TextStyle(decoration: TextDecoration.none,
                 color: value == null || value.isEmpty
                     ? _textMuted.withOpacity(0.4)
                     : _textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
-                fontFamily: 'Satoshi',
               ),
               textAlign: TextAlign.right,
             ),
@@ -1230,18 +1402,20 @@ class _PremiumOptionCardState<T> extends State<_PremiumOptionCard<T>> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) {
-          setState(() => _isPressed = false);
-          widget.onTap(widget.value);
-        },
-        onTapCancel: () => setState(() => _isPressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          transform: Matrix4.identity()..scale(_isPressed ? 0.98 : 1.0),
-          padding: const EdgeInsets.all(16),
+      child: Listener(
+        onPointerDown: (_) => setState(() => _isPressed = true),
+        onPointerUp: (_) => setState(() => _isPressed = false),
+        onPointerCancel: (_) => setState(() => _isPressed = false),
+        child: GestureDetector(
+          onTap: () => widget.onTap(widget.value),
+          child: AnimatedScale(
+            scale: _isPressed ? 0.98 : 1.0,
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOut,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: widget.isSelected
                 ? const Color(0xFFFCD34D).withOpacity(0.06)
@@ -1275,23 +1449,21 @@ class _PremiumOptionCardState<T> extends State<_PremiumOptionCard<T>> {
                   children: [
                     Text(
                       widget.title,
-                      style: TextStyle(
+                      style: TextStyle(decoration: TextDecoration.none,
                         color: widget.isSelected
                             ? const Color(0xFFFCD34D)
                             : const Color(0xFFF8FAFC),
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        fontFamily: 'Satoshi',
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       widget.subtitle,
-                      style: const TextStyle(
+                      style: const TextStyle(decoration: TextDecoration.none,
                         color: Color(0xFF64748B),
                         fontSize: 12.5,
                         height: 1.4,
-                        fontFamily: 'Satoshi',
                       ),
                     ),
                   ],
@@ -1322,6 +1494,8 @@ class _PremiumOptionCardState<T> extends State<_PremiumOptionCard<T>> {
             ],
           ),
         ),
+          ),
+        ),
       ),
     );
   }
@@ -1333,11 +1507,13 @@ class _PremiumTextField extends StatelessWidget {
     required this.controller,
     required this.hint,
     this.maxLines = 1,
+    this.prefixIcon,
   });
 
   final TextEditingController controller;
   final String hint;
   final int maxLines;
+  final IconData? prefixIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -1348,16 +1524,18 @@ class _PremiumTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(
+        style: const TextStyle(decoration: TextDecoration.none,
           color: Color(0xFFF8FAFC),
           fontSize: 14,
           height: 1.4,
-          fontFamily: 'Satoshi',
         ),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(
-              color: Color(0xFF475569), fontSize: 13, fontFamily: 'Satoshi'),
+          hintStyle: const TextStyle(decoration: TextDecoration.none,
+              color: Color(0xFF475569), fontSize: 13, ),
+          prefixIcon: prefixIcon != null
+              ? Icon(prefixIcon, size: 18, color: const Color(0xFF64748B))
+              : null,
           filled: true,
           fillColor: const Color(0xFF131B2E),
           contentPadding:
@@ -1414,11 +1592,10 @@ class _SuggestionChipState extends State<_SuggestionChip> {
           ),
           child: Text(
             widget.label,
-            style: const TextStyle(
+            style: const TextStyle(decoration: TextDecoration.none,
               color: Color(0xFF94A3B8),
               fontSize: 12.5,
               fontWeight: FontWeight.w500,
-              fontFamily: 'Satoshi',
             ),
           ),
         ),
@@ -1536,13 +1713,12 @@ class _GhostButtonState extends State<_GhostButton> {
               const SizedBox(width: 6),
               Text(
                 widget.label,
-                style: TextStyle(
+                style: TextStyle(decoration: TextDecoration.none,
                   color: enabled
                       ? const Color(0xFF94A3B8)
                       : const Color(0xFF475569),
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  fontFamily: 'Satoshi',
                 ),
               ),
             ],
@@ -1576,7 +1752,7 @@ class _TextButtonState extends State<_TextButton> {
         onTap: widget.onTap,
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 150),
-          style: TextStyle(
+          style: TextStyle(decoration: TextDecoration.none,
             color: enabled
                 ? (_isHovered
                     ? const Color(0xFFF8FAFC)
@@ -1584,9 +1760,6 @@ class _TextButtonState extends State<_TextButton> {
                 : const Color(0xFF475569),
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            fontFamily: 'Satoshi',
-            decoration:
-                _isHovered && enabled ? TextDecoration.underline : null,
           ),
           child: Text(widget.label),
         ),
@@ -1614,7 +1787,6 @@ class _PrimaryButton extends StatefulWidget {
 
 class _PrimaryButtonState extends State<_PrimaryButton> {
   bool _isHovered = false;
-  bool _isPressed = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1623,19 +1795,13 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) {
-          setState(() => _isPressed = false);
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
           if (enabled) widget.onTap?.call();
         },
-        onTapCancel: () => setState(() => _isPressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          transform: Matrix4.identity()
-            ..scale(_isPressed ? 0.97 : 1.0)
-            ..translate(0.0, _isHovered && enabled ? -1.0 : 0.0),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+        child: Container(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFFFCD34D), Color(0xFFF59E0B)],
@@ -1669,15 +1835,15 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
               else ...[
                 Text(
                   widget.label,
-                  style: const TextStyle(
+                  style: const TextStyle(decoration: TextDecoration.none,
                     color: Color(0xFF0B1120),
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    fontFamily: 'Satoshi',
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(widget.icon, size: 18, color: const Color(0xFF0B1120)),
+                Icon(widget.icon,
+                    size: 18, color: const Color(0xFF0B1120)),
               ],
             ],
           ),
@@ -1685,4 +1851,702 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
       ),
     );
   }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Premium page-specific widgets
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Role card with colored icon tile — used on Step 2.
+/// Two-column grid on wide screens, single column on narrow.
+class _RoleCard extends StatefulWidget {
+  const _RoleCard({
+    required this.role,
+    required this.label,
+    required this.subtitle,
+    required this.icon,
+    required this.accent,
+    required this.isSelected,
+    required this.onTap,
+    required this.width,
+  });
+
+  final UserRole role;
+  final String label;
+  final String subtitle;
+  final IconData icon;
+  final Color accent;
+  final bool isSelected;
+  final ValueChanged<UserRole> onTap;
+  final double width;
+
+  @override
+  State<_RoleCard> createState() => _RoleCardState();
+}
+
+class _RoleCardState extends State<_RoleCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: () => widget.onTap(widget.role),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: widget.width,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? widget.accent.withOpacity(0.08)
+                : (_isHovered ? const Color(0xFF1A2440) : const Color(0xFF131B2E)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: widget.isSelected
+                  ? widget.accent
+                  : (_isHovered ? const Color(0xFF3B4F7A) : const Color(0xFF243154)),
+              width: widget.isSelected ? 1.5 : 1,
+            ),
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: widget.accent.withOpacity(0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: widget.accent.withOpacity(widget.isSelected ? 0.2 : 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(widget.icon, size: 20, color: widget.accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.label,
+                        style: TextStyle(decoration: TextDecoration.none,
+                          color: widget.isSelected ? widget.accent : const Color(0xFFF8FAFC),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        )),
+                    const SizedBox(height: 2),
+                    Text(widget.subtitle,
+                        style: const TextStyle(decoration: TextDecoration.none,
+                          color: Color(0xFF64748B),
+                          fontSize: 11.5,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              if (widget.isSelected)
+                Icon(Icons.check_circle, size: 18, color: widget.accent),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Experience level card with signal-bar visualization — used on Step 3.
+class _ExperienceCard extends StatefulWidget {
+  const _ExperienceCard({
+    required this.level,
+    required this.label,
+    required this.subtitle,
+    required this.bars,
+    required this.accent,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final ExperienceLevel level;
+  final String label;
+  final String subtitle;
+  final int bars;
+  final Color accent;
+  final bool isSelected;
+  final ValueChanged<ExperienceLevel> onTap;
+
+  @override
+  State<_ExperienceCard> createState() => _ExperienceCardState();
+}
+
+class _ExperienceCardState extends State<_ExperienceCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: () => widget.onTap(widget.level),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? widget.accent.withOpacity(0.08)
+                : (_isHovered ? const Color(0xFF1A2440) : const Color(0xFF131B2E)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: widget.isSelected
+                  ? widget.accent
+                  : (_isHovered ? const Color(0xFF3B4F7A) : const Color(0xFF243154)),
+              width: widget.isSelected ? 1.5 : 1,
+            ),
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: widget.accent.withOpacity(0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              // Signal bars visualization
+              SizedBox(
+                width: 48,
+                height: 36,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(4, (i) {
+                    final filled = i < widget.bars;
+                    final height = 8.0 + (i * 7.0);
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 6,
+                      height: height,
+                      decoration: BoxDecoration(
+                        color: filled
+                            ? widget.accent
+                            : const Color(0xFF243154),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.label,
+                        style: TextStyle(decoration: TextDecoration.none,
+                          color: widget.isSelected ? widget.accent : const Color(0xFFF8FAFC),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        )),
+                    const SizedBox(height: 3),
+                    Text(widget.subtitle,
+                        style: const TextStyle(decoration: TextDecoration.none,
+                          color: Color(0xFF64748B),
+                          fontSize: 12.5,
+                          height: 1.4,
+                        )),
+                  ],
+                ),
+              ),
+              if (widget.isSelected)
+                Icon(Icons.check_circle, size: 20, color: widget.accent),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Industry chip with icon — used on Step 4 suggestions.
+class _IndustryChip extends StatefulWidget {
+  const _IndustryChip({
+    required this.label,
+    required this.icon,
+    required this.accent,
+    required this.isSelected,
+    required this.onTap,
+    required this.width,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final double width;
+
+  @override
+  State<_IndustryChip> createState() => _IndustryChipState();
+}
+
+class _IndustryChipState extends State<_IndustryChip> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: widget.width,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? widget.accent.withOpacity(0.12)
+                : (_isHovered ? const Color(0xFF1A2440) : const Color(0xFF131B2E)),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: widget.isSelected
+                  ? widget.accent
+                  : (_isHovered ? const Color(0xFF3B4F7A) : const Color(0xFF243154)),
+              width: widget.isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(widget.icon, size: 20,
+                  color: widget.isSelected ? widget.accent : const Color(0xFF94A3B8)),
+              const SizedBox(height: 6),
+              Text(widget.label,
+                  style: TextStyle(decoration: TextDecoration.none,
+                    color: widget.isSelected ? widget.accent : const Color(0xFF94A3B8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Team size card with avatar cluster visualization — used on Step 5.
+class _TeamSizeCard extends StatefulWidget {
+  const _TeamSizeCard({
+    required this.value,
+    required this.label,
+    required this.subtitle,
+    required this.avatarCount,
+    required this.accent,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final int value;
+  final String label;
+  final String subtitle;
+  final int avatarCount;
+  final Color accent;
+  final bool isSelected;
+  final ValueChanged<int> onTap;
+
+  @override
+  State<_TeamSizeCard> createState() => _TeamSizeCardState();
+}
+
+class _TeamSizeCardState extends State<_TeamSizeCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: () => widget.onTap(widget.value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? widget.accent.withOpacity(0.08)
+                : (_isHovered ? const Color(0xFF1A2440) : const Color(0xFF131B2E)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: widget.isSelected
+                  ? widget.accent
+                  : (_isHovered ? const Color(0xFF3B4F7A) : const Color(0xFF243154)),
+              width: widget.isSelected ? 1.5 : 1,
+            ),
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: widget.accent.withOpacity(0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              // Avatar cluster
+              SizedBox(
+                width: 72,
+                height: 36,
+                child: Stack(
+                  children: List.generate(
+                    widget.avatarCount.clamp(1, 5),
+                    (i) {
+                      return Positioned(
+                        left: i * 12.0,
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: widget.accent.withOpacity(0.2 - (i * 0.03)),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFF131B2E),
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            i == 4 && widget.avatarCount > 5
+                                ? Icons.more_horiz
+                                : Icons.person,
+                            size: 14,
+                            color: widget.accent.withOpacity(0.8 - (i * 0.1)),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(widget.label,
+                        style: TextStyle(decoration: TextDecoration.none,
+                          color: widget.isSelected ? widget.accent : const Color(0xFFF8FAFC),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        )),
+                    const SizedBox(height: 3),
+                    Text(widget.subtitle,
+                        style: const TextStyle(decoration: TextDecoration.none,
+                          color: Color(0xFF64748B),
+                          fontSize: 12.5,
+                          height: 1.4,
+                        )),
+                  ],
+                ),
+              ),
+              if (widget.isSelected)
+                Icon(Icons.check_circle, size: 20, color: widget.accent),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Icon option card — used for project type + methodology on Step 6.
+/// Compact card with centered icon + label, grid layout.
+class _IconOptionCard<T> extends StatefulWidget {
+  const _IconOptionCard({
+    required this.value,
+    required this.label,
+    required this.icon,
+    required this.accent,
+    required this.isSelected,
+    required this.onTap,
+    required this.width,
+  });
+
+  final T value;
+  final String label;
+  final IconData icon;
+  final Color accent;
+  final bool isSelected;
+  final ValueChanged<T> onTap;
+  final double width;
+
+  @override
+  State<_IconOptionCard<T>> createState() => _IconOptionCardState<T>();
+}
+
+class _IconOptionCardState<T> extends State<_IconOptionCard<T>> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: () => widget.onTap(widget.value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          width: widget.width,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? widget.accent.withOpacity(0.08)
+                : (_isHovered ? const Color(0xFF1A2440) : const Color(0xFF131B2E)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: widget.isSelected
+                  ? widget.accent
+                  : (_isHovered ? const Color(0xFF3B4F7A) : const Color(0xFF243154)),
+              width: widget.isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: widget.accent.withOpacity(widget.isSelected ? 0.2 : 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(widget.icon, size: 16, color: widget.accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(widget.label,
+                    style: TextStyle(decoration: TextDecoration.none,
+                      color: widget.isSelected ? widget.accent : const Color(0xFFF8FAFC),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+              ),
+              if (widget.isSelected)
+                Icon(Icons.check_circle, size: 16, color: widget.accent),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Celebration overlay — plays when user taps Finish
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Confetti color palette — shared between the overlay and the painter.
+const List<Color> _confettiColors = [
+  Color(0xFFFCD34D), // gold
+  Color(0xFFF59E0B), // amber
+  Color(0xFF10B981), // green
+  Color(0xFF3B82F6), // blue
+  Color(0xFF8B5CF6), // purple
+  Color(0xFFEF4444), // red
+  Color(0xFF0EA5E9), // sky
+  Color(0xFFEC4899), // pink
+];
+
+/// Full-screen celebration overlay with a confetti burst and a giant
+/// animated check icon. Rendered on top of the dialog when the user
+/// taps "Finish", before the dialog closes and navigates to the dashboard.
+///
+/// The confetti is 40 particles with random colors, sizes, trajectories,
+/// and rotations — animated outward from the center using the parent
+/// [AnimationController]. The check icon pops in with a spring
+/// ([Curves.easeOutBack]) and then the whole overlay fades out.
+class _CelebrationOverlay extends StatelessWidget {
+  const _CelebrationOverlay({
+    required this.controller,
+    required this.scale,
+    required this.confettiOpacity,
+  });
+
+  final AnimationController controller;
+  final Animation<double> scale;
+  final Animation<double> confettiOpacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        return Stack(
+          children: [
+            // ── Confetti layer ───────────────────────────────────────────
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _ConfettiPainter(
+                  progress: controller.value,
+                  opacity: confettiOpacity.value,
+                ),
+              ),
+            ),
+            // ── Giant check icon (spring pop-in) ─────────────────────────
+            Center(
+              child: Transform.scale(
+                scale: scale.value,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF10B981), Color(0xFF059669)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF10B981).withOpacity(0.5),
+                        blurRadius: 48,
+                        spreadRadius: 8,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.check_rounded,
+                    color: Colors.white,
+                    size: 64,
+                  ),
+                ),
+              ),
+            ),
+            // ── "You're all set!" text below the check ───────────────────
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 90),
+                  Transform.scale(
+                    scale: scale.value,
+                    child: const Text(
+                      'You\'re all set!',
+                      style: TextStyle(
+                        decoration: TextDecoration.none,
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Custom painter that renders 40 confetti particles bursting outward
+/// from the center of the screen. Each particle has a random angle,
+/// distance, color, size, and rotation — deterministic via a fixed seed
+/// so the burst looks the same every time (no jarring randomness between
+/// frames).
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter({required this.progress, required this.opacity});
+
+  final double progress;
+  final double opacity;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (opacity <= 0 || progress >= 1.0) return;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius = size.longestSide * 0.6;
+
+    // Use a fixed seed so the confetti pattern is stable across frames.
+    final random = _SeededRandom(42);
+
+    for (int i = 0; i < 40; i++) {
+      final angle = random.nextDouble() * 2 * 3.14159265;
+      final distance = maxRadius * progress * (0.5 + random.nextDouble() * 0.5);
+      final dx = center.dx + distance * (angle - 3.14159265 / 2).cos();
+      final dy = center.dy + distance * angle.sin() * 0.7; // squashed vertical
+      final particleSize = 4.0 + random.nextDouble() * 6.0;
+      final color = _confettiColors[i % _confettiColors.length];
+      final rotation = progress * 6.28 * (random.nextDouble() - 0.5) * 2;
+
+      // Fade out in the last 30% of the animation
+      final particleOpacity = opacity *
+          (1.0 - (progress * 0.7).clamp(0.0, 1.0));
+
+      final paint = Paint()
+        ..color = color.withOpacity(particleOpacity)
+        ..style = PaintingStyle.fill;
+
+      canvas.save();
+      canvas.translate(dx, dy);
+      canvas.rotate(rotation);
+
+      // Alternate between circles and rectangles for visual variety
+      if (i % 3 == 0) {
+        canvas.drawCircle(Offset.zero, particleSize / 2, paint);
+      } else {
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset.zero,
+            width: particleSize,
+            height: particleSize * 0.6,
+          ),
+          paint,
+        );
+      }
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.opacity != opacity;
+}
+
+/// Simple deterministic PRNG so confetti particles don't jitter between
+/// frames. Same seed → same sequence, every time.
+class _SeededRandom {
+  _SeededRandom(this.seed);
+  final int seed;
+  int _state = 0;
+
+  double nextDouble() {
+    _state = (_state + 1) * 1103515245 + 12345 + seed;
+    return ((_state.abs()) % 100000) / 100000.0;
+  }
+}
+
+/// Extension to add cos/sin to num for cleaner confetti math.
+extension _NumTrig on num {
+  double cos() => _math.cos(toDouble());
+  double sin() => _math.sin(toDouble());
 }

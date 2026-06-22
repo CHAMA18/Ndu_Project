@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../widgets/dashboard_bottom_nav_bar.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/dashboard_metrics_cards.dart';
+import '../widgets/portfolio_extras.dart';
 import 'package:go_router/go_router.dart';
 import '../routing/app_router.dart';
 import '../services/navigation_context_service.dart';
@@ -264,79 +265,44 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
                                 title: 'Assigned to me (portfolio)'),
                             const SizedBox(height: 18),
                           ],
-                          // ── Content columns ──
-                          if (isWide)
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  flex: 7,
-                                  child: Column(
-                                    children: [
-                                      _SingleProjectsSection(
-                                        projects: sortedSingles,
-                                        sort: _singleProjectsSort,
-                                        onSortChanged: (sort) => setState(
-                                            () => _singleProjectsSort = sort),
-                                        onSeeAll: _openProjectDashboard,
-                                      ),
-                                      const SizedBox(height: 24),
-                                      _ProgramRollupSection(metrics: metrics),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(
-                                  flex: 5,
-                                  child: Column(
-                                    children: [
-                                      _GovernanceSection(
-                                        gateApprovals: _gateApprovals,
-                                        sharedRiskRegister: _sharedRiskRegister,
-                                        executiveSummary: _executiveSummary,
-                                        onGateChanged: (v) =>
-                                            setState(() => _gateApprovals = v),
-                                        onSharedRiskChanged: (v) => setState(
-                                            () => _sharedRiskRegister = v),
-                                        onExecutiveChanged: (v) => setState(
-                                            () => _executiveSummary = v),
-                                      ),
-                                      const SizedBox(height: 24),
-                                      _IndependentProjectsSection(
-                                          metrics: metrics),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            )
-                          else
-                            Column(
-                              children: [
-                                _SingleProjectsSection(
-                                  projects: sortedSingles,
-                                  sort: _singleProjectsSort,
-                                  onSortChanged: (sort) => setState(
-                                      () => _singleProjectsSort = sort),
-                                  onSeeAll: _openProjectDashboard,
-                                ),
-                                const SizedBox(height: 24),
-                                _ProgramRollupSection(metrics: metrics),
-                                const SizedBox(height: 24),
-                                _GovernanceSection(
-                                  gateApprovals: _gateApprovals,
-                                  sharedRiskRegister: _sharedRiskRegister,
-                                  executiveSummary: _executiveSummary,
-                                  onGateChanged: (v) =>
-                                      setState(() => _gateApprovals = v),
-                                  onSharedRiskChanged: (v) =>
-                                      setState(() => _sharedRiskRegister = v),
-                                  onExecutiveChanged: (v) =>
-                                      setState(() => _executiveSummary = v),
-                                ),
-                                const SizedBox(height: 24),
-                                _IndependentProjectsSection(metrics: metrics),
-                              ],
-                            ),
+                          // ── Content: stacked vertically (same pattern as Single Projects dashboard) ──
+                          // Single Projects at full width
+                          _SingleProjectsSection(
+                            projects: sortedSingles,
+                            sort: _singleProjectsSort,
+                            onSortChanged: (sort) =>
+                                setState(() => _singleProjectsSort = sort),
+                            onSeeAll: _openProjectDashboard,
+                          ),
+                          const SizedBox(height: 24),
+                          // Governance & reporting at full width
+                          _GovernanceSection(
+                            gateApprovals: _gateApprovals,
+                            sharedRiskRegister: _sharedRiskRegister,
+                            executiveSummary: _executiveSummary,
+                            onGateChanged: (v) =>
+                                setState(() => _gateApprovals = v),
+                            onSharedRiskChanged: (v) =>
+                                setState(() => _sharedRiskRegister = v),
+                            onExecutiveChanged: (v) =>
+                                setState(() => _executiveSummary = v),
+                          ),
+                          const SizedBox(height: 24),
+                          // Program rollup at full width
+                          _ProgramRollupSection(metrics: metrics),
+                          const SizedBox(height: 24),
+                          // Independent projects at full width
+                          _IndependentProjectsSection(metrics: metrics),
+                          const SizedBox(height: 24),
+                          // Gantt chart
+                          if (_metrics != null &&
+                              _metrics!.projectStatuses.isNotEmpty) ...[
+                            PortfolioGanttCard(
+                                projects: _metrics!.projectStatuses),
+                            const SizedBox(height: 18),
+                          ],
+                          // Project activity log
+                          const PortfolioProjectLogCard(),
                           const SizedBox(height: 96),
                         ],
                       ),
@@ -633,6 +599,28 @@ class _PortfolioRollUpContentState extends State<_PortfolioRollUpContent> {
   bool _gateApprovals = true;
   bool _sharedRiskRegister = true;
   bool _executiveSummary = true;
+  DashboardMetrics? _metrics;
+  bool _isLoadingMetrics = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMetrics());
+  }
+
+  Future<void> _loadMetrics() async {
+    try {
+      final m = await DashboardMetricsService.load();
+      if (mounted) {
+        setState(() {
+          _metrics = m;
+          _isLoadingMetrics = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingMetrics = false);
+    }
+  }
 
   void _togglePortfolioSelection(ProjectRecord project) {
     final id = project.id;
@@ -961,6 +949,34 @@ class _PortfolioRollUpContentState extends State<_PortfolioRollUpContent> {
                             const SizedBox(height: 24),
                             // ── Independent Projects ──
                             _IndependentProjectsSection(metrics: metrics),
+                            const SizedBox(height: 24),
+                            // ── Past-due + Assigned activities (same as Single Projects dashboard) ──
+                            if (_isLoadingMetrics)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                    child: CircularProgressIndicator()),
+                              )
+                            else if (_metrics != null) ...[
+                              if (_metrics!.totalPastDue > 0) ...[
+                                PastDueActivitiesCard(
+                                    activities: _metrics!.pastDue),
+                                const SizedBox(height: 18),
+                              ],
+                              AssignedActivitiesCard(
+                                  activities: _metrics!.assignedToMe,
+                                  title: 'Assigned to me (portfolio)'),
+                              const SizedBox(height: 18),
+                            ],
+                            // ── Gantt chart ──
+                            if (_metrics != null &&
+                                _metrics!.projectStatuses.isNotEmpty) ...[
+                              PortfolioGanttCard(
+                                  projects: _metrics!.projectStatuses),
+                              const SizedBox(height: 18),
+                            ],
+                            // ── Project activity log ──
+                            const PortfolioProjectLogCard(),
                             const SizedBox(height: 24),
                           ],
                         ),

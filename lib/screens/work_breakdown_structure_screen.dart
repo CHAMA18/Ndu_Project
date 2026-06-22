@@ -2239,7 +2239,7 @@ class _WbsNotesCardState extends State<_WbsNotesCard> {
                 ),
                 const SizedBox(height: 12),
                 // Textarea
-                TextField(
+                VoiceTextField(
                   controller: _controller,
                   onChanged: _handleChanged,
                   maxLines: 4,

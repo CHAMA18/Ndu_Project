@@ -203,7 +203,10 @@ class _InlineEditableTextState extends State<InlineEditableText> {
 
   @override
   Widget build(BuildContext context) {
-    final voiceEnabled = widget.enableVoice && _voiceAvailable;
+    // Always show the mic button — even if the browser doesn't support
+    // voice input. Tapping it on an unsupported browser shows a helpful
+    // message instead of silently failing.
+    final voiceEnabled = widget.enableVoice;
 
     if (_isEditing) {
       return Column(
