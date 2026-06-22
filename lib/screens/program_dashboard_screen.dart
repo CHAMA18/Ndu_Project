@@ -22,6 +22,8 @@ import '../screens/portfolio_dashboard_screen.dart';
 import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/aggregated_business_systems_card.dart';
+import '../services/dashboard_metrics_service.dart';
+import '../widgets/dashboard_metrics_cards.dart';
 
 class ProgramDashboardScreen extends StatefulWidget {
   const ProgramDashboardScreen({super.key, this.programId});
@@ -37,6 +39,8 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
   List<ProjectRecord> _projects = [];
   bool _isLoading = true;
   String? _error;
+  DashboardMetrics? _metrics;
+  bool _isLoadingMetrics = true;
   StreamSubscription<List<ProgramModel>>? _programSubscription;
   StreamSubscription<List<ProjectRecord>>? _projectSubscription;
   StreamSubscription<List<ProjectRecord>>? _allProjectsSubscription;
@@ -50,6 +54,22 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
   void initState() {
     super.initState();
     _loadProgramData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMetrics());
+  }
+
+  Future<void> _loadMetrics() async {
+    try {
+      final m = await DashboardMetricsService.load();
+      if (mounted) {
+        setState(() {
+          _metrics = m;
+          _isLoadingMetrics = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ProgramDashboardScreen] metrics load failed: $e');
+      if (mounted) setState(() => _isLoadingMetrics = false);
+    }
   }
 
   @override
@@ -236,6 +256,23 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
                         verticalSpacing: 16,
                       ),
                       const SizedBox(height: 24),
+                      // ── Past-due + Assigned-to-me + Program metrics (step down from portfolio) ──
+                      if (_isLoadingMetrics)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_metrics != null) ...[
+                        if (_metrics!.totalPastDue > 0) ...[
+                          PastDueActivitiesCard(
+                              activities: _metrics!.pastDue),
+                          const SizedBox(height: 18),
+                        ],
+                        AssignedActivitiesCard(
+                            activities: _metrics!.assignedToMe,
+                            title: 'Assigned to me (program)'),
+                        const SizedBox(height: 18),
+                      ],
                       if (showEmptyState)
                         _EmptyStateCard(
                           onCreate: () => context.go('/${AppRoutes.dashboard}'),

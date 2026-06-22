@@ -28,6 +28,11 @@ class _LandingScreenState extends State<LandingScreen>
   final GlobalKey _problemKey = GlobalKey();
   final GlobalKey _differentiatorsKey = GlobalKey();
   final GlobalKey _benefitsKey = GlobalKey();
+  final GlobalKey _trainingKey = GlobalKey();
+  final GlobalKey _consultationKey = GlobalKey();
+  final GlobalKey _newsBlogKey = GlobalKey();
+  final GlobalKey _asSeenOnKey = GlobalKey();
+  final GlobalKey _reviewsKey = GlobalKey();
 
   // Debug mode state
   bool _isDebugMode = false;
@@ -294,6 +299,16 @@ class _LandingScreenState extends State<LandingScreen>
                       _buildCoreInsightSection(context, isDesktop),
                       SizedBox(height: isDesktop ? 80 : 56),
                       _buildCTASection(context, isDesktop),
+                      SizedBox(height: isDesktop ? 80 : 56),
+                      _buildTrainingSection(context, isDesktop),
+                      SizedBox(height: isDesktop ? 80 : 56),
+                      _buildConsultationSection(context, isDesktop),
+                      SizedBox(height: isDesktop ? 80 : 56),
+                      _buildNewsBlogSection(context, isDesktop),
+                      SizedBox(height: isDesktop ? 80 : 56),
+                      _buildAsSeenOnSection(context, isDesktop),
+                      SizedBox(height: isDesktop ? 80 : 56),
+                      _buildReviewsSection(context, isDesktop),
                       SizedBox(height: isDesktop ? 80 : 56),
                       _buildFAQSection(context, isDesktop),
                       _buildFooter(context),
@@ -2728,6 +2743,573 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
+  // ── Training Section (clickable cards → external booking) ──────────────
+  Widget _buildTrainingSection(BuildContext context, bool isDesktop) {
+    final courses = [
+      _TrainingCourse(
+        title: 'Project Delivery Fundamentals',
+        audience: 'New PMs & teams',
+        duration: '2 days · Live online',
+        description:
+            'Master the NDU framework end-to-end: initiation, front-end planning, design, execution, and close-out. Hands-on labs with real project artifacts.',
+        topics: [
+          'NDU delivery lifecycle',
+          'WBS & schedule basics',
+          'Risk register setup',
+          'KAZ AI copilot for PMs',
+        ],
+        price: 'From \$1,200 / seat',
+        bookingUrl: 'https://calendar.app.google/aGQDFPpmEK9eDh5W6',
+      ),
+      _TrainingCourse(
+        title: 'Advanced Risk Intelligence',
+        audience: 'Senior PMs & program leads',
+        duration: '3 days · Hybrid',
+        description:
+            'Go deep on predictive risk modeling, SSHER integration, and interface management for multi-project programs.',
+        topics: [
+          'Quantitative risk analysis',
+          'Interface management',
+          'Program-level roll-ups',
+          'Crisis response playbooks',
+        ],
+        price: 'From \$1,800 / seat',
+        bookingUrl: 'https://calendar.app.google/aGQDFPpmEK9eDh5W6',
+      ),
+      _TrainingCourse(
+        title: 'Executive Project Stewarding',
+        audience: 'Sponsors & executives',
+        duration: '1 day · On-site',
+        description:
+            'A focused workshop for leadership: reading dashboards, asking the right questions, and unblocking delivery teams.',
+        topics: [
+          'Portfolio dashboards',
+          'Governance cadence',
+          'Sponsor playbook',
+          'Escalation frameworks',
+        ],
+        price: 'From \$2,400 / seat',
+        bookingUrl: 'https://calendar.app.google/aGQDFPpmEK9eDh5W6',
+      ),
+    ];
+
+    return Container(
+      key: _trainingKey,
+      color: const Color(0xFFF8FAFC),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 80 : 24,
+        vertical: isDesktop ? 80 : 56,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionEyebrow('Training'),
+              const SizedBox(height: 10),
+              _sectionHeading('Build delivery capability, fast'),
+              const SizedBox(height: 12),
+              _sectionSubheading(
+                  'Live, instructor-led courses that turn the NDU framework into muscle memory. '
+                  'Public cohorts and private team cohorts available.'),
+              const SizedBox(height: 40),
+              Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                children: courses
+                    .map((c) => _TrainingCard(
+                          course: c,
+                          isDesktop: isDesktop,
+                          onBook: () => _launchExternalLink(c.bookingUrl),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 32),
+              _inlineCtaRow(
+                text: 'Need a custom cohort for your organisation?',
+                buttonText: 'Book a private session',
+                onTap: () => _launchExternalLink(
+                    'https://calendar.app.google/aGQDFPpmEK9eDh5W6'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Consultation Section (clickable → booking) ─────────────────────────
+  Widget _buildConsultationSection(BuildContext context, bool isDesktop) {
+    final packages = [
+      _ConsultPackage(
+        name: 'Project Health Check',
+        price: 'From \$3,500',
+        duration: '1-week diagnostic',
+        description:
+            'A senior consultant reviews your active project — schedule, scope, risk, governance — and delivers a prioritised remediation plan.',
+        deliverables: [
+          'Risk & schedule audit',
+          'Stakeholder interviews',
+          'Remediation roadmap',
+          'Executive readout',
+        ],
+        accent: const Color(0xFF3B82F6),
+        bookingUrl: 'https://calendar.app.google/aGQDFPpmEK9eDh5W6',
+      ),
+      _ConsultPackage(
+        name: 'Delivery Recovery',
+        price: 'From \$12,000',
+        duration: '4–8 week engagement',
+        description:
+            'For projects in trouble. An embedded consultant gets you back on track — re-planning, re-baselining, and rebuilding team momentum.',
+        deliverables: [
+          'Re-baselined plan',
+          'Risk burndown',
+          'Weekly executive briefings',
+          'Hand-over playbook',
+        ],
+        accent: const Color(0xFFEF4444),
+        bookingUrl: 'https://calendar.app.google/aGQDFPpmEK9eDh5W6',
+      ),
+      _ConsultPackage(
+        name: 'PMO Setup',
+        price: 'From \$25,000',
+        duration: '6–12 week engagement',
+        description:
+            'Stand up a fit-for-purpose PMO: governance cadence, templates, tooling, and reporting tuned to your organisation\'s maturity.',
+        deliverables: [
+          'Governance framework',
+          'Template library',
+          'Tooling setup (NDU + integrations)',
+          'PMO coaching',
+        ],
+        accent: const Color(0xFF10B981),
+        bookingUrl: 'https://calendar.app.google/aGQDFPpmEK9eDh5W6',
+      ),
+    ];
+
+    return Container(
+      key: _consultationKey,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 80 : 24,
+        vertical: isDesktop ? 80 : 56,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionEyebrow('Consultation'),
+              const SizedBox(height: 10),
+              _sectionHeading('Bring in senior delivery expertise'),
+              const SizedBox(height: 12),
+              _sectionSubheading(
+                  'Fixed-scope engagements with clear deliverables and fixed prices. '
+                  'Book a free 30-minute scoping call to find the right fit.'),
+              const SizedBox(height: 40),
+              Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                children: packages
+                    .map((p) => _ConsultCard(
+                          pkg: p,
+                          isDesktop: isDesktop,
+                          onBook: () => _launchExternalLink(p.bookingUrl),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── News & Blog Section (links to nduproject.tech) ─────────────────────
+  Widget _buildNewsBlogSection(BuildContext context, bool isDesktop) {
+    final posts = [
+      _BlogPost(
+        category: 'Product',
+        title: 'How KAZ AI copilot cut our planning time by 40%',
+        excerpt:
+            'A behind-the-scenes look at the prompts, guardrails, and human-in-the-loop checkpoints that make KAZ safe for production project work.',
+        date: 'Jun 2026',
+        readTime: '6 min read',
+        url: 'https://nduproject.tech/blog/kaz-ai-planning',
+      ),
+      _BlogPost(
+        category: 'Methodology',
+        title: 'The NDU framework: a primer for new teams',
+        excerpt:
+            'Everything you need to understand the five phases — Initiation, Front-End Planning, Design, Execution, Close-out — and how they connect.',
+        date: 'May 2026',
+        readTime: '9 min read',
+        url: 'https://nduproject.tech/blog/ndu-framework-primer',
+      ),
+      _BlogPost(
+        category: 'Case Study',
+        title: 'Recovering a \$4M program in 6 weeks',
+        excerpt:
+            'How a mid-sized fintech used NDU\'s risk intelligence and interface management to bring a stalled program back on schedule.',
+        date: 'Apr 2026',
+        readTime: '11 min read',
+        url: 'https://nduproject.tech/blog/case-study-4m-recovery',
+      ),
+    ];
+
+    return Container(
+      key: _newsBlogKey,
+      color: const Color(0xFF0F172A),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 80 : 24,
+        vertical: isDesktop ? 80 : 56,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _sectionEyebrowLight('News & Insights'),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () =>
+                        _launchExternalLink('https://nduproject.tech/blog'),
+                    icon: const Icon(Icons.arrow_outward, size: 16),
+                    label: const Text('View all on nduproject.tech'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFFFD700),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              _sectionHeadingLight('From the NDU blog'),
+              const SizedBox(height: 40),
+              Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                children: posts
+                    .map((p) => _BlogCard(
+                          post: p,
+                          isDesktop: isDesktop,
+                          onTap: () => _launchExternalLink(p.url),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 32),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => _launchExternalLink(
+                      'https://nduproject.tech/subscribe'),
+                  icon: const Icon(Icons.mail_outline, size: 18),
+                  label: const Text('Subscribe to the newsletter'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFFFD700),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 24, vertical: 14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── As Seen On Section (media + accomplishments) ───────────────────────
+  Widget _buildAsSeenOnSection(BuildContext context, bool isDesktop) {
+    final features = [
+      _MediaFeature(
+        outlet: 'TechCrunch',
+        headline: 'NDU Project launches AI copilot for project delivery',
+        date: 'Mar 2026',
+        url: 'https://nduproject.tech/press/techcrunch',
+      ),
+      _MediaFeature(
+        outlet: 'ProjectManagement.com',
+        headline: 'How NDU is rethinking risk intelligence for modern programs',
+        date: 'Feb 2026',
+        url: 'https://nduproject.tech/press/pm-com',
+      ),
+      _MediaFeature(
+        outlet: 'Forbes Africa',
+        headline: 'NDU Project: the African SaaS scaling global delivery teams',
+        date: 'Jan 2026',
+        url: 'https://nduproject.tech/press/forbes-africa',
+      ),
+      _MediaFeature(
+        outlet: 'Devex',
+        headline: 'Aid organisations pilot NDU for cross-border program delivery',
+        date: 'Dec 2025',
+        url: 'https://nduproject.tech/press/devex',
+      ),
+    ];
+
+    final stats = [
+      _AccomplishmentStat(value: '120+', label: 'Projects delivered'),
+      _AccomplishmentStat(value: '\$340M', label: 'In managed spend'),
+      _AccomplishmentStat(value: '18', label: 'Countries served'),
+      _AccomplishmentStat(value: '94%', label: 'On-time delivery rate'),
+    ];
+
+    return Container(
+      key: _asSeenOnKey,
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 80 : 24,
+        vertical: isDesktop ? 80 : 56,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionEyebrow('As seen on'),
+              const SizedBox(height: 10),
+              _sectionHeading('Recognised by the press, trusted by teams'),
+              const SizedBox(height: 12),
+              _sectionSubheading(
+                  'NDU Project has been featured across technology, project management, '
+                  'and development press. Download our full media kit below.'),
+              const SizedBox(height: 32),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 24, vertical: 28),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                      color: const Color(0xFFFFD700).withOpacity(0.3)),
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.spaceAround,
+                  spacing: 24,
+                  runSpacing: 20,
+                  children: stats
+                      .map((s) => ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 140),
+                            child: Column(
+                              children: [
+                                Text(s.value,
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFFB45309),
+                                    )),
+                                const SizedBox(height: 4),
+                                Text(s.label,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF64748B))),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                ),
+              ),
+              const SizedBox(height: 40),
+              Column(
+                children: features
+                    .map((f) => _MediaFeatureRow(
+                          feature: f,
+                          onTap: () => _launchExternalLink(f.url),
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 24),
+              TextButton.icon(
+                onPressed: () => _launchExternalLink(
+                    'https://nduproject.tech/press/press-kit'),
+                icon: const Icon(Icons.download_outlined, size: 18),
+                label: const Text('Download press kit'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFB45309),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Reviews Section (customer testimonials) ────────────────────────────
+  Widget _buildReviewsSection(BuildContext context, bool isDesktop) {
+    final reviews = [
+      _Review(
+        quote:
+            'NDU replaced three tools and gave us one source of truth. The risk intelligence alone paid for the year inside the first quarter.',
+        author: 'Thandiwe M.',
+        role: 'Head of Delivery, FinTech scale-up',
+        rating: 5,
+        avatarColor: const Color(0xFF3B82F6),
+      ),
+      _Review(
+        quote:
+            'The KAZ AI copilot is the first AI tool that actually respects how PMs think. It drafts, we decide. No black boxes.',
+        author: 'David O.',
+        role: 'Senior Program Manager, Telecoms',
+        rating: 5,
+        avatarColor: const Color(0xFF10B981),
+      ),
+      _Review(
+        quote:
+            'We ran a recovery on a stalled \$4M program. NDU\'s interface management surfaced dependencies we\'d missed for months.',
+        author: 'Sarah K.',
+        role: 'Program Director, Healthcare',
+        rating: 5,
+        avatarColor: const Color(0xFF8B5CF6),
+      ),
+      _Review(
+        quote:
+            'Onboarding our 24-person PMO took a week. The framework is opinionated in a good way — it makes the right thing easy.',
+        author: 'Michael B.',
+        role: 'PMO Lead, Public sector',
+        rating: 4,
+        avatarColor: const Color(0xFFEF4444),
+      ),
+      _Review(
+        quote:
+            'Finally a platform built for the realities of African project delivery — not retrofitted from a US template.',
+        author: 'Amina J.',
+        role: 'Operations Director, NGO',
+        rating: 5,
+        avatarColor: const Color(0xFFF59E0B),
+      ),
+      _Review(
+        quote:
+            'The exec dashboards are the best I\'ve seen. My sponsor and I now have the same conversation with the same numbers.',
+        author: 'James T.',
+        role: 'VP Engineering, SaaS',
+        rating: 5,
+        avatarColor: const Color(0xFF0EA5E9),
+      ),
+    ];
+
+    return Container(
+      key: _reviewsKey,
+      color: const Color(0xFFF8FAFC),
+      padding: EdgeInsets.symmetric(
+        horizontal: isDesktop ? 80 : 24,
+        vertical: isDesktop ? 80 : 56,
+      ),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1240),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionEyebrow('Reviews'),
+              const SizedBox(height: 10),
+              _sectionHeading('What delivery teams say about NDU'),
+              const SizedBox(height: 12),
+              _sectionSubheading(
+                  'Real teams, real projects. We don\'t cherry-pick — every review is verified against an active NDU workspace.'),
+              const SizedBox(height: 40),
+              Wrap(
+                spacing: 24,
+                runSpacing: 24,
+                children: reviews
+                    .map((r) => _ReviewCard(review: r, isDesktop: isDesktop))
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Helper text styles for the new sections ───────────────────────────
+  Widget _sectionEyebrow(String text) => Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFFB45309),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      );
+
+  Widget _sectionEyebrowLight(String text) => Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: Color(0xFFFFD700),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      );
+
+  Widget _sectionHeading(String text) => Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF0F172A),
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          height: 1.2,
+        ),
+      );
+
+  Widget _sectionHeadingLight(String text) => Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 32,
+          fontWeight: FontWeight.w800,
+          height: 1.2,
+        ),
+      );
+
+  Widget _sectionSubheading(String text) => Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF64748B),
+          fontSize: 16,
+          height: 1.5,
+        ),
+      );
+
+  Widget _inlineCtaRow({
+    required String text,
+    required String buttonText,
+    required VoidCallback onTap,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(text,
+              style: const TextStyle(color: Color(0xFF64748B), fontSize: 14)),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton(
+          onPressed: onTap,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFFD700),
+            foregroundColor: const Color(0xFF0F172A),
+            elevation: 0,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+          child: Text(buttonText,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        ),
+      ],
+    );
+  }
+
   // ── Footer ────────────────────────────────────────────────────────────
   Widget _buildFooter(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -2818,6 +3400,9 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           textAlign: isMobile ? TextAlign.center : TextAlign.left,
         ),
+        const SizedBox(height: 20),
+        // Social media links
+        const _SocialLinksRow(),
         const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, box) {
@@ -4107,6 +4692,592 @@ class _HeroMetricChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+
+// ── Data classes + card widgets for the new landing sections ──────────────
+
+class _TrainingCourse {
+  final String title;
+  final String audience;
+  final String duration;
+  final String description;
+  final List<String> topics;
+  final String price;
+  final String bookingUrl;
+  const _TrainingCourse({
+    required this.title,
+    required this.audience,
+    required this.duration,
+    required this.description,
+    required this.topics,
+    required this.price,
+    required this.bookingUrl,
+  });
+}
+
+class _TrainingCard extends StatelessWidget {
+  const _TrainingCard({
+    required this.course,
+    required this.isDesktop,
+    required this.onBook,
+  });
+  final _TrainingCourse course;
+  final bool isDesktop;
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: isDesktop ? 360 : double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(course.audience,
+                    style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFB45309))),
+              ),
+              const Spacer(),
+              Icon(Icons.school_outlined, color: Colors.grey.shade400, size: 20),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(course.title,
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, height: 1.3)),
+          const SizedBox(height: 6),
+          Text(course.duration,
+              style: const TextStyle(
+                  color: Color(0xFF64748B), fontSize: 12.5)),
+          const SizedBox(height: 12),
+          Text(course.description,
+              style: const TextStyle(
+                  color: Color(0xFF475569), fontSize: 13, height: 1.5)),
+          const SizedBox(height: 16),
+          ...course.topics.map((t) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle,
+                        size: 14, color: Color(0xFF10B981)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                        child: Text(t,
+                            style: const TextStyle(
+                                fontSize: 12.5, color: Color(0xFF334155)))),
+                  ],
+                ),
+              )),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Text(course.price,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: onBook,
+                icon: const Icon(Icons.calendar_today_outlined, size: 15),
+                label: const Text('Book',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFFD700),
+                  foregroundColor: const Color(0xFF0F172A),
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ConsultPackage {
+  final String name;
+  final String price;
+  final String duration;
+  final String description;
+  final List<String> deliverables;
+  final Color accent;
+  final String bookingUrl;
+  const _ConsultPackage({
+    required this.name,
+    required this.price,
+    required this.duration,
+    required this.description,
+    required this.deliverables,
+    required this.accent,
+    required this.bookingUrl,
+  });
+}
+
+class _ConsultCard extends StatelessWidget {
+  const _ConsultCard({
+    required this.pkg,
+    required this.isDesktop,
+    required this.onBook,
+  });
+  final _ConsultPackage pkg;
+  final bool isDesktop;
+  final VoidCallback onBook;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: isDesktop ? 360 : double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: pkg.accent.withOpacity(0.3), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: pkg.accent.withOpacity(0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: pkg.accent.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(pkg.duration,
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: pkg.accent)),
+          ),
+          const SizedBox(height: 14),
+          Text(pkg.name,
+              style: const TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.w800, height: 1.3)),
+          const SizedBox(height: 8),
+          Text(pkg.description,
+              style: const TextStyle(
+                  color: Color(0xFF475569), fontSize: 13, height: 1.5)),
+          const SizedBox(height: 16),
+          const Text('Deliverables',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF64748B),
+                  letterSpacing: 0.6)),
+          const SizedBox(height: 8),
+          ...pkg.deliverables.map((d) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(
+                  children: [
+                    Icon(Icons.arrow_right, size: 16, color: pkg.accent),
+                    const SizedBox(width: 4),
+                    Expanded(
+                        child: Text(d,
+                            style: const TextStyle(
+                                fontSize: 12.5, color: Color(0xFF334155)))),
+                  ],
+                ),
+              )),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Text(pkg.price,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              ElevatedButton.icon(
+                onPressed: onBook,
+                icon: const Icon(Icons.phone_in_talk_outlined, size: 15),
+                label: const Text('Book call',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: pkg.accent,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BlogPost {
+  final String category;
+  final String title;
+  final String excerpt;
+  final String date;
+  final String readTime;
+  final String url;
+  const _BlogPost({
+    required this.category,
+    required this.title,
+    required this.excerpt,
+    required this.date,
+    required this.readTime,
+    required this.url,
+  });
+}
+
+class _BlogCard extends StatelessWidget {
+  const _BlogCard({
+    required this.post,
+    required this.isDesktop,
+    required this.onTap,
+  });
+  final _BlogPost post;
+  final bool isDesktop;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: isDesktop ? 360 : double.infinity,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF334155)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD700).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(post.category,
+                      style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFFFD700))),
+                ),
+                const Spacer(),
+                Icon(Icons.arrow_outward,
+                    size: 16, color: Colors.white.withOpacity(0.4)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(post.title,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3)),
+            const SizedBox(height: 10),
+            Text(post.excerpt,
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 13,
+                    height: 1.5)),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Text(post.date,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.4), fontSize: 12)),
+                const Text(' · ',
+                    style: TextStyle(color: Color(0xFF475569), fontSize: 12)),
+                Text(post.readTime,
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.4), fontSize: 12)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MediaFeature {
+  final String outlet;
+  final String headline;
+  final String date;
+  final String url;
+  const _MediaFeature({
+    required this.outlet,
+    required this.headline,
+    required this.date,
+    required this.url,
+  });
+}
+
+class _AccomplishmentStat {
+  final String value;
+  final String label;
+  const _AccomplishmentStat({required this.value, required this.label});
+}
+
+class _MediaFeatureRow extends StatelessWidget {
+  const _MediaFeatureRow({required this.feature, required this.onTap});
+  final _MediaFeature feature;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 80,
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(feature.outlet,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(feature.headline,
+                      style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF0F172A))),
+                  const SizedBox(height: 2),
+                  Text(feature.date,
+                      style: const TextStyle(
+                          fontSize: 11.5, color: Color(0xFF94A3B8))),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_outward,
+                size: 18, color: Color(0xFF94A3B8)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Review {
+  final String quote;
+  final String author;
+  final String role;
+  final int rating;
+  final Color avatarColor;
+  const _Review({
+    required this.quote,
+    required this.author,
+    required this.role,
+    required this.rating,
+    required this.avatarColor,
+  });
+}
+
+class _ReviewCard extends StatelessWidget {
+  const _ReviewCard({required this.review, required this.isDesktop});
+  final _Review review;
+  final bool isDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: isDesktop ? 380 : double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: List.generate(
+              5,
+              (i) => Icon(
+                i < review.rating ? Icons.star : Icons.star_border,
+                size: 16,
+                color: const Color(0xFFFFD700),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text('"${review.quote}"',
+              style: const TextStyle(
+                  fontSize: 14, height: 1.6, color: Color(0xFF334155))),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: review.avatarColor,
+                child: Text(review.author.substring(0, 1),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(review.author,
+                        style: const TextStyle(
+                            fontSize: 13.5, fontWeight: FontWeight.w700)),
+                    Text(review.role,
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B))),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Social media links row (used in footer) ───────────────────────────────
+class _SocialLinksRow extends StatelessWidget {
+  const _SocialLinksRow();
+  static const _links = [
+    _SocialLink(
+        icon: Icons.alternate_email,
+        label: 'X / Twitter',
+        url: 'https://twitter.com/nduproject'),
+    _SocialLink(
+        icon: Icons.business_center_outlined,
+        label: 'LinkedIn',
+        url: 'https://www.linkedin.com/company/ndu-project'),
+    _SocialLink(
+        icon: Icons.facebook_outlined,
+        label: 'Facebook',
+        url: 'https://www.facebook.com/nduproject'),
+    _SocialLink(
+        icon: Icons.camera_alt_outlined,
+        label: 'Instagram',
+        url: 'https://www.instagram.com/nduproject'),
+    _SocialLink(
+        icon: Icons.smart_display_outlined,
+        label: 'YouTube',
+        url: 'https://www.youtube.com/@nduproject'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: _links
+          .map((l) => _SocialIconBubble(link: l))
+          .toList(),
+    );
+  }
+}
+
+class _SocialLink {
+  final IconData icon;
+  final String label;
+  final String url;
+  const _SocialLink({
+    required this.icon,
+    required this.label,
+    required this.url,
+  });
+}
+
+class _SocialIconBubble extends StatelessWidget {
+  const _SocialIconBubble({required this.link});
+  final _SocialLink link;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: link.label,
+      child: InkWell(
+        onTap: () async {
+          final uri = Uri.parse(link.url);
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          ),
+          child: Icon(link.icon, color: Colors.white.withValues(alpha: 0.8), size: 18),
+        ),
       ),
     );
   }

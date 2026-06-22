@@ -6,10 +6,12 @@ import 'package:intl/intl.dart';
 
 import '../widgets/dashboard_bottom_nav_bar.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
+import '../widgets/dashboard_metrics_cards.dart';
 import 'package:go_router/go_router.dart';
 import '../routing/app_router.dart';
 import '../services/navigation_context_service.dart';
 import '../services/project_service.dart';
+import '../services/dashboard_metrics_service.dart';
 import '../services/program_service.dart';
 import '../services/portfolio_service.dart';
 import '../models/program_model.dart';
@@ -122,6 +124,29 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
   bool _gateApprovals = true;
   bool _sharedRiskRegister = true;
   bool _executiveSummary = true;
+  DashboardMetrics? _metrics;
+  bool _isLoadingMetrics = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMetrics());
+  }
+
+  Future<void> _loadMetrics() async {
+    try {
+      final m = await DashboardMetricsService.load();
+      if (mounted) {
+        setState(() {
+          _metrics = m;
+          _isLoadingMetrics = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[PortfolioDashboardScreen] metrics load failed: $e');
+      if (mounted) setState(() => _isLoadingMetrics = false);
+    }
+  }
 
   void _openProjectDashboard() {
     Navigator.push(
@@ -222,6 +247,23 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
                             isStacked: constraints.maxWidth < 920,
                           ),
                           const SizedBox(height: 28),
+                          // ── Past-due + Assigned-to-me + Portfolio metrics (top level) ──
+                          if (_isLoadingMetrics)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 16),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          else if (_metrics != null) ...[
+                            if (_metrics!.totalPastDue > 0) ...[
+                              PastDueActivitiesCard(
+                                  activities: _metrics!.pastDue),
+                              const SizedBox(height: 18),
+                            ],
+                            AssignedActivitiesCard(
+                                activities: _metrics!.assignedToMe,
+                                title: 'Assigned to me (portfolio)'),
+                            const SizedBox(height: 18),
+                          ],
                           // ── Content columns ──
                           if (isWide)
                             Row(

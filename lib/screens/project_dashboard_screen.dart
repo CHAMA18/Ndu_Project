@@ -14,6 +14,8 @@ import '../services/navigation_context_service.dart';
 import '../services/portfolio_service.dart';
 import '../services/program_service.dart';
 import '../services/profile_onboarding_service.dart';
+import '../services/dashboard_metrics_service.dart';
+import '../widgets/dashboard_metrics_cards.dart';
 import '../services/project_service.dart';
 import '../services/user_service.dart';
 import '../services/project_navigation_service.dart';
@@ -39,6 +41,8 @@ class ProjectDashboardScreen extends StatefulWidget {
 
 class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
   late final ValueNotifier<Set<String>> _selectedProjectIds;
+  DashboardMetrics? _metrics;
+  bool _isLoadingMetrics = true;
 
   @override
   void initState() {
@@ -47,7 +51,25 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
     // First-time-user check: if the signed-in user hasn't completed profile
     // onboarding yet, redirect them there before they land on the dashboard.
     // Runs once, post-frame, so we don't block the build.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkProfileOnboarding());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkProfileOnboarding();
+      _loadMetrics();
+    });
+  }
+
+  Future<void> _loadMetrics() async {
+    try {
+      final m = await DashboardMetricsService.load();
+      if (mounted) {
+        setState(() {
+          _metrics = m;
+          _isLoadingMetrics = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ProjectDashboardScreen] metrics load failed: $e');
+      if (mounted) setState(() => _isLoadingMetrics = false);
+    }
   }
 
   Future<void> _checkProfileOnboarding() async {
@@ -577,6 +599,42 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                       const SizedBox(height: 26),
                       const _StatusStrip(),
                       const SizedBox(height: 28),
+                      // ── Past-due + Assigned-to-me + Project metrics ──
+                      if (_isLoadingMetrics)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        )
+                      else if (_metrics != null) ...[
+                        if (_metrics!.totalPastDue > 0) ...[
+                          PastDueActivitiesCard(
+                              activities: _metrics!.pastDue),
+                          const SizedBox(height: 18),
+                        ],
+                        AssignedActivitiesCard(
+                            activities: _metrics!.assignedToMe),
+                        const SizedBox(height: 18),
+                        if (_metrics!.projectStatuses.isNotEmpty) ...[
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: Text('Project status',
+                                style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800)),
+                          ),
+                          Wrap(
+                            spacing: 16,
+                            runSpacing: 16,
+                            children: _metrics!.projectStatuses
+                                .map((r) => ProjectMetricsCard(
+                                      rollup: r,
+                                      level: 'Project',
+                                    ))
+                                .toList(),
+                          ),
+                          const SizedBox(height: 18),
+                        ],
+                      ],
                       if (user == null)
                         buildProjectColumns(
                             projects: const [], isLoading: false)
