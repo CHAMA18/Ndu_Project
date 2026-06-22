@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:ndu_project/firebase_options.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/api_config_secure.dart' show SecureAPIConfig;
+import 'package:ndu_project/services/env_config_loader.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -120,8 +122,24 @@ void main() async {
     debugPrint(stack.toString());
   }
 
-  // Initialize Claude API key from environment (if provided)
+  // Load runtime environment config (web/env-config.js → window.__NDU_ENV).
+  // Must run BEFORE ApiKeyManager.initializeApiKey() so any Anthropic key
+  // supplied at deploy time is picked up. On non-web this is a fast no-op.
+  await EnvConfigLoader.load();
+
+  // Initialize Claude API key. Priority order:
+  //   1. window.__NDU_ENV.ANTHROPIC_API_KEY (deploy-time override)
+  //   2. Per-user key loaded from Firestore (set via Settings screen)
+  //   3. Cloud Function proxy (SecureAPIConfig.baseUrl — server-side key)
   ApiKeyManager.initializeApiKey();
+  if (EnvConfigLoader.hasAnthropicKey) {
+    ApiKeyManager.setApiKey(EnvConfigLoader.anthropicApiKey!);
+  } else if (kIsWeb) {
+    debugPrint(
+      'NDU: no deploy-time Anthropic key in env-config.js — '
+      'using Cloud Function proxy at ${SecureAPIConfig.baseUrl}.',
+    );
+  }
   // Warm common local stores in background to reduce first-navigation latency.
   unawaited(UserPreferencesService.warmUp());
   unawaited(ProjectNavigationService.instance.warmUp());
