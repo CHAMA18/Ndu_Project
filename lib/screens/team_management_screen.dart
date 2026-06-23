@@ -143,7 +143,7 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
                                 selected: roleController.text == role,
                                 onSelected: (_) => setState(() => roleController.text = role),
                                 selectedColor: const Color(0xFFFFF3CD),
-                                backgroundColor: const Color(0xFFF9FAFB),
+                                backgroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFE5E7EB))),
                               ),
                             )

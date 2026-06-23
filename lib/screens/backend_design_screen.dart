@@ -313,7 +313,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Backend Design',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(padding),

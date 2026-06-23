@@ -550,7 +550,7 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
         style:
             textTheme.bodyMedium ?? const TextStyle(fontFamily: appFontFamily),
         child: Scaffold(
-          backgroundColor: const Color(0xFFF5F7FB),
+          backgroundColor: Colors.white,
           body: SafeArea(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

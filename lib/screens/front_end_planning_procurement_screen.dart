@@ -6771,7 +6771,7 @@ class _ProcurementItemCard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: item.progress.clamp(0, 1).toDouble(),
                   minHeight: 6,
-                  backgroundColor: const Color(0xFFF1F5F9),
+                  backgroundColor: Colors.white,
                   valueColor: AlwaysStoppedAnimation<Color>(progressColor),
                 ),
               ),
@@ -7124,7 +7124,7 @@ class _UpdateButton extends StatelessWidget {
         );
       },
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFF1F5F9),
+        backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF1F2937),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

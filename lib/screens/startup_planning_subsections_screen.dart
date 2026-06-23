@@ -442,7 +442,7 @@ class _StartUpPlanningDetailScreenState
     final readiness = _state.readiness(widget.config);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

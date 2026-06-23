@@ -963,7 +963,7 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F6F8),
+      backgroundColor: Colors.white,
       drawer: Drawer(
         width: MediaQuery.sizeOf(context).width * 0.88,
         child: const SafeArea(
@@ -2749,7 +2749,7 @@ class _RequirementCard extends StatelessWidget {
                                 if (row.summarySource.isNotEmpty)
                                   _RequirementSummaryChip(
                                     label: row.summarySource,
-                                    backgroundColor: const Color(0xFFF8FAFC),
+                                    backgroundColor: Colors.white,
                                     textColor: const Color(0xFF475569),
                                     icon: Icons.link_rounded,
                                   ),

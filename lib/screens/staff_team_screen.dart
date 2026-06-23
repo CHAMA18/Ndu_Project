@@ -280,7 +280,7 @@ Future<void> _loadData() async {
     final double horizontalPadding = isMobile ? 20 : 40;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SafeArea(
         child: isMobile

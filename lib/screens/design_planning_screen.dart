@@ -1840,7 +1840,7 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
                 icon: const Icon(Icons.schedule, size: 16),
                 label: const Text('Activity'),
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF9FAFB),
+                  backgroundColor: Colors.white,
                   foregroundColor: _kGray700,
                   side: const BorderSide(color: _kBorder),
                   padding:

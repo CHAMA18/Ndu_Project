@@ -281,7 +281,7 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
     return ResponsiveScaffold(
       activeItemLabel: 'Project Charter',
       appBarTitle: 'Project Charter',
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: _isGenerating
           ? Center(

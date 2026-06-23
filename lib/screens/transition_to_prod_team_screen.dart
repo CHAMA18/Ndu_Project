@@ -60,7 +60,7 @@ class _TransitionToProdTeamScreenState
 
     return ResponsiveScaffold(
       activeItemLabel: 'Transition To Production Team',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

@@ -354,7 +354,7 @@ class _ProjectFrameworkNextScreenState
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       drawer: isMobile
           ? Drawer(
               width: AppBreakpoints.sidebarWidth(context),

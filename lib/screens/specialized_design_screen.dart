@@ -294,7 +294,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Specialized Design',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [

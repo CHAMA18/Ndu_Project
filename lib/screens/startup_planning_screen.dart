@@ -24,7 +24,7 @@ class _StartUpPlanningScreenState extends State<StartUpPlanningScreen> {
     final horizontalPadding = isMobile ? 20.0 : 32.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/addon_users_selector.dart';
-const Color _pageBackground = Color(0xFFF5F6F8);
+const Color _pageBackground = Color(0xFFFFFFFF);
 const Color _primaryText = Color(0xFF0F0F0F);
 const Color _secondaryText = Color(0xFF5A5C60);
 const Color _accent = Color(0xFFFFC940);
@@ -360,16 +360,45 @@ class _PaymentDialogState extends State<PaymentDialog> {
           });
         }
       } else {
-        setState(() {
-          _isProcessing = false;
-          _errorMessage = result.message ?? 'Payment initialization failed';
-        });
+        // Check if this was a network error (Cloud Functions not deployed)
+        final msg = result.message ?? 'Payment initialization failed';
+        if (msg.contains('Failed to fetch') ||
+            msg.contains('ClientException') ||
+            msg.contains('XMLHttpRequest') ||
+            msg.contains('Connection refused') ||
+            msg.contains('ERR_NAME_NOT_RESOLVED')) {
+          setState(() {
+            _isProcessing = false;
+            _errorMessage = 'Payment processing is being set up. '
+                'Our payment gateway will be available shortly. '
+                'Please try again later or contact support.';
+          });
+        } else {
+          setState(() {
+            _isProcessing = false;
+            _errorMessage = msg;
+          });
+        }
       }
     } catch (e) {
-      setState(() {
-        _isProcessing = false;
-        _errorMessage = 'An error occurred: $e';
-      });
+      final msg = e.toString();
+      // Catch network errors gracefully — Cloud Functions may not be deployed yet
+      if (msg.contains('Failed to fetch') ||
+          msg.contains('ClientException') ||
+          msg.contains('XMLHttpRequest') ||
+          msg.contains('Connection refused')) {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = 'Payment processing is being set up. '
+              'Our payment gateway will be available shortly. '
+              'Please try again later or contact support.';
+        });
+      } else {
+        setState(() {
+          _isProcessing = false;
+          _errorMessage = 'An error occurred: $e';
+        });
+      }
     }
   }
 

@@ -44,7 +44,7 @@ class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Execution Stakeholder Identification',
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

@@ -128,7 +128,7 @@ class _PlanningContractingScreenState extends State<PlanningContractingScreen> {
     final hPad = isMobile ? 20.0 : 40.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -837,7 +837,7 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
     final double horizontalPadding = AppBreakpoints.isMobile(context) ? 20 : 48;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1438,7 +1438,7 @@ class _ContractingStrategyScreenState extends State<ContractingStrategyScreen> {
     final double horizontalPadding = isMobile ? 24 : 48;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4313,7 +4313,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
     final double horizontalPadding = isMobile ? 24 : 48;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4820,7 +4820,7 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
     final double horizontalPadding = isMobile ? 24 : 48;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -5288,7 +5288,7 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
     final double horizontalPadding = isMobile ? 24 : 48;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -8383,7 +8383,7 @@ class _ActionsSidebarCard extends StatelessWidget {
               onPressed: () {},
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF4B5563),
-                backgroundColor: const Color(0xFFF9FAFB),
+                backgroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 side: const BorderSide(color: Color(0xFFE5E7EB)),
                 shape: RoundedRectangleBorder(

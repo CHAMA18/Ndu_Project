@@ -870,7 +870,7 @@ class _UpdateOpsMaintenancePlansScreenState
             child: LinearProgressIndicator(
               value: item.progress,
               minHeight: 10,
-              backgroundColor: const Color(0xFFF1F5F9),
+              backgroundColor: Colors.white,
               valueColor: AlwaysStoppedAnimation<Color>(item.color),
             ),
           ),

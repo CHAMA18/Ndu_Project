@@ -919,7 +919,7 @@ Opportunity generation constraints:
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F6F8),
+      backgroundColor: Colors.white,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddOpportunityDialog(),

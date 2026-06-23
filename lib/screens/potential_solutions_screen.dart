@@ -457,7 +457,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF3F5F9),
+      backgroundColor: Colors.white,
       drawer: _buildMobileDrawer(),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(

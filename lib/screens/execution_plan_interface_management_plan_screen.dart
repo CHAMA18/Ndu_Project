@@ -43,7 +43,7 @@ class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Execution Interface Management Plan',
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

@@ -1298,7 +1298,7 @@ class _DiagramFullscreenViewState extends State<_DiagramFullscreenView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,

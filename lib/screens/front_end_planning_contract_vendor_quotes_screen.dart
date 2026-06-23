@@ -5085,7 +5085,7 @@ class _FrontEndPlanningContractVendorQuotesScreenState
   Widget _buildMobileScaffold(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF5F6F8),
+      backgroundColor: Colors.white,
       drawer: Drawer(
         width: MediaQuery.sizeOf(context).width * 0.88,
         child: const SafeArea(

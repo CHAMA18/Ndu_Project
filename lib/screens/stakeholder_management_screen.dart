@@ -159,7 +159,7 @@ class _StakeholderManagementScreenState
     // --- Mobile layout ---
     if (isMobile) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
+        backgroundColor: Colors.white,
         drawer: Drawer(
           width: sidebarWidth,
           child: SafeArea(
@@ -198,7 +198,7 @@ class _StakeholderManagementScreenState
 
     // --- Desktop layout ---
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         top: true,
         child: Column(

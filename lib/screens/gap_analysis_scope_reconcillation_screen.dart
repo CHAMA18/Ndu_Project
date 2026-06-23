@@ -76,7 +76,7 @@ class _GapAnalysisScopeReconcillationScreenState
     final double horizontalPadding = isMobile ? 20 : 32;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

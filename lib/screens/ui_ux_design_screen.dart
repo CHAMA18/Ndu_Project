@@ -546,7 +546,7 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'UI/UX Design',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [

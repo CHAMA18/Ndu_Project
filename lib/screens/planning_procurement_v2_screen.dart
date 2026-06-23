@@ -169,7 +169,7 @@ class _PlanningProcurementV2ScreenState
     final isMobile = AppBreakpoints.isMobile(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

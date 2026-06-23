@@ -1261,18 +1261,19 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         top: true,
         child: Stack(
           children: [
-            Column(
+            // Sidebar full height on the left; header + content on the right
+            Row(
               children: [
-                // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                      activeItemLabel: 'Business Case Detail'),
+                ),
                 Expanded(
-                  child: Row(
+                  child: Column(
                     children: [
-                      DraggableSidebar(
-                        openWidth: sidebarWidth,
-                        child: const InitiationLikeSidebar(
-                            activeItemLabel: 'Business Case Detail'),
-                      ),
+                      // Header sits inside the content area (right of sidebar)
+                      BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
                       Expanded(child: _buildMainContent()),
                     ],
                   ),
@@ -1829,7 +1830,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     return Scaffold(
       key: _scaffoldKey,
       drawer: _buildMobileDrawer(),
-      backgroundColor: const Color(0xFFF3F5F9),
+      backgroundColor: Colors.white,
       floatingActionButtonLocation: draftMode
           ? FloatingActionButtonLocation.centerDocked
           : FloatingActionButtonLocation.endFloat,

@@ -764,7 +764,7 @@ class _AdminHintsScreenState extends State<AdminHintsScreen> {
           selected: selected == option,
           onSelected: (_) => onSelected(option),
           selectedColor: _colorForCategory(option).withOpacity(0.14),
-          backgroundColor: const Color(0xFFF8FAFC),
+          backgroundColor: Colors.white,
           side: BorderSide(
             color: selected == option
                 ? _colorForCategory(option).withOpacity(0.35)
@@ -1847,6 +1847,6 @@ String _relativeTime(DateTime value) {
   return '${years}y ago';
 }
 
-const Color _pageBackgroundColor = Color(0xFFF6F8FC);
+const Color _pageBackgroundColor = Color(0xFFFFFFFF);
 const Color _hintActionColor = Color(0xFFFFC107);
 const Color _hintActionForegroundColor = Color(0xFF111827);

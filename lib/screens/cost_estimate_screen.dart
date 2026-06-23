@@ -176,7 +176,7 @@ class _CostEstimateScreenState extends State<CostEstimateScreen> {
         _benefitCountForPreferred(projectData.costAnalysisData, preferredTitle);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3416,7 +3416,7 @@ class _BoeSummaryCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 4,
-              backgroundColor: const Color(0xFFF1F5F9),
+              backgroundColor: Colors.white,
               valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
             ),
           ),
@@ -3446,7 +3446,7 @@ class _BoeSummaryCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 4,
-              backgroundColor: const Color(0xFFF1F5F9),
+              backgroundColor: Colors.white,
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -3691,7 +3691,7 @@ class _ContractStrategyCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: pct,
                         minHeight: 6,
-                        backgroundColor: const Color(0xFFF1F5F9),
+                        backgroundColor: Colors.white,
                         valueColor: AlwaysStoppedAnimation<Color>(_contractStatusColor(status)),
                       ),
                     ),

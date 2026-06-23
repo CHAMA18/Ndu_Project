@@ -170,7 +170,7 @@ class _AgileDevelopmentIterationsScreenState
     final double horizontalPadding = isMobile ? 18 : 32;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

@@ -364,7 +364,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF3F5F9),
+      backgroundColor: Colors.white,
       drawer: _buildMobileDrawer(),
       body: SafeArea(
         child: Column(

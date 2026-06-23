@@ -22,9 +22,9 @@ class LightModeColors {
   static const lightInversePrimary = Color(0xFF0F172A);
   static const lightShadow = Color(0xFF000000);
   // Subtle bluish-white background like the screenshot (cards sit on it)
-  static const lightSurface = Color(0xFFF7FAFC);
+  static const lightSurface = Color(0xFFFFFFFF);
   static const lightOnSurface = Color(0xFF0F172A);
-  static const lightAppBarBackground = Color(0xFFF7FAFC);
+  static const lightAppBarBackground = Color(0xFFFFFFFF);
   static const accent = Color(0xFFFFC107); // Yellow/Gold accent color
 }
 

@@ -6,7 +6,7 @@ import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/services/subscription_pricing_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
 
-const Color _pageBackground = Color(0xFFF5F6F8);
+const Color _pageBackground = Color(0xFFFFFFFF);
 const Color _primaryText = Color(0xFF0F0F0F);
 const Color _secondaryText = Color(0xFF5A5C60);
 const Color _themeColor = Color(0xFFF4B400); // Unified golden theme

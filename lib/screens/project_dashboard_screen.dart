@@ -17,6 +17,7 @@ import '../services/profile_onboarding_service.dart';
 import '../services/dashboard_metrics_service.dart';
 import '../screens/profile_onboarding_screen.dart';
 import '../widgets/dashboard_metrics_cards.dart';
+import '../widgets/collapsible_section.dart';
 import '../services/project_service.dart';
 import '../services/user_service.dart';
 import '../services/project_navigation_service.dart';
@@ -623,22 +624,19 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
                             activities: _metrics!.assignedToMe),
                         const SizedBox(height: 18),
                         if (_metrics!.projectStatuses.isNotEmpty) ...[
-                          const Padding(
-                            padding: EdgeInsets.only(bottom: 12),
-                            child: Text('Project status',
-                                style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800)),
-                          ),
-                          Wrap(
-                            spacing: 16,
-                            runSpacing: 16,
-                            children: _metrics!.projectStatuses
-                                .map((r) => ProjectMetricsCard(
-                                      rollup: r,
-                                      level: 'Project',
-                                    ))
-                                .toList(),
+                          CollapsibleSection(
+                            title: 'Project status',
+                            itemCount: _metrics!.projectStatuses.length,
+                            child: Wrap(
+                              spacing: 16,
+                              runSpacing: 16,
+                              children: _metrics!.projectStatuses
+                                  .map((r) => ProjectMetricsCard(
+                                        rollup: r,
+                                        level: 'Project',
+                                      ))
+                                  .toList(),
+                            ),
                           ),
                           const SizedBox(height: 18),
                         ],

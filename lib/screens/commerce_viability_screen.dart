@@ -62,7 +62,7 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Warranties & Operations Support',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

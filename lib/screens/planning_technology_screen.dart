@@ -914,7 +914,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Stack(
           children: [

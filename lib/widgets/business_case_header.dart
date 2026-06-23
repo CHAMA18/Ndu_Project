@@ -94,6 +94,7 @@ class BusinessCaseHeader extends StatelessWidget {
           Padding(
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24),
             child: Wrap(
+              alignment: WrapAlignment.end,
               spacing: 10,
               runSpacing: 8,
               children: [

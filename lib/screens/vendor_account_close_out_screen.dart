@@ -61,7 +61,7 @@ class _VendorAccountCloseOutScreenState
 
     return ResponsiveScaffold(
       activeItemLabel: 'Vendor Account Close Out',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

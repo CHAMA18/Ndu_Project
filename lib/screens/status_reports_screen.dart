@@ -245,7 +245,7 @@ class _StatusReportsScreenState extends State<StatusReportsScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Status Reports',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

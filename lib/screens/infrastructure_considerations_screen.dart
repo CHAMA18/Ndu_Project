@@ -350,7 +350,7 @@ class _InfrastructureConsiderationsScreenState
         : (_solutions.length > 3 ? 3 : _solutions.length);
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF3F5F9),
+      backgroundColor: Colors.white,
       drawer: _buildMobileDrawer(),
       body: SafeArea(
         child: Column(

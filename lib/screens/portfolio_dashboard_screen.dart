@@ -9,6 +9,7 @@ import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/dashboard_metrics_cards.dart';
 import '../widgets/portfolio_extras.dart';
 import '../widgets/compact_action_button.dart';
+import '../widgets/collapsible_section.dart';
 import 'package:go_router/go_router.dart';
 import '../routing/app_router.dart';
 import '../services/navigation_context_service.dart';
@@ -38,7 +39,7 @@ class PortfolioDashboardScreen extends StatelessWidget {
     // ── Desktop layout (width >= 700) ──
     if (MediaQuery.sizeOf(context).width >= 700) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF7F9FB),
+        backgroundColor: Colors.white,
         body: Stack(
           children: [
             SafeArea(
@@ -52,7 +53,7 @@ class PortfolioDashboardScreen extends StatelessWidget {
 
     // ── Mobile layout (width < 700) ──
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F9FB),
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
           SafeArea(
@@ -296,23 +297,19 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
                             const SizedBox(height: 18),
                             // ── Project status grid (same as Project dashboard) ──
                             if (_metrics!.projectStatuses.isNotEmpty) ...[
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 12),
-                                child: Text('Project status',
-                                    style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w800,
-                                        color: Color(0xFF0F172A))),
-                              ),
-                              Wrap(
-                                spacing: 16,
-                                runSpacing: 16,
-                                children: _metrics!.projectStatuses
-                                    .map((r) => ProjectMetricsCard(
-                                          rollup: r,
-                                          level: 'Project',
-                                        ))
-                                    .toList(),
+                              CollapsibleSection(
+                                title: 'Project status',
+                                itemCount: _metrics!.projectStatuses.length,
+                                child: Wrap(
+                                  spacing: 16,
+                                  runSpacing: 16,
+                                  children: _metrics!.projectStatuses
+                                      .map((r) => ProjectMetricsCard(
+                                            rollup: r,
+                                            level: 'Project',
+                                          ))
+                                      .toList(),
+                                ),
                               ),
                               const SizedBox(height: 18),
                             ],

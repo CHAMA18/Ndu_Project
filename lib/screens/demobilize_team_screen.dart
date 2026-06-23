@@ -60,7 +60,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
 
     return ResponsiveScaffold(
       activeItemLabel: 'Demobilize Team',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(

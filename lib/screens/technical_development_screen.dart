@@ -491,7 +491,7 @@ class _TechnicalDevelopmentScreenState
 
     return ResponsiveScaffold(
       activeItemLabel: 'Technical Development',
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: Colors.white,
       floatingActionButton: const KazAiChatBubble(positioned: false),
       body: Column(
         children: [

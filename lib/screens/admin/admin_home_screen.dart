@@ -15,7 +15,7 @@ import 'package:ndu_project/screens/admin/admin_subscription_lookup_screen.dart'
 import 'package:ndu_project/screens/admin/admin_pricing_config_screen.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
-const Color _adminBackgroundColor = Color(0xFFF6F7FB);
+const Color _adminBackgroundColor = Color(0xFFFFFFFF);
 const Color _adminSurfaceColor = Colors.white;
 const Color _adminBorderColor = Color(0xFFE5E7EB);
 const Color _adminAccentColor = Color(0xFFFFC107);

@@ -415,7 +415,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         : (_solutions.length > 3 ? 3 : _solutions.length);
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: const Color(0xFFF3F5F9),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
