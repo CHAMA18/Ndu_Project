@@ -320,13 +320,13 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 16,
-            offset: Offset(0, 8),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -334,7 +334,7 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
             child: Row(
               children: [
                 Container(
@@ -453,7 +453,7 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
 
   Widget _buildTableHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
       ),
@@ -475,12 +475,12 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
 
   Widget _buildTableFooter() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
         ),
       ),
       child: Row(

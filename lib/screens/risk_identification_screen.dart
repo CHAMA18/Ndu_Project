@@ -281,7 +281,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       });
     } finally {
       if (mounted) setState(() => _isBootstrapping = false);
@@ -348,7 +353,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         );
       }
     } catch (e) {
-      _error = e.toString();
+      _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to regenerate risks: $e')),
@@ -380,18 +390,18 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           children: [
             Column(
               children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                  child: Row(
+                Row(
                     children: [
                       DraggableSidebar(
                         openWidth: sidebarWidth,
                         child: const InitiationLikeSidebar(
                             activeItemLabel: 'Risk Identification'),
                       ),
-                      Expanded(child: _buildMainContent()),
+                      Expanded(child: Column(children: [
+                        BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                        Expanded(child: _buildMainContent()),
+                      ])),
                     ],
-                  ),
                 ),
               ],
             ),
@@ -1261,7 +1271,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                   border: Border.all(color: Colors.red.withOpacity(0.3))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                  const Icon(Icons.cloud_off_outlined, color: Colors.red, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                       child: Text(_error!,

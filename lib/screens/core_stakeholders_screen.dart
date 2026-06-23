@@ -283,18 +283,18 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         top: true,
         child: Stack(
           children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-              Expanded(
-                  child: Row(children: [
+            Row(children: [
                 DraggableSidebar(
                   openWidth: sidebarWidth,
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'Core Stakeholders'),
                 ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
+                Expanded(
+                    child: Column(children: [
+                  BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                  Expanded(child: _buildMainContent()),
+                ])),
+              ]),
             MobileSidebarHamburger(
                       sidebar: const InitiationLikeSidebar(
                         activeItemLabel: 'Core Stakeholders',
@@ -1380,7 +1380,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       );
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('AI autofill failed: $e')),
@@ -1952,7 +1957,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         const SnackBar(content: Text('Stakeholders regenerated successfully')),
       );
     } catch (e) {
-      _error = e.toString();
+      _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text('Failed to regenerate stakeholders: $e')),

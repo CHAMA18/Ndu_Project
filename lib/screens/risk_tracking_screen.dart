@@ -510,8 +510,8 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -878,7 +878,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
             child: LinearProgressIndicator(
               value: plan.coverage,
               minHeight: 4,
-              backgroundColor: const Color(0xFFE2E8F0),
+              backgroundColor: const Color(0xFFE5E7EB),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -1400,7 +1400,7 @@ class _RiskTrackingScreenState extends State<RiskTrackingScreen> {
             child: LinearProgressIndicator(
               value: esc.readiness,
               minHeight: 4,
-              backgroundColor: const Color(0xFFE2E8F0),
+              backgroundColor: const Color(0xFFE5E7EB),
               valueColor: AlwaysStoppedAnimation<Color>(color),
             ),
           ),
@@ -2776,7 +2776,7 @@ class _PanelShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

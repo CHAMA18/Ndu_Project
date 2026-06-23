@@ -258,8 +258,8 @@ class _TechnicalDebtManagementScreenState
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1938,7 +1938,7 @@ class _TechnicalDebtManagementScreenState
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(label,
           style: const TextStyle(
@@ -1995,7 +1995,7 @@ class _TechnicalDebtManagementScreenState
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(label,
           style: TextStyle(
@@ -2013,7 +2013,7 @@ class _TechnicalDebtManagementScreenState
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(label,
           style: TextStyle(
@@ -2128,11 +2128,11 @@ class _GovernanceTable extends StatelessWidget {
             constraints.maxWidth < minWidth ? minWidth : constraints.maxWidth;
 
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -2335,7 +2335,7 @@ class _ProgressCell extends StatelessWidget {
           child: LinearProgressIndicator(
             value: value.clamp(0.0, 1.0),
             minHeight: 8,
-            backgroundColor: const Color(0xFFE2E8F0),
+            backgroundColor: const Color(0xFFE5E7EB),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
@@ -2361,7 +2361,7 @@ class _RiskTierCell extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
@@ -2615,7 +2615,7 @@ class _PanelShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

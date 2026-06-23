@@ -1281,18 +1281,18 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
           top: true,
           child: Stack(
             children: [
-              Column(children: [
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                    child: Row(children: [
+              Row(children: [
                   DraggableSidebar(
                     openWidth: sidebarWidth,
                     child: const InitiationLikeSidebar(
                         activeItemLabel:
                             'Cost Benefit Analysis & Financial Metrics'),
                   ),
-                  Expanded(child: _buildMainContent()),
-                ])),
+                  Expanded(
+                      child: Column(children: [
+                    BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                    Expanded(child: _buildMainContent()),
+                  ])),
               ]),
               MobileSidebarHamburger(
                       sidebar: const InitiationLikeSidebar(
@@ -7172,7 +7172,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
         border: Border.all(color: Colors.red.withOpacity(0.3)),
       ),
       child: Row(children: [
-        const Icon(Icons.error_outline, color: Colors.red, size: 18),
+        const Icon(Icons.cloud_off_outlined, color: Colors.red, size: 18),
         const SizedBox(width: 8),
         Expanded(
             child: Text(message,
@@ -7876,7 +7876,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       });
     } finally {
       if (mounted) setState(() => _isGenerating = false);
@@ -8700,7 +8705,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
         _solutionLoading.remove(index);
       });
     }

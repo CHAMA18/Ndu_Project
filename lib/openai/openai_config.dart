@@ -13,7 +13,8 @@ import 'package:ndu_project/utils/diagram_model.dart';
 const String apiKey = String.fromEnvironment('CLAUDE_PROXY_API_KEY');
 const String endpoint = String.fromEnvironment('CLAUDE_PROXY_ENDPOINT');
 
-/// Central configuration for Anthropic Claude access.
+/// Central configuration for OpenAI API access.
+/// Uses GPT-4o — OpenAI's smartest model with the best reasoning capabilities.
 class OpenAiConfig {
   static String get _trimmedEnvEndpoint => endpoint.trim().isEmpty
       ? ''
@@ -25,234 +26,79 @@ class OpenAiConfig {
     return SecureAPIConfig.apiKey ?? '';
   }
 
-  /// Base endpoint preference: environment overrides default REST endpoint.
-  /// IMPORTANT: If running on web and no proxy endpoint is provided, direct
-  /// calls to api.anthropic.com will be blocked by CORS. The UI will surface
-  /// a clear error so the user can configure the proxy.
+  /// Base endpoint — OpenAI's API URL.
   static String get baseEndpoint {
     if (_trimmedEnvEndpoint.isNotEmpty) return _trimmedEnvEndpoint;
-    // Fallback to project Cloud Function proxy if env not provided
-    final projectId = DefaultFirebaseOptions.currentPlatform.projectId;
-    return 'https://us-central1-$projectId.cloudfunctions.net/claudeProxy';
+    return SecureAPIConfig.baseUrl;
   }
 
-  /// Model used for Claude API requests.
+  /// Model used for OpenAI API requests — GPT-4o.
   static String get model => SecureAPIConfig.model;
 
-  /// Anthropic API version.
+  /// OpenAI API version (kept for backward compat).
   static String get anthropicVersion => SecureAPIConfig.anthropicVersion;
 
-  // Consider configured if using a proxy endpoint (no client API key needed)
-  static bool get isConfigured => _isProxyEndpoint || apiKeyValue.isNotEmpty;
+  // Consider configured if we have an API key
+  static bool get isConfigured => apiKeyValue.isNotEmpty;
 
-  /// Determine if we're using a proxy endpoint (Cloud Function, server, etc.)
-  /// Proxies in this app expect requests to the BASE URL with NO extra path.
-  static bool get _isProxyEndpoint {
-    // Treat any non-anthropic.com endpoint as a proxy
-    return !baseEndpoint.contains('anthropic.com');
-  }
+  /// Determine if we're using a proxy endpoint (not needed for OpenAI).
+  static bool get _isProxyEndpoint => false;
 
-  /// Claude Messages API endpoint. When using a proxy endpoint, do NOT append a path.
+  /// OpenAI Chat Completions API endpoint.
   static Uri messagesUri() {
-    final base = baseEndpoint.endsWith('/')
-        ? baseEndpoint.substring(0, baseEndpoint.length - 1)
-        : baseEndpoint;
-    if (_isProxyEndpoint) return Uri.parse(base);
-    return Uri.parse('$base/v1/messages');
+    return Uri.parse('$baseEndpoint/chat/completions');
   }
 
-  /// Alias for backward compatibility with code referencing chatUri().
+  /// Alias for backward compatibility.
   static Uri chatUri() => messagesUri();
 
-  /// Alias for backward compatibility with code referencing responsesUri().
+  /// Alias for backward compatibility.
   static Uri responsesUri() => messagesUri();
 
-  /// Wraps a request body map for the Anthropic Claude Messages API.
-  /// Transforms OpenAI-style request bodies into Anthropic Claude format:
-  /// - Extracts the system message from messages array into top-level `system` param
-  /// - Replaces `max_completion_tokens` with `max_tokens`
-  /// - Removes `response_format` (not supported by Claude; JSON is prompted)
-  /// - Removes `temperature` restrictions for reasoning models (not applicable to Claude)
+  /// Wraps a request body map for the OpenAI Chat Completions API.
+  /// Converts Anthropic-style body to OpenAI format if needed.
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
     final result = Map<String, dynamic>.from(body);
 
-    // Extract system message from messages and move to top-level 'system' param
-    // Anthropic Claude requires system as a top-level parameter, not in messages
-    if (result.containsKey('messages') && result['messages'] is List) {
+    // If body has a top-level 'system' param (Anthropic style), move it
+    // into the messages array as a system message (OpenAI style)
+    if (result.containsKey('system') && !result.containsKey('messages')) {
+      final system = result.remove('system');
+      result['messages'] = [
+        {'role': 'system', 'content': system},
+      ];
+    } else if (result.containsKey('system')) {
+      final system = result.remove('system');
       final messages = List<Map<String, dynamic>>.from(
-        (result['messages'] as List).map((m) => Map<String, dynamic>.from(m as Map)),
+        (result['messages'] as List? ?? []).map((m) =>
+            Map<String, dynamic>.from(m as Map)),
       );
-
-      // Find and extract system messages
-      final systemMessages = <String>[];
-      messages.removeWhere((msg) {
-        if (msg['role'] == 'system') {
-          final content = msg['content'];
-          if (content is String) {
-            systemMessages.add(content);
-          } else if (content is List) {
-            // OpenAI Responses API format: content is list of input_text objects
-            for (final item in content) {
-              if (item is Map) {
-                final text = item['text'] ?? item['content'] ?? '';
-                if (text is String && text.isNotEmpty) {
-                  systemMessages.add(text);
-                }
-              }
-            }
-          }
-          return true;
-        }
-        return false;
-      });
-
-      if (systemMessages.isNotEmpty && !result.containsKey('system')) {
-        result['system'] = systemMessages.join('\n\n');
-      }
-
-      // Transform user/assistant messages content format
-      // OpenAI Responses API uses content as list of input_text/output_text
-      // Anthropic Claude uses content as plain string or list of content blocks
-      final transformedMessages = <Map<String, dynamic>>[];
-      for (final msg in messages) {
-        final role = msg['role'] as String?;
-        final content = msg['content'];
-
-        if (content is List) {
-          // OpenAI Responses API format: extract text from content blocks
-          final textParts = <String>[];
-          for (final item in content) {
-            if (item is Map) {
-              final type = item['type'];
-              final text = item['text'] ?? item['content'] ?? '';
-              if (text is String && text.isNotEmpty) {
-                textParts.add(text);
-              }
-            } else if (item is String) {
-              textParts.add(item);
-            }
-          }
-          transformedMessages.add({
-            'role': role ?? 'user',
-            'content': textParts.join('\n'),
-          });
-        } else {
-          transformedMessages.add(msg);
-        }
-      }
-
-      result['messages'] = transformedMessages;
+      messages.insert(0, {'role': 'system', 'content': system});
+      result['messages'] = messages;
     }
 
-    // Handle OpenAI Responses API 'input' format
-    // The OpenAI Responses API uses 'input' instead of 'messages'
-    if (result.containsKey('input') && !result.containsKey('messages')) {
-      final input = result['input'];
-      if (input is List) {
-        final messages = <Map<String, dynamic>>[];
-        final systemParts = <String>[];
+    // Convert max_tokens to max_tokens (OpenAI uses same name)
+    // Already correct for OpenAI format
 
-        for (final item in input) {
-          if (item is Map<String, dynamic>) {
-            final role = item['role'] as String?;
-            final content = item['content'];
-
-            if (role == 'system') {
-              if (content is String) {
-                systemParts.add(content);
-              } else if (content is List) {
-                for (final block in content) {
-                  if (block is Map) {
-                    final text = block['text'] ?? '';
-                    if (text is String && text.isNotEmpty) {
-                      systemParts.add(text);
-                    }
-                  }
-                }
-              }
-            } else {
-              if (content is String) {
-                messages.add({'role': role ?? 'user', 'content': content});
-              } else if (content is List) {
-                final textParts = <String>[];
-                for (final block in content) {
-                  if (block is Map) {
-                    final text = block['text'] ?? block['content'] ?? '';
-                    if (text is String && text.isNotEmpty) {
-                      textParts.add(text);
-                    }
-                  }
-                }
-                messages.add({'role': role ?? 'user', 'content': textParts.join('\n')});
-              }
-            }
-          }
-        }
-
-        if (systemParts.isNotEmpty) {
-          result['system'] = systemParts.join('\n\n');
-        }
-        result['messages'] = messages;
-        result.remove('input');
-      }
-    }
-
-    // Replace max_completion_tokens with max_tokens (Claude uses max_tokens)
-    if (result.containsKey('max_completion_tokens')) {
-      result['max_tokens'] = result.remove('max_completion_tokens');
-    }
-    if (result.containsKey('max_output_tokens')) {
-      result['max_tokens'] = result.remove('max_output_tokens');
-    }
-
-    // Ensure max_tokens exists (required by Claude API)
-    if (!result.containsKey('max_tokens')) {
-      result['max_tokens'] = 1200;
-    }
-
-    // Remove response_format (not supported by Claude; JSON is prompted)
-    result.remove('response_format');
-
-    // Remove OpenAI-specific fields not applicable to Claude
-    result.remove('workflow_id');
-    result.remove('workflowId');
-
-    // Ensure model is set
-    if (!result.containsKey('model') || (result['model'] as String).isEmpty) {
-      result['model'] = model;
-    }
+    // Remove Anthropic-specific fields
+    result.remove('anthropic_version');
 
     return result;
   }
 
-  /// Returns headers for Anthropic Claude API requests.
+  /// Returns headers for OpenAI API requests.
   static Map<String, String> headers() {
     final headers = <String, String>{
       'Content-Type': 'application/json',
-      'x-api-key': apiKeyValue,
-      'anthropic-version': anthropicVersion,
+      'Authorization': 'Bearer $apiKeyValue',
     };
     return headers;
   }
 
-  /// Extracts text content from an Anthropic Claude API response.
-  /// Claude returns content as: { "content": [ { "type": "text", "text": "..." } ] }
+  /// Extracts text content from an OpenAI API response.
+  /// OpenAI returns: { "choices": [ { "message": { "content": "..." } } ] }
   static String extractContent(Map<String, dynamic> data) {
-    // Try Anthropic Claude format first
-    final content = data['content'];
-    if (content is List && content.isNotEmpty) {
-      final buffer = StringBuffer();
-      for (final block in content) {
-        if (block is Map<String, dynamic>) {
-          if (block['type'] == 'text' && block['text'] is String) {
-            buffer.write(block['text']);
-          }
-        }
-      }
-      if (buffer.isNotEmpty) return buffer.toString();
-    }
-
-    // Fallback: try OpenAI format for backward compatibility
+    // OpenAI Chat Completions format
     final choices = data['choices'];
     if (choices is List && choices.isNotEmpty) {
       final first = choices.first;

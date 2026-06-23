@@ -297,7 +297,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         );
       }
     } catch (e) {
-      _error = e.toString();
+      _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to regenerate IT considerations: $e')),
@@ -331,18 +336,18 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         top: true,
         child: Stack(
           children: [
-            Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
-              Expanded(
-                  child: Row(children: [
+            Row(children: [
                 DraggableSidebar(
                   openWidth: sidebarWidth,
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'IT Considerations'),
                 ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
+                Expanded(
+                    child: Column(children: [
+                  BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                  Expanded(child: _buildMainContent()),
+                ])),
+              ]),
             MobileSidebarHamburger(
                       sidebar: const InitiationLikeSidebar(
                         activeItemLabel: 'IT Considerations',
@@ -1271,7 +1276,12 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       );
       return true;
     } catch (e) {
-      _error = e.toString();
+      _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('AI autofill failed: $e')),
@@ -1543,7 +1553,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                   border: Border.all(color: Colors.red.withOpacity(0.3))),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  const Icon(Icons.error_outline, color: Colors.red, size: 18),
+                  const Icon(Icons.cloud_off_outlined, color: Colors.red, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                       child: Text(_error!,

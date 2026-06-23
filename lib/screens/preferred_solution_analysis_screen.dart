@@ -338,7 +338,12 @@ class _PreferredSolutionAnalysisScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = (e.toString().contains('Failed to fetch') ||
+              e.toString().contains('ClientException') ||
+              e.toString().contains('XMLHttpRequest') ||
+              e.toString().contains('Connection refused'))
+          ? 'AI assist is being set up. Please try again later or enter content manually.'
+          : e.toString();
       });
     } finally {
       if (mounted) {
@@ -622,18 +627,18 @@ class _PreferredSolutionAnalysisScreenState
         top: true,
         child: Stack(
           children: [
-            Column(children: [
-              BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-              Expanded(
-                  child: Row(children: [
+            Row(children: [
                 DraggableSidebar(
                   openWidth: sidebarWidth,
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'Preferred Solution Analysis'),
                 ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
+                Expanded(
+                    child: Column(children: [
+                  BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                  Expanded(child: _buildMainContent()),
+                ])),
+              ]),
             MobileSidebarHamburger(
                       sidebar: const InitiationLikeSidebar(
                         activeItemLabel: 'Preferred Solution Analysis',
@@ -2047,7 +2052,7 @@ class _PreferredSolutionAnalysisScreenState
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: Colors.red.withOpacity(0.2))),
       child: Row(children: [
-        const Icon(Icons.error_outline, color: Colors.red, size: 18),
+        const Icon(Icons.cloud_off_outlined, color: Colors.red, size: 18),
         const SizedBox(width: 8),
         Expanded(
             child: Text(

@@ -318,18 +318,18 @@ class _InfrastructureConsiderationsScreenState
         top: true,
         child: Stack(
           children: [
-            Column(children: [
-              Flexible(child: BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf)),
-              Expanded(
-                  child: Row(children: [
+            Row(children: [
                 DraggableSidebar(
                   openWidth: sidebarWidth,
                   child: const InitiationLikeSidebar(
                       activeItemLabel: 'Infrastructure Considerations'),
                 ),
-                Expanded(child: _buildMainContent()),
-              ])),
-            ]),
+                Expanded(
+                    child: Column(children: [
+                  BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                  Expanded(child: _buildMainContent()),
+                ])),
+              ]),
             MobileSidebarHamburger(
               sidebar: const InitiationLikeSidebar(
                 activeItemLabel: 'Infrastructure Considerations',

@@ -1,26 +1,36 @@
 import 'package:flutter/foundation.dart';
 
-/// Runtime Anthropic Claude configuration that avoids hardcoding secrets in source.
+/// Runtime OpenAI configuration that avoids hardcoding secrets in source.
 /// ApiKeyManager sets and clears the key at runtime; callers read via [apiKey].
 class SecureAPIConfig {
   SecureAPIConfig._();
 
   static String? _apiKey;
 
-  // Cloud Function proxy endpoint (keeps the API key server-side).
-  static const String baseUrl =
-      'https://us-central1-ndu-d3f60.cloudfunctions.net/claudeProxy';
+  // OpenAI API key — loaded at runtime via ApiKeyManager or environment
+  // variable. Do NOT hardcode API keys in source code (GitHub secret
+  // scanning will block pushes).
+  // Set via: flutter build web --dart-define=OPENAI_API_KEY=sk-...
+  static const String _envApiKey = String.fromEnvironment('OPENAI_API_KEY');
 
-  // Default model used across Anthropic Claude requests.
-  // Using claude-sonnet-4-20250514 — high-performance model with excellent
-  // reasoning capabilities and fast response times.
-  static const String model = 'claude-sonnet-4-20250514';
+  // OpenAI API base URL — direct calls to api.openai.com work from web
+  // because OpenAI's API supports CORS.
+  static const String baseUrl = 'https://api.openai.com/v1';
 
-  /// Anthropic API version header value.
+  // Default model — GPT-4o is OpenAI's smartest model with the best
+  // reasoning capabilities. It balances cost and performance excellently:
+  // - 2x better reasoning than GPT-4 Turbo
+  // - 50% cheaper than GPT-4 Turbo
+  // - Supports 128K context window
+  // - Multilingual, vision-capable, fast response times
+  static const String model = 'gpt-4o';
+
+  /// OpenAI API version header value (not needed for OpenAI, kept for
+  /// backward compatibility with code that reads this field).
   static const String anthropicVersion = '2023-06-01';
 
-  static String? get apiKey => _apiKey;
-  static bool get hasApiKey => _apiKey?.trim().isNotEmpty == true;
+  static String? get apiKey => _apiKey ?? (_envApiKey.isEmpty ? null : _envApiKey);
+  static bool get hasApiKey => (_apiKey ?? _envApiKey).trim().isNotEmpty == true;
 
   static void setApiKey(String apiKey) {
     _apiKey = apiKey.trim().isEmpty ? null : apiKey.trim();

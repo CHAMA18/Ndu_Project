@@ -418,10 +418,8 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
           children: [
             Column(
               children: [
-                // Top Header
-                BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                Expanded(
-                  child: Row(
+                // Sidebar full height on left; header + content on right
+                Row(
                     children: [
                       DraggableSidebar(
                         openWidth: sidebarWidth,
@@ -429,10 +427,14 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                             activeItemLabel: 'Potential Solutions'),
                       ),
                       Expanded(
-                        child: _buildMainContent(),
+                        child: Column(
+                          children: [
+                            BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+                            Expanded(child: _buildMainContent()),
+                          ],
+                        ),
                       ),
                     ],
-                  ),
                 ),
               ],
             ),
