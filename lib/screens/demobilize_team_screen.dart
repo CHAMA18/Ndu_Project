@@ -234,6 +234,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       cellBuilder: (context, i) {
         final m = _teamRoster[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed =
                 await launchConfirmDelete(context, itemName: 'team member');
@@ -333,6 +334,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       cellBuilder: (context, i) {
         final k = _knowledgeTransfers[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'knowledge transfer');
@@ -438,6 +440,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       cellBuilder: (context, i) {
         final v = _vendorOffboarding[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'vendor offboarding task');
@@ -539,6 +542,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       cellBuilder: (context, i) {
         final c = _communications[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed =
                 await launchConfirmDelete(context, itemName: 'communication');

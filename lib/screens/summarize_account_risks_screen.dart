@@ -265,6 +265,7 @@ class _SummarizeAccountRisksScreenState
       cellBuilder: (context, i) {
         final h = _highlights[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm =
                 await launchConfirmDelete(context, itemName: 'highlight');
@@ -338,6 +339,7 @@ class _SummarizeAccountRisksScreenState
       cellBuilder: (context, i) {
         final r = _topRisks[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm =
                 await launchConfirmDelete(context, itemName: 'risk');
@@ -431,6 +433,7 @@ class _SummarizeAccountRisksScreenState
       cellBuilder: (context, i) {
         final f = _next90Days[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm =
                 await launchConfirmDelete(context, itemName: 'follow-up');

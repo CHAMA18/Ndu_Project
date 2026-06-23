@@ -8,6 +8,7 @@ import '../widgets/dashboard_bottom_nav_bar.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
 import '../widgets/dashboard_metrics_cards.dart';
 import '../widgets/portfolio_extras.dart';
+import '../widgets/compact_action_button.dart';
 import 'package:go_router/go_router.dart';
 import '../routing/app_router.dart';
 import '../services/navigation_context_service.dart';
@@ -21,6 +22,7 @@ import 'basic_plan_dashboard_screen.dart';
 import 'project_dashboard_screen.dart';
 import 'program_dashboard_screen.dart';
 import 'program_dashboard_mobile_screen.dart';
+import 'project_activities_log_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class PortfolioDashboardScreen extends StatelessWidget {
@@ -248,6 +250,34 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
                             isStacked: constraints.maxWidth < 920,
                           ),
                           const SizedBox(height: 28),
+                          // ── Compact action button row: Create Program + Project Logs (same as Project dashboard) ──
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 20),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: CompactActionButton(
+                                    label: 'Create Program',
+                                    subtitle: 'Group up to 3 projects',
+                                    icon: Icons.layers_outlined,
+                                    accent: const Color(0xFF8B5CF6),
+                                    onTap: _openProgramDashboard,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: CompactActionButton(
+                                    label: 'Project Logs',
+                                    subtitle: 'Activity across all projects',
+                                    icon: Icons.fact_check_outlined,
+                                    accent: const Color(0xFFFCD34D),
+                                    onTap: () => ProjectActivitiesLogScreen.open(
+                                        context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                           // ── Past-due + Assigned-to-me + Portfolio metrics (top level) ──
                           if (_isLoadingMetrics)
                             const Padding(
@@ -264,6 +294,28 @@ class _PortfolioDesktopContentState extends State<_PortfolioDesktopContent> {
                                 activities: _metrics!.assignedToMe,
                                 title: 'Assigned to me (portfolio)'),
                             const SizedBox(height: 18),
+                            // ── Project status grid (same as Project dashboard) ──
+                            if (_metrics!.projectStatuses.isNotEmpty) ...[
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 12),
+                                child: Text('Project status',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                        color: Color(0xFF0F172A))),
+                              ),
+                              Wrap(
+                                spacing: 16,
+                                runSpacing: 16,
+                                children: _metrics!.projectStatuses
+                                    .map((r) => ProjectMetricsCard(
+                                          rollup: r,
+                                          level: 'Project',
+                                        ))
+                                    .toList(),
+                              ),
+                              const SizedBox(height: 18),
+                            ],
                           ],
                           // ── Content: stacked vertically (same pattern as Single Projects dashboard) ──
                           // Single Projects at full width

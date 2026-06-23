@@ -707,6 +707,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       cellBuilder: (context, i) {
         final item = _checklistItems[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'checklist item');
@@ -821,6 +822,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       cellBuilder: (context, i) {
         final item = _approvals[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'approval');
@@ -920,6 +922,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       cellBuilder: (context, i) {
         final item = _milestones[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'milestone');
@@ -1019,6 +1022,7 @@ class _LaunchChecklistScreenState extends State<LaunchChecklistScreen> {
       cellBuilder: (context, i) {
         final stage = _timelineStages[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'timeline stage');

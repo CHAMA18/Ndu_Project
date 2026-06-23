@@ -232,6 +232,7 @@ class _VendorAccountCloseOutScreenState
       cellBuilder: (context, i) {
         final v = _vendors[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'vendor ${v.vendorName}');
@@ -339,6 +340,7 @@ class _VendorAccountCloseOutScreenState
       cellBuilder: (context, i) {
         final a = _accessItems[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'access item ${a.system}');
@@ -442,6 +444,7 @@ class _VendorAccountCloseOutScreenState
       cellBuilder: (context, i) {
         final o = _obligations[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'obligation ${o.title}');
@@ -536,6 +539,7 @@ class _VendorAccountCloseOutScreenState
       cellBuilder: (context, i) {
         final c = _closureChecklist[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed = await launchConfirmDelete(context,
                 itemName: 'checklist task ${c.title}');

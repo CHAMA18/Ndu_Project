@@ -202,6 +202,7 @@ class _TransitionToProdTeamScreenState
       cellBuilder: (context, idx) {
         final item = _teamRoster[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () => _deleteTeamMember(idx),
           cells: [
             LaunchEditableCell(
@@ -280,6 +281,7 @@ class _TransitionToProdTeamScreenState
       cellBuilder: (context, idx) {
         final item = _handoverChecklist[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () => _deleteHandoverItem(idx),
           cells: [
             LaunchStatusDropdown(
@@ -358,6 +360,7 @@ class _TransitionToProdTeamScreenState
       cellBuilder: (context, idx) {
         final item = _knowledgeTransfers[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () => _deleteKnowledgeTransfer(idx),
           cells: [
             LaunchEditableCell(
@@ -436,6 +439,7 @@ class _TransitionToProdTeamScreenState
       cellBuilder: (context, idx) {
         final item = _signOffs[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () => _deleteApproval(idx),
           cells: [
             LaunchEditableCell(

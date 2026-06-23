@@ -182,6 +182,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       cellBuilder: (context, idx) {
         final item = _financialSummary[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () async {
             final ok = await launchConfirmDelete(context,
                 itemName: 'financial metric');
@@ -270,6 +271,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       cellBuilder: (context, idx) {
         final item = _contracts[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () async {
             final ok = await launchConfirmDelete(context, itemName: 'contract');
             if (!ok || !mounted) return;
@@ -371,6 +373,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       cellBuilder: (context, idx) {
         final item = _closeOutSteps[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () async {
             final ok =
                 await launchConfirmDelete(context, itemName: 'close-out step');
@@ -466,6 +469,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       cellBuilder: (context, idx) {
         final item = _signOffs[idx];
         return LaunchDataRow(
+          onEdit: () => _scheduleSave(),
           onDelete: () async {
             final ok = await launchConfirmDelete(context, itemName: 'sign-off');
             if (!ok || !mounted) return;

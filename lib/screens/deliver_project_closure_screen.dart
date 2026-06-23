@@ -210,6 +210,7 @@ class _DeliverProjectClosureScreenState
       emptyMessage:
           'No scope items yet. Add deliverables to track their acceptance status.',
       cellBuilder: (ctx, i) => LaunchDataRow(
+        onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteScope(i),
         showDivider: i < _scopeItems.length - 1,
         cells: [
@@ -290,6 +291,7 @@ class _DeliverProjectClosureScreenState
       emptyMessage:
           'No milestones yet. Add delivery milestones to track progress.',
       cellBuilder: (ctx, i) => LaunchDataRow(
+        onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteMilestone(i),
         showDivider: i < _milestones.length - 1,
         cells: [
@@ -368,6 +370,7 @@ class _DeliverProjectClosureScreenState
       emptyMessage:
           'No outstanding items. All clear, or add items that need resolution.',
       cellBuilder: (ctx, i) => LaunchDataRow(
+        onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteFollowUp(i, _outstandingItems),
         showDivider: i < _outstandingItems.length - 1,
         cells: [
@@ -448,6 +451,7 @@ class _DeliverProjectClosureScreenState
       emptyMessage:
           'No post-delivery risks. Document risks that need monitoring post-delivery.',
       cellBuilder: (ctx, i) => LaunchDataRow(
+        onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteFollowUp(i, _riskFollowUps),
         showDivider: i < _riskFollowUps.length - 1,
         cells: [

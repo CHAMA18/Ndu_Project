@@ -240,6 +240,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       cellBuilder: (context, i) {
         final c = _closeOutChecklist[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed =
                 await launchConfirmDelete(context, itemName: 'checklist item');
@@ -339,6 +340,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       cellBuilder: (context, i) {
         final a = _approvals[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed =
                 await launchConfirmDelete(context, itemName: 'approval entry');
@@ -451,6 +453,7 @@ class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
       cellBuilder: (context, i) {
         final a = _archive[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirmed =
                 await launchConfirmDelete(context, itemName: 'archive item');

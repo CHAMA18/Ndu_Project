@@ -177,6 +177,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       cellBuilder: (context, i) {
         final g = _scopeGaps[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm =
                 await launchConfirmDelete(context, itemName: 'scope gap');
@@ -270,6 +271,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       cellBuilder: (context, i) {
         final m = _milestoneVariances[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm = await launchConfirmDelete(context,
                 itemName: 'milestone variance');
@@ -370,6 +372,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       cellBuilder: (context, i) {
         final b = _budgetVariances[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm =
                 await launchConfirmDelete(context, itemName: 'budget variance');
@@ -472,6 +475,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       cellBuilder: (context, i) {
         final r = _rootCauses[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm =
                 await launchConfirmDelete(context, itemName: 'root cause');
@@ -571,6 +575,7 @@ class _ActualVsPlannedGapAnalysisScreenState
       cellBuilder: (context, i) {
         final f = _followUpActions[i];
         return LaunchDataRow(
+          onEdit: () => _save(),
           onDelete: () async {
             final confirm = await launchConfirmDelete(context,
                 itemName: 'follow-up action');

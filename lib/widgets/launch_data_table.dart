@@ -517,6 +517,10 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
                                 ),
                                 onPressed: () {
                                   setState(() => _isEditing = !_isEditing);
+                                  // Call onEdit when exiting edit mode (Save)
+                                  if (!_isEditing) {
+                                    widget.onEdit?.call();
+                                  }
                                 },
                                 padding: const EdgeInsets.all(4),
                                 constraints: const BoxConstraints(

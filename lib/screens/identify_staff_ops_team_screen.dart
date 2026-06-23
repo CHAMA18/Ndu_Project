@@ -774,6 +774,7 @@ class _IdentifyStaffOpsTeamScreenState
           cellBuilder: (context, i) {
             final item = items[i];
             return LaunchDataRow(
+              onEdit: () {},
               onDelete: () async {
                 final confirmed = await launchConfirmDelete(context,
                     itemName: 'checklist item');
