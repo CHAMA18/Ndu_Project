@@ -141,14 +141,19 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     ApiKeyManager.initializeApiKey();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _loadExistingData();
-      PageHintDialog.showIfNeeded(
+      try {
+        _loadExistingData();
+      } catch (e) { debugPrint('initState error: $e'); }
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        PageHintDialog.showIfNeeded(
         context: context,
         pageId: 'it_considerations',
         title: 'IT Considerations',
         message:
             'List the core technology considerations for each potential solution. Click "Generate Technologies" to get AI suggestions tailored to each solution.',
       );
+      });
       // Only auto-generate if we have actual solutions (not empty placeholder)
       if (widget.solutions.isNotEmpty) {
         _generateTechnologies();

@@ -168,14 +168,19 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _loadExistingData();
-      PageHintDialog.showIfNeeded(
+      try {
+        _loadExistingData();
+      } catch (e) { debugPrint('initState error: $e'); }
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        PageHintDialog.showIfNeeded(
         context: context,
         pageId: 'core_stakeholders',
         title: 'Core Stakeholders',
         message:
             'Identify key stakeholders for each potential solution. Separate internal stakeholders (team members, departments) from external stakeholders (regulatory bodies, vendors, government agencies).',
       );
+      });
       // Only auto-generate if we have actual solutions (not empty placeholder)
       if (widget.solutions.isNotEmpty) {
         _generateStakeholders();

@@ -414,9 +414,7 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
             showImportButton: false,
             showContentButton: false,
             showNavigationButtons: false, onExportPdf: _exportPdf),
-          const SizedBox(height: 16),
-          _buildHeader(),
-            const SizedBox(height: 20),
+          const SizedBox(height: 20),
             if (_loading)
               const Center(
                 child: Padding(
@@ -425,6 +423,43 @@ class _ProgressTrackingScreenState extends State<ProgressTrackingScreen> {
                 ),
               )
             else ...[
+              // Action buttons (moved from removed header)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _loading ? null : _addBlankItemForActiveView,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add item',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F172A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    OutlinedButton.icon(
+                      onPressed: _loading ? null : _addAiDraftsForActiveView,
+                      icon: _isAutoGenerating
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.auto_awesome_outlined, size: 16),
+                      label: const Text('Add AI draft',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF7C3AED),
+                        side: const BorderSide(color: Color(0xFFDDD6FE)),
+                        backgroundColor: const Color(0xFFF5F3FF),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               ProgressTrackingDashboard(
                 deliverables: _deliverables,
                 recurringDeliverables: _recurringDeliverables,

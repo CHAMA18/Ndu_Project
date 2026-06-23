@@ -34,7 +34,7 @@ class ProfileOnboardingScreen extends StatefulWidget {
       {String returnTo = AppRoutes.dashboard}) async {
     await showDialog<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       barrierColor: Colors.transparent, // we render our own backdrop
       builder: (ctx) => ProfileOnboardingScreen(returnTo: returnTo),
     );
@@ -210,16 +210,17 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
   }
 
   Future<void> _skipAll() async {
-    setState(() => _isSaving = true);
+    // Close immediately — don't block on Firestore write
+    // Mark as skipped in the background
+    _close();
+    // Fire-and-forget the save
     try {
       await ProfileOnboardingService.markComplete(
         _answers.copyWith(skipped: true),
       );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+    } catch (e) {
+      debugPrint('[Onboarding] skipAll save error (non-blocking): $e');
     }
-    if (!mounted) return;
-    _close();
   }
 
   Future<void> _saveIncremental() async {
@@ -667,12 +668,39 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
 
   Widget _buildWelcomePage() {
     return _bodyScroll([
-      const SizedBox(height: 20),
-      // Animated rocket icon
+      const SizedBox(height: 12),
+      // NDU Logo image (replaces the generic rocket icon)
       Center(
-        child: _AnimatedRocketIcon(),
+        child: Column(
+          children: [
+            // Logo image (3x bigger)
+            Image.asset(
+              'assets/images/Ndu_logodarkmode.png',
+              height: 216,
+              width: 216,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, child) => _AnimatedRocketIcon(),
+            ),
+            const SizedBox(height: 16),
+            // Gold glow ring behind the logo
+            Container(
+              width: 100,
+              height: 4,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    _gold.withOpacity(0.6),
+                    Colors.transparent,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        ),
       ),
-      const SizedBox(height: 28),
+      const SizedBox(height: 24),
       // Heading
       const Center(
         child: Text(
@@ -680,14 +708,14 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
           textAlign: TextAlign.center,
           style: TextStyle(decoration: TextDecoration.none,
             color: _textPrimary,
-            fontSize: 32,
+            fontSize: 30,
             fontWeight: FontWeight.w800,
             height: 1.1,
             letterSpacing: -0.8,
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: 10),
       // Tagline — letter-spaced
       const Center(
         child: Text(
@@ -700,7 +728,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
           ),
         ),
       ),
-      const SizedBox(height: 20),
+      const SizedBox(height: 18),
       // Description
       const Padding(
         padding: EdgeInsets.symmetric(horizontal: 32),
@@ -711,12 +739,12 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
           textAlign: TextAlign.center,
           style: TextStyle(decoration: TextDecoration.none,
             color: _textSecondary,
-            fontSize: 14.5,
+            fontSize: 14,
             height: 1.6,
           ),
         ),
       ),
-      const SizedBox(height: 32),
+      const SizedBox(height: 28),
       // "What happens next" glassmorphic card
       _buildJourneyPreview(),
       const SizedBox(height: 24),

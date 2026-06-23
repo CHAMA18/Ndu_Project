@@ -152,7 +152,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     // Auto-bootstrap or generate risks after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
+      try {
       // Load saved risks from provider if available
       final projectData = ProjectDataHelper.getData(context);
       if (projectData.solutionRisks.isNotEmpty) {
@@ -162,14 +162,21 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       } else if (_solutions.isNotEmpty) {
         _generateRisks();
       }
+      } catch (e) {
+        debugPrint('RiskIdentification initState error: $e');
+      }
 
-      PageHintDialog.showIfNeeded(
+      // Delay hint so page content renders first
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        PageHintDialog.showIfNeeded(
         context: context,
         pageId: 'risk_identification',
         title: 'Risk Identification',
         message:
             'Identify up to 3 delivery risks per potential solution. Use "Generate risks" for AI suggestions tailored to each solution. Risks auto-save as you edit.',
       );
+      });
     });
   }
 
@@ -1416,6 +1423,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     final solution = _solutions[index];
     final isMobile = AppBreakpoints.isMobile(context);
     final isStriped = index.isOdd;
+    // Safety: ensure risk controllers exist for this row
+    final hasControllers = index < _riskControllers.length &&
+        _riskControllers[index].length >= 3;
+    final risk1Controller = hasControllers ? _riskControllers[index][0] : TextEditingController();
+    final risk2Controller = hasControllers ? _riskControllers[index][1] : TextEditingController();
+    final risk3Controller = hasControllers ? _riskControllers[index][2] : TextEditingController();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -1442,15 +1455,15 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               _labeled(
                   'Risk 1',
                   _riskTextAreaWithAI(
-                      _riskControllers[index][0], index, 0, solution.title)),
+                      risk1Controller, index, 0, solution.title)),
               _labeled(
                   'Risk 2',
                   _riskTextAreaWithAI(
-                      _riskControllers[index][1], index, 1, solution.title)),
+                      risk2Controller, index, 1, solution.title)),
               _labeled(
                   'Risk 3',
                   _riskTextAreaWithAI(
-                      _riskControllers[index][2], index, 2, solution.title)),
+                      risk3Controller, index, 2, solution.title)),
             ])
           : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
               // Solution title cell
@@ -1496,19 +1509,19 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               Expanded(
                   flex: 3,
                   child: _riskTextAreaWithAI(
-                      _riskControllers[index][0], index, 0, solution.title)),
+                      risk1Controller, index, 0, solution.title)),
               const SizedBox(width: 8),
               // Risk 2
               Expanded(
                   flex: 3,
                   child: _riskTextAreaWithAI(
-                      _riskControllers[index][1], index, 1, solution.title)),
+                      risk2Controller, index, 1, solution.title)),
               const SizedBox(width: 8),
               // Risk 3
               Expanded(
                   flex: 3,
                   child: _riskTextAreaWithAI(
-                      _riskControllers[index][2], index, 2, solution.title)),
+                      risk3Controller, index, 2, solution.title)),
             ]),
     );
   }

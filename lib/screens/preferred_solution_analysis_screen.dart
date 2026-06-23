@@ -113,13 +113,16 @@ class _PreferredSolutionAnalysisScreenState
       _loadExistingDataAndAnalysis().then((_) {
         if (!mounted) return;
         _resolveCurrentUserRole();
-        PageHintDialog.showIfNeeded(
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!mounted) return;
+          PageHintDialog.showIfNeeded(
           context: context,
           pageId: 'preferred_solution_analysis',
           title: 'Preferred Solution Analysis',
           message:
               'Review each solution\'s analysis, then select your preferred option. Use "View More Details" to see full information before selecting. Complete this step before continuing to Work Breakdown Structure.',
         );
+        });
       });
     });
   }

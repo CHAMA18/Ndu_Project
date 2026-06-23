@@ -4,6 +4,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
+import 'package:ndu_project/utils/table_import_helper.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'dart:async';
 
@@ -75,6 +76,61 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
     widget.onMeetingsChanged(updated);
   }
 
+  /// Shows the world-class import dialog for Meeting Cadence data.
+  void _showImportDialog() async {
+    final rows = await TableImportHelper.showImportDialog(
+      context,
+      tableTitle: 'Meeting Cadence',
+      headers: ['Meeting Type', 'Frequency', 'Key Participants', 'Duration (hrs)', 'Meeting Objective', 'Status'],
+      sampleRows: [
+        ['Weekly Sync', 'Weekly', 'PM; Tech Lead', '1', 'Align on weekly priorities and blockers', 'Scheduled'],
+        ['Stakeholder Update', 'Bi-Weekly', 'PM; Sponsor', '1', 'Provide sponsors with progress and risk updates', 'Scheduled'],
+        ['Sprint Retrospective', 'Monthly', 'Dev Team', '2', 'Review what went well and what to improve', 'Completed'],
+      ],
+    );
+
+    if (rows == null || rows.isEmpty || !mounted) return;
+
+    final newMeetings = <MeetingRow>[];
+    for (final parts in rows) {
+      newMeetings.add(MeetingRow(
+        meetingType: parts.isNotEmpty ? parts[0] : '',
+        frequency: parts.length > 1 ? parts[1] : '',
+        keyParticipants: parts.length > 2 ? parts[2].split(';') : [],
+        durationHours: parts.length > 3 ? parts[3] : '',
+        meetingObjective: parts.length > 4 ? parts[4] : '',
+        actionItems: '',
+        notes: '',
+        status: parts.length > 5 ? parts[5] : 'Scheduled',
+      ));
+    }
+
+    if (newMeetings.isNotEmpty) {
+      widget.onMeetingsChanged([..._meetings, ...newMeetings]);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Imported ${newMeetings.length} meetings'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Downloads a CSV template for Meeting Cadence.
+  void _downloadTemplate() {
+    TableImportHelper.downloadTemplate(
+      filename: 'meeting_cadence_template.csv',
+      headers: ['Meeting Type', 'Frequency', 'Key Participants', 'Duration (hrs)', 'Meeting Objective', 'Status'],
+      sampleRows: [
+        ['Weekly Sync', 'Weekly', 'PM; Tech Lead', '1', 'Align on weekly priorities and blockers', 'Scheduled'],
+        ['Stakeholder Update', 'Bi-Weekly', 'PM; Sponsor', '1', 'Provide sponsors with progress and risk updates', 'Scheduled'],
+        ['Sprint Retrospective', 'Monthly', 'Dev Team', '2', 'Review what went well and what to improve', 'Completed'],
+      ],
+    );
+  }
+
   void _updateMeeting(int index, MeetingRow updatedMeeting) {
     final updated = List<MeetingRow>.from(_meetings);
     updated[index] = updatedMeeting;
@@ -137,9 +193,6 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Summary Cards
-        _buildSummaryCards(),
-        const SizedBox(height: 24),
         // Meeting Planner Table
         _buildMeetingPlanner(),
       ],
@@ -208,6 +261,36 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
                     ),
                   ),
                 ),
+                // Import button
+                OutlinedButton.icon(
+                  onPressed: _showImportDialog,
+                  icon: const Icon(Icons.upload_file_outlined, size: 14),
+                  label: const Text('Import',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4338CA),
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Template button
+                OutlinedButton.icon(
+                  onPressed: _downloadTemplate,
+                  icon: const Icon(Icons.download_outlined, size: 14),
+                  label: const Text('Template',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B7280),
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 TextButton.icon(
                   onPressed: _addNewMeeting,
                   icon: const Icon(Icons.add, size: 18),
@@ -257,15 +340,11 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
   Widget _buildTable() {
     return Column(
       children: [
-        // Table Header
+        // Table Header - dark navy (matching LaunchDataTable)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: const BoxDecoration(
-            color: Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(12),
-              topRight: Radius.circular(12),
-            ),
+            color: Color(0xFF1F2937),
           ),
           child: Row(
             children: [
@@ -376,12 +455,12 @@ class _TableHeaderCell extends StatelessWidget {
       flex: flex,
       child: Text(
         label,
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         style: const TextStyle(
           fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF374151),
-          letterSpacing: 0.2,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFFFFFFFF),
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -413,6 +492,7 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
   late MeetingRow _meeting;
   bool _isHovering = false;
   bool _isRegenerating = false;
+  bool _isEditing = false;
 
   @override
   void initState() {
@@ -748,97 +828,154 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
       onExit: (_) =>
           Future.microtask(() => setState(() => _isHovering = false)),
       child: Container(
-        color: _isHovering ? const Color(0xFFF9FAFB) : Colors.white,
+        color: _isEditing
+            ? const Color(0xFFFFFDF5)
+            : (_isHovering ? const Color(0xFFF9FAFB) : Colors.white),
         child: Column(
           children: [
-            Padding(
+            Container(
+              decoration: _isEditing
+                  ? const BoxDecoration(
+                      border: Border(
+                        left: BorderSide(color: Color(0xFFF59E0B), width: 3),
+                      ),
+                    )
+                  : null,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // ── Meeting Type ──
                   Expanded(
                     flex: 2,
-                    child: _DropdownCell(
-                      value: _meeting.meetingType,
-                      items: const [
-                        'Weekly Sync',
-                        'Stakeholder Update',
-                        'Technical Deep-Dive',
-                        'Sprint Planning',
-                        'Retrospective',
-                        'Status Review',
-                        'Risk Review',
-                        'Other',
-                      ],
-                      hint: 'Select type',
-                      onChanged: (v) => _updateMeeting(
-                          _meeting.copyWith(meetingType: v ?? '')),
-                    ),
+                    child: _isEditing
+                        ? _DropdownCell(
+                            value: _meeting.meetingType,
+                            items: const [
+                              'Weekly Sync',
+                              'Stakeholder Update',
+                              'Technical Deep-Dive',
+                              'Sprint Planning',
+                              'Retrospective',
+                              'Status Review',
+                              'Risk Review',
+                              'Other',
+                            ],
+                            hint: 'Select type',
+                            onChanged: (v) => _updateMeeting(
+                                _meeting.copyWith(meetingType: v ?? '')),
+                          )
+                        : _ReadOnlyText(
+                            value: _meeting.meetingType,
+                            hint: '—',
+                            bold: true,
+                          ),
                   ),
+                  // ── Frequency ──
                   Expanded(
                     flex: 2,
-                    child: _DropdownCell(
-                      value: _meeting.frequency,
-                      items: const ['Daily', 'Weekly', 'Bi-Weekly', 'Monthly'],
-                      hint: 'Frequency',
-                      onChanged: (v) =>
-                          _updateMeeting(_meeting.copyWith(frequency: v ?? '')),
-                    ),
+                    child: _isEditing
+                        ? _DropdownCell(
+                            value: _meeting.frequency,
+                            items: const [
+                              'Daily',
+                              'Weekly',
+                              'Bi-Weekly',
+                              'Monthly'
+                            ],
+                            hint: 'Frequency',
+                            onChanged: (v) => _updateMeeting(
+                                _meeting.copyWith(frequency: v ?? '')),
+                          )
+                        : _ReadOnlyText(
+                            value: _meeting.frequency,
+                            hint: '—',
+                          ),
                   ),
+                  // ── Key Participants ──
                   Expanded(
                     flex: 3,
-                    child: _MultiSelectCell(
-                      selectedRoles: _meeting.keyParticipants,
-                      availableRoles: widget.availableRoles,
-                      onChanged: (roles) => _updateMeeting(
-                          _meeting.copyWith(keyParticipants: roles)),
-                    ),
+                    child: _isEditing
+                        ? _MultiSelectCell(
+                            selectedRoles: _meeting.keyParticipants,
+                            availableRoles: widget.availableRoles,
+                            onChanged: (roles) => _updateMeeting(
+                                _meeting.copyWith(keyParticipants: roles)),
+                          )
+                        : _ReadOnlyText(
+                            value: _meeting.keyParticipants.isEmpty
+                                ? '—'
+                                : '${_meeting.keyParticipants.length} roles',
+                            hint: '—',
+                          ),
                   ),
+                  // ── Duration ──
                   Expanded(
                     flex: 1,
-                    child: _EditableCell(
-                      value: _meeting.durationHours,
-                      hint: 'Hrs',
-                      onChanged: (v) =>
-                          _updateMeeting(_meeting.copyWith(durationHours: v)),
-                    ),
+                    child: _isEditing
+                        ? _EditableCell(
+                            value: _meeting.durationHours,
+                            hint: 'Hrs',
+                            onChanged: (v) => _updateMeeting(
+                                _meeting.copyWith(durationHours: v)),
+                          )
+                        : _ReadOnlyText(
+                            value: _meeting.durationHours.isEmpty
+                                ? ''
+                                : '${_meeting.durationHours}h',
+                            hint: '—',
+                          ),
                   ),
+                  // ── Meeting Objective ──
                   Expanded(
                     flex: 4,
-                    child: _ObjectiveCell(
-                      value: _meeting.meetingObjective,
-                      hint: 'Meeting objective...',
-                      onChanged: (v) => _updateMeeting(
-                          _meeting.copyWith(meetingObjective: v)),
-                      onRegenerate: () {
-                        setState(() => _isRegenerating = true);
-                        widget.onRegenerate();
-                        Future.delayed(const Duration(seconds: 2), () {
-                          if (mounted) setState(() => _isRegenerating = false);
-                        });
-                      },
-                      isRegenerating: _isRegenerating,
-                    ),
+                    child: _isEditing
+                        ? _ObjectiveCell(
+                            value: _meeting.meetingObjective,
+                            hint: 'Meeting objective...',
+                            onChanged: (v) => _updateMeeting(
+                                _meeting.copyWith(meetingObjective: v)),
+                            onRegenerate: () {
+                              setState(() => _isRegenerating = true);
+                              widget.onRegenerate();
+                              Future.delayed(const Duration(seconds: 2), () {
+                                if (mounted) {
+                                  setState(() => _isRegenerating = false);
+                                }
+                              });
+                            },
+                            isRegenerating: _isRegenerating,
+                          )
+                        : _ReadOnlyText(
+                            value: _meeting.meetingObjective
+                                .replaceAll(RegExp(r'<[^>]*>'), '')
+                                .trim(),
+                            hint: '—',
+                            maxLines: 2,
+                          ),
                   ),
+                  // ── Actions ──
                   Expanded(
                     flex: 1,
                     child: Center(
-                      child: _isHovering
+                      child: _isEditing
                           ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 18, color: Color(0xFF64748B)),
-                                  onPressed: () => _showEditDialog(context),
-                                  tooltip: 'Edit',
+                                  icon: const Icon(Icons.check_circle_rounded,
+                                      size: 18, color: Color(0xFF10B981)),
+                                  onPressed: () {
+                                    setState(() => _isEditing = false);
+                                  },
+                                  tooltip: 'Save',
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(
                                       minWidth: 32, minHeight: 32),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline,
-                                      size: 18, color: Color(0xFF9CA3AF)),
+                                      size: 16, color: Color(0xFFEF4444)),
                                   onPressed: widget.onDelete,
                                   tooltip: 'Delete',
                                   padding: EdgeInsets.zero,
@@ -847,7 +984,35 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                                 ),
                               ],
                             )
-                          : const SizedBox(width: 40),
+                          : _isHovering
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined,
+                                          size: 16,
+                                          color: Color(0xFF6B7280)),
+                                      onPressed: () {
+                                        setState(() => _isEditing = true);
+                                      },
+                                      tooltip: 'Edit',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                          minWidth: 32, minHeight: 32),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 16,
+                                          color: Color(0xFFEF4444)),
+                                      onPressed: widget.onDelete,
+                                      tooltip: 'Delete',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(
+                                          minWidth: 32, minHeight: 32),
+                                    ),
+                                  ],
+                                )
+                              : const SizedBox(width: 40),
                     ),
                   ),
                 ],
@@ -1087,6 +1252,43 @@ class _ObjectiveCell extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+/// Read-only text widget for table cells when not in editing mode.
+/// Displays plain text (no input fields, no borders, no icons).
+class _ReadOnlyText extends StatelessWidget {
+  const _ReadOnlyText({
+    required this.value,
+    required this.hint,
+    this.bold = false,
+    this.maxLines = 1,
+  });
+
+  final String value;
+  final String hint;
+  final bool bold;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        value.isEmpty ? hint : value,
+        overflow: TextOverflow.ellipsis,
+        maxLines: maxLines,
+        softWrap: false,
+        style: TextStyle(
+          fontSize: 13,
+          color: value.isEmpty
+              ? const Color(0xFF9CA3AF)
+              : const Color(0xFF111827),
+          fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+        ),
+      ),
     );
   }
 }

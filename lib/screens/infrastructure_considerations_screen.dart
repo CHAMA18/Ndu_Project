@@ -131,14 +131,19 @@ class _InfrastructureConsiderationsScreenState
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _loadExistingData();
-      PageHintDialog.showIfNeeded(
+      try {
+        _loadExistingData();
+      } catch (e) { debugPrint('initState error: $e'); }
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (!mounted) return;
+        PageHintDialog.showIfNeeded(
         context: context,
         pageId: 'infrastructure_considerations',
         title: 'Infrastructure Considerations',
         message:
             'List the main infrastructure considerations for each potential solution. If suggestions look repetitive, refine each entry to match the specific solution.',
       );
+      });
       _generateInfrastructureIfNeeded();
     });
   }

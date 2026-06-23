@@ -927,7 +927,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Row(
               children: [
@@ -961,7 +961,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
@@ -1019,7 +1019,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
                                   value: pct / 100,
-                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  backgroundColor: const Color(0xFFE5E7EB),
                                   valueColor: AlwaysStoppedAnimation(
                                     pct >= 70 ? const Color(0xFF22C55E) : pct >= 40 ? const Color(0xFF2563EB) : const Color(0xFFEF4444),
                                   ),
@@ -1093,7 +1093,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Row(
               children: [
@@ -1127,7 +1127,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
@@ -1174,7 +1174,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                 borderRadius: BorderRadius.circular(6),
                                 child: LinearProgressIndicator(
                                   value: row.velocity / 100,
-                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  backgroundColor: const Color(0xFFE5E7EB),
                                   valueColor: AlwaysStoppedAnimation(
                                     row.velocity >= 60 ? const Color(0xFF2563EB) : row.velocity >= 40 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444),
                                   ),
@@ -1264,7 +1264,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Wrap(
               spacing: 24,
@@ -1301,7 +1301,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
@@ -1371,7 +1371,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
                                   value: row.utilization / 100,
-                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  backgroundColor: const Color(0xFFE5E7EB),
                                   valueColor: AlwaysStoppedAnimation(
                                     row.utilization >= 90 ? const Color(0xFFEF4444) : row.utilization >= 75 ? const Color(0xFFF59E0B) : const Color(0xFF22C55E),
                                   ),
@@ -1474,7 +1474,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF8FAFC),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Wrap(
               spacing: 24,
@@ -1512,7 +1512,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
@@ -1567,7 +1567,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                                 borderRadius: BorderRadius.circular(4),
                                 child: LinearProgressIndicator(
                                   value: row.coveragePercent / 100,
-                                  backgroundColor: const Color(0xFFE2E8F0),
+                                  backgroundColor: const Color(0xFFE5E7EB),
                                   valueColor: AlwaysStoppedAnimation(
                                     row.coveragePercent >= 95 ? const Color(0xFF22C55E) : row.coveragePercent >= 80 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444),
                                   ),
@@ -1645,7 +1645,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -2452,7 +2452,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2512,7 +2512,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

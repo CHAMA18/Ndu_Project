@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/table_import_helper.dart';
 import 'dart:async';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -95,6 +97,71 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
     );
     final updated = [..._rows, newRow];
     widget.onRowsChanged(updated);
+  }
+
+  /// Shows a world-class import dialog with Download Template, Upload File,
+  /// and Paste CSV options. Uses the shared TableImportHelper.
+  void _showImportDialog() async {
+    final headers = [
+      'Role', 'Qty', 'Type', 'Start Date', 'Duration (months)',
+      'Monthly Cost', 'Status'
+    ];
+    final sampleRows = [
+      ['Project Manager', '1', 'Internal', 'Jan 2024', '6', '4000', 'Active'],
+      ['Technical Lead', '2', 'Internal', 'Jan 2024', '8', '5000', 'Active'],
+      ['Business Analyst', '1', 'External', 'Feb 2024', '4', '3500', 'Not Started'],
+      ['Quality Assurance', '2', 'Internal', 'Mar 2024', '6', '3000', 'Not Started'],
+    ];
+
+    final rows = await TableImportHelper.showImportDialog(
+      context,
+      tableTitle: 'Staffing Needs',
+      headers: headers,
+      sampleRows: sampleRows,
+    );
+
+    if (rows == null || rows.isEmpty || !mounted) return;
+
+    final newRows = <StaffingRow>[];
+    for (final parts in rows) {
+      newRows.add(StaffingRow(
+        role: parts.isNotEmpty ? parts[0] : '',
+        quantity: parts.length > 1 ? int.tryParse(parts[1]) ?? 1 : 1,
+        isInternal: parts.length > 2
+            ? parts[2].toLowerCase() != 'external'
+            : true,
+        startDate: parts.length > 3 ? parts[3] : '',
+        durationMonths: parts.length > 4 ? parts[4] : '',
+        monthlyCost: parts.length > 5 ? parts[5] : '',
+        status: parts.length > 6 ? parts[6] : 'Not Started',
+      ));
+    }
+
+    if (newRows.isNotEmpty) {
+      widget.onRowsChanged([..._rows, ...newRows]);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Imported ${newRows.length} rows'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Downloads a CSV template file via the browser.
+  void _downloadTemplate() {
+    TableImportHelper.downloadTemplate(
+      filename: 'staffing_needs_template.csv',
+      headers: ['Role', 'Qty', 'Type', 'Start Date', 'Duration (months)', 'Monthly Cost', 'Status'],
+      sampleRows: [
+        ['Project Manager', '1', 'Internal', 'Jan 2024', '6', '4000', 'Active'],
+        ['Technical Lead', '2', 'Internal', 'Jan 2024', '8', '5000', 'Active'],
+        ['Business Analyst', '1', 'External', 'Feb 2024', '4', '3500', 'Not Started'],
+        ['Quality Assurance', '2', 'Internal', 'Mar 2024', '6', '3000', 'Not Started'],
+      ],
+    );
   }
 
   void _updateRow(int index, StaffingRow updatedRow) {
@@ -385,6 +452,38 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
                     textStyle: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Table-level Import button (matches LaunchDataTable pattern)
+                OutlinedButton.icon(
+                  onPressed: _showImportDialog,
+                  icon: const Icon(Icons.upload_file_outlined, size: 16),
+                  label: const Text('Import'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4338CA),
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Template download button
+                OutlinedButton.icon(
+                  onPressed: _downloadTemplate,
+                  icon: const Icon(Icons.download_outlined, size: 16),
+                  label: const Text('Template'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6B7280),
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
               ],
             ),
           ),
@@ -453,9 +552,9 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
 
   Widget _buildTableHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
+        color: Color(0xFF1F2937),
       ),
       child: const Row(
         children: [
@@ -467,7 +566,7 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
           _PremiumHeaderCell('Monthly Cost', flex: 2),
           _PremiumHeaderCell('Subtotal', flex: 2),
           _PremiumHeaderCell('Status', flex: 2),
-          _PremiumHeaderCell('', flex: 1),
+          _PremiumHeaderCell('Actions', flex: 1),
         ],
       ),
     );
@@ -648,12 +747,12 @@ class _PremiumHeaderCell extends StatelessWidget {
       flex: flex,
       child: Text(
         label,
-        textAlign: TextAlign.center,
+        textAlign: TextAlign.left,
         style: const TextStyle(
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF64748B),
-          letterSpacing: 0.5,
+          color: Color(0xFFFFFFFF),
+          letterSpacing: 0.3,
         ),
       ),
     );
@@ -682,6 +781,7 @@ class _PremiumStaffingRow extends StatefulWidget {
 class _PremiumStaffingRowState extends State<_PremiumStaffingRow> {
   late StaffingRow _row;
   bool _isHovering = false;
+  bool _isEditing = false;
 
   @override
   void initState() {
@@ -749,130 +849,197 @@ class _PremiumStaffingRowState extends State<_PremiumStaffingRow> {
           Future.microtask(() => setState(() => _isHovering = false)),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        color: _isHovering ? const Color(0xFFF8FAFC) : Colors.white,
+        color: _isEditing
+            ? const Color(0xFFFFFDF5)
+            : (_isHovering ? const Color(0xFFF8FAFC) : Colors.white),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            // Left border accent when editing
+            Container(
+              decoration: _isEditing
+                  ? const BoxDecoration(
+                      border: Border(
+                        left: BorderSide(color: Color(0xFFF59E0B), width: 3),
+                      ),
+                    )
+                  : null,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  // ── Role ──
                   Expanded(
                     flex: 4,
-                    child: _PremiumEditableCell(
-                      value: _row.role,
-                      hint: 'Role / capability',
-                      onChanged: (v) => _updateRow(_row.copyWith(role: v)),
-                      align: TextAlign.left,
-                    ),
+                    child: _isEditing
+                        ? _PremiumEditableCell(
+                            value: _row.role,
+                            hint: 'Role / capability',
+                            onChanged: (v) => _updateRow(_row.copyWith(role: v)),
+                            align: TextAlign.left,
+                          )
+                        : _ReadOnlyCell(
+                            value: _row.role,
+                            hint: '—',
+                            bold: true,
+                            align: TextAlign.left,
+                          ),
                   ),
+                  // ── Qty ──
                   Expanded(
                     flex: 1,
-                    child: _PremiumEditableCell(
-                      value: _row.quantity.toString(),
-                      hint: '1',
-                      onChanged: (v) {
-                        final qty = int.tryParse(v) ?? 1;
-                        _updateRow(_row.copyWith(quantity: qty));
-                      },
-                    ),
+                    child: _isEditing
+                        ? _PremiumEditableCell(
+                            value: _row.quantity.toString(),
+                            hint: '1',
+                            onChanged: (v) {
+                              final qty = int.tryParse(v) ?? 1;
+                              _updateRow(_row.copyWith(quantity: qty));
+                            },
+                          )
+                        : _ReadOnlyCell(
+                            value: _row.quantity.toString(),
+                            hint: '—',
+                          ),
                   ),
+                  // ── Type ──
+                  Expanded(
+                    flex: 2,
+                    child: _isEditing
+                        ? Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: _row.isInternal
+                                    ? const Color(0xFFEEF2FF)
+                                    : const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _row.isInternal
+                                      ? const Color(0xFFC7D2FE)
+                                      : const Color(0xFFFDE68A),
+                                ),
+                              ),
+                              child: DropdownButton<bool>(
+                                value: _row.isInternal,
+                                isDense: true,
+                                underline: const SizedBox(),
+                                iconSize: 14,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _row.isInternal
+                                      ? const Color(0xFF4338CA)
+                                      : const Color(0xFF92400E),
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                      value: true,
+                                      child: Text('Internal',
+                                          style: TextStyle(fontSize: 12))),
+                                  DropdownMenuItem(
+                                      value: false,
+                                      child: Text('External',
+                                          style: TextStyle(fontSize: 12))),
+                                ],
+                                onChanged: (v) => v != null
+                                    ? _updateRow(_row.copyWith(isInternal: v))
+                                    : null,
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: _row.isInternal
+                                    ? const Color(0xFFEEF2FF)
+                                    : const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                _row.isInternal ? 'Internal' : 'External',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: _row.isInternal
+                                      ? const Color(0xFF4338CA)
+                                      : const Color(0xFF92400E),
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                  // ── Start Date ──
+                  Expanded(
+                    flex: 2,
+                    child: _isEditing
+                        ? _PremiumEditableCell(
+                            value: _row.startDate,
+                            hint: 'Start date',
+                            onChanged: (v) =>
+                                _updateRow(_row.copyWith(startDate: v)),
+                          )
+                        : _ReadOnlyCell(
+                            value: _row.startDate,
+                            hint: '—',
+                          ),
+                  ),
+                  // ── Duration ──
+                  Expanded(
+                    flex: 2,
+                    child: _isEditing
+                        ? _PremiumEditableCell(
+                            value: _row.durationMonths,
+                            hint: 'Months',
+                            onChanged: (v) =>
+                                _updateRow(_row.copyWith(durationMonths: v)),
+                          )
+                        : _ReadOnlyCell(
+                            value: _row.durationMonths,
+                            hint: '—',
+                          ),
+                  ),
+                  // ── Monthly Cost ──
+                  Expanded(
+                    flex: 2,
+                    child: _isEditing
+                        ? _PremiumEditableCell(
+                            value: _row.monthlyCost,
+                            hint: '\$0',
+                            onChanged: (v) =>
+                                _updateRow(_row.copyWith(monthlyCost: v)),
+                          )
+                        : _ReadOnlyCell(
+                            value: _row.monthlyCost,
+                            hint: '—',
+                          ),
+                  ),
+                  // ── Subtotal (always read-only) ──
                   Expanded(
                     flex: 2,
                     child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: _row.isInternal
-                              ? const Color(0xFFEEF2FF)
-                              : const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: _row.isInternal
-                                ? const Color(0xFFC7D2FE)
-                                : const Color(0xFFFDE68A),
-                          ),
-                        ),
-                        child: DropdownButton<bool>(
-                          value: _row.isInternal,
-                          isDense: true,
-                          underline: const SizedBox(),
-                          iconSize: 14,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _row.isInternal
-                                ? const Color(0xFF4338CA)
-                                : const Color(0xFF92400E),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                                value: true,
-                                child: Text('Internal',
-                                    style: TextStyle(fontSize: 12))),
-                            DropdownMenuItem(
-                                value: false,
-                                child: Text('External',
-                                    style: TextStyle(fontSize: 12))),
-                          ],
-                          onChanged: (v) => v != null
-                              ? _updateRow(_row.copyWith(isInternal: v))
-                              : null,
-                        ),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: _PremiumEditableCell(
-                      value: _row.startDate,
-                      hint: 'Start date',
-                      onChanged: (v) =>
-                          _updateRow(_row.copyWith(startDate: v)),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: _PremiumEditableCell(
-                      value: _row.durationMonths,
-                      hint: 'Months',
-                      onChanged: (v) =>
-                          _updateRow(_row.copyWith(durationMonths: v)),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: _PremiumEditableCell(
-                      value: _row.monthlyCost,
-                      hint: '\$0',
-                      onChanged: (v) =>
-                          _updateRow(_row.copyWith(monthlyCost: v)),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Center(
-                      child: AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 300),
+                      child: Text(
+                        _row.subtotalFormatted,
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF111827),
                         ),
-                        child: Text(_row.subtotalFormatted),
                       ),
                     ),
                   ),
+                  // ── Status ──
                   Expanded(
                     flex: 2,
                     child: Center(
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
+                            horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           color: _statusBg(_row.status),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(6),
                           border: Border.all(
                             color: _statusColor(_row.status).withOpacity(0.2),
                           ),
@@ -889,24 +1056,67 @@ class _PremiumStaffingRowState extends State<_PremiumStaffingRow> {
                       ),
                     ),
                   ),
+                  // ── Actions ──
                   Expanded(
                     flex: 1,
                     child: Center(
-                      child: _isHovering
-                          ? Material(
-                              color: const Color(0xFFFEE2E2),
-                              borderRadius: BorderRadius.circular(8),
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(8),
-                                onTap: widget.onDelete,
-                                child: const Padding(
-                                  padding: EdgeInsets.all(6),
-                                  child: Icon(Icons.delete_outline_rounded,
-                                      size: 16, color: Color(0xFFDC2626)),
+                      child: _isEditing
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.check_circle_rounded,
+                                      size: 18, color: Color(0xFF10B981)),
+                                  onPressed: () {
+                                    setState(() => _isEditing = false);
+                                  },
+                                  tooltip: 'Save',
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 28, minHeight: 28),
+                                  splashRadius: 14,
                                 ),
-                              ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 16, color: Color(0xFFEF4444)),
+                                  onPressed: widget.onDelete,
+                                  tooltip: 'Delete',
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 28, minHeight: 28),
+                                  splashRadius: 14,
+                                ),
+                              ],
                             )
-                          : const SizedBox(width: 40),
+                          : _isHovering
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined,
+                                          size: 16, color: Color(0xFF6B7280)),
+                                      onPressed: () {
+                                        setState(() => _isEditing = true);
+                                      },
+                                      tooltip: 'Edit',
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 28, minHeight: 28),
+                                      splashRadius: 14,
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 16, color: Color(0xFFEF4444)),
+                                      onPressed: widget.onDelete,
+                                      tooltip: 'Delete',
+                                      padding: const EdgeInsets.all(4),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 28, minHeight: 28),
+                                      splashRadius: 14,
+                                    ),
+                                  ],
+                                )
+                              : const SizedBox(width: 40),
                     ),
                   ),
                 ],
@@ -915,6 +1125,43 @@ class _PremiumStaffingRowState extends State<_PremiumStaffingRow> {
             if (widget.showDivider)
               const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Read-only cell that displays plain text (not an input field).
+/// Used when a row is NOT in editing mode.
+class _ReadOnlyCell extends StatelessWidget {
+  const _ReadOnlyCell({
+    required this.value,
+    required this.hint,
+    this.bold = false,
+    this.align = TextAlign.center,
+  });
+
+  final String value;
+  final String hint;
+  final bool bold;
+  final TextAlign align;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        value.isEmpty ? hint : value,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+        softWrap: false,
+        textAlign: align,
+        style: TextStyle(
+          fontSize: 13,
+          color: value.isEmpty
+              ? const Color(0xFF9CA3AF)
+              : const Color(0xFF111827),
+          fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
     );
@@ -941,6 +1188,7 @@ class _PremiumEditableCell extends StatelessWidget {
         ..selection = TextSelection.collapsed(offset: value.length),
       onChanged: onChanged,
       textAlign: align,
+      enableDocxImport: false, // No per-cell import — use table-level import button
       style: const TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w600,

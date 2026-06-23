@@ -405,12 +405,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
       if (!mounted) {
         return;
       }
+      try {
       final hasExistingData = _loadExistingData();
       _loadProjectValueEditorsForSolution(_activeSolutionIndex());
       _autoPopulateForNewProject(hasExistingData: hasExistingData)
           .whenComplete(() {
         _suppressDirtyTracking = false;
       });
+      } catch (e) {
+        debugPrint('CostAnalysis initState error: $e');
+        _suppressDirtyTracking = false;
+      }
     });
   }
 

@@ -439,7 +439,7 @@ class _IdentifyStaffOpsTeamScreenState
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -532,7 +532,7 @@ class _IdentifyStaffOpsTeamScreenState
               dataRowMaxHeight: 36,
               columnSpacing: 14,
               horizontalMargin: 12,
-              headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+              headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
               columns: const [
                 DataColumn(
                     label: Text('Name',
@@ -690,7 +690,7 @@ class _IdentifyStaffOpsTeamScreenState
                       child: LinearProgressIndicator(
                         value: capability.progress,
                         minHeight: 8,
-                        backgroundColor: const Color(0xFFE2E8F0),
+                        backgroundColor: const Color(0xFFE5E7EB),
                         valueColor:
                             AlwaysStoppedAnimation<Color>(capability.color),
                       ),
@@ -1104,7 +1104,7 @@ class _PanelShell extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1151,7 +1151,7 @@ class _HandoffItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(
         children: [

@@ -458,8 +458,8 @@ class AiBenefitSavingsSuggestion {
 
 class OpenAiServiceSecure {
   final http.Client _client;
-  static const int maxRetries = 2;
-  static const Duration retryDelay = Duration(seconds: 2);
+  static const int maxRetries = 1;
+  static const Duration retryDelay = Duration(seconds: 1);
   static const Duration _interRequestDelay = Duration(milliseconds: 120);
   static Future<void> _serializedQueue = Future<void>.value();
 
@@ -516,7 +516,7 @@ class OpenAiServiceSecure {
 
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -643,7 +643,7 @@ class OpenAiServiceSecure {
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -1322,7 +1322,7 @@ Rules:
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
@@ -1403,7 +1403,7 @@ Return ONLY valid JSON: {"objective": "..." }
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
@@ -1492,7 +1492,7 @@ $trimmedContext
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -1887,7 +1887,7 @@ Use concise professional language. Status should use In progress, Pending, In re
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode >= 300) return const DesignDeliverablesData();
 
       final data =
@@ -2222,7 +2222,7 @@ Return JSON with:
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -2811,7 +2811,7 @@ $scaleConstraints
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
 
       if (response.statusCode == 401) throw Exception('Invalid API key');
       if (response.statusCode == 429) throw Exception('API quota exceeded');
@@ -3168,7 +3168,7 @@ $domainHints
 
     final response = await _client
         .post(uri, headers: headers, body: body)
-        .timeout(const Duration(seconds: 12));
+        .timeout(const Duration(seconds: 8));
     if (response.statusCode == 429) {
       throw Exception('API quota exceeded. Please check your Claude billing.');
     }
@@ -3224,7 +3224,7 @@ $domainHints
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -3400,7 +3400,7 @@ $domainHints
 
     final response = await _client
         .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
-        .timeout(const Duration(seconds: 15));
+        .timeout(const Duration(seconds: 8));
     if (response.statusCode == 429) {
       throw Exception('API quota exceeded. Please check your Claude billing.');
     }
@@ -3549,7 +3549,7 @@ $domainHints
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -4931,7 +4931,7 @@ Domain guardrail: $guardrails
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -5349,7 +5349,7 @@ Return plain text only.'''
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         return _fallbackBenefitLineItems(
           estimatedProjectValue,
@@ -5925,7 +5925,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -6104,7 +6104,7 @@ Context notes (optional): $notes
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -6607,7 +6607,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -6665,7 +6665,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -6730,7 +6730,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -6798,7 +6798,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -7306,7 +7306,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -7515,7 +7515,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -8888,7 +8888,7 @@ Return JSON in this format:
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 15));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -9253,7 +9253,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -9395,7 +9395,7 @@ Return ONLY valid JSON.
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -9715,7 +9715,7 @@ Return ONLY valid JSON.
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 16));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -11115,7 +11115,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -11217,7 +11217,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');
@@ -11333,7 +11333,7 @@ $escaped
     try {
       final response = await _client
           .post(uri, headers: headers, body: body)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
             'Claude error ${response.statusCode}: ${response.body}');

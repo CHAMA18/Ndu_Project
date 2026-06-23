@@ -164,6 +164,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
     // Load existing data from provider
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
       final projectData = ProjectDataHelper.getData(context);
       if (projectData.notes.isNotEmpty) {
         _notesController.text = projectData.notes;
@@ -174,13 +175,16 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
       // Show hint on first visit
       if (mounted) {
-        PageHintDialog.showIfNeeded(
-          context: context,
-          pageId: 'initiation_phase',
-          title: 'Business Case',
-          message:
-              'Enter your project notes and detailed business case here. Use the formatting toolbar above text fields for bold, underline, headings, and undo functionality.',
-        );
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (!mounted) return;
+          PageHintDialog.showIfNeeded(
+            context: context,
+            pageId: 'initiation_phase',
+            title: 'Business Case',
+            message:
+                'Enter your project notes and detailed business case here. Use the formatting toolbar above text fields for bold, underline, headings, and undo functionality.',
+          );
+        });
       }
 
       // If requested, scroll to Business Case
@@ -189,6 +193,10 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       }
 
       if (mounted) setState(() {});
+      } catch (e) {
+        debugPrint('InitiationPhase initState error: $e');
+        if (mounted) setState(() {});
+      }
     });
   }
 

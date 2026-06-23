@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/openai/openai_config.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
@@ -126,51 +127,67 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
-      final projectData = ProjectDataHelper.getData(context);
-      _notesController.text = projectData.notes;
-      _incomingBusinessCase = projectData.businessCase;
+      try {
+        final projectData = ProjectDataHelper.getData(context);
+        _notesController.text = projectData.notes;
+        _incomingBusinessCase = projectData.businessCase;
 
-      // Load saved solutions if they exist
-      if (projectData.potentialSolutions.isNotEmpty) {
-        final targetCount =
-            _isAdminHost ? projectData.potentialSolutions.length : 3;
-        setState(() {
-          _solutions.clear();
-          for (final solution
-              in projectData.potentialSolutions.take(targetCount)) {
-            _solutions.add(
-              SolutionRow(
-                id: solution.id,
-                number: solution.number,
-                titleController: TextEditingController(text: solution.title),
-                descriptionController:
-                    _createDescriptionController(text: solution.description),
-                isAiGenerated: true,
-              ),
-            );
-          }
-          _isLoadingSolutions = false;
-        });
-        _seedFieldHistories();
-      } else {
-        _showHintDialogOnce();
-        _generateInitialSolutions();
+        // Load saved solutions if they exist
+        if (projectData.potentialSolutions.isNotEmpty) {
+          final targetCount =
+              _isAdminHost ? projectData.potentialSolutions.length : 3;
+          setState(() {
+            _solutions.clear();
+            for (final solution
+                in projectData.potentialSolutions.take(targetCount)) {
+              _solutions.add(
+                SolutionRow(
+                  id: solution.id,
+                  number: solution.number,
+                  titleController: TextEditingController(text: solution.title),
+                  descriptionController:
+                      _createDescriptionController(text: solution.description),
+                  isAiGenerated: true,
+                ),
+              );
+            }
+            _isLoadingSolutions = false;
+          });
+          _seedFieldHistories();
+        } else {
+          _showHintDialogOnce();
+          _generateInitialSolutions();
+        }
+
+        if (mounted) setState(() {});
+      } catch (e) {
+        debugPrint('PotentialSolutions initState error: $e');
+        // Ensure page always renders, even if data loading fails
+        if (mounted) {
+          setState(() {
+            _isLoadingSolutions = false;
+            if (_solutions.isEmpty) {
+              _applyFallback('Unable to load data. Add content manually.');
+            }
+          });
+        }
       }
-
-      if (mounted) setState(() {});
     });
   }
 
   void _showHintDialogOnce() {
     if (_hintShown) return;
     _hintShown = true;
-    PageHintDialog.showIfNeeded(
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!mounted) return;
+      PageHintDialog.showIfNeeded(
       context: context,
       pageId: 'potential_solutions',
       title: 'Notification',
       message:
           'Although KAZ AI-generated outputs can provide valuable insights, please review and refine them as needed to ensure they align with your project requirements.',
     );
+    });
   }
 
   void _seedSolutionFieldHistory(SolutionRow solution) {
@@ -325,6 +342,12 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       });
       _seedFieldHistories();
       _syncDraftToProvider();
+      return;
+    }
+
+    // If API is not configured, skip directly to fallback
+    if (!OpenAiConfig.isConfigured) {
+      _applyFallback('AI service not configured. Add content manually.');
       return;
     }
 

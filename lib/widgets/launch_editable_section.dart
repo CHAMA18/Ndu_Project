@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/utils/table_import_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -67,6 +68,20 @@ class LaunchEditableSection extends StatelessWidget {
             compact: true,
             actions: [
               ...actions,
+              // Import button
+              ExecutionActionItem(
+                label: 'Import',
+                icon: Icons.upload_file_outlined,
+                tone: ExecutionActionTone.secondary,
+                onPressed: () => _showImportForSection(context),
+              ),
+              // Template button
+              ExecutionActionItem(
+                label: 'Template',
+                icon: Icons.download_outlined,
+                tone: ExecutionActionTone.secondary,
+                onPressed: () => _downloadTemplateForSection(),
+              ),
               ExecutionActionItem(
                 label: 'Add',
                 icon: Icons.add,
@@ -80,6 +95,64 @@ class LaunchEditableSection extends StatelessWidget {
           child: useTableLayout ? _buildTable() : _buildCardList(),
         );
       },
+    );
+  }
+
+  /// Shows the world-class import dialog for this section.
+  void _showImportForSection(BuildContext context) async {
+    final headers = showStatusChip
+        ? ['Item', 'Details', 'Status']
+        : ['Item', 'Details'];
+    final sampleRows = showStatusChip
+        ? [
+            ['Complete HR onboarding', 'Submit contracts and setup payroll', 'Planned'],
+            ['Provision laptops', 'Order and configure 2 laptops', 'In Progress'],
+            ['Team kickoff meeting', 'Schedule for week 1', 'Completed'],
+          ]
+        : [
+            ['Complete HR onboarding', 'Submit contracts and setup payroll'],
+            ['Provision laptops', 'Order and configure 2 laptops'],
+            ['Team kickoff meeting', 'Schedule for week 1'],
+          ];
+
+    final rows = await TableImportHelper.showImportDialog(
+      context,
+      tableTitle: title,
+      headers: headers,
+      sampleRows: sampleRows,
+    );
+
+    if (rows == null || rows.isEmpty) return;
+
+    // Import the rows as new entries
+    for (final parts in rows) {
+      onAdd();
+    }
+  }
+
+  /// Downloads a CSV template for this section.
+  void _downloadTemplateForSection() {
+    final headers = showStatusChip
+        ? ['Item', 'Details', 'Status']
+        : ['Item', 'Details'];
+    final sampleRows = showStatusChip
+        ? [
+            ['Complete HR onboarding', 'Submit contracts and setup payroll', 'Planned'],
+            ['Provision laptops', 'Order and configure 2 laptops', 'In Progress'],
+            ['Team kickoff meeting', 'Schedule for week 1', 'Completed'],
+          ]
+        : [
+            ['Complete HR onboarding', 'Submit contracts and setup payroll'],
+            ['Provision laptops', 'Order and configure 2 laptops'],
+            ['Team kickoff meeting', 'Schedule for week 1'],
+          ];
+
+    final filename =
+        '${title.toLowerCase().replaceAll(' ', '_')}_template.csv';
+    TableImportHelper.downloadTemplate(
+      filename: filename,
+      headers: headers,
+      sampleRows: sampleRows,
     );
   }
 
@@ -175,12 +248,12 @@ class LaunchEditableSection extends StatelessWidget {
 
     return Column(
       children: [
+        // Dark navy header row (matching LaunchDataTable)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8FAFC),
+            color: const Color(0xFF1F2937),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           child: Row(
             children: [
@@ -189,7 +262,12 @@ class LaunchEditableSection extends StatelessWidget {
                   flex: column.flex,
                   child: Text(
                     column.label,
-                    style: headerStyle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFFFFFFF),
+                      letterSpacing: 0.3,
+                    ),
                     textAlign: column.align,
                   ),
                 ),
@@ -198,11 +276,11 @@ class LaunchEditableSection extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         ClipRRect(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             child: Column(

@@ -83,6 +83,25 @@ class OpenAiConfig {
     // Remove Anthropic-specific fields
     result.remove('anthropic_version');
 
+    // Convert max_completion_tokens to max_tokens (OpenAI Chat Completions
+    // uses max_tokens, not max_completion_tokens which is Responses API only)
+    if (result.containsKey('max_completion_tokens')) {
+      result['max_tokens'] = result.remove('max_completion_tokens');
+    }
+    if (result.containsKey('max_output_tokens')) {
+      result['max_tokens'] = result.remove('max_output_tokens');
+    }
+
+    // Ensure max_tokens exists with a reasonable default
+    if (!result.containsKey('max_tokens')) {
+      result['max_tokens'] = 1200;
+    }
+
+    // Ensure model is set
+    if (!result.containsKey('model') || (result['model'] as String?)?.isEmpty == true) {
+      result['model'] = model;
+    }
+
     return result;
   }
 
