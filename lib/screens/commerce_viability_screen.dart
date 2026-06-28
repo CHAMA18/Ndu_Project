@@ -1,5 +1,5 @@
-import 'dart:html' as html;
-
+import 'package:ndu_project/utils/download_helper_stub.dart'
+    if (dart.library.html) 'package:ndu_project/utils/download_helper_web.dart' as loader;
 import 'package:flutter/material.dart';
 
 import 'package:pdf/pdf.dart';
@@ -931,10 +931,7 @@ class _CommerceViabilityScreenState extends State<CommerceViabilityScreen> {
 
       final bytes = await doc.save();
       if (!mounted) return;
-      final blob = html.Blob([bytes], 'application/pdf');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      html.AnchorElement(href: url)..setAttribute('download', filename)..click();
-      html.Url.revokeObjectUrl(url);
+      loader.downloadFile(bytes, filename, mimeType: 'application/pdf');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PDF export failed: ${e.toString()}')));

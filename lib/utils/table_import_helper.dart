@@ -1,5 +1,6 @@
 import 'dart:convert';
-import 'dart:html' as html;
+import 'package:ndu_project/utils/download_helper_stub.dart'
+    if (dart.library.html) 'package:ndu_project/utils/download_helper_web.dart' as loader;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
@@ -57,15 +58,7 @@ class TableImportHelper {
   }) {
     final csv = generateCsv(headers: headers, sampleRows: sampleRows);
     final bytes = utf8.encode(csv);
-    final blob = html.Blob([bytes], 'text/csv');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', filename)
-      ..style.display = 'none';
-    html.document.body?.append(anchor);
-    anchor.click();
-    anchor.remove();
-    html.Url.revokeObjectUrl(url);
+    loader.downloadFile(bytes, filename, mimeType: 'text/csv');
     debugPrint('[TableImportHelper] Template downloaded: $filename');
   }
 
