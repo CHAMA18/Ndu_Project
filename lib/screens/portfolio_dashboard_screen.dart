@@ -210,15 +210,15 @@ class PortfolioDashboardScreen extends StatelessWidget {
             SizedBox(
                 width: itemWidth,
                 child: _kpiCard('On Track', '32%', Icons.check_circle, _emerald,
-                    subtitle: '50 Projects', borderLeft: _emerald)),
+                    subtitle: '50 Projects', borderLeftColor: _emerald)),
             SizedBox(
                 width: itemWidth,
                 child: _kpiCard('At Risk', '41%', Icons.warning, _amber,
-                    subtitle: '64 Projects', borderLeft: _amber)),
+                    subtitle: '64 Projects', borderLeftColor: _amber)),
             SizedBox(
                 width: itemWidth,
                 child: _kpiCard('Off Track', '27%', Icons.error, _error,
-                    subtitle: '42 Projects', borderLeft: _crimson)),
+                    subtitle: '42 Projects', borderLeftColor: _crimson)),
             SizedBox(
                 width: itemWidth,
                 child: _kpiCard('Total Budget', '\$1.2B', Icons.account_balance_wallet, _secondary,
@@ -239,7 +239,8 @@ class PortfolioDashboardScreen extends StatelessWidget {
     Color iconColor, {
     String? subtitle,
     Color? subtitleColor,
-    Color? borderLeft,
+    IconData? subtitleIcon,
+    Color? borderLeftColor,
     Color? bgColor,
   }) {
     return Container(
@@ -248,8 +249,12 @@ class PortfolioDashboardScreen extends StatelessWidget {
         color: bgColor ?? _surfaceContainer.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _outlineVariant.withValues(alpha: 0.4)),
-        borderLeft: borderLeft != null ? BorderSide(color: borderLeft, width: 4) : null,
       ),
+      child: Container(
+        decoration: borderLeftColor != null
+            ? BoxDecoration(border: Border(left: BorderSide(color: borderLeftColor, width: 4)))
+            : null,
+        child: Column(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -270,9 +275,9 @@ class PortfolioDashboardScreen extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                if (subtitleColor == _emerald)
-                  Icon(Icons.trending_up, color: _emerald, size: 14),
-                if (subtitleColor == _emerald) const SizedBox(width: 2),
+                if (subtitleIcon != null)
+                  Icon(subtitleIcon, color: subtitleColor ?? _onSurfaceVariant, size: 14),
+                if (subtitleIcon != null) const SizedBox(width: 2),
                 Text(subtitle,
                     style: TextStyle(
                         color: subtitleColor ?? _onSurfaceVariant,
@@ -283,6 +288,7 @@ class PortfolioDashboardScreen extends StatelessWidget {
             ),
           ],
         ],
+        ),
       ),
     );
   }
