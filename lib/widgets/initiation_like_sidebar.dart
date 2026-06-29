@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
@@ -3648,6 +3649,19 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isDisabled: lockProjectSummary,
         ),
       );
+    }
+    if ('project controls'.contains(query) ||
+        'controls'.contains(query) ||
+        'evm'.contains(query) ||
+        'earned value'.contains(query) ||
+        'change management'.contains(query) ||
+        'scope tracking'.contains(query) ||
+        'cost control'.contains(query) ||
+        'forecasting'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.shield_moon_outlined, 'Project Controls',
+          onTap: () => context.push('/project-controls'),
+          isActive: widget.activeItemLabel == 'Project Controls'));
     }
     if ('settings'.contains(query)) {
       results.add(_buildMenuItem(Icons.settings_outlined, 'Settings',
