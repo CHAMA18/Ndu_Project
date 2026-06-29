@@ -180,6 +180,119 @@ enum ProgressMethod {
   businessValueDelivered
 }
 
+// ─── Schedule Compression ─────────────────────────────────────────────────
+
+enum CompressionStrategy { none, crash, fastTrack }
+
+extension CompressionStrategyLabel on CompressionStrategy {
+  String get label => switch (this) {
+        CompressionStrategy.none => 'None',
+        CompressionStrategy.crash => 'Crash',
+        CompressionStrategy.fastTrack => 'Fast-Track',
+      };
+
+  String get hint => switch (this) {
+        CompressionStrategy.none => 'No compression applied',
+        CompressionStrategy.crash =>
+          'Add resources / overtime to shorten duration (cost impact)',
+        CompressionStrategy.fastTrack =>
+          'Run sequential activities in parallel (risk impact)',
+      };
+
+  IconData get icon => switch (this) {
+        CompressionStrategy.none => Icons.remove_circle_outline,
+        CompressionStrategy.crash => Icons.flash_on_outlined,
+        CompressionStrategy.fastTrack => Icons.fast_forward_outlined,
+      };
+
+  Color get color => switch (this) {
+        CompressionStrategy.none => const Color(0xFF6B7280),
+        CompressionStrategy.crash => const Color(0xFFD97706),
+        CompressionStrategy.fastTrack => const Color(0xFF6366F1),
+      };
+}
+
+// ─── Risk / Issue Status ──────────────────────────────────────────────────
+
+enum RiskStatus { open, mitigated, realized, closed }
+
+extension RiskStatusLabel on RiskStatus {
+  String get label => switch (this) {
+        RiskStatus.open => 'Open',
+        RiskStatus.mitigated => 'Mitigated',
+        RiskStatus.realized => 'Realized',
+        RiskStatus.closed => 'Closed',
+      };
+
+  Color get color => switch (this) {
+        RiskStatus.open => const Color(0xFFEF4444),
+        RiskStatus.mitigated => const Color(0xFFF59E0B),
+        RiskStatus.realized => const Color(0xFF8B5CF6),
+        RiskStatus.closed => const Color(0xFF10B981),
+      };
+}
+
+// ─── Resource Discipline ──────────────────────────────────────────────────
+
+enum ResourceDiscipline { pm, engineering, design, qa, construction }
+
+extension ResourceDisciplineLabel on ResourceDiscipline {
+  String get label => switch (this) {
+        ResourceDiscipline.pm => 'PM',
+        ResourceDiscipline.engineering => 'Engineering',
+        ResourceDiscipline.design => 'Design',
+        ResourceDiscipline.qa => 'QA',
+        ResourceDiscipline.construction => 'Construction',
+      };
+
+  String get short => switch (this) {
+        ResourceDiscipline.pm => 'PM',
+        ResourceDiscipline.engineering => 'ENG',
+        ResourceDiscipline.design => 'DSN',
+        ResourceDiscipline.qa => 'QA',
+        ResourceDiscipline.construction => 'CON',
+      };
+
+  Color get color => switch (this) {
+        ResourceDiscipline.pm => const Color(0xFF6366F1),
+        ResourceDiscipline.engineering => const Color(0xFF2563EB),
+        ResourceDiscipline.design => const Color(0xFF8B5CF6),
+        ResourceDiscipline.qa => const Color(0xFFF59E0B),
+        ResourceDiscipline.construction => const Color(0xFF10B981),
+      };
+}
+
+// ─── Report Types ─────────────────────────────────────────────────────────
+
+enum ReportType {
+  costVariance,
+  scheduleVariance,
+  evmForecast,
+  riskBurnDown,
+  auditTrail,
+  performanceSummary
+}
+
+extension ReportTypeLabel on ReportType {
+  String get label => switch (this) {
+        ReportType.costVariance => 'Cost Variance Report',
+        ReportType.scheduleVariance => 'Schedule Variance Report',
+        ReportType.evmForecast => 'EVM Forecast Report',
+        ReportType.riskBurnDown => 'Risk Burn-down Report',
+        ReportType.auditTrail => 'Audit Trail Report',
+        ReportType.performanceSummary => 'Performance Summary Report',
+      };
+
+  IconData get icon => switch (this) {
+        ReportType.costVariance => Icons.payments_outlined,
+        ReportType.scheduleVariance => Icons.schedule_outlined,
+        ReportType.evmForecast => Icons.trending_up,
+        ReportType.riskBurnDown => Icons.local_fire_department_outlined,
+        ReportType.auditTrail => Icons.history,
+        ReportType.performanceSummary => Icons.assessment_outlined,
+      };
+}
+
 // ─── Work Package Control (Waterfall) / Epic Control (Agile) ──────────────
 
 class WorkPackageControl {
@@ -517,6 +630,8 @@ class BaselineSnapshot {
   final double totalBudget;
   final DateTime? baselineStartDate;
   final DateTime? baselineFinishDate;
+  final String? reason;
+  final String? scopeHash;
 
   const BaselineSnapshot({
     required this.version,
@@ -527,6 +642,216 @@ class BaselineSnapshot {
     required this.totalBudget,
     this.baselineStartDate,
     this.baselineFinishDate,
+    this.reason,
+    this.scopeHash,
+  });
+
+  /// Returns the stored scope-hash, or a derived hash from the work-package
+  /// list (deterministic) when none was persisted.
+  String get scopeHashOrDerived => scopeHash ?? _deriveScopeHash();
+
+  String _deriveScopeHash() {
+    final buffer = StringBuffer();
+    for (final wp in workPackages) {
+      buffer.write('${wp.wbsCode}:${wp.name}|');
+    }
+    final raw = buffer.toString();
+    var hash = 0;
+    for (var i = 0; i < raw.length; i++) {
+      hash = ((hash << 5) - hash) + raw.codeUnitAt(i);
+      hash &= 0xFFFFFFFF;
+    }
+    return 'SHA-${(hash.abs().toRadixString(16).toUpperCase().padLeft(8, '0'))}';
+  }
+}
+
+// ─── Schedule Variance ────────────────────────────────────────────────────
+
+class ScheduleVariance {
+  final String workPackageId;
+  final DateTime? plannedStart;
+  final DateTime? actualStart;
+  final DateTime? plannedFinish;
+  final DateTime? actualFinish;
+  final double floatDays;
+  final String delayReason;
+  final CompressionStrategy compressionStrategy;
+
+  const ScheduleVariance({
+    required this.workPackageId,
+    this.plannedStart,
+    this.actualStart,
+    this.plannedFinish,
+    this.actualFinish,
+    required this.floatDays,
+    required this.delayReason,
+    required this.compressionStrategy,
+  });
+
+  /// Variance in days vs planned finish (positive = late, negative = early).
+  int get varianceDays {
+    if (actualFinish != null && plannedFinish != null) {
+      return actualFinish!.difference(plannedFinish!).inDays;
+    }
+    if (actualStart != null && plannedStart != null) {
+      return actualStart!.difference(plannedStart!).inDays;
+    }
+    return 0;
+  }
+
+  /// Critical-path flag — work packages with zero or negative float are
+  /// on the critical path.
+  bool get isCritical => floatDays <= 0;
+
+  ScheduleVariance copyWith({
+    String? workPackageId,
+    DateTime? plannedStart,
+    DateTime? actualStart,
+    DateTime? plannedFinish,
+    DateTime? actualFinish,
+    double? floatDays,
+    String? delayReason,
+    CompressionStrategy? compressionStrategy,
+  }) {
+    return ScheduleVariance(
+      workPackageId: workPackageId ?? this.workPackageId,
+      plannedStart: plannedStart ?? this.plannedStart,
+      actualStart: actualStart ?? this.actualStart,
+      plannedFinish: plannedFinish ?? this.plannedFinish,
+      actualFinish: actualFinish ?? this.actualFinish,
+      floatDays: floatDays ?? this.floatDays,
+      delayReason: delayReason ?? this.delayReason,
+      compressionStrategy: compressionStrategy ?? this.compressionStrategy,
+    );
+  }
+}
+
+// ─── Risk / Issue ─────────────────────────────────────────────────────────
+
+class RiskItem {
+  final String id;
+  final String description;
+  final int probability; // 1-5
+  final int impact; // 1-5
+  final String owner;
+  final String mitigation;
+  final RiskStatus status;
+  final bool isIssue;
+
+  const RiskItem({
+    required this.id,
+    required this.description,
+    required this.probability,
+    required this.impact,
+    required this.owner,
+    required this.mitigation,
+    required this.status,
+    this.isIssue = false,
+  });
+
+  int get severity => probability * impact; // 1-25
+
+  Color get severityColor {
+    if (severity <= 4) return const Color(0xFF10B981); // green
+    if (severity <= 9) return const Color(0xFFF59E0B); // yellow
+    if (severity <= 15) return const Color(0xFFF97316); // orange
+    return const Color(0xFFEF4444); // red
+  }
+
+  String get severityLabel {
+    if (severity <= 4) return 'Low';
+    if (severity <= 9) return 'Medium';
+    if (severity <= 15) return 'High';
+    return 'Critical';
+  }
+
+  RiskItem copyWith({
+    String? id,
+    String? description,
+    int? probability,
+    int? impact,
+    String? owner,
+    String? mitigation,
+    RiskStatus? status,
+    bool? isIssue,
+  }) {
+    return RiskItem(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      probability: probability ?? this.probability,
+      impact: impact ?? this.impact,
+      owner: owner ?? this.owner,
+      mitigation: mitigation ?? this.mitigation,
+      status: status ?? this.status,
+      isIssue: isIssue ?? this.isIssue,
+    );
+  }
+}
+
+// ─── Resource Allocation ──────────────────────────────────────────────────
+
+class ResourceAllocation {
+  final String resourceName;
+  final ResourceDiscipline discipline;
+  final List<double> weeklyHours; // 12 weeks
+  final double capacityHoursPerWeek;
+
+  const ResourceAllocation({
+    required this.resourceName,
+    required this.discipline,
+    required this.weeklyHours,
+    required this.capacityHoursPerWeek,
+  });
+
+  double get totalAllocated => weeklyHours.fold(0, (sum, h) => sum + h);
+
+  double get avgWeekly =>
+      weeklyHours.isEmpty ? 0 : totalAllocated / weeklyHours.length;
+
+  double get utilizationPct =>
+      capacityHoursPerWeek > 0 ? (avgWeekly / capacityHoursPerWeek) * 100 : 0;
+
+  double get peakWeekUtilizationPct {
+    if (weeklyHours.isEmpty || capacityHoursPerWeek <= 0) return 0;
+    final peak = weeklyHours.reduce((a, b) => a > b ? a : b);
+    return (peak / capacityHoursPerWeek) * 100;
+  }
+
+  ResourceAllocation copyWith({
+    String? resourceName,
+    ResourceDiscipline? discipline,
+    List<double>? weeklyHours,
+    double? capacityHoursPerWeek,
+  }) {
+    return ResourceAllocation(
+      resourceName: resourceName ?? this.resourceName,
+      discipline: discipline ?? this.discipline,
+      weeklyHours: weeklyHours ?? this.weeklyHours,
+      capacityHoursPerWeek:
+          capacityHoursPerWeek ?? this.capacityHoursPerWeek,
+    );
+  }
+}
+
+// ─── Report Record ────────────────────────────────────────────────────────
+
+class ReportRecord {
+  final String id;
+  final ReportType type;
+  final DateTime generatedAt;
+  final DateTime dateRangeStart;
+  final DateTime dateRangeEnd;
+  final String generatedBy;
+  final String summaryText;
+
+  const ReportRecord({
+    required this.id,
+    required this.type,
+    required this.generatedAt,
+    required this.dateRangeStart,
+    required this.dateRangeEnd,
+    required this.generatedBy,
+    required this.summaryText,
   });
 }
 
@@ -564,6 +889,10 @@ class ProjectControlsState {
   final List<ChangeRequest> changeRequests;
   final List<BaselineSnapshot> baselineHistory;
   final List<AuditEntry> auditTrail;
+  final List<ScheduleVariance> scheduleVariances;
+  final List<RiskItem> risksAndIssues;
+  final List<ResourceAllocation> resourceAllocations;
+  final List<ReportRecord> reports;
 
   const ProjectControlsState({
     required this.deliveryModel,
@@ -573,6 +902,10 @@ class ProjectControlsState {
     required this.changeRequests,
     required this.baselineHistory,
     required this.auditTrail,
+    this.scheduleVariances = const [],
+    this.risksAndIssues = const [],
+    this.resourceAllocations = const [],
+    this.reports = const [],
   });
 
   ProjectControlsState copyWith({
@@ -583,6 +916,10 @@ class ProjectControlsState {
     List<ChangeRequest>? changeRequests,
     List<BaselineSnapshot>? baselineHistory,
     List<AuditEntry>? auditTrail,
+    List<ScheduleVariance>? scheduleVariances,
+    List<RiskItem>? risksAndIssues,
+    List<ResourceAllocation>? resourceAllocations,
+    List<ReportRecord>? reports,
   }) {
     return ProjectControlsState(
       deliveryModel: deliveryModel ?? this.deliveryModel,
@@ -592,6 +929,10 @@ class ProjectControlsState {
       changeRequests: changeRequests ?? this.changeRequests,
       baselineHistory: baselineHistory ?? this.baselineHistory,
       auditTrail: auditTrail ?? this.auditTrail,
+      scheduleVariances: scheduleVariances ?? this.scheduleVariances,
+      risksAndIssues: risksAndIssues ?? this.risksAndIssues,
+      resourceAllocations: resourceAllocations ?? this.resourceAllocations,
+      reports: reports ?? this.reports,
     );
   }
 
@@ -643,4 +984,35 @@ class ProjectControlsState {
     if (openChangeRequests > 10) score -= 10;
     return score.clamp(0, 100);
   }
+
+  // ─── Schedule-variance computed helpers ──────────────────────────────
+  int get criticalPathCount =>
+      scheduleVariances.where((v) => v.isCritical).length;
+  int get delayedWorkPackagesCount =>
+      scheduleVariances.where((v) => v.varianceDays > 0).length;
+
+  // ─── Risk & issues computed helpers ──────────────────────────────────
+  List<RiskItem> get openRisks =>
+      risksAndIssues.where((r) => !r.isIssue && r.status != RiskStatus.closed).toList();
+  List<RiskItem> get openIssues =>
+      risksAndIssues.where((r) => r.isIssue && r.status != RiskStatus.closed).toList();
+  int get criticalRisksCount =>
+      risksAndIssues.where((r) => !r.isIssue && r.severity >= 16).length;
+
+  // ─── Resource computed helpers ───────────────────────────────────────
+  double get totalResourceHoursPerWeek {
+    if (resourceAllocations.isEmpty) return 0;
+    final weeks = <double>[];
+    for (var i = 0; i < 12; i++) {
+      double sum = 0;
+      for (final ra in resourceAllocations) {
+        if (i < ra.weeklyHours.length) sum += ra.weeklyHours[i];
+      }
+      weeks.add(sum);
+    }
+    return weeks.fold(0, (a, b) => a + b);
+  }
+
+  // ─── Reports computed helpers ────────────────────────────────────────
+  int get reportCount => reports.length;
 }
