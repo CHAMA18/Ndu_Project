@@ -247,11 +247,14 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       if (isDesktop) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 8, child: _portfolioTable()), const SizedBox(width: 20), Expanded(flex: 4, child: _buChart())])
       else ...[_portfolioTable(), const SizedBox(height: 20), _buChart()],
       const SizedBox(height: 20),
-      if (isDesktop) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 4, child: _budgetTrend()), const SizedBox(width: 20), Expanded(flex: 4, child: _risksDonut()), const SizedBox(width: 20), const Expanded(flex: 4, child: SizedBox())])
-      else ...[_budgetTrend(), const SizedBox(height: 20), _risksDonut()],
+      if (isDesktop) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 4, child: _budgetTrend()), const SizedBox(width: 20), Expanded(flex: 4, child: _risksDonut()), const SizedBox(width: 20), Expanded(flex: 4, child: _portfolioAllocation())])
+      else ...[_budgetTrend(), const SizedBox(height: 20), _risksDonut(), const SizedBox(height: 20), _portfolioAllocation()],
       const SizedBox(height: 20),
       if (isDesktop) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 6, child: _upcoming()), const SizedBox(width: 20), Expanded(flex: 6, child: _overdue())])
       else ...[_upcoming(), const SizedBox(height: 20), _overdue()],
+      const SizedBox(height: 20),
+      if (isDesktop) Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(flex: 4, child: _portfolioPerformance()), const SizedBox(width: 20), Expanded(flex: 4, child: _strategicAlignment()), const SizedBox(width: 20), Expanded(flex: 4, child: _resourceUtilization())])
+      else ...[_portfolioPerformance(), const SizedBox(height: 20), _strategicAlignment(), const SizedBox(height: 20), _resourceUtilization()],
     ]);
   }
 
@@ -332,6 +335,99 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   }
 
   Widget _rLeg(String l, String p, Color c) => Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: c, shape: BoxShape.circle, boxShadow: [BoxShadow(color: c.withValues(alpha: 0.4), blurRadius: 4)])), const SizedBox(width: 8), Text(l, style: TextStyle(color: _onSurface, fontSize: 11, fontFamily: appFontFamily))]), Text(p, style: TextStyle(color: _onSurface, fontSize: 12, fontWeight: FontWeight.w800, fontFamily: appFontFamily))]);
+
+  // ─── Portfolio Allocation by Phase ────────────────────────────────────────
+  Widget _portfolioAllocation() {
+    final phases = [
+      ('Initiation', 12, 0.08, _blue),
+      ('Planning', 28, 0.18, _blueDeep),
+      ('Execution', 68, 0.44, _gold),
+      ('Monitoring', 32, 0.20, _emerald),
+      ('Closeout', 16, 0.10, _muted),
+    ];
+    return _glassCard(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('PORTFOLIO ALLOCATION BY PHASE', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: appFontFamily)),
+      const SizedBox(height: 20),
+      // Stacked bar
+      ClipRRect(borderRadius: BorderRadius.circular(8), child: SizedBox(height: 28, child: Row(children: phases.map((p) => Expanded(flex: (p.$2 * 10).round(), child: Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [p.$4, p.$4.withValues(alpha: 0.7)]))))).toList()))),
+      const SizedBox(height: 16),
+      ...phases.map((p) => Padding(padding: const EdgeInsets.only(bottom: 10), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Row(children: [Container(width: 8, height: 8, decoration: BoxDecoration(color: p.$4, borderRadius: BorderRadius.circular(2))), const SizedBox(width: 8), Text(p.$1, style: TextStyle(color: _onSurface, fontSize: 12, fontWeight: FontWeight.w600, fontFamily: appFontFamily))]),
+        Text('${p.$2} (${(p.$3 * 100).round()}%)', style: TextStyle(color: _muted, fontSize: 12, fontWeight: FontWeight.w700, fontFamily: appFontFamily)),
+      ]))),
+    ])));
+  }
+
+  // ─── Portfolio Performance Scorecard ──────────────────────────────────────
+  Widget _portfolioPerformance() {
+    final metrics = [
+      ('SPI', '0.94', _amber, 'Schedule Perf. Index'),
+      ('CPI', '0.87', _crimson, 'Cost Perf. Index'),
+      ('ROI', '12.3%', _emerald, 'Return on Investment'),
+      ('NPS', '68', _emerald, 'Net Promoter Score'),
+    ];
+    return _glassCard(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('PORTFOLIO PERFORMANCE', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: appFontFamily)),
+      const SizedBox(height: 20),
+      ...metrics.map((m) => Padding(padding: const EdgeInsets.only(bottom: 16), child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Row(children: [
+          Container(width: 40, height: 40, decoration: BoxDecoration(color: m.$3.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Center(child: Text(m.$1, style: TextStyle(color: m.$3, fontSize: 11, fontWeight: FontWeight.w800, fontFamily: appFontFamily)))),
+          const SizedBox(width: 12),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(m.$1, style: TextStyle(color: _onSurface, fontSize: 13, fontWeight: FontWeight.w700, fontFamily: appFontFamily)),
+            Text(m.$4, style: TextStyle(color: _muted, fontSize: 10, fontFamily: appFontFamily)),
+          ]),
+        ]),
+        Text(m.$2, style: TextStyle(color: m.$3, fontSize: 20, fontWeight: FontWeight.w900, fontFamily: appFontFamily)),
+      ]))),
+    ])));
+  }
+
+  // ─── Strategic Alignment ──────────────────────────────────────────────────
+  Widget _strategicAlignment() {
+    final goals = [
+      ('Digital Transformation', 42, _blue),
+      ('Operational Excellence', 38, _emerald),
+      ('Customer Experience', 34, _gold),
+      ('Risk Mitigation', 22, _crimson),
+      ('Revenue Growth', 20, _blueDeep),
+    ];
+    return _glassCard(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('STRATEGIC GOAL ALIGNMENT', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: appFontFamily)),
+      const SizedBox(height: 20),
+      ...goals.map((g) => Padding(padding: const EdgeInsets.only(bottom: 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Text(g.$1, style: TextStyle(color: _onSurface, fontSize: 12, fontWeight: FontWeight.w600, fontFamily: appFontFamily)),
+          Text('${g.$2}', style: TextStyle(color: g.$3, fontSize: 13, fontWeight: FontWeight.w800, fontFamily: appFontFamily)),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: g.$2 / 50, backgroundColor: _surfaceHighest, valueColor: AlwaysStoppedAnimation(g.$3), minHeight: 6)),
+      ]))),
+    ])));
+  }
+
+  // ─── Resource Utilization ─────────────────────────────────────────────────
+  Widget _resourceUtilization() {
+    final resources = [
+      ('Engineering', 78, _blue, '42 FTE allocated'),
+      ('Project Mgmt', 92, _amber, '18 PMs assigned'),
+      ('Procurement', 65, _emerald, '9 specialists'),
+      ('Quality', 54, _gold, '7 inspectors'),
+      ('Construction', 88, _crimson, '156 crew'),
+    ];
+    return _glassCard(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text('RESOURCE UTILIZATION', style: TextStyle(color: _muted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, fontFamily: appFontFamily)),
+      const SizedBox(height: 20),
+      ...resources.map((r) => Padding(padding: const EdgeInsets.only(bottom: 14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [Text(r.$1, style: TextStyle(color: _onSurface, fontSize: 12, fontWeight: FontWeight.w600, fontFamily: appFontFamily)), const SizedBox(width: 8), Text(r.$4, style: TextStyle(color: _muted, fontSize: 10, fontFamily: appFontFamily))]),
+          Text('${r.$2}%', style: TextStyle(color: r.$2 > 85 ? _crimson : (r.$2 > 75 ? _amber : r.$3), fontSize: 14, fontWeight: FontWeight.w800, fontFamily: appFontFamily)),
+        ]),
+        const SizedBox(height: 5),
+        ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: r.$2 / 100, backgroundColor: _surfaceHighest, valueColor: AlwaysStoppedAnimation(r.$2 > 85 ? _crimson : (r.$2 > 75 ? _amber : r.$3)), minHeight: 6)),
+      ]))),
+    ])));
+  }
 
   Widget _upcoming() {
     final ms = [('Requirement Sign-off', 'Project Beta', '22 May 2024', null), ('Database Migration', 'Project Gamma', '28 May 2024', null), ('Security Audit Completion', 'Project Alpha', '01 Jun 2024', _emerald)];
