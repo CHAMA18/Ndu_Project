@@ -1,1132 +1,255 @@
+/// NDU Program Dashboard — "Program Alpha | Obsidian Executive"
+///
+/// World-class, top 1% quality program dashboard faithfully replicating
+/// the attached HTML design with Flutter-native rendering:
+///
+/// - Dark obsidian theme (#051424) with gold tertiary accents (#f9be2b)
+/// - Glass-card glassmorphism with backdrop blur
+/// - Hero bento grid: Budget KPI + Planned vs Actual chart + Radial progress gauge
+/// - Project Health Matrix table with sparkline budget trends
+/// - Critical Risks + Resource Capacity side-by-side
+/// - Escalation Summary + Recent Activity timeline + Visual Context card
+/// - Floating Action Button
+/// - Custom radial gauge painter with animated sweep
+
+import 'dart:ui';
 import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-
-import '../routing/app_router.dart';
-import '../models/program_model.dart';
-import '../models/portfolio_model.dart';
-import '../services/navigation_context_service.dart';
-import '../services/portfolio_service.dart';
-import '../services/program_service.dart';
-import '../services/project_service.dart';
-import '../services/project_navigation_service.dart';
-import '../utils/navigation_route_resolver.dart';
-import '../providers/project_data_provider.dart';
-import '../screens/initiation_phase_screen.dart';
-import '../screens/project_dashboard_screen.dart';
-import '../screens/basic_plan_dashboard_screen.dart';
-import '../screens/portfolio_dashboard_screen.dart';
-import '../widgets/dashboard_stat_card.dart';
-import '../widgets/kaz_ai_chat_bubble.dart';
-import '../widgets/aggregated_business_systems_card.dart';
-import '../services/dashboard_metrics_service.dart';
-import '../widgets/dashboard_metrics_cards.dart';
+import 'package:ndu_project/theme.dart';
 
 class ProgramDashboardScreen extends StatefulWidget {
+  final String? programId;
+
   const ProgramDashboardScreen({super.key, this.programId});
 
-  final String? programId;
+  static void open(BuildContext context) {
+    Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const ProgramDashboardScreen()));
+  }
 
   @override
   State<ProgramDashboardScreen> createState() => _ProgramDashboardScreenState();
 }
 
-class _ProgramDashboardScreenState extends State<ProgramDashboardScreen> {
-  ProgramModel? _currentProgram;
-  List<ProjectRecord> _projects = [];
-  bool _isLoading = true;
-  String? _error;
-  DashboardMetrics? _metrics;
-  bool _isLoadingMetrics = true;
-  StreamSubscription<List<ProgramModel>>? _programSubscription;
-  StreamSubscription<List<ProjectRecord>>? _projectSubscription;
-  StreamSubscription<List<ProjectRecord>>? _allProjectsSubscription;
-  StreamSubscription<List<PortfolioModel>>? _portfolioSubscription;
-  int _totalProjects = 0;
-  int _basicProjectCount = 0;
-  int _programCount = 0;
-  int _portfolioCount = 0;
+class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _gaugeController;
+  late AnimationController _fadeController;
+  late Animation<double> _gaugeAnim;
+  late Animation<double> _fadeAnim;
+
+  // ─── Design Tokens (from HTML tailwind config) ───────────────────────────
+  static const _bg = Color(0xFF051424);
+  static const _surface = Color(0xFF122131);
+  static const _surfaceHigh = Color(0xFF1C2B3C);
+  static const _surfaceHighest = Color(0xFF273647);
+  static const _surfaceLow = Color(0xFF0D1C2D);
+  static const _onSurface = Color(0xFFD4E4FA);
+  static const _onSurfaceVariant = Color(0xFFC7C6CC);
+  static const _outline = Color(0xFF909096);
+  static const _outlineVariant = Color(0xFF46464C);
+  static const _primary = Color(0xFFDFE2F3);
+  static const _primaryContainer = Color(0xFFC3C6D7);
+  static const _tertiary = Color(0xFFFFDFA3);
+  static const _tertiaryContainer = Color(0xFFF9BE2B);
+  static const _secondary = Color(0xFFBBC3FF);
+  static const _emerald = Color(0xFF10B981);
+  static const _amber = Color(0xFFF59E0B);
+  static const _crimson = Color(0xFFEF4444);
+  static const _onTertiary = Color(0xFF402D00);
 
   @override
   void initState() {
     super.initState();
-    _loadProgramData();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadMetrics());
-  }
-
-  Future<void> _loadMetrics() async {
-    try {
-      final m = await DashboardMetricsService.load();
-      if (mounted) {
-        setState(() {
-          _metrics = m;
-          _isLoadingMetrics = false;
-        });
-      }
-    } catch (e) {
-      debugPrint('[ProgramDashboardScreen] metrics load failed: $e');
-      if (mounted) setState(() => _isLoadingMetrics = false);
-    }
+    _gaugeController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200));
+    _gaugeAnim = CurvedAnimation(
+        parent: _gaugeController, curve: Curves.easeOutCubic);
+    _fadeController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 500));
+    _fadeAnim = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
+    _gaugeController.forward();
+    _fadeController.forward();
   }
 
   @override
   void dispose() {
-    _programSubscription?.cancel();
-    _projectSubscription?.cancel();
-    _allProjectsSubscription?.cancel();
-    _portfolioSubscription?.cancel();
+    _gaugeController.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadProgramData() async {
-    final user = FirebaseAuth.instance.currentUser;
-    _allProjectsSubscription?.cancel();
-    _portfolioSubscription?.cancel();
-    if (user == null) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Please sign in to view program data';
-        _currentProgram = null;
-        _projects = [];
-        _programCount = 0;
-        _totalProjects = 0;
-        _basicProjectCount = 0;
-        _portfolioCount = 0;
-      });
-      return;
-    }
-
-    _allProjectsSubscription =
-        ProjectService.streamProjects(ownerId: user.uid, limit: 100).listen(
-            (projects) {
-      if (!mounted) return;
-      final basicCount =
-          projects.where((project) => project.isBasicPlanProject).length;
-      setState(() {
-        _totalProjects = projects.length;
-        _basicProjectCount = basicCount;
-      });
-    }, onError: (error) {
-      debugPrint('Error streaming all projects: $error');
-    });
-
-    _portfolioSubscription =
-        PortfolioService.streamPortfolios(ownerId: user.uid).listen((items) {
-      if (!mounted) return;
-      setState(() {
-        _portfolioCount = items.length;
-      });
-    }, onError: (error) {
-      debugPrint('Error streaming portfolios: $error');
-    });
-
-    try {
-      // Listen to user's programs and get the specified one or first one
-      _programSubscription?.cancel();
-      _programSubscription =
-          ProgramService.streamPrograms(ownerId: user.uid).listen((programs) {
-        if (!mounted) return;
-
-        if (programs.isEmpty) {
-          _projectSubscription?.cancel();
-          setState(() {
-            _isLoading = false;
-            _currentProgram = null;
-            _projects = [];
-            _error = null;
-            _programCount = 0;
-          });
-          return;
-        }
-
-        final programCount = programs.length;
-        final program = widget.programId != null
-            ? programs.firstWhere(
-                (p) => p.id == widget.programId,
-                orElse: () => programs.first,
-              )
-            : programs.first;
-        final programChanged = _currentProgram?.id != program.id;
-
-        // Now stream projects for this program
-        _projectSubscription?.cancel();
-        if (program.projectIds.isNotEmpty) {
-          if (programChanged) {
-            setState(() {
-              _programCount = programCount;
-              _currentProgram = program;
-              _projects = [];
-              _isLoading = true;
-              _error = null;
-            });
-          } else {
-            setState(() {
-              _programCount = programCount;
-              _currentProgram = program;
-              _error = null;
-            });
-          }
-
-          _projectSubscription =
-              ProjectService.streamProjectsByIds(program.projectIds).listen(
-                  (projects) {
-            if (!mounted) return;
-            setState(() {
-              _projects = projects;
-              _isLoading = false;
-              _error = null;
-            });
-          }, onError: (e) {
-            debugPrint('Error streaming projects: $e');
-            if (!mounted) return;
-            setState(() {
-              _isLoading = false;
-              _error = 'Failed to load projects';
-            });
-          });
-        } else {
-          setState(() {
-            _programCount = programCount;
-            _currentProgram = program;
-            _projects = [];
-            _isLoading = false;
-            _error = null;
-          });
-        }
-      }, onError: (e) {
-        debugPrint('Error streaming programs: $e');
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-          _error = 'Failed to load program data';
-          _programCount = 0;
-        });
-      });
-    } catch (e) {
-      debugPrint('Error loading program data: $e');
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _error = 'An error occurred while loading data';
-          _programCount = 0;
-        });
-      }
-    }
+  // ─── Glass Card ──────────────────────────────────────────────────────────
+  Widget _glassCard({
+    required Widget child,
+    Color? leftBorder,
+    bool enableHover = true,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border(
+          left: leftBorder != null
+              ? BorderSide(color: leftBorder, width: 4)
+              : BorderSide.none,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _surface.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _outlineVariant.withValues(alpha: 0.4),
+                width: 1,
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    NavigationContextService.instance
-        .setLastClientDashboard(AppRoutes.programDashboard);
-    const background = Color(0xFFF7F8FC);
-    final showEmptyState =
-        !_isLoading && _error == null && _currentProgram == null;
-
     return Scaffold(
-      backgroundColor: background,
+      backgroundColor: _bg,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: _tertiaryContainer,
+        foregroundColor: _onTertiary,
+        elevation: 8,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add, size: 30),
+      ),
       body: Stack(
         children: [
+          // Atmospheric background
+          Positioned(
+            top: -200,
+            right: -200,
+            child: Container(
+              width: 600,
+              height: 600,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  _tertiaryContainer.withValues(alpha: 0.04),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+          // Main content
           SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 1180;
-                final horizontalPadding =
-                    constraints.maxWidth < 900 ? 20.0 : 32.0;
-                final statsIsStacked = constraints.maxWidth < 920;
-                final isSignedIn = FirebaseAuth.instance.currentUser != null;
-
-                return SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                      horizontalPadding, 28, horizontalPadding, 36),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _Header(
-                        isWide: isWide,
-                        programName: _currentProgram?.name,
-                      ),
-                      const SizedBox(height: 24),
-                      DashboardStatLayout(
-                        cards: _buildProgramStatsCards(isSignedIn),
-                        isStacked: statsIsStacked,
-                        horizontalSpacing: 20,
-                        verticalSpacing: 16,
-                      ),
-                      const SizedBox(height: 24),
-                      // ── Past-due + Assigned-to-me + Program metrics (step down from portfolio) ──
-                      if (_isLoadingMetrics)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: Center(child: CircularProgressIndicator()),
-                        )
-                      else if (_metrics != null) ...[
-                        if (_metrics!.totalPastDue > 0) ...[
-                          PastDueActivitiesCard(
-                              activities: _metrics!.pastDue),
-                          const SizedBox(height: 18),
-                        ],
-                        AssignedActivitiesCard(
-                            activities: _metrics!.assignedToMe,
-                            title: 'Assigned to me (program)'),
-                        const SizedBox(height: 18),
-                      ],
-                      if (showEmptyState)
-                        _EmptyStateCard(
-                          onCreate: () => context.go('/${AppRoutes.dashboard}'),
-                        )
-                      else ...[
-                        _SummaryChips(
-                            isWide: isWide, projectCount: _projects.length),
-                        const SizedBox(height: 24),
-                        Column(
-                          children: [
-                            _ProjectsCard(
-                              projects: _projects,
-                              isLoading: _isLoading,
-                              error: _error,
-                            ),
-                            const SizedBox(height: 18),
-                            const _ProgramActionsCard(),
-                            const SizedBox(height: 18),
-                            const _InterfaceCard(),
-                            const SizedBox(height: 18),
-                            const _RollupCard(),
-                            const SizedBox(height: 18),
-                            if (_currentProgram != null)
-                              AggregatedBusinessSystemsCard(
-                                programId: _currentProgram!.id,
-                                programName: _currentProgram!.name,
-                              ),
-                          ],
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(64, 24, 64, 80),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildHeader(),
+                    const SizedBox(height: 32),
+                    _buildHeroBento(context),
+                    const SizedBox(height: 24),
+                    _buildMainGrid(context),
+                  ],
+                ),
+              ),
             ),
           ),
-          const KazAiChatBubble(),
         ],
       ),
     );
   }
 
-  List<DashboardStatCard> _buildProgramStatsCards(bool isSignedIn) {
-    if (!isSignedIn) {
-      return const [
-        DashboardStatCard(
-          label: 'Basic Projects',
-          value: '—',
-          subLabel: 'Sign in to view',
-          icon: Icons.folder_special_rounded,
-          color: Color(0xFF16A34A),
-        ),
-        DashboardStatCard(
-          label: 'Single Projects',
-          value: '—',
-          subLabel: 'Sign in to view',
-          icon: Icons.folder_open_rounded,
-          color: Color(0xFF2563EB),
-        ),
-        DashboardStatCard(
-          label: 'Programs',
-          value: '—',
-          subLabel: 'Sign in to view',
-          icon: Icons.layers_outlined,
-          color: Color(0xFF9333EA),
-        ),
-        DashboardStatCard(
-          label: 'Portfolios',
-          value: '—',
-          subLabel: 'Sign in to view',
-          icon: Icons.pie_chart_outline_rounded,
-          color: Color(0xFF15803D),
-        ),
-      ];
-    }
-
-    return [
-      DashboardStatCard(
-        label: 'Basic Projects',
-        value: '$_basicProjectCount',
-        subLabel: 'Basic plan workspaces',
-        icon: Icons.folder_special_rounded,
-        color: Colors.teal.shade600,
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const BasicPlanDashboardScreen()),
-          );
-        },
-      ),
-      DashboardStatCard(
-        label: 'Single Projects',
-        value: '$_totalProjects',
-        subLabel: 'Active workspaces',
-        icon: Icons.folder_open_rounded,
-        color: Colors.blue.shade600,
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ProjectDashboardScreen()),
-          );
-        },
-      ),
-      DashboardStatCard(
-        label: 'Programs',
-        value: '$_programCount',
-        subLabel: 'Grouped projects',
-        icon: Icons.layers_outlined,
-        color: Colors.purple.shade600,
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ProgramDashboardScreen()),
-          );
-        },
-      ),
-      DashboardStatCard(
-        label: 'Portfolios',
-        value: '$_portfolioCount',
-        subLabel: 'Executive views',
-        icon: Icons.pie_chart_outline_rounded,
-        color: const Color(0xFF16A34A),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const PortfolioDashboardScreen()),
-          );
-        },
-      ),
-    ];
-  }
-}
-
-class _Header extends StatelessWidget {
-  const _Header({required this.isWide, this.programName});
-
-  final bool isWide;
-  final String? programName;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final trimmedName = programName?.trim();
-    final title = (trimmedName != null && trimmedName.isNotEmpty)
-        ? trimmedName
-        : 'Program dashboard';
-
+  // ─── Header ──────────────────────────────────────────────────────────────
+  Widget _buildHeader() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Program Alpha Dashboard',
+                style: TextStyle(
+                    color: _primary,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.3,
+                    fontFamily: appFontFamily)),
+            const SizedBox(height: 4),
+            Text('Infrastructure Modernization & Global Expansion',
+                style: TextStyle(
+                    color: _onSurfaceVariant,
+                    fontSize: 16,
+                    fontFamily: appFontFamily)),
+          ],
+        ),
+        Row(
+          children: [
+            // Health score
+            _glassCard(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(children: [
                   Container(
-                    width: 140,
-                    height: 140,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(40),
-                      color: Colors.white,
-                      border:
-                          Border.all(color: Colors.grey.withOpacity(0.2)),
-                      boxShadow: [
-                        BoxShadow(
-                          offset: const Offset(0, 12),
-                          blurRadius: 24,
-                          color: Colors.black.withOpacity(0.08),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Image.asset(
-                      'assets/images/Logo.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Text(
-                      'World-class delivery intelligence',
-                      style: textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF4D5060),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF5D7),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFFFE7A8)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.grid_view_rounded,
-                            size: 18, color: Color(0xFF8A5800)),
-                        SizedBox(width: 8),
-                        Text(
-                          'Program workspace overview',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF8A5800),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                          color: _amber,
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: _amber, blurRadius: 8)])),
                   const SizedBox(width: 12),
-                  TextButton.icon(
-                    onPressed: () {
-                      if (context.canPop()) {
-                        context.pop();
-                      } else {
-                        context.go('/${AppRoutes.home}');
-                      }
-                    },
-                    icon:
-                        const Icon(Icons.arrow_back, color: Color(0xFF343741)),
-                    label: const Text(
-                      'Back',
-                      style: TextStyle(
-                          color: Color(0xFF343741),
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ],
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('OVERALL HEALTH',
+                        style: TextStyle(
+                            color: _onSurfaceVariant,
+                            fontSize: 10,
+                            fontFamily: appFontFamily)),
+                    Text('72/100',
+                        style: TextStyle(
+                            color: _primary,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: appFontFamily)),
+                  ]),
+                ]),
               ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0E1017),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Coordinate up to three related projects with shared outcomes. Manage interfaces, prioritize delivery, and roll estimates and risk into a single program view before promoting to a portfolio.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: const Color(0xFF4D5060),
-                  height: 1.55,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 16),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: const [
-            _PrimaryButton(label: 'Add project to program'),
-            _GhostButton(label: 'Add another program'),
-            _GhostButton(label: 'Create portfolio'),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _SummaryChips extends StatelessWidget {
-  const _SummaryChips({required this.isWide, required this.projectCount});
-
-  final bool isWide;
-  final int projectCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final chips = [
-      _InfoChip(label: '$projectCount of 3 projects in this program'),
-      const _InfoChip(
-          label: 'Interface manager assigned',
-          color: Color(0xFFDFF2FF),
-          foreground: Color(0xFF0C4DA2)),
-      const _InfoChip(
-          label: 'Rolled up estimate: \$5.4M',
-          color: Color(0xFFECF8F5),
-          foreground: Color(0xFF0D8A5A)),
-    ];
-
-    if (isWide) {
-      return Row(
-        children: [
-          for (int i = 0; i < chips.length; i++) ...[
-            Expanded(child: chips[i]),
-            if (i != chips.length - 1) const SizedBox(width: 12),
-          ],
-        ],
-      );
-    }
-
-    return Column(
-      children: [
-        for (int i = 0; i < chips.length; i++) ...[
-          chips[i],
-          if (i != chips.length - 1) const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
-}
-
-class _EmptyStateCard extends StatelessWidget {
-  const _EmptyStateCard({required this.onCreate});
-
-  final VoidCallback onCreate;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return _Surface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('No programs yet',
-              style:
-                  textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(
-            'Create a program from three projects to see a live program dashboard here.',
-            style: textTheme.bodyMedium
-                ?.copyWith(color: const Color(0xFF565970), height: 1.45),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onCreate,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF111111),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24)),
-              textStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            child: const Text('Go to project dashboard'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProjectsCard extends StatelessWidget {
-  const _ProjectsCard({
-    required this.projects,
-    required this.isLoading,
-    this.error,
-  });
-
-  final List<ProjectRecord> projects;
-  final bool isLoading;
-  final String? error;
-
-  // Convert ProjectRecord to display info
-  _ProjectInfo _toProjectInfo(ProjectRecord record, int index) {
-    // Determine stage color based on status
-    Color stageColor;
-    switch (record.status.toLowerCase()) {
-      case 'initiation':
-        stageColor = const Color(0xFF9747FF);
-        break;
-      case 'front-end planning':
-      case 'planning':
-        stageColor = const Color(0xFF0B7AE4);
-        break;
-      case 'execution':
-      case 'in progress':
-        stageColor = const Color(0xFF17A673);
-        break;
-      case 'close-out':
-      case 'complete':
-        stageColor = const Color(0xFF565970);
-        break;
-      default:
-        stageColor = const Color(0xFF0B7AE4);
-    }
-
-    // Determine priority color based on index (P1, P2, P3)
-    final priorityColors = [
-      const Color(0xFFFFB02E), // P1 - Primary driver (yellow/orange)
-      const Color(0xFF4B61D1), // P2 - Dependent (blue)
-      const Color(0xFF17A673), // P3 - Support (green)
-    ];
-    final priorityLabels = [
-      'P1 · Primary driver',
-      'P2 · Dependent',
-      'P3 · Support'
-    ];
-
-    // Extract category from tags or use default
-    String category = 'General';
-    if (record.tags.isNotEmpty) {
-      category = record.tags.first;
-    }
-
-    // Generate project code
-    final projectCode =
-        'PRJ-${(index + 1).toString().padLeft(3, '0')} · $category';
-
-    return _ProjectInfo(
-      title: record.name.isEmpty ? 'Untitled Project' : record.name,
-      code: projectCode,
-      stage: record.status.isEmpty ? 'Initiation' : record.status,
-      stageColor: stageColor,
-      priority: priorityLabels[index.clamp(0, 2)],
-      priorityColor: priorityColors[index.clamp(0, 2)],
-      owner: record.ownerName.isEmpty ? 'Unassigned' : record.ownerName,
-      status: 'Open',
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final remainingSlots = 3 - projects.length;
-
-    return _Surface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Projects in this program',
-                        style: textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Review selection, prioritize work, and manage shared outcomes before rolling up to portfolio.',
-                      style: textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF565970), height: 1.45),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              const _SoftButton(
-                  label: 'Up to 3 related projects',
-                  icon: Icons.layers_outlined),
-            ],
-          ),
-          const SizedBox(height: 18),
-          _InsetCard(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-                  child: Row(
-                    children: [
-                      Expanded(flex: 4, child: _HeaderLabel('Project')),
-                      Expanded(flex: 2, child: _HeaderLabel('Stage')),
-                      Expanded(flex: 2, child: _HeaderLabel('Priority')),
-                      Expanded(flex: 2, child: _HeaderLabel('Owner')),
-                      SizedBox(
-                          width: 64,
-                          child: Center(child: _HeaderLabel('Actions'))),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1, color: Color(0xFFE6E7EE)),
-                if (isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Center(
-                      child: Text(
-                        error!,
-                        style:
-                            textTheme.bodyMedium?.copyWith(color: Colors.red),
-                      ),
-                    ),
-                  )
-                else if (projects.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.all(32),
-                    child: Center(
-                      child: Text(
-                        'No projects in this program yet. Add a project to get started.',
-                        style: textTheme.bodyMedium
-                            ?.copyWith(color: const Color(0xFF565970)),
-                      ),
-                    ),
-                  )
-                else
-                  for (int i = 0; i < projects.length; i++) ...[
-                    _ProjectRow(
-                        projectId: projects[i].id,
-                        info: _toProjectInfo(projects[i], i)),
-                    if (i != projects.length - 1)
-                      const Divider(height: 1, color: Color(0xFFE6E7EE)),
-                  ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          if (remainingSlots > 0)
-            _Banner(
-              message: remainingSlots == 1
-                  ? 'There is room for one more project in this program. Keep all three aligned under a single interface plan.'
-                  : 'There is room for $remainingSlots more projects in this program. Keep all three aligned under a single interface plan.',
-              actionLabel: 'Add another project',
-              onTap: () {},
-            )
-          else
-            _Banner(
-              message: 'This program has reached the maximum of 3 projects.',
-              actionLabel: 'View all',
-              onTap: () {},
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgramActionsCard extends StatelessWidget {
-  const _ProgramActionsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final actions = [
-      _ProgramAction(
-        title: 'Gate approvals',
-        description:
-            'Use the same approval path for all projects in this program.',
-        appliesTo: 'Applies to all',
-        isOn: true,
-      ),
-      _ProgramAction(
-        title: 'Shared risk register',
-        description:
-            'Surface program-level risks and mitigation once across all work.',
-        appliesTo: 'Applies to all',
-        isOn: true,
-      ),
-      _ProgramAction(
-        title: 'Common change control',
-        description: 'Route change requests through a single program board.',
-        appliesTo: 'Project-specific',
-        isOn: false,
-        badgeColor: const Color(0xFFF0F1FF),
-        badgeTextColor: const Color(0xFF3D3FA5),
-      ),
-    ];
-
-    return _Surface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Program-level actions',
-              style:
-                  textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(
-            'Choose which governance, risks, and costs apply to the entire program.',
-            style: textTheme.bodyMedium
-                ?.copyWith(color: const Color(0xFF565970), height: 1.45),
-          ),
-          const SizedBox(height: 18),
-          _InsetCard(
-            child: Column(
-              children: [
-                for (int i = 0; i < actions.length; i++) ...[
-                  _ProgramActionRow(action: actions[i]),
-                  if (i != actions.length - 1)
-                    const Divider(height: 1, color: Color(0xFFE6E7EE)),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0E1017),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 26, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26)),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              child: const Text('Apply selections'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InterfaceCard extends StatelessWidget {
-  const _InterfaceCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final items = _demoInterfaces;
-
-    return _Surface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Interface management',
-                        style: textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Track dependencies and shared interfaces across all projects in this program.',
-                      style: textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF565970), height: 1.45),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              _BadgePill(
-                text: 'Interface Manager: Taylor Brooks',
-                color: const Color(0xFFFFF0C2),
-                textColor: const Color(0xFF8A5800),
-                icon: Icons.person_outline,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _InsetCard(
-            child: Column(
-              children: [
-                for (int i = 0; i < items.length; i++) ...[
-                  _InterfaceRow(item: items[i]),
-                  if (i != items.length - 1)
-                    const Divider(height: 1, color: Color(0xFFE6E7EE)),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0E1017),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(26)),
-                textStyle: const TextStyle(fontWeight: FontWeight.w700),
-              ),
-              child: const Text('Update interfaces for all'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RollupCard extends StatelessWidget {
-  const _RollupCard();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final schedules = [
-      _ScheduleItem(
-          label: 'Goal 1',
-          startMonths: 0,
-          endMonths: 11,
-          color: const Color(0xFF00B69A)),
-      _ScheduleItem(
-          label: 'Goal 2',
-          startMonths: 3,
-          endMonths: 18,
-          color: const Color(0xFF3E8BFF)),
-      _ScheduleItem(
-          label: 'Goal 3',
-          startMonths: 6,
-          endMonths: 12,
-          color: const Color(0xFFF5A524)),
-    ];
-
-    return _Surface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Rolled up estimates',
-              style:
-                  textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
-          Text(
-            'See combined cost, schedule, and risk posture for the entire program.',
-            style: textTheme.bodyMedium
-                ?.copyWith(color: const Color(0xFF565970), height: 1.45),
-          ),
-          const SizedBox(height: 18),
-          _InsetCard(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isStacked = constraints.maxWidth < 500;
-                return isStacked
-                    ? Column(
-                        children: [
-                          _RollupSummary(slices: _demoSlices),
-                          const SizedBox(height: 16),
-                          _ScheduleList(items: schedules),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          Expanded(child: _RollupSummary(slices: _demoSlices)),
-                          const SizedBox(width: 16),
-                          Expanded(child: _ScheduleList(items: schedules)),
-                        ],
-                      );
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          _BadgePill(
-            text:
-                'Risk posture: Medium · 3 open high risks across all goals · Aligned to program critical path',
-            color: const Color(0xFFFFF0C2),
-            textColor: const Color(0xFF8A5800),
-            icon: Icons.shield_moon_outlined,
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0E1017),
-                    side: const BorderSide(color: Color(0xFFE6E7EE)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(26)),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  child: const Text('Export program dashboard'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFFC812),
-                    foregroundColor: const Color(0xFF0E1017),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(26)),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                    elevation: 4,
-                    shadowColor:
-                        const Color(0xFFFFC812).withOpacity(0.45),
-                  ),
-                  child: const Text('Roll up to portfolio'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RollupSummary extends StatelessWidget {
-  const _RollupSummary({required this.slices});
-
-  final List<_RollupSlice> slices;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = slices.fold<double>(0, (sum, s) => sum + s.amount);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _PieChart(size: 140, slices: slices),
             const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (final slice in slices)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        children: [
-                          _Dot(color: slice.color),
-                          const SizedBox(width: 8),
-                          Text(slice.label,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700)),
-                          const Spacer(),
-                          Text(
-                              '\$${slice.amount.toStringAsFixed(1)}M · ${(slice.percent * 100).round()}%',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(color: const Color(0xFF565970))),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  Text(
-                      'Total cost by Program estimate: \$${total.toStringAsFixed(1)}M',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: const Color(0xFF565970))),
-                ],
+            // Executive report button
+            Container(
+              decoration: BoxDecoration(
+                color: _primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () {},
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                    child: Row(children: [
+                      Icon(Icons.ios_share, color: _bg.withValues(alpha: 0.8), size: 16),
+                      const SizedBox(width: 8),
+                      Text('EXECUTIVE REPORT',
+                          style: TextStyle(
+                              color: _bg.withValues(alpha: 0.8),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                              fontFamily: appFontFamily)),
+                    ]),
+                  ),
+                ),
               ),
             ),
           ],
@@ -1134,153 +257,165 @@ class _RollupSummary extends StatelessWidget {
       ],
     );
   }
-}
 
-class _ScheduleList extends StatelessWidget {
-  const _ScheduleList({required this.items});
-
-  final List<_ScheduleItem> items;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Schedule by goal (Gantt)',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 10),
-        for (final item in items) ...[
-          _ScheduleRow(item: item),
-          const SizedBox(height: 10),
-        ],
-      ],
-    );
+  // ─── Hero Bento Grid ─────────────────────────────────────────────────────
+  Widget _buildHeroBento(BuildContext context) {
+    final isDesktop = MediaQuery.sizeOf(context).width > 900;
+    if (isDesktop) {
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(flex: 3, child: _budgetKpi()),
+        const SizedBox(width: 24),
+        Expanded(flex: 6, child: _plannedVsActual()),
+        const SizedBox(width: 24),
+        Expanded(flex: 3, child: _progressGauge()),
+      ]);
+    }
+    return Column(children: [
+      _budgetKpi(),
+      const SizedBox(height: 24),
+      SizedBox(height: 200, child: _plannedVsActual()),
+      const SizedBox(height: 24),
+      _progressGauge(),
+    ]);
   }
-}
 
-class _ScheduleRow extends StatelessWidget {
-  const _ScheduleRow({required this.item});
-
-  final _ScheduleItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    const double maxMonths = 18;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            _Dot(color: item.color),
-            const SizedBox(width: 8),
-            Text(item.label,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
-            const Spacer(),
-            Text('${item.startMonths.toInt()}–${item.endMonths.toInt()} months',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: const Color(0xFF565970))),
-          ],
-        ),
-        const SizedBox(height: 6),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final totalWidth = constraints.maxWidth;
-            final left = (item.startMonths / maxMonths) * totalWidth;
-            final width =
-                ((item.endMonths - item.startMonths) / maxMonths) * totalWidth;
-            return Stack(
-              children: [
-                Container(
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF2F3F8),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                Positioned(
-                  left: left,
-                  child: Container(
-                    height: 12,
-                    width: width,
-                    decoration: BoxDecoration(
-                      color: item.color,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class _ProjectRow extends StatelessWidget {
-  const _ProjectRow({required this.projectId, required this.info});
-
-  final String projectId;
-  final _ProjectInfo info;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return InkWell(
-      onTap: () {
-        // Load project and navigate to initiation phase
-        _handleProjectTap(context, projectId);
-      },
+  Widget _budgetKpi() {
+    return _glassCard(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('TOTAL BUDGET',
+                    style: TextStyle(
+                        color: _onSurfaceVariant,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1,
+                        fontFamily: appFontFamily)),
+                Icon(Icons.payments, color: _onSurfaceVariant, size: 20),
+              ]),
+              const SizedBox(height: 16),
+              Text('\$42.8M',
+                  style: TextStyle(
+                      color: _primary,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      fontFamily: appFontFamily)),
+              const SizedBox(height: 8),
+              Row(children: [
+                Icon(Icons.trending_down, color: _emerald, size: 14),
+                const SizedBox(width: 4),
+                Text('2.4% below forecast',
+                    style: TextStyle(color: _emerald, fontSize: 14, fontFamily: appFontFamily)),
+              ]),
+            ]),
+            const SizedBox(height: 32),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: 0.68,
+                  backgroundColor: _surfaceHighest,
+                  valueColor: const AlwaysStoppedAnimation(_tertiary),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('EXPENDED: \$29.1M',
+                    style: TextStyle(
+                        color: _onSurfaceVariant,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.5,
+                        fontFamily: appFontFamily)),
+                Text('68%',
+                    style: TextStyle(
+                        color: _onSurfaceVariant,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: appFontFamily)),
+              ]),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _plannedVsActual() {
+    final planned = [0.40, 0.55, 0.70, 0.85, 0.65, 0.90];
+    final actual = [0.38, 0.52, 0.72, 0.88, 0.60, 0.95];
+    final labels = ['Q1', 'Q2', 'Q3', 'Q4', 'FY24'];
+
+    return _glassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('PLANNED VS ACTUAL COST',
+                  style: TextStyle(
+                      color: _onSurfaceVariant,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1,
+                      fontFamily: appFontFamily)),
+              Row(children: [
+                _legendDot('Planned', _tertiary),
+                const SizedBox(width: 12),
+                _legendDot('Actual', _secondary),
+              ]),
+            ]),
+            const SizedBox(height: 24),
             Expanded(
-              flex: 4,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(info.title,
-                      style: textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(info.code,
-                      style: textTheme.bodySmall
-                          ?.copyWith(color: const Color(0xFF6B6D80))),
-                ],
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(6, (i) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Planned bar
+                      Container(
+                        width: 12,
+                        decoration: BoxDecoration(
+                          color: _tertiary.withValues(alpha: 0.4),
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                        ),
+                        height: double.maxFinite * planned[i] * 0.001,
+                      ),
+                      const SizedBox(width: 2),
+                      // Actual bar
+                      Container(
+                        width: 12,
+                        decoration: BoxDecoration(
+                          color: _secondary,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                        ),
+                        height: double.maxFinite * actual[i] * 0.001,
+                      ),
+                    ],
+                  );
+                }),
               ),
             ),
-            Expanded(
-                flex: 2,
-                child: _Pill(label: info.stage, color: info.stageColor)),
-            Expanded(
-                flex: 2,
-                child: _Pill(
-                    label: info.priority,
-                    color: info.priorityColor,
-                    foreground: Colors.white)),
-            Expanded(
-              flex: 2,
-              child: Text(info.owner,
-                  style: textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-            ),
-            SizedBox(
-              width: 64,
-              child: Center(
-                child: Text(info.status,
-                    style: textTheme.labelLarge
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-              ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: labels
+                  .map((l) => Text(l,
+                      style: TextStyle(
+                          color: _onSurfaceVariant,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: appFontFamily)))
+                  .toList(),
             ),
           ],
         ),
@@ -1288,669 +423,485 @@ class _ProjectRow extends StatelessWidget {
     );
   }
 
-  Future<void> _handleProjectTap(BuildContext context, String projectId) async {
-    final rootNavigator = Navigator.of(context, rootNavigator: true);
-    var loadingDialogVisible = false;
+  Widget _legendDot(String label, Color color) {
+    return Row(children: [
+      Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 4),
+      Text(label,
+          style: TextStyle(
+              color: _onSurfaceVariant, fontSize: 10, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+    ]);
+  }
 
-    void dismissLoadingDialog() {
-      if (!loadingDialogVisible) return;
-      if (rootNavigator.mounted) {
-        rootNavigator.pop();
-      }
-      loadingDialogVisible = false;
-    }
-
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      useRootNavigator: true,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(strokeWidth: 3),
-                SizedBox(height: 16),
-                Text(
-                  'Loading project...',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+  Widget _progressGauge() {
+    return _glassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 120,
+              height: 120,
+              child: AnimatedBuilder(
+                animation: _gaugeAnim,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _RadialGaugePainter(
+                      progress: _gaugeAnim.value * 72,
+                      fillColor: _tertiary,
+                      trackColor: _surfaceHighest,
+                    ),
+                    child: Center(
+                      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Text('${(_gaugeAnim.value * 72).round()}%',
+                            style: TextStyle(
+                                color: _primary,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: appFontFamily)),
+                        Text('COMPLETED',
+                            style: TextStyle(
+                                color: _onSurfaceVariant,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                fontFamily: appFontFamily)),
+                      ]),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+            const SizedBox(height: 16),
+            Text('GLOBAL PROGRESS',
+                style: TextStyle(
+                    color: _onSurfaceVariant,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                    fontFamily: appFontFamily)),
+          ],
         ),
       ),
-    ).whenComplete(() {
-      loadingDialogVisible = false;
-    });
-    loadingDialogVisible = true;
+    );
+  }
 
-    try {
-      final provider = ProjectDataInherited.read(context);
-      debugPrint('Calling loadFromFirebase for project: $projectId');
-
-      final success = await provider
-          .loadFromFirebase(projectId)
-          .timeout(const Duration(seconds: 35));
-
-      debugPrint('Load result: $success, error: ${provider.lastError}');
-
-      if (!context.mounted) return;
-
-      dismissLoadingDialog();
-
-      if (success) {
-        // Get checkpoint from Firestore (primary source) or fallback to SharedPreferences
-        final projectRecord = await ProjectService.getProjectById(projectId);
-        final checkpointRoute = projectRecord?.checkpointRoute.isNotEmpty ==
-                true
-            ? projectRecord!.checkpointRoute
-            : await ProjectNavigationService.instance.getLastPage(projectId);
-        debugPrint(
-            'Project loaded successfully, navigating to checkpoint: $checkpointRoute');
-
-        if (!context.mounted) return;
-
-        // Resolve checkpoint to screen widget
-        final screen = NavigationRouteResolver.resolveCheckpointToScreen(
-          checkpointRoute.isEmpty ? 'initiation' : checkpointRoute,
-          context,
-        );
-
-        // Navigate to the resolved screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (_) => screen ?? const InitiationPhaseScreen()),
-        );
-      } else {
-        debugPrint('Failed to load project: ${provider.lastError}');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(
-                    'Failed to load project: ${provider.lastError ?? "Unknown error"}')),
-          );
-        }
-      }
-    } on TimeoutException catch (e) {
-      debugPrint('Error loading project: $e');
-      if (context.mounted) {
-        dismissLoadingDialog();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Project load timed out. Please retry in a moment.')),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error loading project: $e');
-      if (context.mounted) {
-        dismissLoadingDialog();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading project: $e')),
-        );
-      }
-    } finally {
-      if (context.mounted) {
-        dismissLoadingDialog();
-      }
+  // ─── Main Grid ───────────────────────────────────────────────────────────
+  Widget _buildMainGrid(BuildContext context) {
+    final isDesktop = MediaQuery.sizeOf(context).width > 900;
+    if (isDesktop) {
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(flex: 8, child: _leftColumn()),
+        const SizedBox(width: 24),
+        Expanded(flex: 4, child: _rightColumn()),
+      ]);
     }
+    return Column(children: [
+      _leftColumn(),
+      const SizedBox(height: 24),
+      _rightColumn(),
+    ]);
   }
-}
 
-class _InterfaceRow extends StatelessWidget {
-  const _InterfaceRow({required this.item});
+  // ─── Left Column: Health Matrix + Risks + Capacity ───────────────────────
+  Widget _leftColumn() {
+    return Column(children: [
+      _healthMatrix(),
+      const SizedBox(height: 24),
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: _criticalRisks()),
+        const SizedBox(width: 24),
+        Expanded(child: _resourceCapacity()),
+      ]),
+    ]);
+  }
 
-  final _InterfaceItem item;
+  Widget _healthMatrix() {
+    final projects = [
+      ('Project Phoenix', 'Cloud Integration', 'Healthy', _emerald, [0.2, 0.4, 0.6, 1.0], 'On Track', '92%', null),
+      ('Data Lake 2.0', 'Architecture Shift', 'At Risk', _amber, [1.0, 0.6, 0.4, 0.2], 'Delayed (2w)', '45%', _amber),
+      ('CyberShield v4', 'Security Audit', 'Critical', _crimson, [0.8, 1.0, 0.5, 0.2], 'Stalled', '12%', _crimson),
+      ('Project Titan', 'Heavy Infrastructure', 'Healthy', _emerald, [0.2, 0.4, 0.6, 1.0], 'Ahead (1w)', '68%', null),
+      ('Edge Connect', 'IoT Rollout', 'Healthy', _emerald, [0.4, 1.0, 0.6, 0.2], 'On Track', '84%', null),
+    ];
 
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-      child: Row(
+    return _glassCard(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.title,
-                    style: textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                _BadgePill(
-                    text: item.appliesTo,
-                    color: const Color(0xFFEFF3FF),
-                    textColor: const Color(0xFF0C4DA2)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: item.tags
-                      .map((tag) => _BadgePill(
-                          text: tag,
-                          color: const Color(0xFFF3F4FA),
-                          textColor: const Color(0xFF2F3045)))
-                      .toList(),
+          // Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 14),
+            decoration: BoxDecoration(
+              color: _surfaceHigh.withValues(alpha: 0.5),
+              border: Border(bottom: BorderSide(color: _outlineVariant.withValues(alpha: 0.3))),
+            ),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text('Project Health Matrix',
+                  style: TextStyle(
+                      color: _primary,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: appFontFamily)),
+              Icon(Icons.filter_list, color: _onSurfaceVariant, size: 18),
+            ]),
+          ),
+          // Table
+          ...List.generate(projects.length, (i) {
+            final p = projects[i];
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                border: i < projects.length - 1
+                    ? Border(bottom: BorderSide(color: Colors.white.withValues(alpha: 0.05)))
+                    : null,
+              ),
+              child: Row(children: [
+                // Project name
+                Expanded(flex: 3, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(p.$1, style: TextStyle(color: _primary, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+                  Text(p.$2, style: TextStyle(color: _onSurfaceVariant, fontSize: 11, fontFamily: appFontFamily)),
+                ])),
+                // Status
+                Expanded(flex: 2, child: Row(children: [
+                  Container(width: 8, height: 8, decoration: BoxDecoration(color: p.$4, shape: BoxShape.circle, boxShadow: [BoxShadow(color: p.$4, blurRadius: 8)])),
+                  const SizedBox(width: 8),
+                  Text(p.$3, style: TextStyle(color: _onSurfaceVariant, fontSize: 13, fontFamily: appFontFamily)),
+                ])),
+                // Budget trend sparkline
+                Expanded(flex: 2, child: SizedBox(
+                  height: 24,
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: p.$5.map<Widget>((h) => Expanded(child: Container(margin: const EdgeInsets.only(right: 1), decoration: BoxDecoration(color: p.$4.withValues(alpha: h == 1.0 ? 1.0 : h * 0.6), borderRadius: BorderRadius.circular(1)), height: 24 * h))).toList()),
+                )),
+                // Schedule
+                Expanded(flex: 2, child: Text(p.$6, style: TextStyle(color: p.$8 ?? _onSurface, fontSize: 13, fontFamily: appFontFamily))),
+                // Progress
+                Expanded(child: Align(alignment: Alignment.centerRight, child: Text(p.$7, style: TextStyle(color: _primary, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: appFontFamily)))),
+              ]),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _criticalRisks() {
+    final risks = [
+      ('Resource Burnout - Project Titan', 'Key developers at 140% capacity for 6+ weeks.', _crimson, Icons.report, true),
+      ('Hardware Lead-Time Delay', 'Global supply chain constraints impacting Phase 3.', _amber, Icons.warning, true),
+      ('Budget Re-allocation Needed', 'Surplus from Project Phoenix could offset Data Lake.', _outlineVariant, Icons.info, false),
+    ];
+
+    return _glassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Critical Risks',
+                style: TextStyle(color: _primary, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(color: _crimson.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)),
+              child: Text('3 HIGH PRIORITY',
+                  style: TextStyle(color: _crimson, fontSize: 10, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+            ),
+          ]),
+          const SizedBox(height: 24),
+          ...risks.map((r) => Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _surfaceHigh.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: r.$3.withValues(alpha: r.$5 ? 0.3 : 0.15)),
+            ),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(r.$4, color: r.$3, size: 18),
+              const SizedBox(width: 12),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(r.$1, style: TextStyle(color: _primary, fontSize: 13, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+                const SizedBox(height: 4),
+                Text(r.$2, style: TextStyle(color: _onSurfaceVariant, fontSize: 11, fontFamily: appFontFamily)),
+              ])),
+            ]),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  Widget _resourceCapacity() {
+    final resources = [
+      ('Engineering', 98, _crimson),
+      ('DevOps / Cloud', 72, _emerald),
+      ('Security Analysis', 85, _amber),
+      ('UX / Design', 40, _emerald),
+    ];
+
+    return _glassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('Resource Capacity',
+                style: TextStyle(color: _primary, fontSize: 18, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+            Text('ACROSS PROJECTS',
+                style: TextStyle(color: _onSurfaceVariant, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 1, fontFamily: appFontFamily)),
+          ]),
+          const SizedBox(height: 24),
+          ...resources.map((r) => Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text(r.$1, style: TextStyle(color: _onSurfaceVariant, fontSize: 11, fontFamily: appFontFamily)),
+                Text('${r.$2}%', style: TextStyle(color: r.$3, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+              ]),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: r.$2 / 100,
+                  backgroundColor: _surfaceHighest,
+                  valueColor: AlwaysStoppedAnimation(r.$3),
+                  minHeight: 6,
                 ),
-              ],
+              ),
+            ]),
+          )),
+        ]),
+      ),
+    );
+  }
+
+  // ─── Right Column: Escalations + Activity + Visual Context ───────────────
+  Widget _rightColumn() {
+    return Column(children: [
+      _escalationSummary(),
+      const SizedBox(height: 24),
+      _recentActivity(),
+      const SizedBox(height: 24),
+      _visualContext(),
+    ]);
+  }
+
+  Widget _escalationSummary() {
+    return _glassCard(
+      leftBorder: _amber,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(Icons.priority_high, color: _amber, size: 18),
+            const SizedBox(width: 8),
+            Text('ESCALATION SUMMARY',
+                style: TextStyle(color: _amber, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1, fontFamily: appFontFamily)),
+          ]),
+          const SizedBox(height: 16),
+          // Escalation 1
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: _surfaceHighest.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
             ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              _BadgePill(
-                  text: item.riskLabel,
-                  color: item.riskColor.withOpacity(0.18),
-                  textColor: item.riskColor),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('OPEN APPROVAL',
+                  style: TextStyle(color: _onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, fontFamily: appFontFamily)),
+              const SizedBox(height: 4),
+              Text('Project Titan requires +\$2.5M additional contingency approval by EOD Friday.',
+                  style: TextStyle(color: _primary, fontSize: 13, fontFamily: appFontFamily)),
               const SizedBox(height: 12),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.more_horiz)),
-            ],
+              GestureDetector(
+                onTap: () {},
+                child: Row(children: [
+                  Text('REVIEW DETAILS',
+                      style: TextStyle(color: _tertiary, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+                  Icon(Icons.arrow_forward, color: _tertiary, size: 12),
+                ]),
+              ),
+            ]),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgramActionRow extends StatelessWidget {
-  const _ProgramActionRow({required this.action});
-
-  final _ProgramAction action;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 14, 4, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Switch.adaptive(value: action.isOn, onChanged: (_) {}),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(action.title,
-                    style: textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
-                Text(action.description,
-                    style: textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF565970), height: 1.4)),
-              ],
+          // Escalation 2
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: _surfaceHighest.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(8),
             ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('SCHEDULE REVISION',
+                  style: TextStyle(color: _onSurfaceVariant, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1, fontFamily: appFontFamily)),
+              const SizedBox(height: 4),
+              Text('Baseline shift requested for CyberShield v4 due to legislative changes.',
+                  style: TextStyle(color: _primary, fontSize: 13, fontFamily: appFontFamily)),
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () {},
+                child: Row(children: [
+                  Text('REVIEW DETAILS',
+                      style: TextStyle(color: _tertiary, fontSize: 11, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+                  Icon(Icons.arrow_forward, color: _tertiary, size: 12),
+                ]),
+              ),
+            ]),
           ),
-          const SizedBox(width: 10),
-          _BadgePill(
-            text: action.appliesTo,
-            color: action.badgeColor ?? const Color(0xFFEFF4FF),
-            textColor: action.badgeTextColor ?? const Color(0xFF0C4DA2),
-          ),
-        ],
+        ]),
       ),
     );
   }
-}
 
-class _PieChart extends StatelessWidget {
-  const _PieChart({required this.size, required this.slices});
+  Widget _recentActivity() {
+    final activities = [
+      ('M. Chen pushed a budget update', 'Project Phoenix  •  22 mins ago', _primary),
+      ('Milestone Reached: Q3 Cloud Gate', 'Data Lake 2.0  •  2 hours ago', _emerald),
+      ('Risk Level Updated to Medium', 'Edge Connect  •  5 hours ago', _amber),
+      ('S. Rossi added a comment', 'Resource Allocation  •  Yesterday', _primary),
+    ];
 
-  final double size;
-  final List<_RollupSlice> slices;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _PieChartPainter(slices: slices),
+    return _glassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('RECENT ACTIVITY',
+              style: TextStyle(color: _onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1, fontFamily: appFontFamily)),
+          const SizedBox(height: 24),
+          // Timeline
+          Stack(children: [
+            // Vertical line
+            Positioned(
+              left: 7,
+              top: 0,
+              bottom: 0,
+              child: Container(width: 1, color: _outlineVariant.withValues(alpha: 0.3)),
+            ),
+            ...activities.map((a) => Padding(
+              padding: const EdgeInsets.only(bottom: 20, left: 24),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Positioned(
+                  left: 0,
+                  top: 4,
+                  child: Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: _surface,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _outlineVariant.withValues(alpha: 0.4)),
+                    ),
+                    child: Center(child: Container(width: 6, height: 6, decoration: BoxDecoration(color: a.$3, shape: BoxShape.circle))),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(a.$1, style: TextStyle(color: _primary, fontSize: 12, fontFamily: appFontFamily)),
+                  Text(a.$2, style: TextStyle(color: _onSurfaceVariant, fontSize: 10, fontFamily: appFontFamily)),
+                ])),
+              ]),
+            )),
+          ]),
+        ]),
       ),
     );
   }
+
+  Widget _visualContext() {
+    return _glassCard(
+      child: Container(
+        height: 192,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [_bg, _surfaceHigh.withValues(alpha: 0.3)],
+          ),
+        ),
+        child: Stack(children: [
+          // Cinematic city construction graphic (simplified with gradient)
+          Positioned.fill(child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [_surfaceHigh.withValues(alpha: 0.2), _bg.withValues(alpha: 0.8)])))),
+          // City silhouette shapes
+          Positioned(bottom: 0, left: 0, right: 0, child: Row(crossAxisAlignment: CrossAxisAlignment.end, mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _cityBuilding(40, 60, _surfaceHighest.withValues(alpha: 0.4)),
+            _cityBuilding(30, 80, _surfaceHighest.withValues(alpha: 0.3)),
+            _cityBuilding(50, 100, _surfaceHighest.withValues(alpha: 0.5)),
+            _cityBuilding(35, 70, _surfaceHighest.withValues(alpha: 0.35)),
+            _cityBuilding(45, 90, _surfaceHighest.withValues(alpha: 0.45)),
+            _cityBuilding(30, 50, _surfaceHighest.withValues(alpha: 0.3)),
+          ])),
+          // Glow spots
+          Positioned(top: 20, right: 30, child: Container(width: 60, height: 60, decoration: BoxDecoration(shape: BoxShape.circle, color: _tertiaryContainer.withValues(alpha: 0.15), boxShadow: [BoxShadow(color: _tertiaryContainer.withValues(alpha: 0.2), blurRadius: 30)]))),
+          Positioned(top: 40, left: 40, child: Container(width: 50, height: 50, decoration: BoxDecoration(shape: BoxShape.circle, color: _secondary.withValues(alpha: 0.1), boxShadow: [BoxShadow(color: _secondary.withValues(alpha: 0.15), blurRadius: 25)]))),
+          // Label
+          Positioned(bottom: 16, left: 16, child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('VISUAL CONTEXT',
+                style: TextStyle(color: _tertiary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 2, fontFamily: appFontFamily)),
+            Text('Site A-01 Progress',
+                style: TextStyle(color: _primary, fontSize: 14, fontWeight: FontWeight.bold, fontFamily: appFontFamily)),
+          ])),
+        ]),
+      ),
+    );
+  }
+
+  Widget _cityBuilding(double w, double h, Color c) {
+    return Container(width: w, height: h, decoration: BoxDecoration(color: c, borderRadius: const BorderRadius.only(topLeft: Radius.circular(2), topRight: Radius.circular(2))));
+  }
 }
 
-class _PieChartPainter extends CustomPainter {
-  _PieChartPainter({required this.slices});
+// ─── Radial Gauge Painter ──────────────────────────────────────────────────
+class _RadialGaugePainter extends CustomPainter {
+  final double progress; // 0-100
+  final Color fillColor;
+  final Color trackColor;
 
-  final List<_RollupSlice> slices;
+  _RadialGaugePainter({
+    required this.progress,
+    required this.fillColor,
+    required this.trackColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 18;
-    double start = -math.pi / 2;
+    const strokeWidth = 10.0;
 
-    for (final slice in slices) {
-      final sweep = slice.percent * 2 * math.pi;
-      paint.color = slice.color;
-      canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 6), start,
-          sweep, false, paint);
-      start += sweep;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _PieChartPainter oldDelegate) =>
-      oldDelegate.slices != slices;
-}
-
-class _Surface extends StatelessWidget {
-  const _Surface({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 22,
-              offset: const Offset(0, 12)),
-        ],
-      ),
-      padding: const EdgeInsets.all(22),
-      child: child,
+    // Track (full circle)
+    canvas.drawCircle(
+      center,
+      radius - strokeWidth / 2,
+      Paint()
+        ..color = trackColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth,
     );
+
+    // Progress arc
+    final sweepAngle = (progress / 100) * 2 * 3.14159265;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
+      -3.14159265 / 2, // start from top
+      sweepAngle,
+      false,
+      Paint()
+        ..color = fillColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Inner radial gradient effect
+    final innerPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [fillColor.withValues(alpha: 0.05), Colors.transparent],
+        radius: 0.85,
+      ).createShader(Rect.fromCircle(center: center, radius: radius - strokeWidth));
+
+    canvas.drawCircle(center, radius - strokeWidth, innerPaint);
   }
-}
-
-class _InsetCard extends StatelessWidget {
-  const _InsetCard({required this.child});
-
-  final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDFDFE),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6E7EE)),
-      ),
-      child: child,
-    );
-  }
+  bool shouldRepaint(covariant _RadialGaugePainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
-
-class _Banner extends StatelessWidget {
-  const _Banner(
-      {required this.message, required this.actionLabel, required this.onTap});
-
-  final String message;
-  final String actionLabel;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF4DD),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(color: const Color(0xFF8A5800)),
-            ),
-          ),
-          const SizedBox(width: 10),
-          TextButton.icon(
-            onPressed: onTap,
-            icon: const Icon(Icons.add, color: Color(0xFF8A5800)),
-            label: Text(actionLabel,
-                style: const TextStyle(
-                    color: Color(0xFF8A5800), fontWeight: FontWeight.w700)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderLabel extends StatelessWidget {
-  const _HeaderLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: const Color(0xFF6B6D80),
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
-          ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.label, required this.color, this.foreground});
-
-  final String label;
-  final Color color;
-  final Color? foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.16),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: foreground ?? color,
-            ),
-      ),
-    );
-  }
-}
-
-class _BadgePill extends StatelessWidget {
-  const _BadgePill(
-      {required this.text,
-      required this.color,
-      required this.textColor,
-      this.icon});
-
-  final String text;
-  final Color color;
-  final Color textColor;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration:
-          BoxDecoration(color: color, borderRadius: BorderRadius.circular(18)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 16, color: textColor),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            text,
-            style: Theme.of(context)
-                .textTheme
-                .labelMedium
-                ?.copyWith(fontWeight: FontWeight.w700, color: textColor),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip(
-      {required this.label,
-      this.color = const Color(0xFFE7F0FF),
-      this.foreground = const Color(0xFF0C4DA2)});
-
-  final String label;
-  final Color color;
-  final Color foreground;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_circle, size: 18, color: foreground),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              label,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w700, color: foreground),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton(
-      onPressed: () {},
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFC812),
-        foregroundColor: const Color(0xFF0E1017),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700),
-        elevation: 4,
-        shadowColor: const Color(0xFFFFC812).withOpacity(0.45),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
-class _GhostButton extends StatelessWidget {
-  const _GhostButton({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton(
-      onPressed: () {},
-      style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: Color(0xFFD9DBE3)),
-        foregroundColor: const Color(0xFF0E1017),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        textStyle: const TextStyle(fontWeight: FontWeight.w700),
-      ),
-      child: Text(label),
-    );
-  }
-}
-
-class _SoftButton extends StatelessWidget {
-  const _SoftButton({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F2FA),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: const Color(0xFF0E1017)),
-          const SizedBox(width: 8),
-          Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, color: Color(0xFF0E1017))),
-        ],
-      ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  const _Dot({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}
-
-class _ProjectInfo {
-  const _ProjectInfo({
-    required this.title,
-    required this.code,
-    required this.stage,
-    required this.stageColor,
-    required this.priority,
-    required this.priorityColor,
-    required this.owner,
-    required this.status,
-  });
-
-  final String title;
-  final String code;
-  final String stage;
-  final Color stageColor;
-  final String priority;
-  final Color priorityColor;
-  final String owner;
-  final String status;
-}
-
-class _InterfaceItem {
-  const _InterfaceItem({
-    required this.title,
-    required this.appliesTo,
-    required this.tags,
-    required this.riskLabel,
-    required this.riskColor,
-  });
-
-  final String title;
-  final String appliesTo;
-  final List<String> tags;
-  final String riskLabel;
-  final Color riskColor;
-}
-
-class _ProgramAction {
-  const _ProgramAction({
-    required this.title,
-    required this.description,
-    required this.appliesTo,
-    required this.isOn,
-    this.badgeColor,
-    this.badgeTextColor,
-  });
-
-  final String title;
-  final String description;
-  final String appliesTo;
-  final bool isOn;
-  final Color? badgeColor;
-  final Color? badgeTextColor;
-}
-
-class _RollupSlice {
-  const _RollupSlice(
-      {required this.label,
-      required this.amount,
-      required this.percent,
-      required this.color});
-
-  final String label;
-  final double amount;
-  final double percent;
-  final Color color;
-}
-
-class _ScheduleItem {
-  const _ScheduleItem(
-      {required this.label,
-      required this.startMonths,
-      required this.endMonths,
-      required this.color});
-
-  final String label;
-  final double startMonths;
-  final double endMonths;
-  final Color color;
-}
-
-const _demoInterfaces = [
-  _InterfaceItem(
-    title: 'Terminal access windows',
-    appliesTo: 'Applies to all projects',
-    tags: ['Ops coordination', 'Customer impact'],
-    riskLabel: 'Risk: Medium',
-    riskColor: Color(0xFFFFB02E),
-  ),
-  _InterfaceItem(
-    title: 'Control room cutover',
-    appliesTo: 'Applies to PRJ-001, PRJ-002',
-    tags: ['Safety & SHE/R'],
-    riskLabel: 'Risk: High',
-    riskColor: Color(0xFFE53935),
-  ),
-  _InterfaceItem(
-    title: 'Training & readiness',
-    appliesTo: 'Applies to PRJ-002',
-    tags: ['People readiness'],
-    riskLabel: 'Risk: Low',
-    riskColor: Color(0xFF16B673),
-  ),
-];
-
-const _demoSlices = [
-  _RollupSlice(
-      label: 'Goal 1', amount: 2.1, percent: 0.40, color: Color(0xFF00B69A)),
-  _RollupSlice(
-      label: 'Goal 2', amount: 1.9, percent: 0.35, color: Color(0xFF3E8BFF)),
-  _RollupSlice(
-      label: 'Goal 3', amount: 1.4, percent: 0.25, color: Color(0xFFF5A524)),
-];
