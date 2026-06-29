@@ -13,6 +13,9 @@ import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
+import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/wbs/providers/wbs_provider.dart';
+import 'package:ndu_project/schedule/providers/schedule_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/platform/webview_platform_setup.dart';
@@ -159,6 +162,9 @@ class MyApp extends StatelessWidget {
             create: (_) => AppContentProvider()
               ..watchContent()
               ..loadLocalOverrides()),
+        ChangeNotifierProvider(create: (_) => CostEstimateProvider()),
+        ChangeNotifierProvider(create: (_) => WBSProvider()),
+        ChangeNotifierProvider(create: (_) => ScheduleProvider()),
       ],
       child: Builder(
         builder: (context) {

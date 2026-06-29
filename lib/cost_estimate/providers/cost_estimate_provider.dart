@@ -51,7 +51,7 @@ class CostEstimateProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final data = {
         'state': {
-          'estimate': _estimate?.toJson(),
+          'estimate': _estimate != null ? {'id': _estimate!.id, 'projectName': _estimate!.projectName, 'className': _estimate!.className.name, 'deliveryModel': _estimate!.deliveryModel.name, 'status': _estimate!.status.name, 'currency': _estimate!.currency} : null,
           'setupComplete': _setupComplete,
         },
       };

@@ -6,7 +6,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import "package:ndu_project/cost_estimate/models/cost_estimate_models.dart";
+import "package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart";
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 
 class TotalsPanel extends StatelessWidget {

@@ -69,7 +69,7 @@ class _ActivityNode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 6, left: isRoot ? 0 : 24),
+      margin: EdgeInsets.only(bottom: 6, left: isRoot ? 0 : 24),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(color: const Color(0xFF1C2B3C), borderRadius: BorderRadius.circular(8), border: Border(left: BorderSide(color: Color(activity.domain.color), width: 3))),
       child: Row(children: [

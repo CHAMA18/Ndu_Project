@@ -236,7 +236,7 @@ class WBSProvider extends ChangeNotifier {
   void linkCostLine(String nodeId, String costLineId) {
     if (_wbs == null) return;
     final updatedLevel0 = _findAndUpdateNode(_wbs!.level0, nodeId, (n) {
-      final ids = [...(n.costLineIds ?? []), costLineId];
+      final List<String> ids = [...(n.costLineIds ?? <String>[]), costLineId];
       return n.copyWith(costLineIds: ids);
     });
     _wbs = _wbs!.copyWith(
@@ -250,7 +250,7 @@ class WBSProvider extends ChangeNotifier {
   void unlinkCostLine(String nodeId, String costLineId) {
     if (_wbs == null) return;
     final updatedLevel0 = _findAndUpdateNode(_wbs!.level0, nodeId, (n) {
-      final ids = (n.costLineIds ?? []).where((id) => id != costLineId).toList();
+      final List<String> ids = (n.costLineIds ?? <String>[]).where((id) => id != costLineId).toList();
       return n.copyWith(costLineIds: ids);
     });
     _wbs = _wbs!.copyWith(

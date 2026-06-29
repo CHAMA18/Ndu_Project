@@ -177,7 +177,7 @@ String formatCurrency(double amount, [String currency = 'USD']) {
     'GBP' => '£',
     _ => '',
   };
-  return '$symbol${amount.toInt().toLocaleString()}';
+  return '$symbol${amount.toInt().toString().replaceAllMapped(RegExp(r'(d{1,3})(?=(d{3})+(?!d))'), (Match m) => '${m[1]},')}';
 }
 
 /// Format a variance delta with sign.

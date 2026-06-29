@@ -53,6 +53,9 @@ import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/project_decision_summary_screen.dart';
 import 'package:ndu_project/screens/progress_tracking_screen.dart';
 import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
+import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
+import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_overview_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
@@ -591,7 +594,7 @@ class AppRouter {
       GoRoute(
           name: AppRoutes.wbs,
           path: '/${AppRoutes.wbs}',
-          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const WorkBreakdownStructureScreen())),
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const WBSModuleScreen())),
       GoRoute(
           name: AppRoutes.executionPlan,
           path: '/${AppRoutes.executionPlan}',
@@ -603,7 +606,7 @@ class AppRouter {
       GoRoute(
           name: AppRoutes.costEstimate,
           path: '/${AppRoutes.costEstimate}',
-          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const CostEstimateScreen())),
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const CostEstimateModuleScreen())),
       GoRoute(
         name: AppRoutes.costAnalysis,
         path: '/${AppRoutes.costAnalysis}',
@@ -639,7 +642,7 @@ class AppRouter {
       GoRoute(
           name: AppRoutes.schedule,
           path: '/${AppRoutes.schedule}',
-          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const ScheduleScreen())),
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const ScheduleModuleScreen())),
       GoRoute(
           name: AppRoutes.contractDetails,
           path: '/${AppRoutes.contractDetails}',

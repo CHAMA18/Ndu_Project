@@ -111,14 +111,14 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                         _nav('Global View', true), const SizedBox(width: 24), _nav('B.U. Filter', false), const SizedBox(width: 24), _nav('Strategic Goals', false),
                       ]),
                       Row(children: [
-                        Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: _surfaceHigh.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(24), border: Border.all(color: _outline.withValues(alpha: 0.3))), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.search, color: _muted, size: 16), const SizedBox(width: 8), SizedBox(width: 140, child: TextField(style: TextStyle(color: _onSurface, fontSize: 13, fontFamily: appFontFamily), decoration: InputDecoration(isDense: true, border: InputBorder.none, hintText: 'Search portfolio...', hintStyle: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 13)))])),
+                        _buildSearchBar(),
                         const SizedBox(width: 12),
                         Container(width: 1, height: 28, color: _outline.withValues(alpha: 0.4)),
                         const SizedBox(width: 12),
                         IconButton(icon: Icon(Icons.notifications_outlined, color: _muted, size: 18), onPressed: () {}),
                         IconButton(icon: Icon(Icons.history, color: _muted, size: 18), onPressed: () {}),
                         const SizedBox(width: 8),
-                        Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [_gold, _goldDeep]), borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: _gold.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3))]), child: Material(color: Colors.transparent, child: InkWell(onTap: () {}, borderRadius: BorderRadius.circular(20), child: Padding(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.file_download_outlined, color: const Color(0xFF402D00), size: 14), const SizedBox(width: 6), Text('Export', style: TextStyle(color: const Color(0xFF402D00), fontSize: 13, fontWeight: FontWeight.w700, fontFamily: appFontFamily))]))))),
+                        _buildExportButton(),
                       ]),
                     ]),
                   )),
@@ -141,6 +141,66 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   }
 
   Widget _nav(String label, bool active) => Text(label, style: TextStyle(color: active ? _gold : _muted, fontSize: 13, fontWeight: active ? FontWeight.w700 : FontWeight.w500, letterSpacing: 0.3, fontFamily: appFontFamily));
+
+  Widget _buildSearchBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: _surfaceHigh.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _outline.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.search, color: _muted, size: 16),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 140,
+            child: TextField(
+              style: TextStyle(color: _onSurface, fontSize: 13, fontFamily: appFontFamily),
+              decoration: InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: 'Search portfolio...',
+                hintStyle: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExportButton() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [_gold, _goldDeep]),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: _gold.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {},
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.file_download_outlined, color: const Color(0xFF402D00), size: 14),
+                const SizedBox(width: 6),
+                Text('Export', style: TextStyle(color: const Color(0xFF402D00), fontSize: 13, fontWeight: FontWeight.w700, fontFamily: appFontFamily)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildKpis(BuildContext context) {
     final isDesktop = MediaQuery.sizeOf(context).width > 1000;
