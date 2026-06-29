@@ -58,6 +58,8 @@ import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.da
 import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
 import 'package:ndu_project/project_controls/screens/project_controls_screen.dart';
 import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
+import 'package:ndu_project/screens/landing/landing_page_screen.dart';
+import 'package:ndu_project/screens/landing/careers_page_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_overview_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
@@ -202,6 +204,8 @@ class AppRoutes {
   static const scheduleManagementBoard = 'schedule-management';
   static const projectControls = 'project-controls';
   static const changeManagementModule = 'change-management-module';
+  static const landingPage = 'landing';
+  static const careersPage = 'careers';
 
   // Team cluster
   static const teamManagement = 'team-management';
@@ -663,6 +667,14 @@ class AppRouter {
           name: AppRoutes.changeManagementModule,
           path: '/${AppRoutes.changeManagementModule}',
           pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const ChangeManagementModuleScreen())),
+      GoRoute(
+          name: AppRoutes.landingPage,
+          path: "/landing",
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const LandingPageScreen())),
+      GoRoute(
+          name: AppRoutes.careersPage,
+          path: "/careers",
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const CareersPageScreen())),
       // Team cluster
       GoRoute(
           name: AppRoutes.teamManagement,
