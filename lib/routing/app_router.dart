@@ -56,6 +56,7 @@ import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
 import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
+import 'package:ndu_project/project_controls/screens/project_controls_screen.dart';
 import 'package:ndu_project/screens/execution_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_overview_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
@@ -198,6 +199,7 @@ class AppRoutes {
   static const schedule = 'schedule';
   static const contractDetails = 'contract-details';
   static const scheduleManagementBoard = 'schedule-management';
+  static const projectControls = 'project-controls';
 
   // Team cluster
   static const teamManagement = 'team-management';
@@ -651,6 +653,10 @@ class AppRouter {
           name: AppRoutes.scheduleManagementBoard,
           path: '/${AppRoutes.scheduleManagementBoard}',
           pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const ScheduleManagementBoardScreen())),
+      GoRoute(
+          name: AppRoutes.projectControls,
+          path: '/${AppRoutes.projectControls}',
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const ProjectControlsScreen())),
       // Team cluster
       GoRoute(
           name: AppRoutes.teamManagement,

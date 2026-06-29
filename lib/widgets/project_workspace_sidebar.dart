@@ -50,6 +50,11 @@ class _ProjectWorkspaceSidebarState extends State<ProjectWorkspaceSidebar> {
       _SidebarItemData(icon: Icons.shield_outlined, label: 'Risk Assessment'),
       _SidebarItemData(icon: Icons.security_outlined, label: 'Security Management'),
       _SidebarItemData(icon: Icons.report_problem_outlined, label: 'Issue Management'),
+      _SidebarItemData(
+        icon: Icons.shield_moon_outlined,
+        label: 'Project Controls',
+        onTap: () => context.push('/project-controls'),
+      ),
     ];
 
     final filteredItems = _searchQuery.isEmpty
