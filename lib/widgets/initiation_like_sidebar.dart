@@ -3654,7 +3654,6 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         'controls'.contains(query) ||
         'evm'.contains(query) ||
         'earned value'.contains(query) ||
-        'change management'.contains(query) ||
         'scope tracking'.contains(query) ||
         'cost control'.contains(query) ||
         'forecasting'.contains(query)) {
@@ -3662,6 +3661,18 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           Icons.shield_moon_outlined, 'Project Controls',
           onTap: () => context.push('/project-controls'),
           isActive: widget.activeItemLabel == 'Project Controls'));
+    }
+    if ('change management'.contains(query) ||
+        'change request'.contains(query) ||
+        'change'.contains(query) ||
+        'moc'.contains(query) ||
+        'baseline'.contains(query) ||
+        'contingency'.contains(query) ||
+        'reserve'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.change_circle_outlined, 'Change Management',
+          onTap: () => context.push('/change-management-module'),
+          isActive: widget.activeItemLabel == 'Change Management'));
     }
     if ('settings'.contains(query)) {
       results.add(_buildMenuItem(Icons.settings_outlined, 'Settings',

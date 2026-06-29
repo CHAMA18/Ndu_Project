@@ -17,6 +17,7 @@ import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart'
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/schedule/providers/schedule_provider.dart';
 import 'package:ndu_project/project_controls/providers/project_controls_provider.dart';
+import 'package:ndu_project/project_controls/providers/change_management_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/platform/webview_platform_setup.dart';
@@ -167,6 +168,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WBSProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => ProjectControlsProvider()),
+        ChangeNotifierProvider(create: (_) => ChangeManagementProvider()),
       ],
       child: Builder(
         builder: (context) {
