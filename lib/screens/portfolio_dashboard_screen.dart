@@ -27,25 +27,26 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
 
-  static const _bg = Color(0xFF051424);
-  static const _surface = Color(0xFF0D1C2D);
-  static const _surfaceHigh = Color(0xFF1C2B3C);
-  static const _surfaceHighest = Color(0xFF273647);
-  static const _onSurface = Color(0xFFD4E4FA);
-  static const _muted = Color(0xFF909096);
-  static const _outline = Color(0xFF46464C);
-  static const _gold = Color(0xFFF8BD2A);
-  static const _goldBright = Color(0xFFFCD34D);
-  static const _goldDeep = Color(0xFFF59E0B);
-  static const _blue = Color(0xFF818CF8);
-  static const _blueDeep = Color(0xFF6366F1);
-  static const _emerald = Color(0xFF10B981);
-  static const _amber = Color(0xFFF59E0B);
-  static const _crimson = Color(0xFFEF4444);
-  static const _crimsonBright = Color(0xFFF87171);
+  // Light theme — plain white background with dark text
+  static const _bg = Color(0xFFFFFFFF);
+  static const _surface = Color(0xFFF8FAFC);
+  static const _surfaceHigh = Color(0xFFF1F5F9);
+  static const _surfaceHighest = Color(0xFFE2E8F0);
+  static const _onSurface = Color(0xFF0F172A);
+  static const _muted = Color(0xFF64748B);
+  static const _outline = Color(0xFFE2E8F0);
+  static const _gold = Color(0xFFD97706);
+  static const _goldBright = Color(0xFFF59E0B);
+  static const _goldDeep = Color(0xFFB45309);
+  static const _blue = Color(0xFF6366F1);
+  static const _blueDeep = Color(0xFF4F46E5);
+  static const _emerald = Color(0xFF059669);
+  static const _amber = Color(0xFFD97706);
+  static const _crimson = Color(0xFFDC2626);
+  static const _crimsonBright = Color(0xFFEF4444);
 
   LinearGradient get _goldGrad => const LinearGradient(
-    colors: [Color(0xFFFCD34D), Color(0xFFF8BD2A), Color(0xFFF59E0B)],
+    colors: [Color(0xFFF59E0B), Color(0xFFD97706), Color(0xFFB45309)],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
 
@@ -71,9 +72,10 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
           filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
           child: Container(
             decoration: BoxDecoration(
-              color: _surfaceHigh.withValues(alpha: 0.5),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _outline.withValues(alpha: 0.3), width: 0.5),
+              border: Border.all(color: _outline, width: 1),
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
             ),
             child: child,
           ),
@@ -86,20 +88,18 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(center: Alignment(0, -1.2), radius: 1.8, colors: [Color(0xFF0D1C2D), Color(0xFF051424)]),
-        ),
+        color: _bg,
         child: Stack(children: [
-          Positioned(top: -100, right: -100, child: Container(width: 400, height: 400, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_blue.withValues(alpha: 0.06), Colors.transparent])))),
-          Positioned(bottom: -150, left: -80, child: Container(width: 350, height: 350, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_gold.withValues(alpha: 0.05), Colors.transparent])))),
+          Positioned(top: -100, right: -100, child: Container(width: 400, height: 400, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_blue.withValues(alpha: 0.03), Colors.transparent])))),
+          Positioned(bottom: -150, left: -80, child: Container(width: 350, height: 350, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_gold.withValues(alpha: 0.03), Colors.transparent])))),
           CustomScrollView(slivers: [
             SliverAppBar(
               pinned: true, toolbarHeight: 68,
-              backgroundColor: _bg.withValues(alpha: 0.7), surfaceTintColor: Colors.transparent,
+              backgroundColor: _bg.withValues(alpha: 0.85), surfaceTintColor: Colors.transparent,
               flexibleSpace: ClipRect(child: BackdropFilter(
                 filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
                 child: Container(
-                  decoration: BoxDecoration(color: _bg.withValues(alpha: 0.7), border: Border(bottom: BorderSide(color: _outline.withValues(alpha: 0.4)))),
+                  decoration: BoxDecoration(color: _bg.withValues(alpha: 0.85), border: Border(bottom: BorderSide(color: _outline.withValues(alpha: 0.8)))),
                   child: SafeArea(child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 32),
                     child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
