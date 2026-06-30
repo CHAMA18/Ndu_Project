@@ -11,7 +11,9 @@ import 'package:ndu_project/screens/it_considerations_screen.dart';
 import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
-import 'package:ndu_project/screens/cost_estimate_screen.dart';
+import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
+import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
 import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_requirements_screen.dart';
 import 'package:ndu_project/screens/front_end_planning_risks_screen.dart';
@@ -46,7 +48,6 @@ import 'package:ndu_project/screens/change_management_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 import 'package:ndu_project/screens/agile_project_baseline_screen.dart';
@@ -62,7 +63,6 @@ import 'package:ndu_project/screens/team_training_building_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
 import 'package:ndu_project/screens/engineering_design_screen.dart';
-import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/interface_management_screen.dart';
 import 'package:ndu_project/screens/startup_planning_screen.dart';
 import 'package:ndu_project/screens/design_deliverables_screen.dart';
@@ -1141,11 +1141,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openSchedule() {
-    _navigateWithCheckpoint('schedule', const ScheduleScreen());
+    _navigateWithCheckpoint('schedule', const ScheduleModuleScreen());
   }
 
   void _openCostEstimate() {
-    _navigateWithCheckpoint('cost_estimate', const CostEstimateScreen());
+    _navigateWithCheckpoint('cost_estimate', const CostEstimateModuleScreen());
   }
 
   void _openScopeTrackingPlan() {
@@ -1592,7 +1592,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   void _openWorkBreakdownStructure() {
     _navigateWithCheckpoint(
-        'work_breakdown_structure', const WorkBreakdownStructureScreen());
+        'work_breakdown_structure', const WBSModuleScreen());
   }
 
   void _openProjectFramework() {
