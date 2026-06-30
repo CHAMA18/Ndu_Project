@@ -466,31 +466,38 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(24),
-                          child: Column(
-                            children: [
-                              _buildTopBar(),
-                              Expanded(
-                                child: PageView(
-                                  controller: _pageController,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  onPageChanged: (p) =>
-                                      setState(() => _currentPage = p),
-                                  children: [
-                                    _buildWelcomePage(),
-                                    _buildPositionPage(),
-                                    _buildDecisionMakerPage(),
-                                    _buildCountryPage(),
-                                    _buildCurrencyPage(),
-                                    _buildToolsPage(),
-                                    _buildOrganizationOverviewPage(),
-                                    _buildTeamInvitePage(),
-                                    _buildMaxTeamSizePage(),
-                                    _buildReviewPage(),
-                                  ],
+                          child: Material(
+                            // Material ancestor is required so text widgets
+                            // don't show yellow double underlines (Flutter's
+                            // "no Material parent" warning). Transparency
+                            // preserves the gradient background.
+                            type: MaterialType.transparency,
+                            child: Column(
+                              children: [
+                                _buildTopBar(),
+                                Expanded(
+                                  child: PageView(
+                                    controller: _pageController,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    onPageChanged: (p) =>
+                                        setState(() => _currentPage = p),
+                                    children: [
+                                      _buildWelcomePage(),
+                                      _buildPositionPage(),
+                                      _buildDecisionMakerPage(),
+                                      _buildCountryPage(),
+                                      _buildCurrencyPage(),
+                                      _buildToolsPage(),
+                                      _buildOrganizationOverviewPage(),
+                                      _buildTeamInvitePage(),
+                                      _buildMaxTeamSizePage(),
+                                      _buildReviewPage(),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              _buildBottomNav(isMobile),
-                            ],
+                                _buildBottomNav(isMobile),
+                              ],
+                            ),
                           ),
                         ),
                       ),
