@@ -518,7 +518,7 @@ class _KazAiChatPopupState extends State<_KazAiChatPopup>
   /// Multi-turn AI response with full conversation history
   Future<String> _getAiResponse(String userMessage) async {
     if (!OpenAiConfig.isConfigured) {
-      return 'Please configure your OpenAI API key in **Settings** to enable KAZ AI. I\'ll be ready to help once the connection is established.';
+      return "I'm connecting to the AI service. Please try again in a moment and I'll be ready to help.";
     }
 
     try {

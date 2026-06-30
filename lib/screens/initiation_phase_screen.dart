@@ -1025,7 +1025,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
   String _formatSuggestionError(Object error) {
     if (error is OpenAiNotConfiguredException) {
-      return 'Add your OpenAI API key to enable AI suggestions.';
+      return 'AI service is starting up. Please try again in a moment.';
     }
     final message = error.toString();
     final lower = message.toLowerCase();

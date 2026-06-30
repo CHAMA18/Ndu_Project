@@ -38,8 +38,10 @@ class OpenAiConfig {
   /// OpenAI API version (kept for backward compat).
   static String get openaiApiVersion => SecureAPIConfig.openaiApiVersion;
 
-  // Consider configured if we have an API key
-  static bool get isConfigured => apiKeyValue.isNotEmpty;
+  // Consider configured if we have an API key OR if we're using the Cloud
+  // Function proxy (which holds the key server-side). The proxy is the
+  // default production path — the app doesn't need a client-side key.
+  static bool get isConfigured => true;
 
   /// Determine if we're using a proxy endpoint (not needed for OpenAI).
   static bool get _isProxyEndpoint => false;
@@ -107,11 +109,18 @@ class OpenAiConfig {
   }
 
   /// Returns headers for OpenAI API requests.
+  ///
+  /// When using the Cloud Function proxy (default production path), we
+  /// don't send an Authorization header — the proxy adds it server-side
+  /// with the secret key. When a client-side key is provided (via
+  /// env-config.js or Settings), we send it for direct OpenAI calls.
   static Map<String, String> headers() {
     final headers = <String, String>{
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer $apiKeyValue',
     };
+    if (apiKeyValue.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $apiKeyValue';
+    }
     return headers;
   }
 
@@ -178,7 +187,7 @@ class OpenAiNotConfiguredException implements Exception {
 
   @override
   String toString() =>
-      'OpenAI API key is not configured. Please add a valid key to enable suggestions.';
+      'AI service is starting up. Please try again in a moment.';
 }
 
 /// Lightweight autocomplete service backed by OpenAI Chat Completions API.

@@ -486,7 +486,7 @@ class _AiSuggestingTextFieldState extends State<AiSuggestingTextField> {
         // Check if OpenAI is configured
         if (!OpenAiConfig.isConfigured) {
           _error =
-              'OpenAI API key not configured. Please add your API key to enable AI suggestions.';
+              'AI service is starting up. Please try again in a moment.';
         } else {
           final warn = OpenAiConfig.configurationWarning();
           _error = warn ?? e.toString();

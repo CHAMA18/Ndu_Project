@@ -272,33 +272,33 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
 }
 
 /**
- * Secure Anthropic Claude API Proxy
+ * Secure OpenAI API Proxy
  * 
- * This Cloud Function acts as a secure proxy to Anthropic's Claude Messages API,
+ * This Cloud Function acts as a secure proxy to OpenAI's Chat Completions API,
  * keeping the API key server-side and never exposing it to client code or version control.
  * 
+ * The app already sends OpenAI-format requests (chat/completions with messages array),
+ * so this proxy forwards them directly to OpenAI without format transformation.
+ * 
  * Setup Instructions:
- * 1. Set your Anthropic API key as a secret in Firebase:
- *    firebase functions:secrets:set ANTHROPIC_API_KEY
+ * 1. Set your OpenAI API key as a secret in Firebase:
+ *    firebase functions:secrets:set OPENAI_API_KEY
  *    
  * 2. Deploy this function:
  *    firebase deploy --only functions
  *    
- * 3. Update lib/services/api_config_secure.dart:
- *    Change baseUrl to your Cloud Function URL:
- *    'https://YOUR_REGION-YOUR_PROJECT_ID.cloudfunctions.net/claudeProxy'
+ * 3. The app's SecureAPIConfig.baseUrl should point to this Cloud Function URL.
  * 
  * Security Features:
  * - API key stored as Firebase secret (never in code or environment)
  * - Optional Firebase Auth verification
  * - CORS configured for your app domain only
  * - Request validation and sanitization
- * - Rate limiting per user (optional)
  */
 
 exports.claudeProxy = functions
   .runWith({
-    secrets: ['ANTHROPIC_API_KEY'],
+    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })
@@ -319,56 +319,53 @@ exports.claudeProxy = functions
     }
     
     try {
-      // Optional: Verify Firebase Auth token
-      // Uncomment the following lines to require authentication:
-      /*
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        res.status(401).json({ error: 'Unauthorized. Missing or invalid token.' });
-        return;
-      }
-      
-      const idToken = authHeader.split('Bearer ')[1];
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      const userId = decodedToken.uid;
-      
-      // Optional: Implement rate limiting per user
-      // Check Firestore for user's request count and block if exceeded
-      */
-      
-      // Get Anthropic API key from Firebase secrets
-      const apiKey = process.env.ANTHROPIC_API_KEY;
+      // Get OpenAI API key from Firebase secrets (preferred), fall back to
+      // ANTHROPIC_API_KEY for backward compat with existing deployments.
+      const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
-        console.error('ANTHROPIC_API_KEY secret not configured');
+        console.error('No API key configured (set OPENAI_API_KEY secret)');
         res.status(500).json({ error: 'Service configuration error' });
         return;
       }
       
-      // Transform the request payload from OpenAI format to Claude format
+      // The app sends OpenAI-format requests directly — no transformation needed.
+      // Just forward the payload as-is to OpenAI's Chat Completions API.
       const rawPayload = req.body.payload || req.body;
-      const claudeBody = transformToClaudeFormat(rawPayload);
 
-      // Always target the Anthropic Messages API endpoint
-      const claudeUrl = 'https://api.anthropic.com/v1/messages';
+      // Ensure the payload has the required fields for OpenAI Chat Completions
+      const openaiBody = {
+        model: rawPayload.model || 'gpt-4o',
+        messages: rawPayload.messages || [],
+        temperature: rawPayload.temperature ?? 0.7,
+        max_tokens: rawPayload.max_tokens || rawPayload.max_completion_tokens || 2000,
+        stream: false,
+      };
       
-      // Forward the request to Anthropic Claude API
-      const claudeResponse = await fetch(claudeUrl, {
+      // Copy over any additional fields the client may have sent
+      if (rawPayload.response_format) openaiBody.response_format = rawPayload.response_format;
+      if (rawPayload.top_p) openaiBody.top_p = rawPayload.top_p;
+      if (rawPayload.frequency_penalty) openaiBody.frequency_penalty = rawPayload.frequency_penalty;
+      if (rawPayload.presence_penalty) openaiBody.presence_penalty = rawPayload.presence_penalty;
+
+      // Forward the request to OpenAI Chat Completions API
+      const openaiUrl = 'https://api.openai.com/v1/chat/completions';
+      
+      const openaiResponse = await fetch(openaiUrl, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
+          'authorization': `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(claudeBody)
+        body: JSON.stringify(openaiBody)
       });
       
-      const data = await claudeResponse.json();
+      const data = await openaiResponse.json();
       
-      // Return Claude's response to the client
-      res.status(claudeResponse.status).json(data);
+      // Return OpenAI's response to the client
+      res.status(openaiResponse.status).json(data);
       
     } catch (error) {
-      console.error('Claude proxy error:', error);
+      console.error('OpenAI proxy error:', error);
       res.status(500).json({ 
         error: 'Failed to process request',
         message: error.message 
@@ -382,7 +379,7 @@ exports.claudeProxy = functions
  */
 exports.openaiProxy = functions
   .runWith({
-    secrets: ['ANTHROPIC_API_KEY'],
+    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })

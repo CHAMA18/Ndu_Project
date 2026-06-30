@@ -21,17 +21,15 @@
 //
 // FALLBACK
 // --------
-// If a value is left empty (""), EnvConfigLoader falls back to:
-//   • ANTHROPIC_API_KEY → the Cloud Function proxy at SecureAPIConfig.baseUrl
-//     (server-side key, never exposed to the client). This is the default
-//     and recommended mode for production.
-//   • FIREBASE_API_KEY → Firebase config from firebase_options.dart.
+// If OPENAI_API_KEY is left empty (""), the app uses the Cloud Function
+// proxy at SecureAPIConfig.baseUrl (server-side key, never exposed to the
+// client). This is the default and recommended mode for production.
 //
 // SECURITY NOTES
 // --------------
 // • Any value in this file IS visible to end users. Only put keys here that
 //   are safe to expose (e.g. Firebase web API keys, which are public by
-//   design). NEVER put a raw Anthropic key here in production — use the
+//   design). NEVER put a raw OpenAI key here in production — use the
 //   Cloud Function proxy instead.
 // • For local development, populate this file with your own dev keys and
 //   add it to .gitignore so you don't commit personal keys.
@@ -39,9 +37,9 @@
 
 window.__NDU_ENV = window.__NDU_ENV || {};
 
-// Anthropic Claude API key — OPTIONAL. Leave empty to use the Cloud Function
-// proxy (recommended for production so the key stays server-side).
-window.__NDU_ENV.ANTHROPIC_API_KEY = '';
+// OpenAI API key — OPTIONAL. Leave empty to use the Cloud Function proxy
+// (recommended for production so the key stays server-side).
+window.__NDU_ENV.OPENAI_API_KEY = '';
 
 // Firebase web API key — OPTIONAL. Leave empty to use the value compiled into
 // firebase_options.dart. Only set this if you need to override at runtime

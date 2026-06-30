@@ -8,9 +8,9 @@
 
 window.__NDU_ENV = window.__NDU_ENV || {};
 
-// Anthropic Claude API key — OPTIONAL. Leave empty to use the Cloud Function
+// OpenAI API key — OPTIONAL. Leave empty to use the Cloud Function
 // proxy (recommended for production so the key stays server-side).
-window.__NDU_ENV.ANTHROPIC_API_KEY = '';
+window.__NDU_ENV.OPENAI_API_KEY = '';
 
 // Firebase web API key — OPTIONAL. Leave empty to use the value compiled into
 // firebase_options.dart.

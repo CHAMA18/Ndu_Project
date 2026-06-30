@@ -446,7 +446,7 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
           if (message.contains('OpenAI API key') ||
               message.contains('not configured')) {
             _initialGenerationError =
-                'OpenAI API key is not configured. Please add a valid key in Settings to use AI.';
+                'AI service is starting up. Please try again in a moment.';
           } else if (message.contains('response_format')) {
             _initialGenerationError =
                 'AI response formatting failed. Please retry or check your OpenAI proxy configuration.';
