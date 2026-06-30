@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/wbs/screens/framework_picker_screen.dart';
@@ -45,7 +46,20 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
   );
 
   @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -70,37 +84,21 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
           backgroundColor: Colors.white,
           body: Column(
             children: [
-              // Horizontal sub-tab bar (replaces the dark left rail)
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE4E7EC)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: LightModeColors.accent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  labelColor: LightModeColors.lightOnPrimary,
-                  unselectedLabelColor: const Color(0xFF6B7280),
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  unselectedLabelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                  tabs: const [
-                    Tab(text: 'Builder'),
-                    Tab(text: 'AI Generator'),
-                    Tab(text: 'Validator'),
-                    Tab(text: 'Export & Link'),
+              // ── World-class Section Navigator ─────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SectionNavigator(
+                  title: 'WBS Navigation',
+                  subtitle: 'Navigate between WBS sections',
+                  icon: Icons.account_tree_outlined,
+                  tabs: [
+                    SectionTab(icon: Icons.folder_open, label: 'Builder'),
+                    SectionTab(icon: Icons.auto_awesome, label: 'AI Generator'),
+                    SectionTab(icon: Icons.check_circle_outline, label: 'Validator'),
+                    SectionTab(icon: Icons.trending_up, label: 'Export & Link'),
                   ],
+                  controller: _tabController,
+                  onChanged: (index) => setState(() {}),
                 ),
               ),
               // Tab content
