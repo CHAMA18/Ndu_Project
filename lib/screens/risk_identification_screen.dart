@@ -1347,6 +1347,33 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               ]),
             ),
             const SizedBox(height: 8),
+            if (_solutions.isEmpty)
+              // Empty state — no solutions yet
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                    border: Border.all(color: const Color(0xFFE4E7EC))),
+                child: Column(
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 40, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text('No potential solutions yet',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700])),
+                    const SizedBox(height: 6),
+                    Text(
+                        'Define potential solutions on the Potential Solutions page first, then return here to identify risks for each solution.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.5)),
+                  ],
+                ),
+              )
+            else
             Container(
               decoration: BoxDecoration(
                   color: Colors.white,
@@ -1361,6 +1388,33 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
             ),
           ] else ...[
             // Mobile stacked rows - limit to 3 for non-admins
+            if (_solutions.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                margin: const EdgeInsets.only(top: 8),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE4E7EC))),
+                child: Column(
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 36, color: Colors.grey[400]),
+                    const SizedBox(height: 10),
+                    Text('No potential solutions yet',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[700])),
+                    const SizedBox(height: 6),
+                    Text(
+                        'Define potential solutions first, then return here to identify risks.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[500], height: 1.5)),
+                  ],
+                ),
+              )
+            else
             Column(
                 children: List.generate(
                     _isAdmin

@@ -33,7 +33,6 @@ void main() async {
   final previousHandler = FlutterError.onError;
   FlutterError.onError = (FlutterErrorDetails details) {
     final message = details.exceptionAsString();
-    final stackTrace = details.stack?.toString() ?? '';
 
     // Suppress inspector selection errors (common in Dreamflow preview)
     if (message.contains('Id does not exist.')) {
@@ -41,7 +40,11 @@ void main() async {
       return;
     }
 
-    // Comprehensive suppression of RestorableNode/ModalScope warnings
+    // Comprehensive suppression of RestorableNode/ModalScope warnings.
+    // NOTE: we deliberately do NOT match on stack-trace fragments like
+    // 'mode#' here — in release builds every stack frame contains 'mode#'
+    // (e.g. `<mode#...>`), so matching on it would suppress ALL errors and
+    // hide every real bug as a silent grey/blank screen.
     if (message.contains('_RestorableNode') ||
         message.contains('RestorableNode') ||
         message.contains('_DialogScope') ||
@@ -54,7 +57,6 @@ void main() async {
         message.contains('called with invalid state') ||
         message.contains('saved with invalid state') ||
         message.contains('invalid state. Nested arrays') ||
-        stackTrace.contains('mode#') ||
         (message.contains('listening to') &&
             message.contains('invalid state'))) {
       debugPrint('Route state warning suppressed: $message');
@@ -72,9 +74,13 @@ void main() async {
   // Override the error widget builder to hide specific warnings from UI
   ErrorWidget.builder = (FlutterErrorDetails details) {
     final message = details.exceptionAsString();
-    final stackTrace = details.stack?.toString() ?? '';
 
-    // Don't show error widgets for these suppressed warnings
+    // Don't show error widgets for these suppressed warnings (these are
+    // benign framework-level warnings that don't affect functionality).
+    // NOTE: we deliberately do NOT match on stack-trace fragments like
+    // 'mode#' here — in release builds every stack frame contains 'mode#'
+    // (e.g. `<mode#...>`), so matching on it would suppress ALL errors and
+    // turn every broken screen into a silent grey/blank page.
     if (message.contains('Id does not exist.') ||
         message.contains('_RestorableNode') ||
         message.contains('RestorableNode') ||
@@ -88,14 +94,15 @@ void main() async {
         message.contains('called with invalid state') ||
         message.contains('saved with invalid state') ||
         message.contains('invalid state. Nested arrays') ||
-        stackTrace.contains('mode#') ||
         (message.contains('listening to') &&
             message.contains('invalid state'))) {
       return const SizedBox
-          .shrink(); // Return empty widget for suppressed errors
+          .shrink(); // Return empty widget for suppressed warnings
     }
 
-    // For other errors, show a friendly error screen
+    // For other errors, show a friendly error screen so the user sees a
+    // helpful message instead of a silent grey/blank page.
+    debugPrint('ErrorWidget.builder rendering error screen: $message');
     return _FriendlyErrorScreen(
       title: 'Something went wrong',
       message: message,
