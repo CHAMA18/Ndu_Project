@@ -11,8 +11,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/schedule/providers/schedule_provider.dart';
 import 'package:ndu_project/schedule/screens/setup_wizard_screen.dart';
 import 'package:ndu_project/schedule/screens/builder_screen.dart';
@@ -40,7 +40,20 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
   );
 
   @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -65,36 +78,20 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
           backgroundColor: Colors.white,
           body: Column(
             children: [
-              // Horizontal sub-tab bar (replaces the dark left rail)
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE4E7EC)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: LightModeColors.accent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  labelColor: LightModeColors.lightOnPrimary,
-                  unselectedLabelColor: const Color(0xFF6B7280),
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  unselectedLabelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                  tabs: const [
-                    Tab(text: 'Builder'),
-                    Tab(text: 'Gantt'),
-                    Tab(text: 'List View'),
+              // ── World-class Section Navigator ─────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SectionNavigator(
+                  title: 'Schedule Navigation',
+                  subtitle: 'Navigate between schedule sections',
+                  icon: Icons.calendar_month_outlined,
+                  tabs: [
+                    SectionTab(icon: Icons.build_outlined, label: 'Builder'),
+                    SectionTab(icon: Icons.bar_chart, label: 'Gantt'),
+                    SectionTab(icon: Icons.list_alt, label: 'List View'),
                   ],
+                  controller: _tabController,
+                  onChanged: (index) => setState(() {}),
                 ),
               ),
               // Tab content

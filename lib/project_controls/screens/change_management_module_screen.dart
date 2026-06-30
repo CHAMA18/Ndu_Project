@@ -18,6 +18,7 @@
 /// - Impact Assessment Detail interactive 15-dimension grid
 /// - Approval Workflow Builder with add-step + per-step decisions + finalize
 /// - Implementation & Baseline tracker with apply-to-baseline / rollback
+library;
 
 import 'dart:convert';
 import 'dart:typed_data';
@@ -28,6 +29,7 @@ import 'package:ndu_project/project_controls/models/change_management_models.dar
 import 'package:ndu_project/project_controls/providers/change_management_provider.dart';
 import 'package:ndu_project/utils/download_helper.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/theme.dart';
 
 class ChangeManagementModuleScreen extends StatefulWidget {
@@ -54,6 +56,7 @@ class _ChangeManagementModuleScreenState extends State<ChangeManagementModuleScr
   void initState() {
     super.initState();
     _tabController = TabController(length: 8, vsync: this);
+    _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ChangeManagementProvider>();
       if (provider.changeRequests.isEmpty) {
@@ -65,18 +68,20 @@ class _ChangeManagementModuleScreenState extends State<ChangeManagementModuleScr
     });
   }
 
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {});
+    }
+  }
+
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
 
-  // Theme tokens matching the existing app
-  static const _accent = LightModeColors.accent; // #FFC107
-  static const _textPrimary = Color(0xFF1A1D1F);
-  static const _textSecondary = Color(0xFF6B7280);
-  static const _surfaceBorder = Color(0xFFE4E7EC);
-  static const _bgColor = Color(0xFFF9FAFB);
+  // Theme tokens are defined per-tab-widget to keep each tab self-contained.
 
   void _selectCR(String id) {
     setState(() => _selectedCRId = id);
@@ -112,7 +117,27 @@ class _ChangeManagementModuleScreenState extends State<ChangeManagementModuleScr
           breadcrumbTitle: 'Change Management',
           body: Column(
             children: [
-              _buildTabBar(),
+              // ── World-class Section Navigator ─────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SectionNavigator(
+                  title: 'Change Management Navigation',
+                  subtitle: 'Navigate between change management sections',
+                  icon: Icons.sync_alt,
+                  tabs: [
+                    SectionTab(icon: Icons.dashboard_outlined, label: 'Dashboard'),
+                    SectionTab(icon: Icons.list_alt, label: 'Change Register'),
+                    SectionTab(icon: Icons.assessment_outlined, label: 'Impact & Approval Summary'),
+                    SectionTab(icon: Icons.history, label: 'Audit Trail'),
+                    SectionTab(icon: Icons.add_circle_outline, label: 'Create CR'),
+                    SectionTab(icon: Icons.tune, label: 'Impact Detail'),
+                    SectionTab(icon: Icons.account_tree_outlined, label: 'Workflow'),
+                    SectionTab(icon: Icons.build_circle_outlined, label: 'Implementation'),
+                  ],
+                  controller: _tabController,
+                  onChanged: (index) => setState(() {}),
+                ),
+              ),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
@@ -162,43 +187,6 @@ class _ChangeManagementModuleScreenState extends State<ChangeManagementModuleScr
           ),
         );
       },
-    );
-  }
-
-  Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _surfaceBorder),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        dividerColor: Colors.transparent,
-        indicator: BoxDecoration(
-          color: _accent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        labelColor: _textPrimary,
-        unselectedLabelColor: _textSecondary,
-        labelStyle: TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w600, fontFamily: appFontFamily),
-        unselectedLabelStyle: TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily),
-        tabs: const [
-          Tab(text: 'Dashboard'),
-          Tab(text: 'Change Register'),
-          Tab(text: 'Impact & Approval Summary'),
-          Tab(text: 'Audit Trail'),
-          Tab(text: 'Create CR'),
-          Tab(text: 'Impact Detail'),
-          Tab(text: 'Workflow'),
-          Tab(text: 'Implementation'),
-        ],
-      ),
     );
   }
 }

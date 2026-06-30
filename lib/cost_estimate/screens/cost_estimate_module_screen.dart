@@ -12,8 +12,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/screens/setup_wizard_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/builder_screen.dart';
@@ -47,7 +47,20 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
   );
 
   @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -72,41 +85,25 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
           backgroundColor: Colors.white,
           body: Column(
             children: [
-              // Horizontal sub-tab bar (replaces the dark left rail)
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE4E7EC)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: LightModeColors.accent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  labelColor: LightModeColors.lightOnPrimary,
-                  unselectedLabelColor: const Color(0xFF6B7280),
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  unselectedLabelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                  tabs: const [
-                    Tab(text: 'Builder'),
-                    Tab(text: 'BOE'),
-                    Tab(text: 'AI'),
-                    Tab(text: 'Stakeholders'),
-                    Tab(text: 'Accounting'),
-                    Tab(text: 'Review'),
-                    Tab(text: 'Baseline'),
-                    Tab(text: 'Variance'),
+              // ── World-class Section Navigator ─────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SectionNavigator(
+                  title: 'Cost Estimate Navigation',
+                  subtitle: 'Navigate between cost estimate sections',
+                  icon: Icons.attach_money_outlined,
+                  tabs: [
+                    SectionTab(icon: Icons.build_outlined, label: 'Builder'),
+                    SectionTab(icon: Icons.description_outlined, label: 'BOE'),
+                    SectionTab(icon: Icons.auto_awesome, label: 'AI'),
+                    SectionTab(icon: Icons.people_outline, label: 'Stakeholders'),
+                    SectionTab(icon: Icons.account_balance_outlined, label: 'Accounting'),
+                    SectionTab(icon: Icons.check_circle_outline, label: 'Review'),
+                    SectionTab(icon: Icons.lock_outline, label: 'Baseline'),
+                    SectionTab(icon: Icons.trending_up, label: 'Variance'),
                   ],
+                  controller: _tabController,
+                  onChanged: (index) => setState(() {}),
                 ),
               ),
               // Tab content
