@@ -1,10 +1,17 @@
+library;
+
 /// AI Assistant Screen — 5 AI actions powered by KAZ AI.
 ///
-/// Actions: Auto-feed costs, Suggest rates, Reduce costs, Find gaps, Validate estimate.
-/// Every suggestion carries the mandatory "validate with SME" disclaimer.
+/// Actions: Auto-feed costs, Suggest rates, Reduce costs, Find gaps, Validate
+/// estimate. Every suggestion carries the mandatory "validate with SME"
+/// disclaimer.
+///
+/// Rendered inside the Cost Estimate module's [ResponsiveScaffold] body —
+/// no Scaffold of its own. Light-mode (white) theme.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -26,15 +33,15 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   final _actions = [
     ('feed', 'Auto-feed costs', Icons.auto_awesome,
-        'Propose cost lines from project context', const Color(0xFFF8BD2A)),
+        'Propose cost lines from project context', LightModeColors.accent),
     ('rates', 'Suggest rates', Icons.trending_up,
-        'Rate range for a role/industry', const Color(0xFFBBC3FF)),
+        'Rate range for a role/industry', const Color(0xFF3B82F6)),
     ('reduce', 'Reduce costs', Icons.shield,
-        '3-5 cost-reduction levers', const Color(0xFF4ADE80)),
+        '3-5 cost-reduction levers', const Color(0xFF16A34A)),
     ('gaps', 'Find gaps', Icons.search,
-        'Missing cost categories', const Color(0xFFFB923C)),
+        'Missing cost categories', const Color(0xFFD97706)),
     ('validate', 'Validate estimate', Icons.warning_amber,
-        'Review completeness & risk', const Color(0xFFC084FC)),
+        'Review completeness & risk', const Color(0xFF8B5CF6)),
   ];
 
   Future<void> _runAction(String action) async {
@@ -111,239 +118,245 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF051424),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome,
-                        color: Color(0xFFF8BD2A), size: 20),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'AI Assistant',
-                      style: TextStyle(
-                          color: Color(0xFFD4E4FA),
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF168FFC).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'KAZ AI',
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.auto_awesome,
+                      color: LightModeColors.accent, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'AI Assistant',
                     style: TextStyle(
-                      color: Color(0xFFBBC3FF),
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
+                        color: Color(0xFF1A1D1F),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text(
+                  'KAZ AI',
+                  style: TextStyle(
+                    color: Color(0xFF3B82F6),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Powered by KAZ AI. All suggestions are editable, dismissible, and require SME validation.',
+            style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          // Persistent disclaimer
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: LightModeColors.accent.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: LightModeColors.accent.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.warning_amber,
+                    color: LightModeColors.accent, size: 18),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'All AI-generated content must be validated by a qualified Subject Matter Expert before being used in a baseline estimate.',
+                    style: TextStyle(color: Color(0xFF495057), fontSize: 13),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Powered by KAZ AI. All suggestions are editable, dismissible, and require SME validation.',
-              style: TextStyle(color: Color(0xFF909096), fontSize: 13),
+          ),
+          const SizedBox(height: 24),
+          // Action grid
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 2.5,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
             ),
-            const SizedBox(height: 16),
-            // Persistent disclaimer
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8BD2A).withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_amber, color: Color(0xFFF8BD2A), size: 18),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'All AI-generated content must be validated by a qualified Subject Matter Expert before being used in a baseline estimate.',
-                      style: TextStyle(color: Color(0xFFC7C6CC), fontSize: 13),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            // Action grid
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 3,
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: _actions.length,
-              itemBuilder: (ctx, i) {
-                final a = _actions[i];
-                final isActive = _activeAction == a.$1;
-                return Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _loading ? null : () => _runAction(a.$1),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
+            itemCount: _actions.length,
+            itemBuilder: (ctx, i) {
+              final a = _actions[i];
+              final isActive = _activeAction == a.$1;
+              return Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _loading ? null : () => _runAction(a.$1),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? a.$5.withValues(alpha: 0.08)
+                          : Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
                         color: isActive
-                            ? a.$5.withValues(alpha: 0.08)
-                            : const Color(0xFF1C2B3C),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color:
-                              isActive ? a.$5 : const Color(0xFF46464C),
+                            ? a.$5
+                            : const Color(0xFFE4E7EC),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(a.$3, color: a.$5, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  a.$2,
-                                  style: const TextStyle(
-                                    color: Color(0xFFD4E4FA),
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(a.$3, color: a.$5, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                a.$2,
+                                style: const TextStyle(
+                                  color: Color(0xFF1A1D1F),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                                Text(
-                                  a.$4,
-                                  style: const TextStyle(
-                                      color: Color(0xFF909096),
-                                      fontSize: 12),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
+                              ),
+                              Text(
+                                a.$4,
+                                style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                );
-              },
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          // Loading
+          if (_loading)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(48),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(color: LightModeColors.accent),
+                    SizedBox(height: 12),
+                    Text('KAZ AI is analyzing your estimate...',
+                        style:
+                            TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 24),
-            // Loading
-            if (_loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(48),
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(color: Color(0xFFF8BD2A)),
-                      SizedBox(height: 12),
-                      Text('KAZ AI is analyzing your estimate...',
-                          style:
-                              TextStyle(color: Color(0xFFC7C6CC), fontSize: 13)),
-                    ],
-                  ),
+          // Results
+          if (!_loading && _suggestions.isNotEmpty) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_suggestions.length} suggestions from KAZ AI',
+                  style: const TextStyle(
+                      color: Color(0xFF1A1D1F),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _suggestions = []),
+                  child: const Text('Clear',
+                      style: TextStyle(color: Color(0xFF6B7280))),
+                ),
+              ],
+            ),
+            if (_usedFallback)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  '⚠️ Used KAZ AI fallback response (live model unavailable).',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 11),
                 ),
               ),
-            // Results
-            if (!_loading && _suggestions.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${_suggestions.length} suggestions from KAZ AI',
+            ...(_suggestions.map((s) => _buildSuggestionCard(s))),
+            if (_disclaimer.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: LightModeColors.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: LightModeColors.accent.withValues(alpha: 0.3)),
+                ),
+                child: Text(_disclaimer,
                     style: const TextStyle(
-                        color: Color(0xFFD4E4FA),
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () => setState(() => _suggestions = []),
-                    child: const Text('Clear',
-                        style: TextStyle(color: Color(0xFF909096))),
-                  ),
-                ],
-              ),
-              if (_usedFallback)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1C2B3C),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '⚠️ Used KAZ AI fallback response (live model unavailable).',
-                    style: TextStyle(color: Color(0xFF909096), fontSize: 11),
-                  ),
-                ),
-              ...(_suggestions.map((s) => _buildSuggestionCard(s))),
-              if (_disclaimer.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                        color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
-                  ),
-                  child: Text(_disclaimer,
-                      style: const TextStyle(
-                          color: Color(0xFFF8BD2A), fontSize: 12)),
-                ),
-            ],
-            // Empty state
-            if (!_loading && _suggestions.isEmpty && _activeAction == null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(48),
-                  child: Column(
-                    children: [
-                      const Icon(Icons.lightbulb,
-                          color: Color(0xFFF8BD2A), size: 48),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Pick an action to start',
-                        style: TextStyle(
-                            color: Color(0xFFD4E4FA),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'KAZ AI can propose cost lines, suggest rates, find gaps, propose savings, and validate your estimate.',
-                        style: TextStyle(color: Color(0xFF909096), fontSize: 13),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
+                        color: Color(0xFFD97706), fontSize: 12)),
               ),
           ],
-        ),
+          // Empty state
+          if (!_loading && _suggestions.isEmpty && _activeAction == null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(48),
+                child: Column(
+                  children: [
+                    const Icon(Icons.lightbulb,
+                        color: LightModeColors.accent, size: 48),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Pick an action to start',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'KAZ AI can propose cost lines, suggest rates, find gaps, propose savings, and validate your estimate.',
+                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -354,9 +367,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2B3C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF46464C).withValues(alpha: 0.5)),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -364,11 +384,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: const Color(0xFFF8BD2A).withValues(alpha: 0.1),
+              color: LightModeColors.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.add_circle,
-                color: Color(0xFFF8BD2A), size: 18),
+                color: LightModeColors.accent, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -381,7 +401,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                       child: Text(
                         s['description'] ?? s['title'] ?? s['category'] ?? 'Suggestion',
                         style: const TextStyle(
-                          color: Color(0xFFD4E4FA),
+                          color: Color(0xFF1A1D1F),
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -392,13 +412,13 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 6, vertical: 1),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF168FFC).withValues(alpha: 0.15),
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text(
                         'KAZ AI',
                         style: TextStyle(
-                          color: Color(0xFFBBC3FF),
+                          color: Color(0xFF3B82F6),
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
                         ),
@@ -410,13 +430,13 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
                   Text(
                     s['rationale'] ?? s['detail'] ?? '',
                     style:
-                        const TextStyle(color: Color(0xFFC7C6CC), fontSize: 12),
+                        const TextStyle(color: Color(0xFF495057), fontSize: 12),
                   ),
                 if (s['meta'] != null || s['estimatedSavings'] != null)
                   Text(
                     s['meta'] ?? 'Savings: ${s['estimatedSavings']}',
                     style:
-                        const TextStyle(color: Color(0xFF909096), fontSize: 12),
+                        const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
                   ),
               ],
             ),
@@ -425,8 +445,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
             FilledButton(
               onPressed: () => _applyLineSuggestion(s),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF8BD2A),
-                foregroundColor: const Color(0xFF402D00),
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               ),

@@ -1,11 +1,17 @@
+library;
+
 /// Review Screen — email composer, calendar link, double-acceptance gate.
 ///
 /// Verbatim warning: "Upon finalization, a baseline would be set for the Scope,
 /// Cost and Schedule. Scope changes would trigger Management of Change (for
 /// waterfall projects)."
+///
+/// Rendered inside the Cost Estimate module's [ResponsiveScaffold] body —
+/// no Scaffold of its own. Light-mode (white) theme.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -32,139 +38,185 @@ class ReviewScreen extends StatelessWidget {
             (estimate.status == EstimateStatus.draft ||
                 estimate.status == EstimateStatus.inReview);
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.fact_check, color: Color(0xFFF8BD2A), size: 20),
-                    SizedBox(width: 8),
-                    Text('Review & Acceptance',
-                        style: TextStyle(
-                            color: Color(0xFFD4E4FA),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Baselined state
-                if (isBaselined)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF4ADE80).withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: const Color(0xFF4ADE80)
-                              .withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.check_circle,
-                            color: Color(0xFF4ADE80), size: 24),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Baseline locked — v${estimate.baseline?.version}',
-                                style: const TextStyle(
-                                    color: Color(0xFF4ADE80),
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                'Re-baselines remaining: ${estimate.baseline?.rebaselineRemaining}',
-                                style: const TextStyle(
-                                    color: Color(0xFFC7C6CC), fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                // Schedule prompt
-                if (canReview && review.meetingScheduled == null)
-                  Container(
-                    margin: const EdgeInsets.only(top: 16),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8BD2A).withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: const Color(0xFFF8BD2A)
-                              .withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_month,
-                            color: Color(0xFFF8BD2A), size: 18),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Schedule cost estimate review',
-                            style: TextStyle(
-                                color: Color(0xFFF8BD2A),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        FilledButton.icon(
-                          onPressed: () => _showEmailComposer(context, provider, estimate),
-                          icon: const Icon(Icons.mail, size: 14),
-                          label: const Text('Email & schedule'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFF8BD2A),
-                            foregroundColor: const Color(0xFF402D00),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                const SizedBox(height: 24),
-                // Acceptance progress
-                if (review.acceptanceStep1.confirmed ||
-                    review.acceptanceStep2.confirmed) ...[
-                  _buildAcceptanceStep(
-                    1,
-                    'Alignment confirmed',
-                    'Everyone who needs to approve is aligned on scope, schedule, and cost.',
-                    review.acceptanceStep1.confirmed,
-                  ),
-                  const SizedBox(height: 8),
-                  _buildAcceptanceStep(
-                    2,
-                    'Baseline acknowledged',
-                    'Upon finalization, a baseline would be set for the Scope, Cost and Schedule.',
-                    review.acceptanceStep2.confirmed,
-                  ),
-                  const SizedBox(height: 24),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.fact_check, color: LightModeColors.accent, size: 20),
+                  SizedBox(width: 8),
+                  Text('Review & Acceptance',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
                 ],
-                // Begin acceptance button
-                if (canReview &&
-                    review.meetingScheduled != null &&
-                    !review.acceptanceStep1.confirmed)
-                  Center(
-                    child: FilledButton.icon(
-                      onPressed: () => _showAcceptanceGate(context, provider, estimate),
-                      icon: const Icon(Icons.shield, size: 16),
-                      label: const Text('Begin acceptance'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFF8BD2A),
-                        foregroundColor: const Color(0xFF402D00),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 14),
+              ),
+              const SizedBox(height: 16),
+              // Baselined state
+              if (isBaselined)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: const Color(0xFF16A34A)
+                            .withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle,
+                          color: Color(0xFF16A34A), size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Baseline locked — v${estimate.baseline?.version}',
+                              style: const TextStyle(
+                                  color: Color(0xFF16A34A),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Re-baselines remaining: ${estimate.baseline?.rebaselineRemaining}',
+                              style: const TextStyle(
+                                  color: Color(0xFF495057), fontSize: 12),
+                            ),
+                          ],
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+              // Schedule prompt
+              if (canReview && review.meetingScheduled == null)
+                Container(
+                  margin: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: LightModeColors.accent.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: LightModeColors.accent
+                            .withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_month,
+                          color: LightModeColors.accent, size: 18),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Schedule cost estimate review',
+                          style: TextStyle(
+                              color: Color(0xFFD97706),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => _showEmailComposer(context, provider, estimate),
+                        icon: const Icon(Icons.mail, size: 14),
+                        label: const Text('Email & schedule'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: LightModeColors.accent,
+                          foregroundColor: LightModeColors.lightOnPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 24),
+              // Acceptance progress
+              if (review.acceptanceStep1.confirmed ||
+                  review.acceptanceStep2.confirmed) ...[
+                _buildAcceptanceStep(
+                  1,
+                  'Alignment confirmed',
+                  'Everyone who needs to approve is aligned on scope, schedule, and cost.',
+                  review.acceptanceStep1.confirmed,
+                ),
+                const SizedBox(height: 8),
+                _buildAcceptanceStep(
+                  2,
+                  'Baseline acknowledged',
+                  'Upon finalization, a baseline would be set for the Scope, Cost and Schedule.',
+                  review.acceptanceStep2.confirmed,
+                ),
+                const SizedBox(height: 24),
+              ],
+              // Begin acceptance button
+              if (canReview &&
+                  review.meetingScheduled != null &&
+                  !review.acceptanceStep1.confirmed)
+                Center(
+                  child: FilledButton.icon(
+                    onPressed: () => _showAcceptanceGate(context, provider, estimate),
+                    icon: const Icon(Icons.shield, size: 16),
+                    label: const Text('Begin acceptance'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: LightModeColors.accent,
+                      foregroundColor: LightModeColors.lightOnPrimary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 32, vertical: 14),
                     ),
                   ),
-              ],
-            ),
+                ),
+              // Empty state when nothing to show yet
+              if (!isBaselined &&
+                  !(canReview && review.meetingScheduled == null) &&
+                  !(review.acceptanceStep1.confirmed ||
+                      review.acceptanceStep2.confirmed) &&
+                  !(canReview &&
+                      review.meetingScheduled != null &&
+                      !review.acceptanceStep1.confirmed))
+                Container(
+                  margin: const EdgeInsets.only(top: 16),
+                  padding: const EdgeInsets.all(32),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE4E7EC)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.fact_check,
+                            color: Color(0xFF9CA3AF), size: 48),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Review & acceptance flow opens here',
+                          style: TextStyle(
+                              color: Color(0xFF1A1D1F),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isApprover
+                              ? 'Submit the estimate for review to start the double-acceptance gate.'
+                              : 'Only approvers and admins can drive the review flow. Switch role on the Stakeholders tab to test.',
+                          style: const TextStyle(
+                              color: Color(0xFF6B7280), fontSize: 13),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -177,14 +229,21 @@ class ReviewScreen extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: done
-            ? const Color(0xFF4ADE80).withValues(alpha: 0.08)
-            : const Color(0xFF1C2B3C),
+            ? const Color(0xFF16A34A).withValues(alpha: 0.08)
+            : Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: done
-              ? const Color(0xFF4ADE80).withValues(alpha: 0.3)
-              : const Color(0xFF46464C),
+              ? const Color(0xFF16A34A).withValues(alpha: 0.3)
+              : const Color(0xFFE4E7EC),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -192,20 +251,20 @@ class ReviewScreen extends StatelessWidget {
             width: 24,
             height: 24,
             decoration: BoxDecoration(
-              color: done ? const Color(0xFF4ADE80) : Colors.transparent,
+              color: done ? const Color(0xFF16A34A) : Colors.transparent,
               shape: BoxShape.circle,
               border: Border.all(
                 color: done
-                    ? const Color(0xFF4ADE80)
-                    : const Color(0xFF46464C),
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFFE4E7EC),
               ),
             ),
             child: done
-                ? const Icon(Icons.check, size: 14, color: Color(0xFF0D1C2D))
+                ? const Icon(Icons.check, size: 14, color: Colors.white)
                 : Center(
                     child: Text('$num',
                         style: const TextStyle(
-                            color: Color(0xFF909096), fontSize: 11)),
+                            color: Color(0xFF6B7280), fontSize: 11)),
                   ),
           ),
           const SizedBox(width: 12),
@@ -215,12 +274,12 @@ class ReviewScreen extends StatelessWidget {
               children: [
                 Text(title,
                     style: const TextStyle(
-                        color: Color(0xFFD4E4FA),
+                        color: Color(0xFF1A1D1F),
                         fontSize: 13,
                         fontWeight: FontWeight.w600)),
                 Text(desc,
                     style: const TextStyle(
-                        color: Color(0xFF909096), fontSize: 12)),
+                        color: Color(0xFF6B7280), fontSize: 12)),
               ],
             ),
           ),
@@ -231,10 +290,10 @@ class ReviewScreen extends StatelessWidget {
 
   void _showEmailComposer(
       BuildContext context, CostEstimateProvider provider, CostEstimate estimate) {
-    final recipients = [
+    final recipients = <String>{
       ...estimate.stakeholders.map((s) => s.email),
       ...estimate.access.map((a) => a.userEmail),
-    ].toSet().toList();
+    }.toList();
     final subjectCtrl =
         TextEditingController(text: 'Cost Estimate Review Required — ${estimate.projectName}');
     final bodyCtrl = TextEditingController(text: '''Hello,
@@ -257,13 +316,13 @@ Thank you,''');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1C2D),
+        backgroundColor: Colors.white,
         title: const Row(
           children: [
-            Icon(Icons.mail, color: Color(0xFFF8BD2A), size: 18),
+            Icon(Icons.mail, color: LightModeColors.accent, size: 18),
             SizedBox(width: 8),
             Text('Schedule cost estimate review',
-                style: TextStyle(color: Color(0xFFD4E4FA), fontSize: 16)),
+                style: TextStyle(color: Color(0xFF1A1D1F), fontSize: 16)),
           ],
         ),
         content: SizedBox(
@@ -275,15 +334,15 @@ Thank you,''');
                 alignment: Alignment.centerLeft,
                 child: Text('To: ${recipients.join(", ")}',
                     style: const TextStyle(
-                        color: Color(0xFF909096), fontSize: 11)),
+                        color: Color(0xFF6B7280), fontSize: 11)),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: subjectCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Subject',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
-                style: const TextStyle(color: Color(0xFFD4E4FA)),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
+                style: const TextStyle(color: Color(0xFF1A1D1F)),
               ),
               const SizedBox(height: 8),
               TextField(
@@ -291,9 +350,9 @@ Thank you,''');
                 maxLines: 8,
                 decoration: const InputDecoration(
                     labelText: 'Message',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
                 style: const TextStyle(
-                    color: Color(0xFFD4E4FA), fontSize: 12),
+                    color: Color(0xFF1A1D1F), fontSize: 12),
               ),
             ],
           ),
@@ -302,7 +361,7 @@ Thank you,''');
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF909096))),
+                style: TextStyle(color: Color(0xFF6B7280))),
           ),
           FilledButton(
             onPressed: () {
@@ -327,8 +386,8 @@ Thank you,''');
               Navigator.pop(ctx);
             },
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF8BD2A),
-                foregroundColor: const Color(0xFF402D00)),
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary),
             child: const Text('Send & submit for review'),
           ),
         ],
@@ -369,13 +428,13 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF0D1C2D),
+      backgroundColor: Colors.white,
       title: const Row(
         children: [
-          Icon(Icons.shield, color: Color(0xFFF8BD2A), size: 18),
+          Icon(Icons.shield, color: LightModeColors.accent, size: 18),
           SizedBox(width: 8),
           Text('Double Acceptance Gate',
-              style: TextStyle(color: Color(0xFFD4E4FA), fontSize: 16)),
+              style: TextStyle(color: Color(0xFF1A1D1F), fontSize: 16)),
         ],
       ),
       content: SizedBox(
@@ -385,7 +444,7 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
           children: [
             const Text(
               'Two confirmations are required to lock the baseline.',
-              style: TextStyle(color: Color(0xFFC7C6CC), fontSize: 13),
+              style: TextStyle(color: Color(0xFF495057), fontSize: 13),
             ),
             const SizedBox(height: 16),
             // Step 1
@@ -421,7 +480,7 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Close',
-              style: TextStyle(color: Color(0xFF909096))),
+              style: TextStyle(color: Color(0xFF6B7280))),
         ),
       ],
     );
@@ -440,17 +499,17 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: confirmed
-            ? const Color(0xFF4ADE80).withValues(alpha: 0.08)
+            ? const Color(0xFF16A34A).withValues(alpha: 0.08)
             : isWarning
-                ? const Color(0xFFF8BD2A).withValues(alpha: 0.05)
-                : const Color(0xFF1C2B3C),
+                ? LightModeColors.accent.withValues(alpha: 0.05)
+                : const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: confirmed
-              ? const Color(0xFF4ADE80).withValues(alpha: 0.4)
+              ? const Color(0xFF16A34A).withValues(alpha: 0.4)
               : isWarning
-                  ? const Color(0xFFF8BD2A).withValues(alpha: 0.4)
-                  : const Color(0xFF46464C),
+                  ? LightModeColors.accent.withValues(alpha: 0.4)
+                  : const Color(0xFFE4E7EC),
         ),
       ),
       child: Column(
@@ -463,20 +522,20 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
                 height: 28,
                 decoration: BoxDecoration(
                   color: confirmed
-                      ? const Color(0xFF4ADE80)
+                      ? const Color(0xFF16A34A)
                       : isWarning
-                          ? const Color(0xFFF8BD2A)
-                          : const Color(0xFF273647),
+                          ? LightModeColors.accent
+                          : const Color(0xFFE5E7EB),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: confirmed
-                      ? const Icon(Icons.check, size: 14, color: Color(0xFF0D1C2D))
+                      ? const Icon(Icons.check, size: 14, color: Colors.white)
                       : Text('$num',
                           style: TextStyle(
                             color: isWarning
-                                ? const Color(0xFF402D00)
-                                : const Color(0xFF909096),
+                                ? LightModeColors.lightOnPrimary
+                                : const Color(0xFF6B7280),
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           )),
@@ -485,34 +544,34 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
               const SizedBox(width: 8),
               Text(title,
                   style: const TextStyle(
-                      color: Color(0xFFD4E4FA),
+                      color: Color(0xFF1A1D1F),
                       fontSize: 14,
                       fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 8),
           Text(desc,
-              style: const TextStyle(color: Color(0xFFC7C6CC), fontSize: 13)),
+              style: const TextStyle(color: Color(0xFF495057), fontSize: 13)),
           if (isWarning) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF0D1C2D),
+                color: const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
+                    color: LightModeColors.accent.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.warning_amber,
-                      color: Color(0xFFF8BD2A), size: 14),
+                      color: LightModeColors.accent, size: 14),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Cost baseline: ${formatCurrency(widget.estimate.totals.costBaseline, widget.estimate.currency)} · Change process: ${widget.estimate.deliveryModel.changeProcess}',
                       style: const TextStyle(
-                          color: Color(0xFFC7C6CC), fontSize: 12),
+                          color: Color(0xFF495057), fontSize: 12),
                     ),
                   ),
                 ],
@@ -524,9 +583,8 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
             FilledButton(
               onPressed: canConfirm ? onConfirm : null,
               style: FilledButton.styleFrom(
-                backgroundColor:
-                    isWarning ? const Color(0xFFF8BD2A) : const Color(0xFFF8BD2A),
-                foregroundColor: const Color(0xFF402D00),
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary,
                 minimumSize: const Size.fromHeight(36),
               ),
               child: Text(num == 1
@@ -537,11 +595,11 @@ class _AcceptanceGateDialogState extends State<_AcceptanceGateDialog> {
             const Row(
               children: [
                 Icon(Icons.check_circle,
-                    color: Color(0xFF4ADE80), size: 14),
+                    color: Color(0xFF16A34A), size: 14),
                 SizedBox(width: 4),
                 Text('Confirmed',
                     style:
-                        TextStyle(color: Color(0xFF4ADE80), fontSize: 12)),
+                        TextStyle(color: Color(0xFF16A34A), fontSize: 12)),
               ],
             ),
         ],

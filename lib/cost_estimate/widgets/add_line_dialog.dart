@@ -1,10 +1,15 @@
+library;
+
 /// Add Line Dialog — create or edit a cost line.
 ///
-/// Fields: category, sub-category, description, WBS ref, quantity, unit, rate, total,
-/// in-schedule toggle, basis source (with KAZ AI disclaimer), confidence.
+/// Fields: category, sub-category, description, WBS ref, quantity, unit, rate,
+/// total, in-schedule toggle, basis source (with KAZ AI disclaimer), confidence.
+///
+/// Light-mode (white) theme — matches the rest of the app.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -71,10 +76,10 @@ class _AddLineDialogState extends State<AddLineDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: const Color(0xFF0D1C2D),
+      backgroundColor: Colors.white,
       title: Text(
         widget.editingLine != null ? 'Edit cost line' : 'Add cost line',
-        style: const TextStyle(color: Color(0xFFD4E4FA)),
+        style: const TextStyle(color: Color(0xFF1A1D1F)),
       ),
       content: SizedBox(
         width: 500,
@@ -129,13 +134,18 @@ class _AddLineDialogState extends State<AddLineDialog> {
                     label: const Text('Quantity × Rate'),
                     selected: _useQtyRate,
                     onSelected: (s) => setState(() => _useQtyRate = s),
-                    selectedColor: const Color(0xFFF8BD2A).withValues(alpha: 0.2),
+                    selectedColor: LightModeColors.accent.withValues(alpha: 0.2),
                     labelStyle: TextStyle(
                       color: _useQtyRate
-                          ? const Color(0xFFF8BD2A)
-                          : const Color(0xFF909096),
+                          ? LightModeColors.accent
+                          : const Color(0xFF6B7280),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
+                    ),
+                    side: BorderSide(
+                      color: _useQtyRate
+                          ? LightModeColors.accent
+                          : const Color(0xFFE4E7EC),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -143,13 +153,18 @@ class _AddLineDialogState extends State<AddLineDialog> {
                     label: const Text('Lump sum'),
                     selected: !_useQtyRate,
                     onSelected: (s) => setState(() => _useQtyRate = !s),
-                    selectedColor: const Color(0xFFF8BD2A).withValues(alpha: 0.2),
+                    selectedColor: LightModeColors.accent.withValues(alpha: 0.2),
                     labelStyle: TextStyle(
                       color: !_useQtyRate
-                          ? const Color(0xFFF8BD2A)
-                          : const Color(0xFF909096),
+                          ? LightModeColors.accent
+                          : const Color(0xFF6B7280),
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
+                    ),
+                    side: BorderSide(
+                      color: !_useQtyRate
+                          ? LightModeColors.accent
+                          : const Color(0xFFE4E7EC),
                     ),
                   ),
                 ],
@@ -201,7 +216,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8BD2A).withValues(alpha: 0.08),
+                  color: LightModeColors.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
@@ -210,7 +225,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
                     const Text(
                       'COMPUTED TOTAL',
                       style: TextStyle(
-                        color: Color(0xFFF8BD2A),
+                        color: LightModeColors.accent,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1,
@@ -219,7 +234,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
                     Text(
                       formatCurrency(_computedTotal, 'USD'),
                       style: const TextStyle(
-                        color: Color(0xFFD4E4FA),
+                        color: Color(0xFF1A1D1F),
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -234,13 +249,13 @@ class _AddLineDialogState extends State<AddLineDialog> {
                 onChanged: (v) => setState(() => _inSchedule = v ?? true),
                 title: const Text(
                   'Reflected in project schedule',
-                  style: TextStyle(color: Color(0xFFD4E4FA), fontSize: 13),
+                  style: TextStyle(color: Color(0xFF1A1D1F), fontSize: 13),
                 ),
                 subtitle: const Text(
                   'Uncheck for SSHER, Quality, or PMO costs not in the schedule.',
-                  style: TextStyle(color: Color(0xFF909096), fontSize: 11),
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 11),
                 ),
-                activeColor: const Color(0xFFF8BD2A),
+                activeColor: LightModeColors.accent,
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),
@@ -258,21 +273,21 @@ class _AddLineDialogState extends State<AddLineDialog> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.08),
+                    color: LightModeColors.accent.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                        color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
+                        color: LightModeColors.accent.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.warning_amber,
-                          size: 14, color: Color(0xFFF8BD2A)),
+                          size: 14, color: LightModeColors.accent),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           _basisSource.disclaimer!,
                           style: const TextStyle(
-                              color: Color(0xFFF8BD2A), fontSize: 11),
+                              color: Color(0xFFD97706), fontSize: 11),
                         ),
                       ),
                     ],
@@ -313,13 +328,13 @@ class _AddLineDialogState extends State<AddLineDialog> {
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel',
-              style: TextStyle(color: Color(0xFF909096))),
+              style: TextStyle(color: Color(0xFF6B7280))),
         ),
         FilledButton(
           onPressed: _canSave ? _handleSave : null,
           style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFF8BD2A),
-            foregroundColor: const Color(0xFF402D00),
+            backgroundColor: LightModeColors.accent,
+            foregroundColor: LightModeColors.lightOnPrimary,
           ),
           child: Text(widget.editingLine != null ? 'Save changes' : 'Add line'),
         ),
@@ -367,7 +382,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
         Text(
           label.toUpperCase(),
           style: const TextStyle(
-            color: Color(0xFF909096),
+            color: Color(0xFF6B7280),
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.8,
@@ -379,22 +394,27 @@ class _AddLineDialogState extends State<AddLineDialog> {
           onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF46464C)),
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
             filled: true,
-            fillColor: const Color(0xFF0D1C2D),
+            fillColor: Colors.white,
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF46464C)),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFF8BD2A)),
+              borderSide:
+                  const BorderSide(color: LightModeColors.accent, width: 1.6),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
             ),
           ),
-          style: const TextStyle(color: Color(0xFFD4E4FA), fontSize: 14),
+          style: const TextStyle(color: Color(0xFF1A1D1F), fontSize: 14),
           keyboardType: keyboardType,
         ),
       ],
@@ -414,7 +434,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
         Text(
           label.toUpperCase(),
           style: const TextStyle(
-            color: Color(0xFF909096),
+            color: Color(0xFF6B7280),
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.8,
@@ -428,26 +448,31 @@ class _AddLineDialogState extends State<AddLineDialog> {
                     value: i,
                     child: Text(getLabel(i),
                         style: const TextStyle(
-                            color: Color(0xFFD4E4FA), fontSize: 14)),
+                            color: Color(0xFF1A1D1F), fontSize: 14)),
                   ))
               .toList(),
           onChanged: (v) => v != null ? onChanged(v) : null,
           decoration: InputDecoration(
             filled: true,
-            fillColor: const Color(0xFF0D1C2D),
+            fillColor: Colors.white,
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFF46464C)),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Color(0xFFF8BD2A)),
+              borderSide:
+                  const BorderSide(color: LightModeColors.accent, width: 1.6),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
             ),
           ),
-          dropdownColor: const Color(0xFF0D1C2D),
+          dropdownColor: Colors.white,
         ),
       ],
     );

@@ -1,3 +1,5 @@
+library;
+
 /// NDU Project — Schedule type system (Dart equivalent)
 ///
 /// Implements both the Agile Schedule Development guidance and the
@@ -583,7 +585,9 @@ Map<int, int> countActivities(Schedule schedule) {
   final counts = <int, int>{};
   void walk(ScheduleActivity node) {
     counts[node.level] = (counts[node.level] ?? 0) + 1;
-    for (final c in node.children) walk(c);
+    for (final c in node.children) {
+      walk(c);
+    }
   }
   if (schedule.activities.isNotEmpty) {
     walk(schedule.activities[0]);

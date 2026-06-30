@@ -1,3 +1,5 @@
+library;
+
 /// NDU Project — Cost Estimate type system (Dart equivalent)
 ///
 /// Mirrors the TypeScript types in the Next.js Cost Estimate module.

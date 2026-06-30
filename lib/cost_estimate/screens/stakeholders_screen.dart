@@ -1,7 +1,13 @@
+library;
+
 /// Stakeholders Screen — stakeholder list with SME flag + access control matrix.
+///
+/// Rendered inside the Cost Estimate module's [ResponsiveScaffold] body —
+/// no Scaffold of its own. Light-mode (white) theme.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -20,69 +26,66 @@ class StakeholdersScreen extends StatelessWidget {
         final smeCount = estimate.stakeholders.where((s) => s.sme).length;
         final isAdmin = provider.currentRole == RBACRole.admin;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.group, color: LightModeColors.accent, size: 20),
+                  SizedBox(width: 8),
+                  Text('Stakeholders & Access',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Verbatim SME prompt
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: LightModeColors.accent.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: LightModeColors.accent.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
                   children: [
-                    Icon(Icons.group, color: Color(0xFFF8BD2A), size: 20),
+                    Icon(Icons.info, color: LightModeColors.accent, size: 18),
                     SizedBox(width: 8),
-                    Text('Stakeholders & Access',
+                    Expanded(
+                      child: Text(
+                        'Include required stakeholders and applicable Subject Matter Experts in the Estimate Development process',
                         style: TextStyle(
-                            color: Color(0xFFD4E4FA),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Verbatim SME prompt
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.info, color: Color(0xFFF8BD2A), size: 18),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Include required stakeholders and applicable Subject Matter Experts in the Estimate Development process',
-                          style: TextStyle(
-                              color: Color(0xFFF8BD2A),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600),
-                        ),
+                            color: Color(0xFFD97706),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Stakeholders
-                    Expanded(
-                      child: _buildStakeholdersSection(
-                          context, provider, estimate, canEdit, smeCount),
-                    ),
-                    const SizedBox(width: 24),
-                    // Access control
-                    Expanded(
-                      child: _buildAccessSection(
-                          context, provider, estimate, isAdmin),
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Stakeholders
+                  Expanded(
+                    child: _buildStakeholdersSection(
+                        context, provider, estimate, canEdit, smeCount),
+                  ),
+                  const SizedBox(width: 24),
+                  // Access control
+                  Expanded(
+                    child: _buildAccessSection(
+                        context, provider, estimate, isAdmin),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
@@ -107,13 +110,13 @@ class StakeholdersScreen extends StatelessWidget {
               children: [
                 const Text('Stakeholders',
                     style: TextStyle(
-                        color: Color(0xFFD4E4FA),
+                        color: Color(0xFF1A1D1F),
                         fontSize: 16,
                         fontWeight: FontWeight.bold)),
                 Text(
                   '${estimate.stakeholders.length} total · $smeCount SMEs',
                   style: const TextStyle(
-                      color: Color(0xFF909096), fontSize: 12),
+                      color: Color(0xFF6B7280), fontSize: 12),
                 ),
               ],
             ),
@@ -123,19 +126,24 @@ class StakeholdersScreen extends StatelessWidget {
                 icon: const Icon(Icons.person_add, size: 16),
                 label: const Text('Add'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFF8BD2A),
-                  foregroundColor: const Color(0xFF402D00),
+                  backgroundColor: LightModeColors.accent,
+                  foregroundColor: LightModeColors.lightOnPrimary,
                 ),
               ),
           ],
         ),
         const SizedBox(height: 16),
         if (estimate.stakeholders.isEmpty)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE4E7EC)),
+            ),
+            child: const Center(
               child: Text('No stakeholders yet.',
-                  style: TextStyle(color: Color(0xFF909096), fontSize: 13)),
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
             ),
           )
         else
@@ -143,24 +151,30 @@ class StakeholdersScreen extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C2B3C),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: const Color(0xFF46464C).withValues(alpha: 0.5)),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: s.sme
-                          ? const Color(0xFFF8BD2A)
-                          : const Color(0xFF273647),
+                          ? LightModeColors.accent
+                          : const Color(0xFFF3F4F6),
                       child: Text(
                         s.name.isNotEmpty ? s.name[0].toUpperCase() : '?',
                         style: TextStyle(
                           color: s.sme
-                              ? const Color(0xFF402D00)
-                              : const Color(0xFFC7C6CC),
+                              ? LightModeColors.lightOnPrimary
+                              : const Color(0xFF495057),
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
@@ -175,7 +189,7 @@ class StakeholdersScreen extends StatelessWidget {
                             children: [
                               Text(s.name,
                                   style: const TextStyle(
-                                      color: Color(0xFFD4E4FA),
+                                      color: Color(0xFF1A1D1F),
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600)),
                               if (s.sme) ...[
@@ -184,13 +198,13 @@ class StakeholdersScreen extends StatelessWidget {
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 6, vertical: 1),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF8BD2A)
+                                    color: LightModeColors.accent
                                         .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: const Text('SME',
                                       style: TextStyle(
-                                          color: Color(0xFFF8BD2A),
+                                          color: Color(0xFFD97706),
                                           fontSize: 9,
                                           fontWeight: FontWeight.bold)),
                                 ),
@@ -199,14 +213,14 @@ class StakeholdersScreen extends StatelessWidget {
                           ),
                           Text('${s.role} · ${s.email}',
                               style: const TextStyle(
-                                  color: Color(0xFF909096), fontSize: 11)),
+                                  color: Color(0xFF6B7280), fontSize: 11)),
                         ],
                       ),
                     ),
                     if (canEdit)
                       IconButton(
                         icon: const Icon(Icons.delete_outline,
-                            size: 16, color: Color(0xFF909096)),
+                            size: 16, color: Color(0xFFB91C1C)),
                         onPressed: () => provider.removeStakeholder(s.id),
                       ),
                   ],
@@ -234,18 +248,18 @@ class StakeholdersScreen extends StatelessWidget {
                 Row(
                   children: [
                     const Icon(Icons.shield,
-                        color: Color(0xFFF8BD2A), size: 16),
+                        color: LightModeColors.accent, size: 16),
                     const SizedBox(width: 6),
                     const Text('Access Control',
                         style: TextStyle(
-                            color: Color(0xFFD4E4FA),
+                            color: Color(0xFF1A1D1F),
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
                   ],
                 ),
                 Text('Your role: ${provider.currentRole.label}',
                     style: const TextStyle(
-                        color: Color(0xFF909096), fontSize: 12)),
+                        color: Color(0xFF6B7280), fontSize: 12)),
               ],
             ),
             if (isAdmin)
@@ -254,8 +268,8 @@ class StakeholdersScreen extends StatelessWidget {
                 icon: const Icon(Icons.person_add, size: 16),
                 label: const Text('Grant'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFF8BD2A),
-                  foregroundColor: const Color(0xFF402D00),
+                  backgroundColor: LightModeColors.accent,
+                  foregroundColor: LightModeColors.lightOnPrimary,
                 ),
               ),
           ],
@@ -265,15 +279,16 @@ class StakeholdersScreen extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C2B3C),
+            color: const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE4E7EC)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('YOUR ROLE (FOR TESTING)',
                   style: TextStyle(
-                      color: Color(0xFF909096),
+                      color: Color(0xFF6B7280),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1)),
@@ -287,12 +302,17 @@ class StakeholdersScreen extends StatelessWidget {
                     selected: isActive,
                     onSelected: (_) => provider.setCurrentRole(r),
                     selectedColor:
-                        const Color(0xFFF8BD2A).withValues(alpha: 0.2),
+                        LightModeColors.accent.withValues(alpha: 0.2),
                     labelStyle: TextStyle(
                       color: isActive
-                          ? const Color(0xFFF8BD2A)
-                          : const Color(0xFFC7C6CC),
+                          ? LightModeColors.accent
+                          : const Color(0xFF495057),
                       fontSize: 12,
+                    ),
+                    side: BorderSide(
+                      color: isActive
+                          ? LightModeColors.accent
+                          : const Color(0xFFE4E7EC),
                     ),
                   );
                 }).toList(),
@@ -306,20 +326,22 @@ class StakeholdersScreen extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C2B3C),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: const Color(0xFFF8BD2A).withValues(alpha: 0.1),
+                    backgroundColor:
+                        LightModeColors.accent.withValues(alpha: 0.1),
                     child: Text(
                       a.userEmail.isNotEmpty
                           ? a.userEmail[0].toUpperCase()
                           : '?',
                       style: const TextStyle(
-                          color: Color(0xFFF8BD2A),
+                          color: LightModeColors.accent,
                           fontSize: 13,
                           fontWeight: FontWeight.bold),
                     ),
@@ -328,7 +350,7 @@ class StakeholdersScreen extends StatelessWidget {
                   Expanded(
                     child: Text(a.userEmail,
                         style: const TextStyle(
-                            color: Color(0xFFD4E4FA), fontSize: 13)),
+                            color: Color(0xFF1A1D1F), fontSize: 13)),
                   ),
                   if (isAdmin)
                     DropdownButton<RBACRole>(
@@ -338,14 +360,14 @@ class StakeholdersScreen extends StatelessWidget {
                                 value: r,
                                 child: Text(r.label,
                                     style: const TextStyle(
-                                        color: Color(0xFFD4E4FA),
+                                        color: Color(0xFF1A1D1F),
                                         fontSize: 12)),
                               ))
                           .toList(),
                       onChanged: (r) {
                         if (r != null) provider.grantAccess(a.userEmail, r);
                       },
-                      dropdownColor: const Color(0xFF0D1C2D),
+                      dropdownColor: Colors.white,
                       underline: const SizedBox(),
                     ),
                 ],
@@ -356,15 +378,16 @@ class StakeholdersScreen extends StatelessWidget {
           margin: const EdgeInsets.only(top: 12),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C2B3C),
+            color: const Color(0xFFF9FAFB),
             borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE4E7EC)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('ROLE CAPABILITIES',
                   style: TextStyle(
-                      color: Color(0xFF909096),
+                      color: Color(0xFF6B7280),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1)),
@@ -378,14 +401,14 @@ class StakeholdersScreen extends StatelessWidget {
                           width: 60,
                           child: Text(r.label,
                               style: const TextStyle(
-                                  color: Color(0xFFF8BD2A),
+                                  color: LightModeColors.accent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
                         ),
                         Expanded(
                           child: Text(r.desc,
                               style: const TextStyle(
-                                  color: Color(0xFFC7C6CC), fontSize: 12)),
+                                  color: Color(0xFF495057), fontSize: 12)),
                         ),
                       ],
                     ),
@@ -407,9 +430,9 @@ class StakeholdersScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          backgroundColor: const Color(0xFF0D1C2D),
+          backgroundColor: Colors.white,
           title: const Text('Add stakeholder',
-              style: TextStyle(color: Color(0xFFD4E4FA))),
+              style: TextStyle(color: Color(0xFF1A1D1F))),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -417,29 +440,29 @@ class StakeholdersScreen extends StatelessWidget {
                 controller: nameCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Name',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
-                style: const TextStyle(color: Color(0xFFD4E4FA)),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
+                style: const TextStyle(color: Color(0xFF1A1D1F)),
               ),
               TextField(
                 controller: emailCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
-                style: const TextStyle(color: Color(0xFFD4E4FA)),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
+                style: const TextStyle(color: Color(0xFF1A1D1F)),
               ),
               TextField(
                 controller: roleCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Role / title',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
-                style: const TextStyle(color: Color(0xFFD4E4FA)),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
+                style: const TextStyle(color: Color(0xFF1A1D1F)),
               ),
               CheckboxListTile(
                 value: sme,
                 onChanged: (v) => setState(() => sme = v ?? false),
                 title: const Text('Subject Matter Expert',
-                    style: TextStyle(color: Color(0xFFD4E4FA), fontSize: 13)),
-                activeColor: const Color(0xFFF8BD2A),
+                    style: TextStyle(color: Color(0xFF1A1D1F), fontSize: 13)),
+                activeColor: LightModeColors.accent,
                 contentPadding: EdgeInsets.zero,
                 dense: true,
               ),
@@ -449,7 +472,7 @@ class StakeholdersScreen extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel',
-                  style: TextStyle(color: Color(0xFF909096))),
+                  style: TextStyle(color: Color(0xFF6B7280))),
             ),
             FilledButton(
               onPressed: () {
@@ -464,8 +487,8 @@ class StakeholdersScreen extends StatelessWidget {
                 Navigator.pop(ctx);
               },
               style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFF8BD2A),
-                  foregroundColor: const Color(0xFF402D00)),
+                  backgroundColor: LightModeColors.accent,
+                  foregroundColor: LightModeColors.lightOnPrimary),
               child: const Text('Add'),
             ),
           ],
@@ -482,9 +505,9 @@ class StakeholdersScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
-          backgroundColor: const Color(0xFF0D1C2D),
+          backgroundColor: Colors.white,
           title: const Text('Grant access',
-              style: TextStyle(color: Color(0xFFD4E4FA))),
+              style: TextStyle(color: Color(0xFF1A1D1F))),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -492,8 +515,8 @@ class StakeholdersScreen extends StatelessWidget {
                 controller: emailCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Email',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
-                style: const TextStyle(color: Color(0xFFD4E4FA)),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
+                style: const TextStyle(color: Color(0xFF1A1D1F)),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<RBACRole>(
@@ -503,14 +526,14 @@ class StakeholdersScreen extends StatelessWidget {
                           value: r,
                           child: Text(r.label,
                               style: const TextStyle(
-                                  color: Color(0xFFD4E4FA))),
+                                  color: Color(0xFF1A1D1F))),
                         ))
                     .toList(),
                 onChanged: (r) => setState(() => role = r!),
                 decoration: const InputDecoration(
                     labelText: 'Role',
-                    labelStyle: TextStyle(color: Color(0xFF909096))),
-                dropdownColor: const Color(0xFF0D1C2D),
+                    labelStyle: TextStyle(color: Color(0xFF6B7280))),
+                dropdownColor: Colors.white,
               ),
             ],
           ),
@@ -518,7 +541,7 @@ class StakeholdersScreen extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel',
-                  style: TextStyle(color: Color(0xFF909096))),
+                  style: TextStyle(color: Color(0xFF6B7280))),
             ),
             FilledButton(
               onPressed: () {
@@ -526,8 +549,8 @@ class StakeholdersScreen extends StatelessWidget {
                 Navigator.pop(ctx);
               },
               style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFF8BD2A),
-                  foregroundColor: const Color(0xFF402D00)),
+                  backgroundColor: LightModeColors.accent,
+                  foregroundColor: LightModeColors.lightOnPrimary),
               child: const Text('Grant'),
             ),
           ],

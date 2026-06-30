@@ -7,6 +7,8 @@
 ///
 /// The WBS stops at Level 2.
 
+library;
+
 enum WBSFramework {
   agile,
   waterfallDeliverable,

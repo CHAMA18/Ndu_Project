@@ -1,9 +1,22 @@
+library;
+
 /// WBS Module Screen — main entry point for the WBS module.
 ///
-/// Left-rail navigation between: Builder, AI Generator, Validator, Export & Link.
+/// Uses [ResponsiveScaffold] with the standard app sidebar
+/// (`InitiationLikeSidebar`) so it matches the rest of the app.
+///
+/// Sub-navigation between Builder / AI Generator / Validator / Export & Link
+/// is a horizontal `TabBar` at the top of the content area (light-mode pills
+/// matching the Project Controls screen), replacing the old dark navy left
+/// rail.
+
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/wbs/screens/framework_picker_screen.dart';
@@ -24,8 +37,18 @@ class WBSModuleScreen extends StatefulWidget {
   State<WBSModuleScreen> createState() => _WBSModuleScreenState();
 }
 
-class _WBSModuleScreenState extends State<WBSModuleScreen> {
-  _WBSSubModule _active = _WBSSubModule.builder;
+class _WBSModuleScreenState extends State<WBSModuleScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 4,
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,148 +56,64 @@ class _WBSModuleScreenState extends State<WBSModuleScreen> {
       builder: (context, provider, _) {
         final wbs = provider.wbs;
 
+        // Setup state — show framework picker (which itself uses
+        // ResponsiveScaffold so the sidebar stays visible).
         if (wbs == null || !provider.setupComplete) {
           return const FrameworkPickerScreen();
         }
 
-        final frameworkMeta = wbs.framework;
-        final counts = countNodes(wbs);
-
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: Row(
+        return ResponsiveScaffold(
+          activeItemLabel: 'Work Breakdown Structure',
+          appBarTitle: 'Work Breakdown Structure',
+          breadcrumbPhase: 'Planning Phase',
+          breadcrumbTitle: 'WBS',
+          backgroundColor: Colors.white,
+          body: Column(
             children: [
-              // Left rail
+              // Horizontal sub-tab bar (replaces the dark left rail)
               Container(
-                width: 220,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0D1C2D),
-                  border: Border(
-                    right: BorderSide(color: Color(0xFF46464C), width: 0.5),
-                  ),
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
                 ),
-                child: Column(
-                  children: [
-                    // Project header
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('WBS PROJECT',
-                              style: TextStyle(
-                                  color: Color(0xFF909096),
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.5)),
-                          const SizedBox(height: 4),
-                          Text(wbs.projectName,
-                              style: const TextStyle(
-                                  color: Color(0xFFD4E4FA),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 4,
-                            runSpacing: 4,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF273647),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(frameworkMeta.shortLabel,
-                                    style: const TextStyle(
-                                        color: Color(0xFFC7C6CC),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF273647),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                    '${counts.level1} L1 · ${counts.level2} L2',
-                                    style: const TextStyle(
-                                        color: Color(0xFFC7C6CC),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                              '${frameworkMeta.level1Label} → ${frameworkMeta.level2Label}',
-                              style: const TextStyle(
-                                  color: Color(0xFF909096), fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                    const Divider(color: Color(0xFF46464C), height: 1),
-                    // Nav items
-                    Expanded(
-                      child: ListView(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        children: _WBSSubModule.values.map((m) {
-                          final isActive = _active == m;
-                          return Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () =>
-                                  setState(() => _active = m),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isActive
-                                      ? const Color(0xFFF8BD2A)
-                                          .withValues(alpha: 0.1)
-                                      : Colors.transparent,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(m.icon,
-                                        size: 18,
-                                        color: isActive
-                                            ? const Color(0xFFF8BD2A)
-                                            : const Color(0xFFC7C6CC)),
-                                    const SizedBox(width: 10),
-                                    Text(m.label,
-                                        style: TextStyle(
-                                          color: isActive
-                                              ? const Color(0xFFF8BD2A)
-                                              : const Color(0xFFC7C6CC),
-                                          fontSize: 13,
-                                          fontWeight: isActive
-                                              ? FontWeight.w600
-                                              : FontWeight.w500,
-                                        )),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: LightModeColors.accent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  labelColor: LightModeColors.lightOnPrimary,
+                  unselectedLabelColor: const Color(0xFF6B7280),
+                  labelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                  unselectedLabelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                  tabs: const [
+                    Tab(text: 'Builder'),
+                    Tab(text: 'AI Generator'),
+                    Tab(text: 'Validator'),
+                    Tab(text: 'Export & Link'),
                   ],
                 ),
               ),
-              // Main content
+              // Tab content
               Expanded(
-                child: switch (_active) {
-                  _WBSSubModule.builder => const WBSBuilderScreen(),
-                  _WBSSubModule.ai => const WBSAIScreen(),
-                  _WBSSubModule.validator => const WBSValidatorScreen(),
-                  _WBSSubModule.export => const _ExportPlaceholder(),
-                },
+                child: TabBarView(
+                  controller: _tabController,
+                  children: const [
+                    WBSBuilderScreen(),
+                    WBSAIScreen(),
+                    WBSValidatorScreen(),
+                    _ExportAndLinkTab(),
+                  ],
+                ),
               ),
             ],
           ),
@@ -184,48 +123,399 @@ class _WBSModuleScreenState extends State<WBSModuleScreen> {
   }
 }
 
-enum _WBSSubModule {
-  builder,
-  ai,
-  validator,
-  export;
-
-  String get label => switch (this) {
-        _WBSSubModule.builder => 'Builder',
-        _WBSSubModule.ai => 'AI Generator',
-        _WBSSubModule.validator => 'Validator',
-        _WBSSubModule.export => 'Export & Link',
-      };
-
-  IconData get icon => switch (this) {
-        _WBSSubModule.builder => Icons.folder_open,
-        _WBSSubModule.ai => Icons.auto_awesome,
-        _WBSSubModule.validator => Icons.check_circle,
-        _WBSSubModule.export => Icons.trending_up,
-      };
-}
-
-class _ExportPlaceholder extends StatelessWidget {
-  const _ExportPlaceholder();
+/// Export & Link tab — exports the WBS as JSON or ASCII tree, and shows the
+/// link-to-Cost-Estimate affordance.
+class _ExportAndLinkTab extends StatelessWidget {
+  const _ExportAndLinkTab();
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Consumer<WBSProvider>(
+      builder: (context, provider, _) {
+        final wbs = provider.wbs!;
+        final counts = countNodes(wbs);
+        final json = const JsonEncoder.withIndent('  ').convert({
+          'id': wbs.id,
+          'projectName': wbs.projectName,
+          'framework': wbs.framework.name,
+          'frameworkLabel': wbs.framework.label,
+          'level1Label': wbs.framework.level1Label,
+          'level2Label': wbs.framework.level2Label,
+          'level0': _nodeToJson(wbs.level0),
+        });
+        final ascii = _toAsciiTree(wbs.level0);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  const Icon(Icons.trending_up,
+                      color: LightModeColors.accent, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('Export & Link',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Export the WBS as JSON or ASCII tree, or link WBS work packages to Cost Estimate lines.',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+              ),
+              const SizedBox(height: 24),
+              // Summary card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: LightModeColors.accent.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.folder_open,
+                          color: LightModeColors.accent, size: 20),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(wbs.projectName,
+                              style: const TextStyle(
+                                  color: Color(0xFF1A1D1F),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${wbs.framework.label} · ${counts.level1} ${wbs.framework.level1Label} · ${counts.level2} ${wbs.framework.level2Label}',
+                            style: const TextStyle(
+                                color: Color(0xFF6B7280), fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(10),
+                        border:
+                            Border.all(color: const Color(0xFFE4E7EC)),
+                      ),
+                      child: Text('${counts.level1 + counts.level2 + 1} nodes',
+                          style: const TextStyle(
+                              color: Color(0xFF495057),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Export buttons
+              Row(
+                children: [
+                  FilledButton.icon(
+                    onPressed: () => _copyToClipboard(context, json, 'JSON'),
+                    icon: const Icon(Icons.data_object, size: 16),
+                    label: const Text('Copy JSON'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: LightModeColors.accent,
+                      foregroundColor: LightModeColors.lightOnPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _copyToClipboard(context, ascii, 'ASCII'),
+                    icon: const Icon(Icons.account_tree, size: 16),
+                    label: const Text('Copy ASCII tree'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1A1D1F),
+                      side: const BorderSide(color: Color(0xFFE4E7EC)),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // ASCII preview
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.preview,
+                            size: 14, color: Color(0xFF6B7280)),
+                        SizedBox(width: 6),
+                        Text('ASCII TREE PREVIEW',
+                            style: TextStyle(
+                                color: Color(0xFF6B7280),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SelectableText(
+                      ascii,
+                      style: const TextStyle(
+                        color: Color(0xFF1A1D1F),
+                        fontSize: 12,
+                        height: 1.5,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Cost Estimate link section
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.link, size: 16, color: LightModeColors.accent),
+                        SizedBox(width: 8),
+                        Text('Link to Cost Estimate',
+                            style: TextStyle(
+                                color: Color(0xFF1A1D1F),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Each Level 2 work package can be linked to one or more Cost Estimate line items. Open the Cost Estimate module from the sidebar to map WBS nodes to cost lines, or use the AI Generator to suggest a baseline breakdown.',
+                      style:
+                          TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _linkStatChip(
+                          'Work packages',
+                          '${counts.level2}',
+                          Icons.inventory_2_outlined,
+                        ),
+                        _linkStatChip(
+                          'Linked cost lines',
+                          '${_countLinkedCostLines(wbs)}',
+                          Icons.link,
+                        ),
+                        _linkStatChip(
+                          'AI-generated nodes',
+                          '${_countAiNodes(wbs)}',
+                          Icons.auto_awesome,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Danger zone — reset
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFFFECACA).withValues(alpha: 0.7)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber,
+                        color: Color(0xFFB91C1C), size: 18),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'Reset WBS — permanently removes the current WBS and returns to setup. This cannot be undone.',
+                        style:
+                            TextStyle(color: Color(0xFF7F1D1D), fontSize: 12),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: () => _confirmReset(context, provider),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFFB91C1C),
+                      ),
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _linkStatChip(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.trending_up, color: Color(0xFFF8BD2A), size: 48),
-          SizedBox(height: 16),
-          Text('Export & Link',
-              style: TextStyle(
-                  color: Color(0xFFD4E4FA),
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold)),
-          SizedBox(height: 8),
-          Text('Export WBS as JSON or ASCII tree, link to Cost Estimate.',
-              style: TextStyle(color: Color(0xFFC7C6CC), fontSize: 14)),
+          Icon(icon, size: 14, color: const Color(0xFF6B7280)),
+          const SizedBox(width: 6),
+          Text(value,
+              style: const TextStyle(
+                  color: Color(0xFF1A1D1F),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(width: 4),
+          Text(label,
+              style: const TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );
+  }
+
+  void _copyToClipboard(
+      BuildContext context, String text, String label) async {
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('WBS $label copied to clipboard'),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _confirmReset(BuildContext context, WBSProvider provider) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset WBS?'),
+        content: const Text(
+            'This permanently removes the current WBS and returns to setup. This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              provider.resetWBS();
+              Navigator.pop(ctx);
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- helpers ----
+
+  Map<String, dynamic> _nodeToJson(WBSNode node) {
+    return {
+      'id': node.id,
+      'level': node.level.name,
+      'code': node.code,
+      'name': node.name,
+      if (node.description != null) 'description': node.description,
+      if (node.aiGenerated) 'aiGenerated': true,
+      if (node.costLineIds != null && node.costLineIds!.isNotEmpty)
+        'costLineIds': node.costLineIds,
+      'children': node.children.map(_nodeToJson).toList(),
+    };
+  }
+
+  String _toAsciiTree(WBSNode root) {
+    final buf = StringBuffer();
+    buf.writeln('${root.code}  ${root.name}');
+    _writeAsciiChildren(buf, root.children, '');
+    return buf.toString();
+  }
+
+  void _writeAsciiChildren(
+      StringBuffer buf, List<WBSNode> children, String prefix) {
+    for (var i = 0; i < children.length; i++) {
+      final isLast = i == children.length - 1;
+      final node = children[i];
+      buf.writeln('$prefix${isLast ? '└── ' : '├── '}${node.code}  ${node.name}');
+      _writeAsciiChildren(
+          buf, node.children, '$prefix${isLast ? '    ' : '│   '}');
+    }
+  }
+
+  int _countLinkedCostLines(WBS wbs) {
+    int count(WBSNode n) {
+      final own = n.costLineIds?.length ?? 0;
+      return own + n.children.fold(0, (s, c) => s + count(c));
+    }
+    return count(wbs.level0);
+  }
+
+  int _countAiNodes(WBS wbs) {
+    int count(WBSNode n) {
+      final own = n.aiGenerated ? 1 : 0;
+      return own + n.children.fold(0, (s, c) => s + count(c));
+    }
+    return count(wbs.level0);
   }
 }

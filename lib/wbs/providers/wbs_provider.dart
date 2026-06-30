@@ -3,6 +3,9 @@
 /// Mirrors the Zustand store in the Next.js module.
 /// Persists to SharedPreferences as JSON.
 
+
+library;
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';

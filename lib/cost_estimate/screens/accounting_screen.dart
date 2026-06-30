@@ -1,7 +1,13 @@
+library;
+
 /// Accounting Screen — provider picker, mock OAuth, GL code mapping.
+///
+/// Rendered inside the Cost Estimate module's [ResponsiveScaffold] body —
+/// no Scaffold of its own. Light-mode (white) theme.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -32,43 +38,40 @@ class _AccountingScreenState extends State<AccountingScreen> {
             estimate.status == EstimateStatus.draft;
         final glMap = defaultGLMappings();
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.link, color: Color(0xFFF8BD2A), size: 20),
-                    SizedBox(width: 8),
-                    Text('Accounting Integration',
-                        style: TextStyle(
-                            color: Color(0xFFD4E4FA),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Connection
-                    Expanded(
-                      child: _buildConnectionSection(
-                          context, provider, integration, canEdit),
-                    ),
-                    const SizedBox(width: 24),
-                    // GL Mapping
-                    Expanded(
-                      child: _buildGLMappingSection(
-                          context, provider, integration, canEdit, glMap),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.link, color: LightModeColors.accent, size: 20),
+                  SizedBox(width: 8),
+                  Text('Accounting Integration',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Connection
+                  Expanded(
+                    child: _buildConnectionSection(
+                        context, provider, integration, canEdit),
+                  ),
+                  const SizedBox(width: 24),
+                  // GL Mapping
+                  Expanded(
+                    child: _buildGLMappingSection(
+                        context, provider, integration, canEdit, glMap),
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
@@ -86,7 +89,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
       children: [
         const Text('Connection',
             style: TextStyle(
-                color: Color(0xFFD4E4FA),
+                color: Color(0xFF1A1D1F),
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
@@ -95,22 +98,29 @@ class _AccountingScreenState extends State<AccountingScreen> {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: integration.connected
-                ? const Color(0xFF4ADE80).withValues(alpha: 0.05)
-                : const Color(0xFF1C2B3C),
+                ? const Color(0xFF16A34A).withValues(alpha: 0.05)
+                : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: integration.connected
-                  ? const Color(0xFF4ADE80).withValues(alpha: 0.4)
-                  : const Color(0xFF46464C),
+                  ? const Color(0xFF16A34A).withValues(alpha: 0.4)
+                  : const Color(0xFFE4E7EC),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
               Icon(
                 integration.connected ? Icons.cloud_done : Icons.link_off,
                 color: integration.connected
-                    ? const Color(0xFF4ADE80)
-                    : const Color(0xFF909096),
+                    ? const Color(0xFF16A34A)
+                    : const Color(0xFF6B7280),
                 size: 32,
               ),
               const SizedBox(width: 12),
@@ -123,7 +133,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                           ? integration.provider.label
                           : 'Not connected',
                       style: const TextStyle(
-                          color: Color(0xFFD4E4FA),
+                          color: Color(0xFF1A1D1F),
                           fontSize: 15,
                           fontWeight: FontWeight.bold),
                     ),
@@ -132,7 +142,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                           ? 'Connected ${integration.connectedAt != null ? integration.connectedAt.toString().substring(0, 16) : ""}'
                           : 'Pick a provider below to connect',
                       style: const TextStyle(
-                          color: Color(0xFF909096), fontSize: 12),
+                          color: Color(0xFF6B7280), fontSize: 12),
                     ),
                   ],
                 ),
@@ -142,12 +152,12 @@ class _AccountingScreenState extends State<AccountingScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4ADE80).withValues(alpha: 0.15),
+                    color: const Color(0xFF16A34A).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Text('LIVE',
                       style: TextStyle(
-                          color: Color(0xFF4ADE80),
+                          color: Color(0xFF16A34A),
                           fontSize: 10,
                           fontWeight: FontWeight.bold)),
                 ),
@@ -169,15 +179,22 @@ class _AccountingScreenState extends State<AccountingScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C2B3C),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: const Color(0xFF46464C)),
+                                color: const Color(0xFFE4E7EC)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
                           child: Row(
                             children: [
                               Icon(Icons.account_balance,
-                                  color: const Color(0xFFF8BD2A), size: 20),
+                                  color: LightModeColors.accent, size: 20),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
@@ -185,12 +202,12 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                   children: [
                                     Text(p.label,
                                         style: const TextStyle(
-                                            color: Color(0xFFD4E4FA),
+                                            color: Color(0xFF1A1D1F),
                                             fontSize: 14,
                                             fontWeight: FontWeight.w600)),
                                     const Text('OAuth 2.0 · Secure connection',
                                         style: TextStyle(
-                                            color: Color(0xFF909096),
+                                            color: Color(0xFF6B7280),
                                             fontSize: 11)),
                                   ],
                                 ),
@@ -201,11 +218,11 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                   height: 16,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: Color(0xFFF8BD2A)),
+                                      color: LightModeColors.accent),
                                 )
                               else
                                 const Icon(Icons.arrow_forward,
-                                    color: Color(0xFF909096), size: 16),
+                                    color: Color(0xFF6B7280), size: 16),
                             ],
                           ),
                         ),
@@ -220,7 +237,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     connected: false,
                     glMapping: [])),
             child: const Text('Disconnect',
-                style: TextStyle(color: Color(0xFFFB923C))),
+                style: TextStyle(color: Color(0xFFB91C1C))),
           ),
       ],
     );
@@ -257,7 +274,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
           children: [
             const Text('GL Code Mapping',
                 style: TextStyle(
-                    color: Color(0xFFD4E4FA),
+                    color: Color(0xFF1A1D1F),
                     fontSize: 16,
                     fontWeight: FontWeight.bold)),
             if (integration.connected && canEdit)
@@ -280,27 +297,32 @@ class _AccountingScreenState extends State<AccountingScreen> {
                 icon: const Icon(Icons.refresh, size: 14),
                 label: const Text('Auto-map'),
                 style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFF8BD2A)),
+                    foregroundColor: LightModeColors.accent),
               ),
           ],
         ),
         Text('$mappedCount of $totalCats categories mapped',
-            style: const TextStyle(color: Color(0xFF909096), fontSize: 12)),
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
         const SizedBox(height: 8),
         // Progress bar
         LinearProgressIndicator(
           value: totalCats > 0 ? mappedCount / totalCats : 0,
-          backgroundColor: const Color(0xFF273647),
-          color: const Color(0xFFF8BD2A),
+          backgroundColor: const Color(0xFFE5E7EB),
+          color: LightModeColors.accent,
           minHeight: 4,
         ),
         const SizedBox(height: 16),
         if (!integration.connected)
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE4E7EC)),
+            ),
+            child: const Center(
               child: Text('Connect an accounting provider to map GL codes.',
-                  style: TextStyle(color: Color(0xFF909096), fontSize: 13)),
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
             ),
           )
         else
@@ -313,8 +335,9 @@ class _AccountingScreenState extends State<AccountingScreen> {
               margin: const EdgeInsets.only(bottom: 6),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C2B3C),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
               ),
               child: Row(
                 children: [
@@ -322,26 +345,26 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     width: 120,
                     child: Text(cat.label,
                         style: const TextStyle(
-                            color: Color(0xFFC7C6CC), fontSize: 12),
+                            color: Color(0xFF495057), fontSize: 12),
                         overflow: TextOverflow.ellipsis),
                   ),
                   SizedBox(
                     width: 60,
                     child: Text(mapping?.glCode ?? defaultGl?.code ?? '—',
                         style: const TextStyle(
-                            color: Color(0xFFD4E4FA),
+                            color: Color(0xFF1A1D1F),
                             fontSize: 12,
                             fontWeight: FontWeight.w500)),
                   ),
                   Expanded(
                     child: Text(mapping?.glName ?? defaultGl?.name ?? '',
                         style: const TextStyle(
-                            color: Color(0xFF909096), fontSize: 11),
+                            color: Color(0xFF6B7280), fontSize: 11),
                         overflow: TextOverflow.ellipsis),
                   ),
                   if (mapping != null)
                     const Icon(Icons.check,
-                        size: 12, color: Color(0xFF4ADE80)),
+                        size: 12, color: Color(0xFF16A34A)),
                 ],
               ),
             );

@@ -1,11 +1,16 @@
+library;
+
 /// Totals Panel — sticky sidebar showing live-computed totals.
 ///
 /// Implements the baseline formula from the guidance doc:
 ///   Direct + Indirect + SSHER/Quality + Risk + Contingency + Escalation + Taxes = Cost Baseline
 ///   Cost Baseline + Management Reserve = Total Authorized Budget
+///
+/// Light-mode (white) theme — matches the rest of the app.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import "package:ndu_project/cost_estimate/models/cost_estimate_models.dart";
 import "package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart";
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -25,9 +30,16 @@ class TotalsPanel extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF122131).withValues(alpha: 0.55),
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF46464C).withValues(alpha: 0.5)),
+            border: Border.all(color: const Color(0xFFE4E7EC)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -39,7 +51,7 @@ class TotalsPanel extends StatelessWidget {
                   const Text(
                     'ESTIMATE TOTALS',
                     style: TextStyle(
-                      color: Color(0xFFF8BD2A),
+                      color: LightModeColors.accent,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.5,
@@ -51,12 +63,12 @@ class TotalsPanel extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.lock,
-                            size: 12, color: Color(0xFF4ADE80)),
+                            size: 12, color: Color(0xFF16A34A)),
                         const SizedBox(width: 4),
                         Text(
                           'v${estimate.baseline?.version}',
                           style: const TextStyle(
-                            color: Color(0xFF4ADE80),
+                            color: Color(0xFF16A34A),
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -74,23 +86,23 @@ class TotalsPanel extends StatelessWidget {
               _TotalRow(label: 'Escalation', value: t.escalation, currency: currency),
               _TotalRow(label: 'Taxes & duties', value: t.taxes, currency: currency),
               const SizedBox(height: 12),
-              const Divider(color: Color(0xFF46464C), height: 1),
+              const Divider(color: Color(0xFFE4E7EC), height: 1),
               const SizedBox(height: 12),
               // Cost Baseline
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8BD2A).withValues(alpha: 0.08),
+                  color: LightModeColors.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.shield, color: Color(0xFFF8BD2A), size: 16),
+                    const Icon(Icons.shield, color: LightModeColors.accent, size: 16),
                     const SizedBox(width: 8),
                     const Text(
                       'Cost Baseline',
                       style: TextStyle(
-                        color: Color(0xFFD4E4FA),
+                        color: Color(0xFF1A1D1F),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -99,7 +111,7 @@ class TotalsPanel extends StatelessWidget {
                     Text(
                       formatCurrency(t.costBaseline, currency),
                       style: const TextStyle(
-                        color: Color(0xFFF8BD2A),
+                        color: Color(0xFFD97706),
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
@@ -112,17 +124,17 @@ class TotalsPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF273647).withValues(alpha: 0.4),
+                  color: const Color(0xFFF3F4F6),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.trending_up, color: Color(0xFFC7C6CC), size: 16),
+                    const Icon(Icons.trending_up, color: Color(0xFF6B7280), size: 16),
                     const SizedBox(width: 8),
                     const Text(
                       'Mgmt Reserve',
                       style: TextStyle(
-                        color: Color(0xFFC7C6CC),
+                        color: Color(0xFF495057),
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -131,7 +143,7 @@ class TotalsPanel extends StatelessWidget {
                     Text(
                       formatCurrency(t.managementReserve, currency),
                       style: const TextStyle(
-                        color: Color(0xFFC7C6CC),
+                        color: Color(0xFF495057),
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -144,16 +156,16 @@ class TotalsPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8BD2A).withValues(alpha: 0.05),
+                  color: LightModeColors.accent.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
+                  border: Border.all(color: LightModeColors.accent.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
                     const Text(
                       'TOTAL AUTHORIZED',
                       style: TextStyle(
-                        color: Color(0xFFD4E4FA),
+                        color: Color(0xFF1A1D1F),
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 0.5,
@@ -163,7 +175,7 @@ class TotalsPanel extends StatelessWidget {
                     Text(
                       formatCurrency(t.totalAuthorizedBudget, currency),
                       style: const TextStyle(
-                        color: Color(0xFFD4E4FA),
+                        color: Color(0xFF1A1D1F),
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
@@ -199,12 +211,12 @@ class _TotalRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: Color(0xFFC7C6CC), fontSize: 13),
+            style: const TextStyle(color: Color(0xFF495057), fontSize: 13),
           ),
           Text(
             formatCurrency(value, currency),
             style: const TextStyle(
-              color: Color(0xFFD4E4FA),
+              color: Color(0xFF1A1D1F),
               fontSize: 13,
               fontWeight: FontWeight.w500,
               fontFeatures: [FontFeature.tabularFigures()],

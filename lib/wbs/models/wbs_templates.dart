@@ -3,6 +3,9 @@
 /// Each framework has Level 1 seed suggestions (with Level 2 example children)
 /// so the user can start from a proven structure instead of a blank canvas.
 
+
+library;
+
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 
 class TemplateNode {

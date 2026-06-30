@@ -1,10 +1,18 @@
+library;
+
 /// Framework Picker Screen — 2-step setup for a new WBS.
 ///
 /// Step 1: Project name (Level 0 node)
 /// Step 2: Framework selection (Agile + 5 Waterfall variations with ratings)
+///
+/// Rendered inside a [ResponsiveScaffold] so the standard app sidebar stays
+/// visible during setup. Light-mode (white) theme — matches the rest of the
+/// app.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 
@@ -22,11 +30,15 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF051424),
+    return ResponsiveScaffold(
+      activeItemLabel: 'Work Breakdown Structure',
+      appBarTitle: 'Work Breakdown Structure',
+      breadcrumbPhase: 'Planning Phase',
+      breadcrumbTitle: 'WBS Setup',
+      backgroundColor: Colors.white,
       body: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 700),
+          constraints: const BoxConstraints(maxWidth: 720),
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -37,16 +49,16 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.folder_open,
-                      color: Color(0xFFF8BD2A), size: 28),
+                      color: LightModeColors.accent, size: 28),
                   const SizedBox(width: 8),
                   const Text('NDU ',
                       style: TextStyle(
-                          color: Color(0xFFD4E4FA),
+                          color: Color(0xFF1A1D1F),
                           fontSize: 24,
                           fontWeight: FontWeight.bold)),
                   const Text('PROJECT',
                       style: TextStyle(
-                          color: Color(0xFFF8BD2A),
+                          color: LightModeColors.accent,
                           fontSize: 24,
                           fontWeight: FontWeight.bold)),
                 ],
@@ -55,7 +67,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
               const Text('WBS Setup',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: Color(0xFF909096),
+                      color: Color(0xFF6B7280),
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 3)),
@@ -70,8 +82,8 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                     height: 6,
                     decoration: BoxDecoration(
                       color: i <= _step
-                          ? const Color(0xFFF8BD2A)
-                          : const Color(0xFF46464C),
+                          ? LightModeColors.accent
+                          : const Color(0xFFE4E7EC),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   );
@@ -89,15 +101,17 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                     TextButton(
                       onPressed: () => setState(() => _step--),
                       child: const Text('Back',
-                          style: TextStyle(color: Color(0xFFC7C6CC))),
+                          style: TextStyle(color: Color(0xFF6B7280))),
                     )
                   else
                     const SizedBox(width: 80),
                   FilledButton(
                     onPressed: _canProceed() ? _handleNext : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFF8BD2A),
-                      foregroundColor: const Color(0xFF402D00),
+                      backgroundColor: LightModeColors.accent,
+                      foregroundColor: LightModeColors.lightOnPrimary,
+                      disabledBackgroundColor: const Color(0xFFE5E7EB),
+                      disabledForegroundColor: const Color(0xFF9CA3AF),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -151,33 +165,37 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
       children: [
         const Text('Name your project',
             style: TextStyle(
-                color: Color(0xFFD4E4FA),
+                color: Color(0xFF1A1D1F),
                 fontSize: 28,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text(
             'This becomes the Level 0 root node of your WBS. It represents the overall project or product being delivered.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFFC7C6CC), fontSize: 14)),
+            style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
         const SizedBox(height: 32),
         TextField(
           onChanged: (v) => setState(() => _projectName = v),
           decoration: InputDecoration(
             labelText: 'Project name (Level 0)',
             labelStyle:
-                const TextStyle(color: Color(0xFF909096), fontSize: 11),
+                const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
             hintText: 'e.g. NDU Manufacturing Facility',
-            hintStyle: const TextStyle(color: Color(0xFF46464C)),
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
             filled: true,
-            fillColor: const Color(0xFF0D1C2D),
+            fillColor: Colors.white,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF46464C))),
+                borderSide: const BorderSide(color: Color(0xFFE4E7EC))),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFF8BD2A))),
+                borderSide:
+                    const BorderSide(color: LightModeColors.accent, width: 1.6)),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE4E7EC))),
           ),
-          style: const TextStyle(color: Color(0xFFD4E4FA), fontSize: 14),
+          style: const TextStyle(color: Color(0xFF1A1D1F), fontSize: 14),
           autofocus: true,
         ),
       ],
@@ -190,14 +208,14 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
       children: [
         const Text('Pick a WBS framework',
             style: TextStyle(
-                color: Color(0xFFD4E4FA),
+                color: Color(0xFF1A1D1F),
                 fontSize: 28,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text(
             'The framework determines how your project is decomposed.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFFC7C6CC), fontSize: 14)),
+            style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
         const SizedBox(height: 24),
         Expanded(
           child: ListView(
@@ -215,14 +233,21 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: selected
-                            ? const Color(0xFFF8BD2A).withValues(alpha: 0.08)
-                            : const Color(0xFF1C2B3C),
+                            ? LightModeColors.accent.withValues(alpha: 0.08)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
                           color: selected
-                              ? const Color(0xFFF8BD2A)
-                              : const Color(0xFF46464C),
+                              ? LightModeColors.accent
+                              : const Color(0xFFE4E7EC),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
@@ -240,8 +265,8 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                               WBSFramework.waterfallPhase => Icons.timeline,
                             },
                             color: selected
-                                ? const Color(0xFFF8BD2A)
-                                : const Color(0xFFC7C6CC),
+                                ? LightModeColors.accent
+                                : const Color(0xFF6B7280),
                             size: 22,
                           ),
                           const SizedBox(width: 12),
@@ -254,16 +279,16 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                     Flexible(
                                       child: Text(f.label,
                                           style: const TextStyle(
-                                              color: Color(0xFFD4E4FA),
+                                              color: Color(0xFF1A1D1F),
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600)),
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
                                       '★' * f.rating +
-                                          '★' * (5 - f.rating),
+                                          '☆' * (5 - f.rating),
                                       style: const TextStyle(
-                                          color: Color(0xFFF8BD2A),
+                                          color: LightModeColors.accent,
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold),
                                     ),
@@ -272,12 +297,12 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                 const SizedBox(height: 2),
                                 Text(f.description,
                                     style: const TextStyle(
-                                        color: Color(0xFFC7C6CC),
+                                        color: Color(0xFF6B7280),
                                         fontSize: 12)),
                                 const SizedBox(height: 4),
                                 Text('Best for: ${f.bestFor}',
                                     style: const TextStyle(
-                                        color: Color(0xFF909096),
+                                        color: Color(0xFF9CA3AF),
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500)),
                                 if (isPhase) ...[
@@ -316,7 +341,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                           ),
                           if (selected)
                             const Icon(Icons.check_circle,
-                                color: Color(0xFFF8BD2A), size: 18),
+                                color: LightModeColors.accent, size: 18),
                         ],
                       ),
                     ),

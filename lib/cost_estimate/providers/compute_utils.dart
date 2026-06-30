@@ -1,3 +1,5 @@
+library;
+
 /// Cost Estimate — totals & variance computation (Dart equivalent)
 ///
 /// Implements the baseline formula from the guidance doc:

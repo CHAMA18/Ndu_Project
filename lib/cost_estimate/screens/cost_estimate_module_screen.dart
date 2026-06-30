@@ -1,23 +1,20 @@
-/// Cost Estimate Screen — main entry point for the Cost Estimate module.
+library;
+
+/// Cost Estimate Module Screen — main entry point for the Cost Estimate module.
 ///
-/// A comprehensive screen that includes:
-///   - Setup wizard (if no estimate exists)
-///   - Builder with 4 sub-tabs (Direct, Indirect, SSHER/Quality, Additional)
-///   - Totals sidebar
-///   - Basis of Estimate (BOE)
-///   - AI Assistant
-///   - Stakeholders & Access
-///   - Accounting Integration
-///   - Review & Acceptance (double-acceptance gate with verbatim warning)
-///   - Baseline & Variance
+/// Uses [ResponsiveScaffold] with the standard app sidebar
+/// (`InitiationLikeSidebar`) so it matches the rest of the app.
 ///
-/// This is the Dart/Flutter equivalent of the Next.js Cost Estimate module.
+/// Sub-navigation between Builder / BOE / AI / Stakeholders / Accounting /
+/// Review / Baseline / Variance is a horizontal `TabBar` at the top of the
+/// content area (light-mode pills matching the Project Controls screen),
+/// replacing the old dark navy left rail.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
-import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/cost_estimate/screens/setup_wizard_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/builder_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/boe_screen.dart';
@@ -42,8 +39,18 @@ class CostEstimateModuleScreen extends StatefulWidget {
       _CostEstimateModuleScreenState();
 }
 
-class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen> {
-  _CESubModule _active = _CESubModule.builder;
+class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(
+    length: 8,
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,271 +58,77 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen> {
       builder: (context, provider, _) {
         final estimate = provider.estimate;
 
-        // Show setup wizard if no estimate exists
+        // Setup state — show the setup wizard (which itself uses
+        // ResponsiveScaffold so the sidebar stays visible).
         if (estimate == null || !provider.setupComplete) {
           return const SetupWizardScreen();
         }
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: Row(
+        return ResponsiveScaffold(
+          activeItemLabel: 'Cost Estimate',
+          appBarTitle: 'Cost Estimate',
+          breadcrumbPhase: 'Planning Phase',
+          breadcrumbTitle: 'Cost Estimate',
+          backgroundColor: Colors.white,
+          body: Column(
             children: [
-              // Left rail
-              _buildLeftRail(context, provider, estimate),
-              // Main content
+              // Horizontal sub-tab bar (replaces the dark left rail)
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  dividerColor: Colors.transparent,
+                  indicator: BoxDecoration(
+                    color: LightModeColors.accent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  labelColor: LightModeColors.lightOnPrimary,
+                  unselectedLabelColor: const Color(0xFF6B7280),
+                  labelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w600),
+                  unselectedLabelStyle: const TextStyle(
+                      fontSize: 13, fontWeight: FontWeight.w500),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                  tabs: const [
+                    Tab(text: 'Builder'),
+                    Tab(text: 'BOE'),
+                    Tab(text: 'AI'),
+                    Tab(text: 'Stakeholders'),
+                    Tab(text: 'Accounting'),
+                    Tab(text: 'Review'),
+                    Tab(text: 'Baseline'),
+                    Tab(text: 'Variance'),
+                  ],
+                ),
+              ),
+              // Tab content
               Expanded(
-                child: _buildMainContent(context, provider, estimate),
+                child: TabBarView(
+                  controller: _tabController,
+                  children: const [
+                    BuilderScreen(),
+                    BOEScreen(),
+                    AIAssistantScreen(),
+                    StakeholdersScreen(),
+                    AccountingScreen(),
+                    ReviewScreen(),
+                    BaselineScreen(),
+                    VarianceScreen(),
+                  ],
+                ),
               ),
             ],
           ),
         );
       },
-    );
-  }
-
-  Widget _buildLeftRail(
-      BuildContext context, CostEstimateProvider provider, CostEstimate estimate) {
-    return Container(
-      width: 220,
-      decoration: const BoxDecoration(
-        color: Color(0xFF0D1C2D),
-        border: Border(
-          right: BorderSide(color: Color(0xFF46464C), width: 0.5),
-        ),
-      ),
-      child: Column(
-        children: [
-          // Project header
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'PROJECT',
-                  style: TextStyle(
-                    color: Color(0xFF909096),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  estimate.projectName,
-                  style: const TextStyle(
-                    color: Color(0xFFD4E4FA),
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: [
-                    _StatusBadge(status: estimate.status),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF273647),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        estimate.className.label,
-                        style: const TextStyle(
-                          color: Color(0xFFC7C6CC),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${estimate.deliveryModel.label} · ${estimate.currency}',
-                  style: const TextStyle(
-                    color: Color(0xFF909096),
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(color: Color(0xFF46464C), height: 1),
-          // Nav items
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              children: _CESubModule.values.map((m) {
-                final isActive = _active == m;
-                return _NavTile(
-                  icon: m.icon,
-                  label: m.label,
-                  isActive: isActive,
-                  onTap: () => setState(() => _active = m),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMainContent(
-      BuildContext context, CostEstimateProvider provider, CostEstimate estimate) {
-    switch (_active) {
-      case _CESubModule.builder:
-        return const BuilderScreen();
-      case _CESubModule.boe:
-        return const BOEScreen();
-      case _CESubModule.ai:
-        return const AIAssistantScreen();
-      case _CESubModule.stakeholders:
-        return const StakeholdersScreen();
-      case _CESubModule.accounting:
-        return const AccountingScreen();
-      case _CESubModule.review:
-        return const ReviewScreen();
-      case _CESubModule.baseline:
-        return const BaselineScreen();
-      case _CESubModule.variance:
-        return const VarianceScreen();
-    }
-  }
-}
-
-enum _CESubModule {
-  builder,
-  boe,
-  ai,
-  stakeholders,
-  accounting,
-  review,
-  baseline,
-  variance;
-
-  String get label => switch (this) {
-        _CESubModule.builder => 'Builder',
-        _CESubModule.boe => 'Basis of Estimate',
-        _CESubModule.ai => 'AI Assistant',
-        _CESubModule.stakeholders => 'Stakeholders & Access',
-        _CESubModule.accounting => 'Accounting',
-        _CESubModule.review => 'Review & Acceptance',
-        _CESubModule.baseline => 'Baseline',
-        _CESubModule.variance => 'Variance & Re-baseline',
-      };
-
-  IconData get icon => switch (this) {
-        _CESubModule.builder => Icons.list_alt,
-        _CESubModule.boe => Icons.description,
-        _CESubModule.ai => Icons.auto_awesome,
-        _CESubModule.stakeholders => Icons.group,
-        _CESubModule.accounting => Icons.link,
-        _CESubModule.review => Icons.fact_check,
-        _CESubModule.baseline => Icons.lock,
-        _CESubModule.variance => Icons.trending_down,
-      };
-}
-
-class _NavTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavTile({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isActive
-                ? const Color(0xFFF8BD2A).withValues(alpha: 0.1)
-                : Colors.transparent,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 18,
-                color: isActive
-                    ? const Color(0xFFF8BD2A)
-                    : const Color(0xFFC7C6CC),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: isActive
-                        ? const Color(0xFFF8BD2A)
-                        : const Color(0xFFC7C6CC),
-                    fontSize: 13,
-                    fontWeight:
-                        isActive ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final EstimateStatus status;
-
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final (color, _) = switch (status) {
-      EstimateStatus.draft =>
-        (const Color(0xFFC7C6CC), const Color(0xFF273647)),
-      EstimateStatus.inReview =>
-        (const Color(0xFFBBC3FF), const Color(0xFF273647)),
-      EstimateStatus.approved =>
-        (const Color(0xFFF8BD2A), const Color(0xFF273647)),
-      EstimateStatus.baselined =>
-        (const Color(0xFF4ADE80), const Color(0xFF273647)),
-      EstimateStatus.variance =>
-        (const Color(0xFFFB923C), const Color(0xFF273647)),
-      EstimateStatus.rebaselined =>
-        (const Color(0xFFC084FC), const Color(0xFF273647)),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        status.label.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-      ),
     );
   }
 }

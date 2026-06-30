@@ -1,10 +1,17 @@
+library;
+
 /// Builder Screen — the main cost estimate builder with 4 sub-tabs.
 ///
 /// Tabs: Direct Costs, Indirect Costs, SSHER & Quality, Additional Elements.
-/// Shows cost lines grouped by category with add/edit/delete + live totals sidebar.
+/// Shows cost lines grouped by category with add/edit/delete + live totals
+/// sidebar.
+///
+/// Rendered inside the Cost Estimate module's [ResponsiveScaffold] body —
+/// no Scaffold of its own. Light-mode (white) theme.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
@@ -21,7 +28,6 @@ class BuilderScreen extends StatefulWidget {
 class _BuilderScreenState extends State<BuilderScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  String? _editingLineId;
 
   static const _subTabs = [
     ('Direct Costs', [
@@ -80,69 +86,75 @@ class _BuilderScreenState extends State<BuilderScreen>
             provider.currentRole == RBACRole.admin;
         final canEditNow = canEdit && !isBaselined;
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: Column(
-            children: [
-              // Sub-tab bar
+        return Column(
+          children: [
+            // Secondary sub-tab bar (more compact than the module tab bar)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                dividerColor: Colors.transparent,
+                indicator: BoxDecoration(
+                  color: LightModeColors.accent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                labelColor: LightModeColors.lightOnPrimary,
+                unselectedLabelColor: const Color(0xFF6B7280),
+                labelStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w600),
+                unselectedLabelStyle: const TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w500),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                labelPadding:
+                    const EdgeInsets.symmetric(horizontal: 12),
+                tabs: _subTabs.map((t) => Tab(text: t.$1)).toList(),
+              ),
+            ),
+            // Baselined warning
+            if (isBaselined)
               Container(
-                margin: const EdgeInsets.all(16),
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0D1C2D),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFF46464C)),
+                  color: LightModeColors.accent.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: LightModeColors.accent.withValues(alpha: 0.3)),
                 ),
-                child: TabBar(
-                  controller: _tabController,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: const Color(0xFFF8BD2A),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  labelColor: const Color(0xFF402D00),
-                  unselectedLabelColor: const Color(0xFFC7C6CC),
-                  labelStyle:
-                      const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  tabs: _subTabs.map((t) => Tab(text: t.$1)).toList(),
-                ),
-              ),
-              // Baselined warning
-              if (isBaselined)
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.lock, color: Color(0xFFF8BD2A), size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Estimate is baselined (v${estimate.baseline?.version}). Edits create variance entries. Re-baselines remaining: ${estimate.baseline?.rebaselineRemaining}',
-                          style: const TextStyle(
-                              color: Color(0xFFC7C6CC), fontSize: 12),
-                        ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lock,
+                        color: LightModeColors.accent, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Estimate is baselined (v${estimate.baseline?.version}). Edits create variance entries. Re-baselines remaining: ${estimate.baseline?.rebaselineRemaining}',
+                        style: const TextStyle(
+                            color: Color(0xFF495057), fontSize: 12),
                       ),
-                    ],
-                  ),
-                ),
-              // Main content
-              Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: _subTabs
-                      .map((t) => _buildTabContent(
-                          context, provider, estimate, t.$2, canEditNow))
-                      .toList(),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            // Main content
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: _subTabs
+                    .map((t) => _buildTabContent(
+                        context, provider, estimate, t.$2, canEditNow))
+                    .toList(),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -169,7 +181,7 @@ class _BuilderScreenState extends State<BuilderScreen>
             children: [
               // Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -179,7 +191,7 @@ class _BuilderScreenState extends State<BuilderScreen>
                         Text(
                           _subTabs[_tabController.index].$1,
                           style: const TextStyle(
-                            color: Color(0xFFD4E4FA),
+                            color: Color(0xFF1A1D1F),
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -187,7 +199,7 @@ class _BuilderScreenState extends State<BuilderScreen>
                         Text(
                           '${lines.length} lines · ${formatCurrency(tabTotal, estimate.currency)}',
                           style: const TextStyle(
-                              color: Color(0xFF909096), fontSize: 12),
+                              color: Color(0xFF6B7280), fontSize: 12),
                         ),
                       ],
                     ),
@@ -198,14 +210,13 @@ class _BuilderScreenState extends State<BuilderScreen>
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text('Add line'),
                         style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFF8BD2A),
-                          foregroundColor: const Color(0xFF402D00),
+                          backgroundColor: LightModeColors.accent,
+                          foregroundColor: LightModeColors.lightOnPrimary,
                         ),
                       ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
               // Lines list
               Expanded(
                 child: lines.isEmpty
@@ -240,9 +251,16 @@ class _BuilderScreenState extends State<BuilderScreen>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF122131).withValues(alpha: 0.4),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF46464C).withValues(alpha: 0.5)),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -251,10 +269,11 @@ class _BuilderScreenState extends State<BuilderScreen>
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFF1C2B3C),
+              color: LightModeColors.accent.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.receipt_long, color: Color(0xFFF8BD2A), size: 18),
+            child: const Icon(Icons.receipt_long,
+                color: LightModeColors.accent, size: 18),
           ),
           const SizedBox(width: 12),
           // Description + meta
@@ -268,7 +287,7 @@ class _BuilderScreenState extends State<BuilderScreen>
                       child: Text(
                         line.description,
                         style: const TextStyle(
-                          color: Color(0xFFD4E4FA),
+                          color: Color(0xFF1A1D1F),
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
@@ -281,13 +300,13 @@ class _BuilderScreenState extends State<BuilderScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF168FFC).withValues(alpha: 0.15),
+                          color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
                           'AI',
                           style: TextStyle(
-                            color: Color(0xFFBBC3FF),
+                            color: Color(0xFF3B82F6),
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
@@ -300,13 +319,13 @@ class _BuilderScreenState extends State<BuilderScreen>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8BD2A).withValues(alpha: 0.1),
+                          color: LightModeColors.accent.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
                           'Not in schedule',
                           style: TextStyle(
-                            color: Color(0xFFF8BD2A),
+                            color: Color(0xFFD97706),
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
@@ -319,7 +338,7 @@ class _BuilderScreenState extends State<BuilderScreen>
                 Text(
                   '${line.category.label} · ${line.basisSource.label}',
                   style: const TextStyle(
-                      color: Color(0xFF909096), fontSize: 11),
+                      color: Color(0xFF6B7280), fontSize: 11),
                 ),
               ],
             ),
@@ -328,7 +347,7 @@ class _BuilderScreenState extends State<BuilderScreen>
           Text(
             formatCurrency(line.total, 'USD'),
             style: const TextStyle(
-              color: Color(0xFFD4E4FA),
+              color: Color(0xFF1A1D1F),
               fontSize: 15,
               fontWeight: FontWeight.bold,
             ),
@@ -337,13 +356,15 @@ class _BuilderScreenState extends State<BuilderScreen>
           if (canEdit) ...[
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.edit, size: 14, color: Color(0xFF909096)),
+              icon: const Icon(Icons.edit,
+                  size: 14, color: Color(0xFF6B7280)),
               onPressed: () => _showAddLineDialog(context, provider, line.category, line),
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
             ),
             IconButton(
-              icon: const Icon(Icons.delete_outline, size: 14, color: Color(0xFF909096)),
+              icon: const Icon(Icons.delete_outline,
+                  size: 14, color: Color(0xFFB91C1C)),
               onPressed: () => provider.removeLine(line.id),
               constraints: const BoxConstraints(),
               padding: EdgeInsets.zero,
@@ -360,19 +381,20 @@ class _BuilderScreenState extends State<BuilderScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.receipt_long, color: Color(0xFF909096), size: 48),
+          const Icon(Icons.receipt_long,
+              color: Color(0xFF9CA3AF), size: 48),
           const SizedBox(height: 16),
           const Text(
             'No cost lines yet',
             style: TextStyle(
-                color: Color(0xFFD4E4FA),
+                color: Color(0xFF1A1D1F),
                 fontSize: 15,
                 fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           const Text(
             'Add your first cost line. The totals sidebar updates live.',
-            style: TextStyle(color: Color(0xFF909096), fontSize: 13),
+            style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
           ),
           if (canAdd) ...[
             const SizedBox(height: 16),
@@ -381,8 +403,8 @@ class _BuilderScreenState extends State<BuilderScreen>
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add first line'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF8BD2A),
-                foregroundColor: const Color(0xFF402D00),
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary,
               ),
             ),
           ],

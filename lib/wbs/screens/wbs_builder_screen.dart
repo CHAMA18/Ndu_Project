@@ -1,10 +1,16 @@
+library;
+
 /// WBS Builder Screen — tree view (Level 0 → 1 → 2) with add/edit/delete/reorder.
 ///
 /// Level-depth enforcement: stops at Level 2.
 /// Template seeding from the framework's guidance-doc examples.
+///
+/// Rendered inside the parent [ResponsiveScaffold]'s TabBarView, so this widget
+/// returns its content directly (no Scaffold) with a white background.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/models/wbs_templates.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
@@ -28,126 +34,124 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
         final frameworkMeta = wbs.framework;
         final counts = countNodes(wbs);
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.folder_open,
-                                color: Color(0xFFF8BD2A), size: 20),
-                            const SizedBox(width: 8),
-                            Text(wbs.projectName,
-                                style: const TextStyle(
-                                    color: Color(0xFFD4E4FA),
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                        Text(
-                          '${frameworkMeta.label} · ${counts.level1} ${frameworkMeta.level1Label} · ${counts.level2} ${frameworkMeta.level2Label}',
-                          style: const TextStyle(
-                              color: Color(0xFF909096), fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        if (WBSTemplates.templates[wbs.framework]!.isNotEmpty)
-                          OutlinedButton.icon(
-                            onPressed: () => _showTemplatesDialog(
-                                context, provider, wbs.framework),
-                            icon: const Icon(Icons.auto_awesome, size: 14),
-                            label: const Text('Templates'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: const Color(0xFFF8BD2A),
-                              side: const BorderSide(
-                                  color: Color(0xFF46464C)),
-                            ),
-                          ),
-                        const SizedBox(width: 8),
-                        FilledButton.icon(
-                          onPressed: () => _showAddNodeDialog(
-                              context, provider, 1, frameworkMeta.level1Label),
-                          icon: const Icon(Icons.add, size: 16),
-                          label: Text('Add ${frameworkMeta.level1Label}'),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFF8BD2A),
-                            foregroundColor: const Color(0xFF402D00),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                // Level convention reminder
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1C2B3C),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Level convention: Level 0 = Project (root) · Level 1 = ${frameworkMeta.level1Label} · Level 2 = ${frameworkMeta.level2Label}. WBS stops at Level 2.',
-                    style: const TextStyle(
-                        color: Color(0xFFC7C6CC), fontSize: 12),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // Level 0 (root)
-                _buildNodeRow(
-                  context,
-                  provider,
-                  wbs.level0,
-                  'Project',
-                  isRoot: true,
-                ),
-                // Level 1 nodes
-                const SizedBox(height: 8),
-                Container(
-                  margin: const EdgeInsets.only(left: 24),
-                  padding: const EdgeInsets.only(left: 16),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                          color: Color(0xFF46464C), width: 1),
-                    ),
-                  ),
-                  child: Column(
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (wbs.level0.children.isEmpty)
-                        _buildEmptyState(context, provider, frameworkMeta)
-                      else
-                        ...wbs.level0.children.asMap().entries.map((entry) {
-                          final idx = entry.key;
-                          final l1 = entry.value;
-                          final isExpanded = _expanded.contains(l1.id);
-                          return _buildLevel1Node(
-                            context,
-                            provider,
-                            l1,
-                            frameworkMeta,
-                            idx,
-                            wbs.level0.children.length,
-                            isExpanded,
-                          );
-                        }),
+                      Row(
+                        children: [
+                          const Icon(Icons.folder_open,
+                              color: LightModeColors.accent, size: 20),
+                          const SizedBox(width: 8),
+                          Text(wbs.projectName,
+                              style: const TextStyle(
+                                  color: Color(0xFF1A1D1F),
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Text(
+                        '${frameworkMeta.label} · ${counts.level1} ${frameworkMeta.level1Label} · ${counts.level2} ${frameworkMeta.level2Label}',
+                        style: const TextStyle(
+                            color: Color(0xFF6B7280), fontSize: 13),
+                      ),
                     ],
                   ),
+                  Row(
+                    children: [
+                      if (WBSTemplates.templates[wbs.framework]!.isNotEmpty)
+                        OutlinedButton.icon(
+                          onPressed: () => _showTemplatesDialog(
+                              context, provider, wbs.framework),
+                          icon: const Icon(Icons.auto_awesome, size: 14),
+                          label: const Text('Templates'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF1A1D1F),
+                            side: const BorderSide(
+                                color: Color(0xFFE4E7EC)),
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        onPressed: () => _showAddNodeDialog(
+                            context, provider, 1, frameworkMeta.level1Label),
+                        icon: const Icon(Icons.add, size: 16),
+                        label: Text('Add ${frameworkMeta.level1Label}'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: LightModeColors.accent,
+                          foregroundColor: LightModeColors.lightOnPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Level convention reminder
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
                 ),
-              ],
-            ),
+                child: Text(
+                  'Level convention: Level 0 = Project (root) · Level 1 = ${frameworkMeta.level1Label} · Level 2 = ${frameworkMeta.level2Label}. WBS stops at Level 2.',
+                  style: const TextStyle(
+                      color: Color(0xFF6B7280), fontSize: 12),
+                ),
+              ),
+              const SizedBox(height: 24),
+              // Level 0 (root)
+              _buildNodeRow(
+                context,
+                provider,
+                wbs.level0,
+                'Project',
+                isRoot: true,
+              ),
+              // Level 1 nodes
+              const SizedBox(height: 8),
+              Container(
+                margin: const EdgeInsets.only(left: 24),
+                padding: const EdgeInsets.only(left: 16),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(
+                        color: Color(0xFFE4E7EC), width: 1),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    if (wbs.level0.children.isEmpty)
+                      _buildEmptyState(context, provider, frameworkMeta)
+                    else
+                      ...wbs.level0.children.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final l1 = entry.value;
+                        final isExpanded = _expanded.contains(l1.id);
+                        return _buildLevel1Node(
+                          context,
+                          provider,
+                          l1,
+                          frameworkMeta,
+                          idx,
+                          wbs.level0.children.length,
+                          isExpanded,
+                        );
+                      }),
+                  ],
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -159,17 +163,24 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     return Container(
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
-        border: Border.all(
-            color: const Color(0xFF46464C).withValues(alpha: 0.5)),
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE4E7EC)),
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          const Icon(Icons.layers, color: Color(0xFF909096), size: 32),
+          const Icon(Icons.layers, color: Color(0xFF9CA3AF), size: 32),
           const SizedBox(height: 8),
           Text('No ${frameworkMeta.level1Label} nodes yet.',
               style: const TextStyle(
-                  color: Color(0xFF909096), fontSize: 13)),
+                  color: Color(0xFF6B7280), fontSize: 13)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -178,8 +189,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 onPressed: () => _showAddNodeDialog(
                     context, provider, 1, frameworkMeta.level1Label),
                 style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFF8BD2A),
-                    foregroundColor: const Color(0xFF402D00)),
+                    backgroundColor: LightModeColors.accent,
+                    foregroundColor: LightModeColors.lightOnPrimary),
                 child: Text('Add ${frameworkMeta.level1Label}'),
               ),
               if (WBSTemplates.templates[provider.wbs!.framework]!.isNotEmpty)
@@ -187,7 +198,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                   onPressed: () => _showTemplatesDialog(
                       context, provider, provider.wbs!.framework),
                   style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFC7C6CC)),
+                      foregroundColor: const Color(0xFF1A1D1F),
+                      side: const BorderSide(color: Color(0xFFE4E7EC))),
                   child: const Text('Use template'),
                 ),
             ],
@@ -210,14 +222,21 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: isSelected
-            ? const Color(0xFFF8BD2A).withValues(alpha: 0.08)
-            : const Color(0xFF1C2B3C),
+            ? LightModeColors.accent.withValues(alpha: 0.08)
+            : Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isSelected
-              ? const Color(0xFFF8BD2A)
-              : const Color(0xFF46464C).withValues(alpha: 0.5),
+              ? LightModeColors.accent
+              : const Color(0xFFE4E7EC),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -225,12 +244,12 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: const Color(0xFF273647),
+              color: const Color(0xFFF3F4F6),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(node.code,
                 style: const TextStyle(
-                    color: Color(0xFFC7C6CC),
+                    color: Color(0xFF495057),
                     fontSize: 11,
                     fontFamily: 'monospace',
                     fontWeight: FontWeight.bold)),
@@ -246,7 +265,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                     Flexible(
                       child: Text(node.name,
                           style: const TextStyle(
-                              color: Color(0xFFD4E4FA),
+                              color: Color(0xFF1A1D1F),
                               fontSize: 14,
                               fontWeight: FontWeight.w600),
                           overflow: TextOverflow.ellipsis),
@@ -257,13 +276,13 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF168FFC)
+                          color: const Color(0xFF3B82F6)
                               .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text('AI',
                             style: TextStyle(
-                                color: Color(0xFFBBC3FF),
+                                color: Color(0xFF3B82F6),
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold)),
                       ),
@@ -274,13 +293,13 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 4, vertical: 1),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF4ADE80)
+                          color: const Color(0xFF16A34A)
                               .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text('WP',
                             style: TextStyle(
-                                color: Color(0xFF4ADE80),
+                                color: Color(0xFF16A34A),
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold)),
                       ),
@@ -290,13 +309,13 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 if (node.description != null && node.description!.isNotEmpty)
                   Text(node.description!,
                       style: const TextStyle(
-                          color: Color(0xFF909096), fontSize: 11),
+                          color: Color(0xFF6B7280), fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                 if (isRoot)
                   Text(levelLabel.toUpperCase(),
                       style: const TextStyle(
-                          color: Color(0xFF909096),
+                          color: Color(0xFF9CA3AF),
                           fontSize: 10,
                           fontWeight: FontWeight.w600)),
               ],
@@ -308,7 +327,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.arrow_upward,
-                      size: 12, color: Color(0xFF909096)),
+                      size: 12, color: Color(0xFF6B7280)),
                   onPressed: () => provider.moveNode(node.id, true),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
@@ -316,7 +335,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.arrow_downward,
-                      size: 12, color: Color(0xFF909096)),
+                      size: 12, color: Color(0xFF6B7280)),
                   onPressed: () => provider.moveNode(node.id, false),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
@@ -324,7 +343,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete_outline,
-                      size: 12, color: Color(0xFF909096)),
+                      size: 12, color: Color(0xFFB91C1C)),
                   onPressed: () => provider.removeNode(node.id),
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(4),
@@ -358,7 +377,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 icon: Icon(
                   isExpanded ? Icons.expand_more : Icons.chevron_right,
                   size: 16,
-                  color: const Color(0xFF909096),
+                  color: const Color(0xFF6B7280),
                 ),
                 onPressed: () {
                   setState(() {
@@ -376,7 +395,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 child: _buildNodeRow(context, provider, l1, frameworkMeta.level1Label),
               ),
               IconButton(
-                icon: const Icon(Icons.add, size: 14, color: Color(0xFF909096)),
+                icon: const Icon(Icons.add, size: 14, color: Color(0xFF6B7280)),
                 onPressed: () => _showAddNodeDialog(
                     context, provider, 2, frameworkMeta.level2Label,
                     parentId: l1.id),
@@ -394,7 +413,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
             padding: const EdgeInsets.only(left: 16),
             decoration: const BoxDecoration(
               border: Border(
-                left: BorderSide(color: Color(0xFF46464C), width: 1),
+                left: BorderSide(color: Color(0xFFE4E7EC), width: 1),
               ),
             ),
             child: Column(
@@ -413,7 +432,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                       icon: const Icon(Icons.add, size: 12),
                       label: Text('Add ${frameworkMeta.level2Label}'),
                       style: TextButton.styleFrom(
-                          foregroundColor: const Color(0xFF909096),
+                          foregroundColor: const Color(0xFF6B7280),
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 4),
                           minimumSize: const Size(0, 28)),
@@ -440,9 +459,9 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1C2D),
+        backgroundColor: Colors.white,
         title: Text('Add Level $level — $levelLabel',
-            style: const TextStyle(color: Color(0xFFD4E4FA))),
+            style: const TextStyle(color: Color(0xFF1A1D1F))),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -450,10 +469,10 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               controller: nameCtrl,
               decoration: const InputDecoration(
                 labelText: 'Name',
-                labelStyle: TextStyle(color: Color(0xFF909096)),
+                labelStyle: TextStyle(color: Color(0xFF6B7280)),
                 hintText: 'Use a deliverable noun (not an activity verb)',
               ),
-              style: const TextStyle(color: Color(0xFFD4E4FA)),
+              style: const TextStyle(color: Color(0xFF1A1D1F)),
               autofocus: true,
             ),
             const SizedBox(height: 12),
@@ -462,9 +481,9 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               maxLines: 2,
               decoration: const InputDecoration(
                 labelText: 'Description (optional)',
-                labelStyle: TextStyle(color: Color(0xFF909096)),
+                labelStyle: TextStyle(color: Color(0xFF6B7280)),
               ),
-              style: const TextStyle(color: Color(0xFFD4E4FA)),
+              style: const TextStyle(color: Color(0xFF1A1D1F)),
             ),
           ],
         ),
@@ -472,7 +491,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel',
-                style: TextStyle(color: Color(0xFF909096))),
+                style: TextStyle(color: Color(0xFF6B7280))),
           ),
           FilledButton(
             onPressed: () {
@@ -486,8 +505,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               Navigator.pop(ctx);
             },
             style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF8BD2A),
-                foregroundColor: const Color(0xFF402D00)),
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary),
             child: Text('Add $levelLabel'),
           ),
         ],
@@ -501,13 +520,13 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1C2D),
+        backgroundColor: Colors.white,
         title: const Row(
           children: [
-            Icon(Icons.auto_awesome, color: Color(0xFFF8BD2A), size: 18),
+            Icon(Icons.auto_awesome, color: LightModeColors.accent, size: 18),
             SizedBox(width: 8),
             Text('Framework templates',
-                style: TextStyle(color: Color(0xFFD4E4FA), fontSize: 16)),
+                style: TextStyle(color: Color(0xFF1A1D1F), fontSize: 16)),
           ],
         ),
         content: SizedBox(
@@ -520,8 +539,9 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                   margin: const EdgeInsets.only(bottom: 8),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C2B3C),
+                    color: const Color(0xFFF9FAFB),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE4E7EC)),
                   ),
                   child: Row(
                     children: [
@@ -531,13 +551,13 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                           children: [
                             Text(t.name,
                                 style: const TextStyle(
-                                    color: Color(0xFFD4E4FA),
+                                    color: Color(0xFF1A1D1F),
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600)),
                             if (t.description != null)
                               Text(t.description!,
                                   style: const TextStyle(
-                                      color: Color(0xFF909096),
+                                      color: Color(0xFF6B7280),
                                       fontSize: 12)),
                             const SizedBox(height: 4),
                             Wrap(
@@ -547,13 +567,13 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 6, vertical: 1),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFF273647),
+                                          color: const Color(0xFFF3F4F6),
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
                                         child: Text(c.name,
                                             style: const TextStyle(
-                                                color: Color(0xFFC7C6CC),
+                                                color: Color(0xFF495057),
                                                 fontSize: 10)),
                                       ))
                                   .toList(),
@@ -567,8 +587,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                           Navigator.pop(ctx);
                         },
                         style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFFF8BD2A),
-                            foregroundColor: const Color(0xFF402D00),
+                            backgroundColor: LightModeColors.accent,
+                            foregroundColor: LightModeColors.lightOnPrimary,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6)),
                         child: const Text('Add',
@@ -585,7 +605,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close',
-                style: TextStyle(color: Color(0xFF909096))),
+                style: TextStyle(color: Color(0xFF6B7280))),
           ),
         ],
       ),

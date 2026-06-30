@@ -1,3 +1,5 @@
+library;
+
 /// Schedule — ChangeNotifier-based state management (Dart equivalent)
 ///
 /// Mirrors the Zustand store in the Next.js module.

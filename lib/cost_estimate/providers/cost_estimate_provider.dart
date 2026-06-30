@@ -1,3 +1,5 @@
+library;
+
 /// Cost Estimate — ChangeNotifier-based state management (Dart equivalent)
 ///
 /// Mirrors the Zustand store in the Next.js module.
@@ -293,9 +295,6 @@ class CostEstimateProvider extends ChangeNotifier {
 
   void updateAccounting(AccountingIntegration patch) {
     if (_estimate == null) return;
-    final current = _estimate!.accountingIntegration ??
-        const AccountingIntegration(
-            provider: AccountingProvider.none, connected: false, glMapping: []);
     _estimate = _estimate!.copyWith(
       accountingIntegration: AccountingIntegration(
         provider: patch.provider,

@@ -2,6 +2,9 @@
 ///
 /// Derived from the best practices in both guidance docs.
 
+
+library;
+
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 
 enum ValidationSeverity { pass, warn, fail }

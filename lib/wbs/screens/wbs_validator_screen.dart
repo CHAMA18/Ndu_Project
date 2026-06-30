@@ -1,7 +1,13 @@
+library;
+
 /// WBS Validator Screen — V1-V8 validation checks with pass/warn/fail UI.
+///
+/// Rendered inside the parent [ResponsiveScaffold]'s TabBarView, so this widget
+/// returns its content directly (no Scaffold) with a white background.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/wbs/providers/wbs_validator.dart';
 
@@ -16,104 +22,101 @@ class WBSValidatorScreen extends StatelessWidget {
         final checks = WBSValidator.validate(wbs);
         final summary = WBSValidator.summarize(checks);
         final overallColor = switch (summary.overall) {
-          'PASS' => const Color(0xFF4ADE80),
-          'WARN' => const Color(0xFFF8BD2A),
-          _ => const Color(0xFFFB923C),
+          'PASS' => const Color(0xFF16A34A),
+          'WARN' => const Color(0xFFD97706),
+          _ => const Color(0xFFB91C1C),
         };
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF051424),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Color(0xFFF8BD2A), size: 20),
-                    SizedBox(width: 8),
-                    Text('WBS Validator',
-                        style: TextStyle(
-                            color: Color(0xFFD4E4FA),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.check_circle, color: LightModeColors.accent, size: 20),
+                  SizedBox(width: 8),
+                  Text('WBS Validator',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                  '8 checks from the WBS guidance docs. Fix all FAIL items before baseline.',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+              const SizedBox(height: 24),
+              // Overall summary
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: overallColor.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: overallColor.withValues(alpha: 0.4)),
                 ),
-                const SizedBox(height: 4),
-                const Text(
-                    '8 checks from the WBS guidance docs. Fix all FAIL items before baseline.',
-                    style: TextStyle(color: Color(0xFF909096), fontSize: 13)),
-                const SizedBox(height: 24),
-                // Overall summary
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: overallColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: overallColor.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('OVERALL STATUS',
-                              style: TextStyle(
-                                  color: Color(0xFF909096),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.5)),
-                          const SizedBox(height: 4),
-                          Text(
-                            summary.overall == 'PASS'
-                                ? 'All checks passed'
-                                : summary.overall == 'WARN'
-                                    ? 'Warnings — review recommended'
-                                    : 'Failures — must fix before baseline',
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('OVERALL STATUS',
                             style: TextStyle(
-                                color: overallColor,
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: BoxDecoration(
-                          color: overallColor.withValues(alpha: 0.15),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
+                                color: Color(0xFF6B7280),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.5)),
+                        const SizedBox(height: 4),
+                        Text(
                           summary.overall == 'PASS'
-                              ? Icons.check_circle
+                              ? 'All checks passed'
                               : summary.overall == 'WARN'
-                                  ? Icons.warning_amber
-                                  : Icons.error,
-                          color: overallColor,
-                          size: 28,
+                                  ? 'Warnings — review recommended'
+                                  : 'Failures — must fix before baseline',
+                          style: TextStyle(
+                              color: overallColor,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold),
                         ),
+                      ],
+                    ),
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: overallColor.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Summary pills
-                Row(
-                  children: [
-                    _buildPill('Pass', summary.pass, const Color(0xFF4ADE80)),
-                    const SizedBox(width: 12),
-                    _buildPill('Warn', summary.warn, const Color(0xFFF8BD2A)),
-                    const SizedBox(width: 12),
-                    _buildPill('Fail', summary.fail, const Color(0xFFFB923C)),
+                      child: Icon(
+                        summary.overall == 'PASS'
+                            ? Icons.check_circle
+                            : summary.overall == 'WARN'
+                                ? Icons.warning_amber
+                                : Icons.error,
+                        color: overallColor,
+                        size: 28,
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                // Check list
-                ...checks.map((c) => _buildCheckRow(c)),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              // Summary pills
+              Row(
+                children: [
+                  _buildPill('Pass', summary.pass, const Color(0xFF16A34A)),
+                  const SizedBox(width: 12),
+                  _buildPill('Warn', summary.warn, const Color(0xFFD97706)),
+                  const SizedBox(width: 12),
+                  _buildPill('Fail', summary.fail, const Color(0xFFB91C1C)),
+                ],
+              ),
+              const SizedBox(height: 24),
+              // Check list
+              ...checks.map((c) => _buildCheckRow(c)),
+            ],
           ),
         );
       },
@@ -124,8 +127,9 @@ class WBSValidatorScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -145,9 +149,9 @@ class WBSValidatorScreen extends StatelessWidget {
 
   Widget _buildCheckRow(ValidationCheck check) {
     final color = switch (check.severity) {
-      ValidationSeverity.pass => const Color(0xFF4ADE80),
-      ValidationSeverity.warn => const Color(0xFFF8BD2A),
-      ValidationSeverity.fail => const Color(0xFFFB923C),
+      ValidationSeverity.pass => const Color(0xFF16A34A),
+      ValidationSeverity.warn => const Color(0xFFD97706),
+      ValidationSeverity.fail => const Color(0xFFB91C1C),
     };
     final icon = switch (check.severity) {
       ValidationSeverity.pass => Icons.check_circle,
@@ -158,9 +162,16 @@ class WBSValidatorScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -197,7 +208,7 @@ class WBSValidatorScreen extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text(check.title,
                         style: const TextStyle(
-                            color: Color(0xFFD4E4FA),
+                            color: Color(0xFF1A1D1F),
                             fontSize: 14,
                             fontWeight: FontWeight.w600)),
                   ],
@@ -205,29 +216,29 @@ class WBSValidatorScreen extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(check.detail,
                     style: const TextStyle(
-                        color: Color(0xFFC7C6CC), fontSize: 13)),
+                        color: Color(0xFF6B7280), fontSize: 13)),
                 if (check.fix != null) ...[
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0D1C2D),
+                      color: const Color(0xFFF9FAFB),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                          color: const Color(0xFF46464C)
-                              .withValues(alpha: 0.4)),
+                          color: const Color(0xFFE4E7EC)
+                              .withValues(alpha: 0.8)),
                     ),
                     child: Row(
                       children: [
                         const Text('Fix: ',
                             style: TextStyle(
-                                color: Color(0xFFF8BD2A),
+                                color: LightModeColors.accent,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600)),
                         Expanded(
                           child: Text(check.fix!,
                               style: const TextStyle(
-                                  color: Color(0xFF909096), fontSize: 12)),
+                                  color: Color(0xFF6B7280), fontSize: 12)),
                         ),
                       ],
                     ),

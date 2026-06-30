@@ -1,7 +1,13 @@
+library;
+
 /// WBS AI Screen — 3 AI actions (suggest, expand, validate) with global/regional/local context.
+///
+/// Rendered inside the parent [ResponsiveScaffold]'s TabBarView, so this widget
+/// returns its content directly (no Scaffold) with a white background.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/services/ai/kaz_ai_service.dart';
@@ -27,12 +33,12 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
   final _actions = [
     ('suggest', 'Suggest WBS split', Icons.auto_awesome,
         'Full Level 1 + Level 2 from global/regional/local projects',
-        const Color(0xFFF8BD2A)),
+        LightModeColors.accent),
     ('expand', 'Expand a node', Icons.search,
         'Level 2 children for a selected Level 1 node',
-        const Color(0xFFBBC3FF)),
+        const Color(0xFF3B82F6)),
     ('validate', 'Validate WBS', Icons.shield,
-        'Review against best practices', const Color(0xFFC084FC)),
+        'Review against best practices', const Color(0xFF8B5CF6)),
   ];
 
   @override
@@ -171,221 +177,296 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF051424),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome,
-                        color: Color(0xFFF8BD2A), size: 20),
-                    const SizedBox(width: 8),
-                    const Text('AI WBS Generator',
-                        style: TextStyle(
-                            color: Color(0xFFD4E4FA),
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF168FFC).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text('KAZ AI',
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.auto_awesome,
+                      color: LightModeColors.accent, size: 20),
+                  const SizedBox(width: 8),
+                  const Text('AI WBS Generator',
                       style: TextStyle(
-                          color: Color(0xFFBBC3FF),
-                          fontSize: 11,
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 20,
                           fontWeight: FontWeight.bold)),
+                ],
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Text('KAZ AI',
+                    style: TextStyle(
+                        color: Color(0xFF3B82F6),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Disclaimer
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: LightModeColors.accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: LightModeColors.accent.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber,
+                    color: LightModeColors.accent, size: 16),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'All AI-generated WBS nodes must be validated by a qualified SME before baseline.',
+                    style: TextStyle(
+                        color: Color(0xFF6B7280), fontSize: 13),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            // Disclaimer
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8BD2A).withValues(alpha: 0.06),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.3)),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.warning_amber,
-                      color: Color(0xFFF8BD2A), size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'All AI-generated WBS nodes must be validated by a qualified SME before baseline.',
-                      style: TextStyle(
-                          color: Color(0xFFC7C6CC), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          // Context inputs
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE4E7EC)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.location_on,
+                        color: LightModeColors.accent, size: 14),
+                    SizedBox(width: 6),
+                    Text('PROJECT CONTEXT (IMPROVES AI SUGGESTIONS)',
+                        style: TextStyle(
+                            color: LightModeColors.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                          'Industry', _industryCtrl,
+                          'e.g. Manufacturing, Oil & Gas'),
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildTextField(
+                          'Region', _regionCtrl,
+                          'e.g. East Africa, Southeast Asia'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                    'Site-specific context', _siteContextCtrl,
+                    'e.g. Greenfield site, existing grid connection...',
+                    maxLines: 3),
+              ],
             ),
-            const SizedBox(height: 16),
-            // Context inputs
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF122131).withValues(alpha: 0.55),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: const Color(0xFF46464C).withValues(alpha: 0.5)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.location_on,
-                          color: Color(0xFFF8BD2A), size: 14),
-                      SizedBox(width: 6),
-                      Text('PROJECT CONTEXT (IMPROVES AI SUGGESTIONS)',
-                          style: TextStyle(
-                              color: Color(0xFFF8BD2A),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 1)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTextField(
-                            'Industry', _industryCtrl,
-                            'e.g. Manufacturing, Oil & Gas'),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildTextField(
-                            'Region', _regionCtrl,
-                            'e.g. East Africa, Southeast Asia'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                      'Site-specific context', _siteContextCtrl,
-                      'e.g. Greenfield site, existing grid connection...',
-                      maxLines: 3),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Action grid
-            Row(
-              children: _actions.map((a) {
-                final isActive = _activeAction == a.$1;
-                return Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: _loading ? null : () => _runAction(a.$1),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
+          ),
+          const SizedBox(height: 16),
+          // Action grid
+          Row(
+            children: _actions.map((a) {
+              final isActive = _activeAction == a.$1;
+              return Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _loading ? null : () => _runAction(a.$1),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? a.$5.withValues(alpha: 0.08)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
                             color: isActive
-                                ? a.$5.withValues(alpha: 0.08)
-                                : const Color(0xFF1C2B3C),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isActive
-                                  ? a.$5
-                                  : const Color(0xFF46464C),
+                                ? a.$5
+                                : const Color(0xFFE4E7EC),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(a.$3, color: a.$5, size: 20),
-                              const SizedBox(height: 8),
-                              Text(a.$2,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      color: Color(0xFFD4E4FA),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 2),
-                              Text(a.$4,
-                                  textAlign: TextAlign.center,
-                                  style: const TextStyle(
-                                      color: Color(0xFF909096),
-                                      fontSize: 11)),
-                            ],
-                          ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(a.$3, color: a.$5, size: 20),
+                            const SizedBox(height: 8),
+                            Text(a.$2,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Color(0xFF1A1D1F),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(a.$4,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 11)),
+                          ],
                         ),
                       ),
                     ),
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-            // Loading
-            if (_loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(48),
-                  child: Column(
-                    children: [
-                      CircularProgressIndicator(color: Color(0xFFF8BD2A)),
-                      SizedBox(height: 12),
-                      Text('KAZ AI is analyzing similar projects...',
-                          style: TextStyle(
-                              color: Color(0xFFC7C6CC), fontSize: 13)),
-                    ],
-                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 24),
+          // Loading
+          if (_loading)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(48),
+                child: Column(
+                  children: [
+                    const CircularProgressIndicator(
+                        color: LightModeColors.accent),
+                    const SizedBox(height: 12),
+                    const Text('KAZ AI is analyzing similar projects...',
+                        style: TextStyle(
+                            color: Color(0xFF6B7280), fontSize: 13)),
+                  ],
                 ),
               ),
-            // Results
-            if (!_loading && _suggestions.isNotEmpty) ...[
-              if (_usedFallback)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1C2B3C),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '⚠️ Used KAZ AI fallback response (live model unavailable).',
-                    style: TextStyle(color: Color(0xFF909096), fontSize: 11),
-                  ),
+            ),
+          // Results
+          if (!_loading && _suggestions.isNotEmpty) ...[
+            if (_usedFallback)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
                 ),
-              ..._suggestions.map((s) => _buildSuggestionCard(s)),
-              if (_disclaimer.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8BD2A).withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                        color: const Color(0xFFF8BD2A)
-                            .withValues(alpha: 0.3)),
-                  ),
-                  child: Text(_disclaimer,
-                      style: const TextStyle(
-                          color: Color(0xFFF8BD2A), fontSize: 12)),
+                child: const Text(
+                  '⚠️ Used KAZ AI fallback response (live model unavailable).',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 11),
                 ),
-            ],
+              ),
+            ..._suggestions.map((s) => _buildSuggestionCard(s)),
+            if (_disclaimer.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: LightModeColors.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                      color: LightModeColors.accent
+                          .withValues(alpha: 0.4)),
+                ),
+                child: Text(_disclaimer,
+                    style: const TextStyle(
+                        color: Color(0xFFD97706), fontSize: 12)),
+              ),
           ],
-        ),
+          // Empty state when no results and not loading
+          if (!_loading && _suggestions.isEmpty && _activeAction != null) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.lightbulb_outline,
+                      color: Color(0xFF9CA3AF), size: 32),
+                  SizedBox(height: 8),
+                  Text('No suggestions returned for this action.',
+                      style:
+                          TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+                  SizedBox(height: 4),
+                  Text('Try refining the project context inputs above.',
+                      style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+          if (!_loading && _activeAction == null) ...[
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE4E7EC)),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.tips_and_updates,
+                          color: LightModeColors.accent, size: 18),
+                      SizedBox(width: 8),
+                      Text('How the AI WBS Generator works',
+                          style: TextStyle(
+                              color: Color(0xFF1A1D1F),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700)),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'KAZ AI compares your project against historical global, regional, and local projects. The more context you provide (industry, region, site-specific notes), the more accurate the suggested Level 1 / Level 2 decomposition.',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Pick one of the three actions above to begin. Suggestions appear as cards — review, then click "Add to WBS" to merge them into your tree.',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -398,7 +479,7 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
       children: [
         Text(label.toUpperCase(),
             style: const TextStyle(
-                color: Color(0xFF909096),
+                color: Color(0xFF6B7280),
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.8)),
@@ -408,20 +489,24 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
           maxLines: maxLines,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF46464C)),
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
             filled: true,
-            fillColor: const Color(0xFF0D1C2D),
+            fillColor: Colors.white,
             isDense: true,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF46464C))),
+                borderSide: const BorderSide(color: Color(0xFFE4E7EC))),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFF8BD2A))),
+                borderSide: const BorderSide(
+                    color: LightModeColors.accent, width: 1.6)),
+            enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE4E7EC))),
           ),
-          style: const TextStyle(color: Color(0xFFD4E4FA), fontSize: 14),
+          style: const TextStyle(color: Color(0xFF1A1D1F), fontSize: 14),
         ),
       ],
     );
@@ -434,10 +519,16 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C2B3C),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: const Color(0xFF46464C).withValues(alpha: 0.5)),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,13 +540,13 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8BD2A).withValues(alpha: 0.1),
+                  color: LightModeColors.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Center(
                   child: Text('L1',
                       style: TextStyle(
-                          color: Color(0xFFF8BD2A),
+                          color: Color(0xFFD97706),
                           fontSize: 11,
                           fontWeight: FontWeight.bold)),
                 ),
@@ -470,7 +561,7 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                         Flexible(
                           child: Text(s['name'] as String? ?? '',
                               style: const TextStyle(
-                                  color: Color(0xFFD4E4FA),
+                                  color: Color(0xFF1A1D1F),
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600)),
                         ),
@@ -480,13 +571,13 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF168FFC)
-                                  .withValues(alpha: 0.15),
+                              color: const Color(0xFF3B82F6)
+                                  .withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(aiSource.toUpperCase(),
                                 style: const TextStyle(
-                                    color: Color(0xFFBBC3FF),
+                                    color: Color(0xFF3B82F6),
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold)),
                           ),
@@ -496,17 +587,17 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                     if (s['description'] != null)
                       Text(s['description'] as String,
                           style: const TextStyle(
-                              color: Color(0xFFC7C6CC), fontSize: 13)),
+                              color: Color(0xFF6B7280), fontSize: 13)),
                     if (s['aiReference'] != null)
                       Row(
                         children: [
                           const Icon(Icons.auto_awesome,
-                              size: 10, color: Color(0xFFF8BD2A)),
+                              size: 10, color: LightModeColors.accent),
                           const SizedBox(width: 4),
                           Expanded(
                             child: Text(s['aiReference'] as String,
                                 style: const TextStyle(
-                                    color: Color(0xFF909096),
+                                    color: Color(0xFF9CA3AF),
                                     fontSize: 11,
                                     fontStyle: FontStyle.italic)),
                           ),
@@ -525,7 +616,7 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
               padding: const EdgeInsets.only(left: 16),
               decoration: const BoxDecoration(
                 border: Border(
-                  left: BorderSide(color: Color(0xFF46464C), width: 1),
+                  left: BorderSide(color: Color(0xFFE4E7EC), width: 1),
                 ),
               ),
               child: Column(
@@ -538,13 +629,13 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                           width: 24,
                           height: 24,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1C2B3C),
+                            color: const Color(0xFFF3F4F6),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: const Center(
                             child: Text('L2',
                                 style: TextStyle(
-                                    color: Color(0xFF909096),
+                                    color: Color(0xFF6B7280),
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold)),
                           ),
@@ -553,7 +644,7 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                         Expanded(
                           child: Text(c['name'] as String? ?? '',
                               style: const TextStyle(
-                                  color: Color(0xFFD4E4FA),
+                                  color: Color(0xFF1A1D1F),
                                   fontSize: 13,
                                   fontWeight: FontWeight.w500)),
                         ),
@@ -573,8 +664,8 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
               icon: const Icon(Icons.add, size: 14),
               label: const Text('Add to WBS'),
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF8BD2A),
-                foregroundColor: const Color(0xFF402D00),
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary,
               ),
             ),
           ),
