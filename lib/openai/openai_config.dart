@@ -26,9 +26,21 @@ class OpenAiConfig {
     return SecureAPIConfig.apiKey ?? '';
   }
 
-  /// Base endpoint — OpenAI's API URL.
+  /// Base endpoint for OpenAI API requests.
+  ///
+  /// When a client-side API key is available (from env-config.js, Settings,
+  /// or --dart-define), we call OpenAI directly at `api.openai.com/v1`.
+  /// OpenAI's API supports CORS, so direct browser calls work fine.
+  ///
+  /// When no client-side key is available, we fall back to the Cloud Function
+  /// proxy (SecureAPIConfig.baseUrl) which holds the key server-side.
   static String get baseEndpoint {
     if (_trimmedEnvEndpoint.isNotEmpty) return _trimmedEnvEndpoint;
+    // If we have a client-side key, call OpenAI directly (faster, no proxy hop)
+    if (apiKeyValue.isNotEmpty) {
+      return 'https://api.openai.com/v1';
+    }
+    // No client-side key — use the Cloud Function proxy
     return SecureAPIConfig.baseUrl;
   }
 
