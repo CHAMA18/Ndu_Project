@@ -116,7 +116,17 @@ void main() async {
     // the "Unexpected state" assertion in Firestore SDK 12.x Watch system.
     final firestore = FirebaseFirestore.instance;
     if (kIsWeb) {
-      await firestore.clearPersistence();
+      // clearPersistence() can hang indefinitely in some browser environments
+      // (e.g. when IndexedDB is locked by a stale service worker, or when
+      // the tab is in the background). Run it with a hard timeout so app
+      // startup is never blocked by a stuck IndexedDB cleanup.
+      await firestore.clearPersistence().timeout(
+        const Duration(seconds: 3),
+        onTimeout: () {
+          debugPrint(
+              '[main] firestore.clearPersistence() timed out after 3s — continuing startup.');
+        },
+      );
     }
     firestore.settings = Settings(
       persistenceEnabled: !kIsWeb,

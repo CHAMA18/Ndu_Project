@@ -11,9 +11,9 @@
 /// - Escalation Summary + Recent Activity timeline + Visual Context card
 /// - Floating Action Button
 /// - Custom radial gauge painter with animated sweep
+library;
 
 import 'dart:ui';
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/theme.dart';
 
@@ -43,10 +43,8 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
   static const _surface = Color(0xFF122131);
   static const _surfaceHigh = Color(0xFF1C2B3C);
   static const _surfaceHighest = Color(0xFF273647);
-  static const _surfaceLow = Color(0xFF0D1C2D);
   static const _onSurface = Color(0xFFD4E4FA);
   static const _onSurfaceVariant = Color(0xFFC7C6CC);
-  static const _outline = Color(0xFF909096);
   static const _outlineVariant = Color(0xFF46464C);
   static const _primary = Color(0xFFDFE2F3);
   static const _primaryContainer = Color(0xFFC3C6D7);
@@ -83,7 +81,6 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
   Widget _glassCard({
     required Widget child,
     Color? leftBorder,
-    bool enableHover = true,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -350,7 +347,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
   Widget _plannedVsActual() {
     final planned = [0.40, 0.55, 0.70, 0.85, 0.65, 0.90];
     final actual = [0.38, 0.52, 0.72, 0.88, 0.60, 0.95];
-    final labels = ['Q1', 'Q2', 'Q3', 'Q4', 'FY24'];
+    final labels = ['Q1', 'Q2', 'Q3', 'Q4', 'FY24', 'FY25'];
 
     return _glassCard(
       child: Padding(
@@ -373,36 +370,43 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
               ]),
             ]),
             const SizedBox(height: 24),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(6, (i) {
+            // Chart area — fixed height so bars can size as a fraction of it
+            SizedBox(
+              height: 160,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final maxBarHeight = constraints.maxHeight - 4;
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // Planned bar
-                      Container(
-                        width: 12,
-                        decoration: BoxDecoration(
-                          color: _tertiary.withValues(alpha: 0.4),
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
-                        ),
-                        height: double.maxFinite * planned[i] * 0.001,
-                      ),
-                      const SizedBox(width: 2),
-                      // Actual bar
-                      Container(
-                        width: 12,
-                        decoration: BoxDecoration(
-                          color: _secondary,
-                          borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
-                        ),
-                        height: double.maxFinite * actual[i] * 0.001,
-                      ),
-                    ],
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: List.generate(planned.length, (i) {
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Planned bar
+                          Container(
+                            width: 12,
+                            decoration: BoxDecoration(
+                              color: _tertiary.withValues(alpha: 0.4),
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                            ),
+                            height: (maxBarHeight * planned[i]).clamp(2.0, maxBarHeight),
+                          ),
+                          const SizedBox(width: 2),
+                          // Actual bar
+                          Container(
+                            width: 12,
+                            decoration: BoxDecoration(
+                              color: _secondary,
+                              borderRadius: const BorderRadius.vertical(top: Radius.circular(2)),
+                            ),
+                            height: (maxBarHeight * actual[i]).clamp(2.0, maxBarHeight),
+                          ),
+                        ],
+                      );
+                    }),
                   );
-                }),
+                },
               ),
             ),
             const SizedBox(height: 12),
@@ -766,40 +770,69 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
           Text('RECENT ACTIVITY',
               style: TextStyle(color: _onSurfaceVariant, fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 1, fontFamily: appFontFamily)),
           const SizedBox(height: 24),
-          // Timeline
-          Stack(children: [
-            // Vertical line
-            Positioned(
-              left: 7,
-              top: 0,
-              bottom: 0,
-              child: Container(width: 1, color: _outlineVariant.withValues(alpha: 0.3)),
-            ),
-            ...activities.map((a) => Padding(
-              padding: const EdgeInsets.only(bottom: 20, left: 24),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Positioned(
-                  left: 0,
-                  top: 4,
-                  child: Container(
-                    width: 16,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: _surface,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _outlineVariant.withValues(alpha: 0.4)),
+          // Timeline — each row is a self-contained horizontal layout
+          // (dot + connector on the left, text on the right). No Positioned
+          // widgets, so no Stack-constraint issues.
+          Column(
+            children: List.generate(activities.length, (i) {
+              final a = activities[i];
+              final isLast = i == activities.length - 1;
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Timeline gutter: dot + vertical line below
+                    SizedBox(
+                      width: 16,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: _surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _outlineVariant.withValues(alpha: 0.4)),
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 6,
+                                height: 6,
+                                decoration: BoxDecoration(color: a.$3, shape: BoxShape.circle),
+                              ),
+                            ),
+                          ),
+                          if (!isLast)
+                            Expanded(
+                              child: Container(
+                                width: 1,
+                                color: _outlineVariant.withValues(alpha: 0.3),
+                                margin: const EdgeInsets.only(top: 4),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                    child: Center(child: Container(width: 6, height: 6, decoration: BoxDecoration(color: a.$3, shape: BoxShape.circle))),
-                  ),
+                    const SizedBox(width: 16),
+                    // Text content
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(bottom: isLast ? 0 : 20, top: 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(a.$1, style: TextStyle(color: _primary, fontSize: 12, fontFamily: appFontFamily)),
+                            const SizedBox(height: 2),
+                            Text(a.$2, style: TextStyle(color: _onSurfaceVariant, fontSize: 10, fontFamily: appFontFamily)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 16),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(a.$1, style: TextStyle(color: _primary, fontSize: 12, fontFamily: appFontFamily)),
-                  Text(a.$2, style: TextStyle(color: _onSurfaceVariant, fontSize: 10, fontFamily: appFontFamily)),
-                ])),
-              ]),
-            )),
-          ]),
+              );
+            }),
+          ),
         ]),
       ),
     );
