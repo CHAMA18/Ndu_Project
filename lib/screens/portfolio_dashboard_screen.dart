@@ -2,10 +2,18 @@
 ///
 /// World-class design with deep glassmorphism, gold gradient accents,
 /// animated entrance, gradient charts, and premium micro-interactions.
+/// Standard header with logo, breadcrumb, nav buttons, and profile avatar.
+library;
 
 import 'dart:ui';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/services/firebase_auth_service.dart';
+import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/app_logo.dart';
 
 class PortfolioDashboardScreen extends StatefulWidget {
   final String? portfolioId;
@@ -36,8 +44,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   static const _muted = Color(0xFF64748B);
   static const _outline = Color(0xFFE2E8F0);
   static const _gold = Color(0xFFD97706);
-  static const _goldBright = Color(0xFFF59E0B);
-  static const _goldDeep = Color(0xFFB45309);
   static const _blue = Color(0xFF6366F1);
   static const _blueDeep = Color(0xFF4F46E5);
   static const _emerald = Color(0xFF059669);
@@ -86,120 +92,428 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Record this dashboard so the brand logo knows where to return on tap.
+    NavigationContextService.instance
+        .setLastClientDashboard(AppRoutes.portfolioDashboard);
+
     return Scaffold(
-      body: Container(
-        color: _bg,
-        child: Stack(children: [
-          Positioned(top: -100, right: -100, child: Container(width: 400, height: 400, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_blue.withValues(alpha: 0.03), Colors.transparent])))),
-          Positioned(bottom: -150, left: -80, child: Container(width: 350, height: 350, decoration: BoxDecoration(shape: BoxShape.circle, gradient: RadialGradient(colors: [_gold.withValues(alpha: 0.03), Colors.transparent])))),
-          CustomScrollView(slivers: [
-            SliverAppBar(
-              pinned: true, toolbarHeight: 68,
-              backgroundColor: _bg.withValues(alpha: 0.85), surfaceTintColor: Colors.transparent,
-              flexibleSpace: ClipRect(child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  decoration: BoxDecoration(color: _bg.withValues(alpha: 0.85), border: Border(bottom: BorderSide(color: _outline.withValues(alpha: 0.8)))),
-                  child: SafeArea(child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      Row(children: [
-                        Container(width: 36, height: 36, decoration: BoxDecoration(gradient: _goldGrad, borderRadius: BorderRadius.circular(10), boxShadow: [BoxShadow(color: _gold.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))]), child: const Icon(Icons.dashboard, color: Color(0xFF402D00), size: 20)),
-                        const SizedBox(width: 12),
-                        Text('Executive Dashboard', style: TextStyle(color: _onSurface, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, fontFamily: appFontFamily)),
-                        const SizedBox(width: 32),
-                        _nav('Global View', true), const SizedBox(width: 24), _nav('B.U. Filter', false), const SizedBox(width: 24), _nav('Strategic Goals', false),
-                      ]),
-                      Row(children: [
-                        _buildSearchBar(),
-                        const SizedBox(width: 12),
-                        Container(width: 1, height: 28, color: _outline.withValues(alpha: 0.4)),
-                        const SizedBox(width: 12),
-                        IconButton(icon: Icon(Icons.notifications_outlined, color: _muted, size: 18), onPressed: () {}),
-                        IconButton(icon: Icon(Icons.history, color: _muted, size: 18), onPressed: () {}),
-                        const SizedBox(width: 8),
-                        _buildExportButton(),
-                      ]),
-                    ]),
-                  )),
+      backgroundColor: _bg,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final horizontalPadding =
+                constraints.maxWidth < 600 ? 20.0 : 40.0;
+            return Stack(
+              children: [
+                // Subtle atmospheric glows (very faint on white)
+                Positioned(
+                  top: -100,
+                  right: -100,
+                  child: Container(
+                    width: 400,
+                    height: 400,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          _blue.withValues(alpha: 0.03),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-              )),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(32, 24, 32, 48),
-              sliver: SliverFadeTransition(
-                opacity: _fadeAnimation,
-                sliver: SliverList(delegate: SliverChildListDelegate([
-                  _buildKpis(context), const SizedBox(height: 28), _buildBento(context),
-                ])),
-              ),
-            ),
-          ]),
-        ]),
+                Positioned(
+                  bottom: -150,
+                  left: -80,
+                  child: Container(
+                    width: 350,
+                    height: 350,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          _gold.withValues(alpha: 0.03),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Main content
+                FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 28),
+                        _buildKpis(context),
+                        const SizedBox(height: 28),
+                        _buildBento(context),
+                        const SizedBox(height: 72),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
 
-  Widget _nav(String label, bool active) => Text(label, style: TextStyle(color: active ? _gold : _muted, fontSize: 13, fontWeight: active ? FontWeight.w700 : FontWeight.w500, letterSpacing: 0.3, fontFamily: appFontFamily));
+  // ─── Standard Header ─────────────────────────────────────────────────────
+  Widget _buildHeader() {
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = FirebaseAuthService.displayNameOrEmail();
+    final initials = _userInitials(displayName);
 
-  Widget _buildSearchBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: _surfaceHigh.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _outline.withValues(alpha: 0.3)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 960;
+
+        final crumb = Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: _outline),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D000000),
+                blurRadius: 8,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.view_quilt_outlined, size: 18, color: _muted),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Portfolio workspace overview',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _muted,
+                    fontFamily: appFontFamily,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(bottom: compact ? 16 : 20),
+                    child: Align(
+                      alignment:
+                          compact ? Alignment.center : Alignment.centerLeft,
+                      child: AppLogo(
+                        height: compact ? 72 : 88,
+                        semanticLabel: 'NDU Project Platform',
+                      ),
+                    ),
+                  ),
+                ),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  alignment: WrapAlignment.end,
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  children: [
+                    ElevatedButton(
+                      onPressed: _navigateToProjectDashboard,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _blue,
+                        foregroundColor: Colors.white,
+                        elevation: 2,
+                        shadowColor: const Color(0x1A000000),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 26, vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.add_circle_outline, size: 22),
+                          const SizedBox(width: 10),
+                          Text('Create Project',
+                              style: TextStyle(fontFamily: appFontFamily)),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward, size: 20),
+                        ],
+                      ),
+                    ),
+                    _secondaryCta(
+                      label: 'Create Program',
+                      onPressed: _navigateToProgram,
+                    ),
+                    _profileAvatar(user, displayName, initials),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/${AppRoutes.dashboard}');
+                    }
+                  },
+                  color: _muted,
+                  tooltip: 'Back',
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: crumb),
+              ],
+            ),
+            const SizedBox(height: 22),
+            Text(
+              'Executive Portfolio Dashboard',
+              style: TextStyle(
+                color: _onSurface,
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
+                fontFamily: appFontFamily,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Strategic overview across all programs, projects, and investments',
+              style: TextStyle(
+                color: _muted,
+                fontSize: 15,
+                fontFamily: appFontFamily,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _userInitials(String displayName) {
+    if (displayName.isEmpty) return 'U';
+    final parts =
+        displayName.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    if (parts.isEmpty) return displayName.substring(0, 1).toUpperCase();
+    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
+    return (parts[0].substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
+  }
+
+  Widget _profileAvatar(User? user, String displayName, String initials) {
+    final photoUrl = user?.photoURL;
+    return PopupMenuButton<String>(
+      tooltip: displayName,
+      offset: const Offset(0, 52),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.white,
+      elevation: 4,
+      icon: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: _surfaceHigh,
+          border: Border.all(color: _outline, width: 1),
+        ),
+        child: ClipOval(
+          child: photoUrl != null && photoUrl.isNotEmpty
+              ? Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(
+                      initials,
+                      style: TextStyle(
+                        color: _onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: appFontFamily,
+                      ),
+                    ),
+                  ),
+                )
+              : Center(
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: _onSurface,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: appFontFamily,
+                    ),
+                  ),
+                ),
+        ),
+      ),
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                displayName,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: _onSurface,
+                  fontFamily: appFontFamily,
+                ),
+              ),
+              if (user?.email != null && user!.email!.isNotEmpty)
+                Text(
+                  user.email!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _muted,
+                    fontFamily: appFontFamily,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(Icons.logout, size: 18, color: _crimson),
+              const SizedBox(width: 10),
+              Text('Log Out',
+                  style: TextStyle(color: _crimson, fontFamily: appFontFamily)),
+            ],
+          ),
+        ),
+      ],
+      onSelected: (value) {
+        if (value == 'logout') {
+          _handleLogout();
+        }
+      },
+    );
+  }
+
+  Widget _secondaryCta({
+    required String label,
+    VoidCallback? onPressed,
+    IconData? icon,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _onSurface,
+        backgroundColor: Colors.white,
+        side: BorderSide(color: _outline),
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        textStyle: const TextStyle(fontWeight: FontWeight.w600),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.search, color: _muted, size: 16),
+          Text(label, style: TextStyle(fontFamily: appFontFamily)),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 140,
-            child: TextField(
-              style: TextStyle(color: _onSurface, fontSize: 13, fontFamily: appFontFamily),
-              decoration: InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                hintText: 'Search portfolio...',
-                hintStyle: TextStyle(color: _muted.withValues(alpha: 0.5), fontSize: 13),
-              ),
-            ),
-          ),
+          Icon(icon ?? Icons.keyboard_arrow_right, size: 20),
         ],
       ),
     );
   }
 
-  Widget _buildExportButton() {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [_gold, _goldDeep]),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(color: _gold.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3)),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {},
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.file_download_outlined, color: const Color(0xFF402D00), size: 14),
-                const SizedBox(width: 6),
-                Text('Export', style: TextStyle(color: const Color(0xFF402D00), fontSize: 13, fontWeight: FontWeight.w700, fontFamily: appFontFamily)),
-              ],
+  Future<void> _handleLogout() async {
+    if (!mounted) return;
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Confirm Log Out'),
+          content: const Text('Are you sure you want to log out?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
             ),
-          ),
-        ),
-      ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.error,
+                foregroundColor: theme.colorScheme.onError,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Log Out'),
+            ),
+          ],
+        );
+      },
     );
+
+    if (shouldLogout == true && mounted) {
+      try {
+        await FirebaseAuthService.signOut();
+        if (mounted) {
+          context.go('/');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error logging out: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _navigateToProjectDashboard() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go('/${AppRoutes.dashboard}');
+      }
+    });
+  }
+
+  void _navigateToProgram() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.go('/${AppRoutes.programDashboard}');
+      }
+    });
   }
 
   Widget _buildKpis(BuildContext context) {

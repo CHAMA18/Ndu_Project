@@ -3,8 +3,8 @@
 /// Program workspace overview dashboard rendered with the standard app shell:
 ///
 /// - Light/white theme matching the rest of the app
-/// - Standard app sidebar (DraggableSidebar + InitiationLikeSidebar)
 /// - Standard header (logo + breadcrumb + nav buttons + profile avatar with logout)
+/// - No sidebar (full-width dashboard, like Portfolio Dashboard)
 /// - Hero bento grid: Budget KPI + Planned vs Actual chart + Radial progress gauge
 /// - Project Health Matrix table with sparkline budget trends
 /// - Critical Risks + Resource Capacity side-by-side
@@ -21,9 +21,6 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
-import 'package:ndu_project/widgets/draggable_sidebar.dart';
-import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
-import 'package:ndu_project/widgets/responsive.dart';
 
 class ProgramDashboardScreen extends StatefulWidget {
   final String? programId;
@@ -211,46 +208,23 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
         child: LayoutBuilder(
           builder: (context, constraints) {
             final horizontalPadding = constraints.maxWidth < 600 ? 20.0 : 40.0;
-            final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-            return Stack(
-              children: [
-                Row(
+            return FadeTransition(
+              opacity: _fadeAnim,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding, vertical: 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    DraggableSidebar(
-                      openWidth: sidebarWidth,
-                      child: const InitiationLikeSidebar(
-                        activeItemLabel: 'Program Dashboard',
-                      ),
-                    ),
-                    Expanded(
-                      child: FadeTransition(
-                        opacity: _fadeAnim,
-                        child: SingleChildScrollView(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: horizontalPadding, vertical: 28),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildHeader(),
-                              const SizedBox(height: 24),
-                              _buildHeroBento(context),
-                              const SizedBox(height: 24),
-                              _buildMainGrid(context),
-                              const SizedBox(height: 72),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                    _buildHeader(),
+                    const SizedBox(height: 24),
+                    _buildHeroBento(context),
+                    const SizedBox(height: 24),
+                    _buildMainGrid(context),
+                    const SizedBox(height: 72),
                   ],
                 ),
-                // Mobile hamburger overlay (renders nothing on >= tablet)
-                const MobileSidebarHamburger(
-                  sidebar: InitiationLikeSidebar(
-                    activeItemLabel: 'Program Dashboard',
-                  ),
-                ),
-              ],
+              ),
             );
           },
         ),
