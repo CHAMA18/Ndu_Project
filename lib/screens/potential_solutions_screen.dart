@@ -1332,6 +1332,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
   }
 
   Widget _buildMainContent() {
+    try {
     final pagePadding = AppBreakpoints.pagePadding(context);
     final sectionGap = AppBreakpoints.sectionGap(context);
     final fieldGap = AppBreakpoints.fieldGap(context);
@@ -1491,6 +1492,48 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
         );
       },
     );
+    } catch (e) {
+      debugPrint('PotentialSolutions _buildMainContent error: $e');
+      // Fallback: render a minimal but functional content area so the
+      // screen never appears blank/grey.
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Potential Solutions',
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            const Text(
+                'List and describe up to 3 high-level solutions to achieve the project\'s needs.',
+                style: TextStyle(fontSize: 13, color: Colors.grey)),
+            const SizedBox(height: 24),
+            if (_isLoadingSolutions)
+              const Center(child: CircularProgressIndicator())
+            else if (_solutions.isEmpty)
+              const Text('No solutions yet. Add one manually or try regenerating.')
+            else
+              ..._solutions.map((s) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: TextField(
+                  controller: s.titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Solution Title',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              )),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _addManualSolution,
+              icon: const Icon(Icons.add),
+              label: Text('Add Solution (${_solutions.length}/3)'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _buildSolutionsSection() {

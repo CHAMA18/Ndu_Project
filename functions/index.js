@@ -320,10 +320,19 @@ exports.claudeProxy = functions
     
     try {
       // Get OpenAI API key from Firebase secrets (preferred), fall back to
-      // ANTHROPIC_API_KEY for backward compat with existing deployments.
-      const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+      // ANTHROPIC_API_KEY for backward compat, then to client-provided key
+      // from the Authorization header (for deployments where the secret
+      // isn't set yet).
+      let apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
-        console.error('No API key configured (set OPENAI_API_KEY secret)');
+        // Try to get the key from the client's Authorization header
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          apiKey = authHeader.split('Bearer ')[1];
+        }
+      }
+      if (!apiKey) {
+        console.error('No API key configured (set OPENAI_API_KEY secret or provide via Authorization header)');
         res.status(500).json({ error: 'Service configuration error' });
         return;
       }
