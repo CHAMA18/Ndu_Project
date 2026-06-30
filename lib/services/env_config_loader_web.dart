@@ -8,7 +8,7 @@
 //
 // The shape of `window.__NDU_ENV` is:
 //   {
-//     "ANTHROPIC_API_KEY": String,   // optional
+//     "OPENAI_API_KEY": String,   // optional
 //     "FIREBASE_API_KEY": String,    // optional
 //     "BUILD_STAMP": String          // set by build pipeline
 //   }
@@ -29,7 +29,7 @@ external NduEnv? get _nduEnv;
 class NduEnv {}
 
 extension NduEnvExt on NduEnv {
-  external String? get ANTHROPIC_API_KEY;
+  external String? get OPENAI_API_KEY;
   external String? get FIREBASE_API_KEY;
   external String? get BUILD_STAMP;
 }
@@ -40,7 +40,7 @@ class EnvConfigLoader {
   EnvConfigLoader._();
 
   static bool _loaded = false;
-  static String? _anthropicApiKey;
+  static String? _openaiApiKey;
   static String? _firebaseApiKey;
   static String? _buildStamp;
 
@@ -51,19 +51,19 @@ class EnvConfigLoader {
     try {
       final env = _nduEnv;
       if (env != null) {
-        _anthropicApiKey = _readString(env.ANTHROPIC_API_KEY);
+        _openaiApiKey = _readString(env.OPENAI_API_KEY);
         _firebaseApiKey = _readString(env.FIREBASE_API_KEY);
         _buildStamp = _readString(env.BUILD_STAMP);
       }
       debugPrint(
         'EnvConfigLoader: loaded __NDU_ENV '
-        '(anthropic=${_mask(_anthropicApiKey)}, '
+        '(openai=${_mask(_openaiApiKey)}, '
         'firebase=${_mask(_firebaseApiKey)}, '
         'build=${_buildStamp ?? "none"})',
       );
     } catch (e, st) {
       // Never let env-config loading crash app startup — the app has safe
-      // fallbacks (Cloud Function proxy for Anthropic, compiled Firebase
+      // fallbacks (Cloud Function proxy for OpenAI, compiled Firebase
       // options for Firebase).
       debugPrint('EnvConfigLoader: failed to read __NDU_ENV — $e\n$st');
     } finally {
@@ -73,12 +73,12 @@ class EnvConfigLoader {
 
   static bool get isLoaded => _loaded;
 
-  static String? get anthropicApiKey => _anthropicApiKey;
+  static String? get openaiApiKey => _openaiApiKey;
   static String? get firebaseApiKey => _firebaseApiKey;
   static String? get buildStamp => _buildStamp;
 
-  static bool get hasAnthropicKey =>
-      _anthropicApiKey != null && _anthropicApiKey!.trim().isNotEmpty;
+  static bool get hasOpenAiKey =>
+      _openaiApiKey != null && _openaiApiKey!.trim().isNotEmpty;
 
   static bool get hasFirebaseApiKey =>
       _firebaseApiKey != null && _firebaseApiKey!.trim().isNotEmpty;

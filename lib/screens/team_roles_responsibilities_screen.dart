@@ -2351,9 +2351,9 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
 
   // --- AI Suggestion Helper (now in dialog state) ---
   Future<String> fetchOpenAiSuggestion(String field) async {
-    // Replace with your actual Claude API key and endpoint
+    // Replace with your actual OpenAI API key and endpoint
     const apiKey = 'YOUR_OPENAI_API_KEY';
-    const endpoint = 'https://api.anthropic.com/v1/messages';
+    const endpoint = 'https://api.openai.com/v1/chat/completions';
 
     final prompt = _buildPromptForField(field);
     final response = await http.post(

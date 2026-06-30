@@ -13,8 +13,8 @@
 //
 // Usage (see main.dart):
 //   await EnvConfigLoader.load();
-//   if (EnvConfigLoader.hasAnthropicKey) {
-//     ApiKeyManager.setApiKey(EnvConfigLoader.anthropicApiKey!);
+//   if (EnvConfigLoader.hasOpenAiKey) {
+//     ApiKeyManager.setApiKey(EnvConfigLoader.openaiApiKey!);
 //   }
 // =============================================================================
 

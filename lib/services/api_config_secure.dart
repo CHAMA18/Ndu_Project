@@ -27,7 +27,7 @@ class SecureAPIConfig {
 
   /// OpenAI API version header value (not needed for OpenAI, kept for
   /// backward compatibility with code that reads this field).
-  static const String anthropicVersion = '2023-06-01';
+  static const String openaiApiVersion = '2023-06-01';
 
   static String? get apiKey => _apiKey ?? (_envApiKey.isEmpty ? null : _envApiKey);
   static bool get hasApiKey => (_apiKey ?? _envApiKey).trim().isNotEmpty == true;

@@ -135,7 +135,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     });
     // Load saved preferences
     _loadPreferences();
-    // Ensure user-specific Claude key is loaded from Firestore if present
+    // Ensure user-specific OpenAI key is loaded from Firestore if present
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ApiKeyManager.ensureLoadedForSignedInUser();
       if (mounted) setState(() {});

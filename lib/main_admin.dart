@@ -87,7 +87,7 @@ void main() async {
     debugPrint('Firebase init error: $e');
   }
 
-  // Initialize Claude API key from environment (if provided)
+  // Initialize OpenAI API key from environment (if provided)
   ApiKeyManager.initializeApiKey();
 
   runApp(const AdminApp());

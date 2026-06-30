@@ -12,7 +12,7 @@ import 'package:ndu_project/models/meeting_row.dart';
 String _stripAsterisks(String s) => s.replaceAll('*', '');
 
 /// Strips markdown code fences (```json ... ```) and extracts raw JSON text.
-/// Claude may wrap JSON responses in markdown code blocks, so this ensures
+/// OpenAI may wrap JSON responses in markdown code blocks, so this ensures
 /// jsonDecode receives clean JSON.
 String _extractJson(String text) {
   final codeBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
@@ -519,7 +519,7 @@ class OpenAiServiceSecure {
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -577,7 +577,7 @@ class OpenAiServiceSecure {
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -648,7 +648,7 @@ class OpenAiServiceSecure {
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -1326,7 +1326,7 @@ Rules:
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -1407,7 +1407,7 @@ Return ONLY valid JSON: {"objective": "..." }
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -1495,7 +1495,7 @@ $trimmedContext
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -2225,7 +2225,7 @@ Return JSON with:
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -2246,7 +2246,7 @@ Return JSON with:
       // Let callers handle the failure and show an explicit error state
       rethrow;
     }
-    throw Exception('Claude did not return framework goals');
+    throw Exception('OpenAI did not return framework goals');
   }
 
   // OPPORTUNITIES
@@ -2293,7 +2293,7 @@ Return JSON with:
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -2348,7 +2348,7 @@ Return JSON with:
         ));
       }
       if (result.isNotEmpty) return result.take(12).toList();
-      throw Exception('Claude returned no opportunities');
+      throw Exception('OpenAI returned no opportunities');
     } catch (e) {
       rethrow;
     }
@@ -2556,7 +2556,7 @@ $c
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -2817,7 +2817,7 @@ $scaleConstraints
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -2894,7 +2894,7 @@ $scaleConstraints
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -2942,7 +2942,7 @@ $scaleConstraints
         ));
       }
       if (result.isNotEmpty) return result;
-      throw Exception('Claude returned no allowance items');
+      throw Exception('OpenAI returned no allowance items');
     } catch (e) {
       rethrow;
     }
@@ -3131,7 +3131,7 @@ $domainHints
         if (attempt == maxRetries - 1) rethrow;
       }
     }
-    throw Exception('Claude returned no solutions');
+    throw Exception('OpenAI returned no solutions');
   }
 
   Future<List<AiSolutionItem>> _attemptSolutionsApiCall(
@@ -3170,14 +3170,14 @@ $domainHints
         .post(uri, headers: headers, body: body)
         .timeout(const Duration(seconds: 8));
     if (response.statusCode == 429) {
-      throw Exception('API quota exceeded. Please check your Claude billing.');
+      throw Exception('API quota exceeded. Please check your OpenAI billing.');
     }
     if (response.statusCode == 401) {
-      throw Exception('Invalid API key. Please check your Claude API key.');
+      throw Exception('Invalid API key. Please check your OpenAI API key.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-          'Claude API error ${response.statusCode}: ${response.body}');
+          'OpenAI API error ${response.statusCode}: ${response.body}');
     }
 
     final data =
@@ -3227,7 +3227,7 @@ $domainHints
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -3320,7 +3320,7 @@ $domainHints
         if (attempt == maxRetries - 1) rethrow;
       }
     }
-    throw Exception('Claude returned no requirements');
+    throw Exception('OpenAI returned no requirements');
   }
 
   Future<List<Map<String, String>>> _attemptRequirementsApiCall(
@@ -3359,7 +3359,7 @@ $domainHints
     }
 
     if (parsed == null) {
-      throw Exception('Claude returned invalid JSON for requirements.');
+      throw Exception('OpenAI returned invalid JSON for requirements.');
     }
 
     final list = parsed['requirements'] ?? parsed['items'];
@@ -3367,7 +3367,7 @@ $domainHints
       return _normalizeRequirementItems(list).take(20).toList();
     }
 
-    throw Exception('Claude returned no requirements.');
+    throw Exception('OpenAI returned no requirements.');
   }
 
   Future<Map<String, dynamic>> _postRequirementsRequest(
@@ -3402,10 +3402,10 @@ $domainHints
         .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
         .timeout(const Duration(seconds: 8));
     if (response.statusCode == 429) {
-      throw Exception('API quota exceeded. Please check your Claude billing.');
+      throw Exception('API quota exceeded. Please check your OpenAI billing.');
     }
     if (response.statusCode == 401) {
-      throw Exception('Invalid API key. Please check your Claude API key.');
+      throw Exception('Invalid API key. Please check your OpenAI API key.');
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final bodyText = utf8.decode(response.bodyBytes).toLowerCase();
@@ -3413,7 +3413,7 @@ $domainHints
         throw const _ResponseFormatUnsupportedException();
       }
       throw Exception(
-          'Claude API error ${response.statusCode}: ${response.body}');
+          'OpenAI API error ${response.statusCode}: ${response.body}');
     }
 
     return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -3486,13 +3486,13 @@ $domainHints
   }
 
   String? _extractTextFromOpenAiPayload(Map<String, dynamic> data) {
-    // Delegate to OpenAiConfig.extractContent which handles both Claude and legacy formats
+    // Delegate to OpenAiConfig.extractContent which handles both OpenAI and legacy formats
     final result = OpenAiConfig.extractContent(data);
     return result.isEmpty ? null : result;
   }
 
   List<dynamic>? _decodeJsonListSafely(String content) {
-    // Strip markdown code fences that Claude may wrap around JSON arrays
+    // Strip markdown code fences that OpenAI may wrap around JSON arrays
     String cleaned = content.trim();
     final codeBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
     final match = codeBlockRegex.firstMatch(cleaned);
@@ -3512,7 +3512,7 @@ $domainHints
     return null;
   }
 
-  // Fallback requirements removed. Claude failures should surface to the UI.
+  // Fallback requirements removed. OpenAI failures should surface to the UI.
 
   // TECHNOLOGIES
   Future<Map<String, List<String>>> generateTechnologiesForSolutions(
@@ -3552,7 +3552,7 @@ $domainHints
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -3647,7 +3647,7 @@ $domainHints
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -4934,7 +4934,7 @@ Domain guardrail: $guardrails
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -5275,7 +5275,7 @@ Return plain text only.'''
         .post(uri, headers: headers, body: body)
         .timeout(const Duration(seconds: 18));
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Claude error ${response.statusCode}: ${response.body}');
+      throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
     }
     final data =
         jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -5722,15 +5722,15 @@ Return ONLY JSON.
           .post(uri, headers: headers, body: body)
           .timeout(const Duration(seconds: 14));
       if (response.statusCode == 401) {
-        throw Exception('Invalid API key. Please check your Claude API key.');
+        throw Exception('Invalid API key. Please check your OpenAI API key.');
       }
       if (response.statusCode == 429) {
         throw Exception(
-            'API quota exceeded. Please check your Claude billing.');
+            'API quota exceeded. Please check your OpenAI billing.');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -5928,7 +5928,7 @@ Remember: Return ONLY a JSON object with key "savings_scenarios".
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -6107,7 +6107,7 @@ Context notes (optional): $notes
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -6501,7 +6501,7 @@ Make each suggestion:
           .post(uri, headers: headers, body: body)
           .timeout(const Duration(seconds: 10));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Claude error ${response.statusCode}');
+        throw Exception('OpenAI error ${response.statusCode}');
       }
 
       final data =
@@ -6610,7 +6610,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -6668,7 +6668,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -6733,7 +6733,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -6801,7 +6801,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -6916,7 +6916,7 @@ $escaped
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -7129,7 +7129,7 @@ $escaped
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -7309,7 +7309,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -7518,7 +7518,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -8891,7 +8891,7 @@ Return JSON in this format:
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -8975,7 +8975,7 @@ Return JSON in this format:
           .timeout(const Duration(seconds: 22));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -9129,7 +9129,7 @@ Additional Context: $contextNotes
           .timeout(const Duration(seconds: 14));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -9256,7 +9256,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -9398,7 +9398,7 @@ Return ONLY valid JSON.
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -9718,7 +9718,7 @@ Return ONLY valid JSON.
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =
@@ -11118,7 +11118,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -11220,7 +11220,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -11336,7 +11336,7 @@ $escaped
           .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
       final data =
           jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
@@ -11474,7 +11474,7 @@ Return only the title, no additional text.''';
       if (response.statusCode == 429) throw Exception('API quota exceeded');
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-            'Claude error ${response.statusCode}: ${response.body}');
+            'OpenAI error ${response.statusCode}: ${response.body}');
       }
 
       final data =

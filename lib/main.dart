@@ -145,20 +145,20 @@ void main() async {
   }
 
   // Load runtime environment config (web/env-config.js → window.__NDU_ENV).
-  // Must run BEFORE ApiKeyManager.initializeApiKey() so any Anthropic key
+  // Must run BEFORE ApiKeyManager.initializeApiKey() so any OpenAI key
   // supplied at deploy time is picked up. On non-web this is a fast no-op.
   await EnvConfigLoader.load();
 
-  // Initialize Claude API key. Priority order:
-  //   1. window.__NDU_ENV.ANTHROPIC_API_KEY (deploy-time override)
+  // Initialize OpenAI API key. Priority order:
+  //   1. window.__NDU_ENV.OPENAI_API_KEY (deploy-time override)
   //   2. Per-user key loaded from Firestore (set via Settings screen)
   //   3. Cloud Function proxy (SecureAPIConfig.baseUrl — server-side key)
   ApiKeyManager.initializeApiKey();
-  if (EnvConfigLoader.hasAnthropicKey) {
-    ApiKeyManager.setApiKey(EnvConfigLoader.anthropicApiKey!);
+  if (EnvConfigLoader.hasOpenAiKey) {
+    ApiKeyManager.setApiKey(EnvConfigLoader.openaiApiKey!);
   } else if (kIsWeb) {
     debugPrint(
-      'NDU: no deploy-time Anthropic key in env-config.js — '
+      'NDU: no deploy-time OpenAI key in env-config.js — '
       'using Cloud Function proxy at ${SecureAPIConfig.baseUrl}.',
     );
   }

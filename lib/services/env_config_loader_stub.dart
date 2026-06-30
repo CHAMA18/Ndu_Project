@@ -29,10 +29,10 @@ class EnvConfigLoader {
 
   static bool get isLoaded => _loaded;
 
-  /// Anthropic Claude API key from `window.__NDU_ENV.ANTHROPIC_API_KEY`.
+  /// OpenAI API key from `window.__NDU_ENV.OPENAI_API_KEY`.
   /// Always null on non-web. On web, null if the key was not set in
   /// env-config.js (the app then falls back to the Cloud Function proxy).
-  static String? get anthropicApiKey => null;
+  static String? get openaiApiKey => null;
 
   /// Firebase web API key from `window.__NDU_ENV.FIREBASE_API_KEY`.
   /// Always null on non-web. On web, null if not overridden in env-config.js.
@@ -43,8 +43,8 @@ class EnvConfigLoader {
   /// Used for cache-busting diagnostics and "what version am I running?" UI.
   static String? get buildStamp => null;
 
-  static bool get hasAnthropicKey =>
-      anthropicApiKey != null && anthropicApiKey!.trim().isNotEmpty;
+  static bool get hasOpenAiKey =>
+      openaiApiKey != null && openaiApiKey!.trim().isNotEmpty;
 
   static bool get hasFirebaseApiKey =>
       firebaseApiKey != null && firebaseApiKey!.trim().isNotEmpty;

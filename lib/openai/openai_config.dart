@@ -11,7 +11,7 @@ import 'package:ndu_project/utils/diagram_model.dart';
 // Dreamflow env bindings (must exist with these exact names)
 // Do not rename: Dreamflow injects values via --dart-define at build time
 const String apiKey = String.fromEnvironment('CLAUDE_PROXY_API_KEY');
-const String endpoint = String.fromEnvironment('CLAUDE_PROXY_ENDPOINT');
+const String endpoint = String.fromEnvironment('OPENAI_PROXY_ENDPOINT');
 
 /// Central configuration for OpenAI API access.
 /// Uses GPT-4o — OpenAI's smartest model with the best reasoning capabilities.
@@ -36,7 +36,7 @@ class OpenAiConfig {
   static String get model => SecureAPIConfig.model;
 
   /// OpenAI API version (kept for backward compat).
-  static String get anthropicVersion => SecureAPIConfig.anthropicVersion;
+  static String get openaiApiVersion => SecureAPIConfig.openaiApiVersion;
 
   // Consider configured if we have an API key
   static bool get isConfigured => apiKeyValue.isNotEmpty;
@@ -56,11 +56,11 @@ class OpenAiConfig {
   static Uri responsesUri() => messagesUri();
 
   /// Wraps a request body map for the OpenAI Chat Completions API.
-  /// Converts Anthropic-style body to OpenAI format if needed.
+  /// Normalizes request body to OpenAI format if needed.
   static Map<String, dynamic> wrapBody(Map<String, dynamic> body) {
     final result = Map<String, dynamic>.from(body);
 
-    // If body has a top-level 'system' param (Anthropic style), move it
+    // If body has a top-level 'system' param (legacy style), move it
     // into the messages array as a system message (OpenAI style)
     if (result.containsKey('system') && !result.containsKey('messages')) {
       final system = result.remove('system');
@@ -80,7 +80,8 @@ class OpenAiConfig {
     // Convert max_tokens to max_tokens (OpenAI uses same name)
     // Already correct for OpenAI format
 
-    // Remove Anthropic-specific fields
+    // Remove legacy-specific fields (no-op for OpenAI, but cleans up any
+    // leftover fields from older request formats)
     result.remove('anthropic_version');
 
     // Convert max_completion_tokens to max_tokens (OpenAI Chat Completions
@@ -167,8 +168,8 @@ class OpenAiConfig {
   static String? configurationWarning() {
     if (!kIsWeb) return null;
     if (_isProxyEndpoint) return null; // ok, using proxy
-    // On web with direct Anthropic endpoint: likely to hit CORS
-    return 'Claude proxy endpoint not configured. Using direct Anthropic endpoint may fail due to CORS. Set CLAUDE_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
+    // On web with direct OpenAI endpoint: likely to hit CORS
+    return 'OpenAI proxy endpoint not configured. Using direct OpenAI endpoint may fail due to CORS. Set OPENAI_PROXY_ENDPOINT to your Cloud Function URL (do not append a path).';
   }
 }
 
@@ -177,10 +178,10 @@ class OpenAiNotConfiguredException implements Exception {
 
   @override
   String toString() =>
-      'Claude API key is not configured. Please add a valid key to enable suggestions.';
+      'OpenAI API key is not configured. Please add a valid key to enable suggestions.';
 }
 
-/// Lightweight autocomplete service backed by Anthropic Claude Messages API.
+/// Lightweight autocomplete service backed by OpenAI Chat Completions API.
 class OpenAiAutocompleteService {
   OpenAiAutocompleteService._internal({http.Client? client})
       : _client = client ?? http.Client();
@@ -223,21 +224,21 @@ class OpenAiAutocompleteService {
     try {
       final warn = OpenAiConfig.configurationWarning();
       if (warn != null) {
-        debugPrint('Claude configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
+        debugPrint('OpenAI configuration warning: $warn (endpoint=${OpenAiConfig.baseEndpoint})');
       }
       final response = await _client
           .post(uri, headers: headers, body: jsonEncode(OpenAiConfig.wrapBody(payload)))
           .timeout(_timeout);
 
       if (response.statusCode == 429) {
-        throw Exception('Claude rate limit reached. Please try again shortly.');
+        throw Exception('OpenAI rate limit reached. Please try again shortly.');
       }
       if (response.statusCode == 401) {
-        throw Exception('Claude rejected the API key. Please verify it.');
+        throw Exception('OpenAI rejected the API key. Please verify it.');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-          'Claude request failed (${response.statusCode}): ${response.body}',
+          'OpenAI request failed (${response.statusCode}): ${response.body}',
         );
       }
 
@@ -254,9 +255,9 @@ class OpenAiAutocompleteService {
 
       return _fallbackSuggestions(currentText, maxSuggestions);
     } on TimeoutException {
-      throw Exception('Claude request timed out. Please retry in a moment.');
+      throw Exception('OpenAI request timed out. Please retry in a moment.');
     } on FormatException catch (e) {
-      throw Exception('Failed to parse Claude response: $e');
+      throw Exception('Failed to parse OpenAI response: $e');
     }
   }
 
@@ -328,7 +329,7 @@ Always return ONLY a valid JSON object with nodes and edges arrays.''',
     try {
       final response = await http.post(uri, headers: headers, body: body).timeout(const Duration(seconds: 16));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw Exception('Claude diagram error ${response.statusCode}: ${response.body}');
+        throw Exception('OpenAI diagram error ${response.statusCode}: ${response.body}');
       }
       final data = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final content = OpenAiConfig.extractContent(data);
@@ -337,7 +338,7 @@ Always return ONLY a valid JSON object with nodes and edges arrays.''',
       final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
       return _parseDiagram(parsed);
     } catch (e) {
-      debugPrint('Claude diagram generation failed: $e');
+      debugPrint('OpenAI diagram generation failed: $e');
       // Fallback contextual diagram based on section
       return _createFallbackDiagram(section);
     }
