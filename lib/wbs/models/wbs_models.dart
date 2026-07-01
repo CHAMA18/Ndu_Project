@@ -284,6 +284,65 @@ class WBS {
   return (level0: 1, level1: level1, level2: level2);
 }
 
+/// A flattened WBS node entry used by dropdowns / summaries.
+class FlattenedWBSNode {
+  final String id;
+  final String path;
+  final String name;
+  final WBSLevel level;
+
+  const FlattenedWBSNode({
+    required this.id,
+    required this.path,
+    required this.name,
+    required this.level,
+  });
+
+  /// Human-readable label, e.g. `1.2.3 — Foundation Construction`.
+  String get label {
+    final trimmed = path.trim();
+    final nameTrimmed = name.trim();
+    if (trimmed.isEmpty) return nameTrimmed;
+    if (nameTrimmed.isEmpty) return trimmed;
+    return '$trimmed — $nameTrimmed';
+  }
+}
+
+/// Walk the WBS tree (Level 0 → Level 1 → Level 2) and return a flat list of
+/// [FlattenedWBSNode] entries. The Level 0 root is included by default but
+/// can be excluded via [includeRoot] when you only want addressable
+/// deliverables/sub-deliverables in a dropdown.
+List<FlattenedWBSNode> flattenWBS(WBS wbs, {bool includeRoot = true}) {
+  final out = <FlattenedWBSNode>[];
+  void walk(WBSNode node, String parentPath) {
+    final path = node.code.isEmpty ? parentPath : node.code;
+    if (node.level != WBSLevel.level0 || includeRoot) {
+      out.add(FlattenedWBSNode(
+        id: node.id,
+        path: path,
+        name: node.name,
+        level: node.level,
+      ));
+    }
+    for (final child in node.children) {
+      walk(child, path);
+    }
+  }
+
+  walk(wbs.level0, '');
+  return out;
+}
+
+/// Count the total number of cost-line IDs linked anywhere in the WBS tree.
+int countAllLinkedCostLines(WBS wbs) {
+  int count(WBSNode n) {
+    final own = n.costLineIds?.length ?? 0;
+    return own + n.children.fold(0, (s, c) => s + count(c));
+  }
+
+  return count(wbs.level0);
+}
+
 /// Generate a unique ID.
 String newWBSId([String prefix = 'wbs']) {
   return '${prefix}_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';

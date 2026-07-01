@@ -8,16 +8,27 @@ library;
 /// Sub-navigation between Builder / Gantt / List View is a horizontal
 /// `TabBar` at the top of the content area (light-mode pills matching the
 /// Project Controls screen), replacing the old dark navy left rail.
+///
+/// A subtle [ContextBanner] is shown between the [SectionNavigator] and the
+/// tab content summarising upstream context (project name, WBS node count,
+/// Cost Estimate total) so the user can see what data this page is drawing
+/// from.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/section_navigator.dart';
+import 'package:ndu_project/widgets/context_banner.dart';
 import 'package:ndu_project/schedule/providers/schedule_provider.dart';
 import 'package:ndu_project/schedule/screens/setup_wizard_screen.dart';
 import 'package:ndu_project/schedule/screens/builder_screen.dart';
 import 'package:ndu_project/schedule/screens/gantt_screen.dart';
 import 'package:ndu_project/schedule/screens/list_view_screen.dart';
+import 'package:ndu_project/wbs/providers/wbs_provider.dart';
+import 'package:ndu_project/wbs/models/wbs_models.dart';
+import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 
 class ScheduleModuleScreen extends StatefulWidget {
   const ScheduleModuleScreen({super.key});
@@ -60,8 +71,8 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ScheduleProvider>(
-      builder: (context, provider, _) {
+    return Consumer3<ScheduleProvider, WBSProvider, CostEstimateProvider>(
+      builder: (context, provider, wbsProvider, costProvider, _) {
         final schedule = provider.schedule;
 
         // Setup state — show the setup wizard (which itself uses
@@ -69,6 +80,21 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
         if (schedule == null || !provider.setupComplete) {
           return const SetupWizardScreen();
         }
+
+        // ---- Context banner data ----
+        final projectName = schedule.projectName;
+        final wbs = wbsProvider.wbs;
+        final wbsCounts = wbs != null ? countNodes(wbs) : null;
+        final wbsNodeCount = wbsCounts != null
+            ? (wbsCounts.level1 + wbsCounts.level2 + 1)
+            : 0;
+        final estimate = costProvider.estimate;
+        final currency = estimate?.currency ?? 'USD';
+        final costTotal = estimate != null
+            ? estimate.lines.fold<double>(
+                0,
+                (s, l) => s + _effectiveScheduleContextLineTotal(l))
+            : 0.0;
 
         return ResponsiveScaffold(
           activeItemLabel: 'Schedule',
@@ -94,6 +120,30 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
                   onChanged: (index) => setState(() {}),
                 ),
               ),
+              // ── Context banner (drawn from WBS + Cost Estimate) ───────
+              ContextBanner(
+                storageKey: 'schedule_module_context_banner',
+                items: [
+                  ContextBannerItem(
+                    label: 'Project',
+                    value: projectName,
+                    icon: Icons.flag_outlined,
+                  ),
+                  if (wbs != null && wbsCounts != null)
+                    ContextBannerItem(
+                      label: 'WBS',
+                      value:
+                          '$wbsNodeCount nodes · ${wbsCounts.level1} ${wbs.framework.level1Label}',
+                      icon: Icons.account_tree_outlined,
+                    ),
+                  if (estimate != null)
+                    ContextBannerItem(
+                      label: 'Cost Estimate',
+                      value: formatCurrency(costTotal, currency),
+                      icon: Icons.attach_money,
+                    ),
+                ],
+              ),
               // Tab content
               Expanded(
                 child: TabBarView(
@@ -110,5 +160,19 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
         );
       },
     );
+  }
+
+  /// Mirror of [ComputeUtils] effective line total so the schedule context
+  /// banner can show a variance-aware total without re-implementing the full
+  /// totals computation. Kept private to avoid widening the cost estimate
+  /// compute utils API.
+  double _effectiveScheduleContextLineTotal(CostLine l) {
+    if (l.varianceType == VarianceType.remove) {
+      return -(l.varianceBaselineTotal ?? 0);
+    }
+    if (l.varianceType == VarianceType.change) {
+      return l.varianceDelta ?? 0;
+    }
+    return l.total;
   }
 }

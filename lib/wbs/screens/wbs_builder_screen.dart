@@ -5,6 +5,12 @@ library;
 /// Level-depth enforcement: stops at Level 2.
 /// Template seeding from the framework's guidance-doc examples.
 ///
+/// Each node row also surfaces a small blue chip showing how many Cost
+/// Estimate lines are linked to that node (read from
+/// `node.costLineIds` + any [CostLine] whose `wbsRef` matches the node's
+/// code). When a Level 1 node is expanded, a "Linked cost lines" panel
+/// appears beneath it listing each linked line's description and amount.
+///
 /// Rendered inside the parent [ResponsiveScaffold]'s TabBarView, so this widget
 /// returns its content directly (no Scaffold) with a white background.
 
@@ -14,6 +20,9 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/models/wbs_templates.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 
 class WBSBuilderScreen extends StatefulWidget {
   const WBSBuilderScreen({super.key});
@@ -28,8 +37,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<WBSProvider>(
-      builder: (context, provider, _) {
+    return Consumer2<WBSProvider, CostEstimateProvider>(
+      builder: (context, provider, costProvider, _) {
         final wbs = provider.wbs!;
         final frameworkMeta = wbs.framework;
         final counts = countNodes(wbs);
@@ -114,6 +123,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               _buildNodeRow(
                 context,
                 provider,
+                costProvider,
                 wbs.level0,
                 'Project',
                 isRoot: true,
@@ -141,6 +151,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                         return _buildLevel1Node(
                           context,
                           provider,
+                          costProvider,
                           l1,
                           frameworkMeta,
                           idx,
@@ -212,11 +223,14 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
   Widget _buildNodeRow(
     BuildContext context,
     WBSProvider provider,
+    CostEstimateProvider costProvider,
     WBSNode node,
     String levelLabel, {
     bool isRoot = false,
   }) {
     final isSelected = _selectedId == node.id;
+    final linkedLines = _linkedCostLinesFor(node, costProvider);
+    final linkedCount = linkedLines.length;
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(10),
@@ -304,6 +318,41 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                                 fontWeight: FontWeight.bold)),
                       ),
                     ],
+                    if (linkedCount > 0) ...[
+                      const SizedBox(width: 4),
+                      Tooltip(
+                        message:
+                            '$linkedCount cost line${linkedCount == 1 ? '' : 's'} linked to this WBS node',
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB)
+                                .withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: const Color(0xFF2563EB)
+                                    .withValues(alpha: 0.3),
+                                width: 0.6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.attach_money,
+                                  size: 9, color: Color(0xFF2563EB)),
+                              const SizedBox(width: 2),
+                              Text(
+                                '$linkedCount cost line${linkedCount == 1 ? '' : 's'}',
+                                style: const TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 if (node.description != null && node.description!.isNotEmpty)
@@ -356,9 +405,125 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     );
   }
 
+  /// Returns all cost lines linked to [node] — either via the node's
+  /// `costLineIds` list (the bidirectional link) or via a `wbsRef` on a cost
+  /// line that matches the node's code/path. De-duplicates by line ID.
+  List<CostLine> _linkedCostLinesFor(
+      WBSNode node, CostEstimateProvider costProvider) {
+    final estimate = costProvider.estimate;
+    if (estimate == null) return const [];
+    final allLines = estimate.lines;
+    final lineIdSet = <String>{...(node.costLineIds ?? const [])};
+    final matches = <CostLine>[];
+    final seenIds = <String>{};
+    for (final l in allLines) {
+      final wbsRef = (l.wbsRef ?? '').trim();
+      final matchesByPath = wbsRef.isNotEmpty && wbsRef == node.code;
+      final matchesById = lineIdSet.contains(l.id);
+      if ((matchesByPath || matchesById) && !seenIds.contains(l.id)) {
+        matches.add(l);
+        seenIds.add(l.id);
+      }
+    }
+    return matches;
+  }
+
+  /// Build the "Linked cost lines" panel shown beneath an expanded Level 1
+  /// node (or any node with linked cost lines). Lists each line's description
+  /// and amount, and shows the aggregated total.
+  Widget _buildLinkedCostLinesPanel(
+      WBSNode node, CostEstimateProvider costProvider) {
+    final linked = _linkedCostLinesFor(node, costProvider);
+    if (linked.isEmpty) return const SizedBox.shrink();
+    final total = linked.fold<double>(0, (s, l) => s + l.total);
+    final currency = costProvider.estimate?.currency ?? 'USD';
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+            width: 0.8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.link, size: 12, color: Color(0xFF2563EB)),
+              const SizedBox(width: 6),
+              const Text('LINKED COST LINES',
+                  style: TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8)),
+              const Spacer(),
+              Text(
+                '${linked.length} line${linked.length == 1 ? '' : 's'} · ${formatCurrency(total, currency)}',
+                style: const TextStyle(
+                    color: Color(0xFF1E40AF),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ...linked.map((l) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: const Color(0xFFBFDBFE), width: 0.5),
+                      ),
+                      child: Text(
+                        l.category.label,
+                        style: const TextStyle(
+                            color: Color(0xFF1E40AF),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        l.description.isEmpty
+                            ? '(no description)'
+                            : l.description,
+                        style: const TextStyle(
+                            color: Color(0xFF1A1D1F), fontSize: 12),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      formatCurrency(l.total, currency),
+                      style: const TextStyle(
+                          color: Color(0xFF1A1D1F),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLevel1Node(
     BuildContext context,
     WBSProvider provider,
+    CostEstimateProvider costProvider,
     WBSNode l1,
     frameworkMeta,
     int idx,
@@ -392,7 +557,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                 padding: const EdgeInsets.all(4),
               ),
               Expanded(
-                child: _buildNodeRow(context, provider, l1, frameworkMeta.level1Label),
+                child: _buildNodeRow(
+                    context, provider, costProvider, l1, frameworkMeta.level1Label),
               ),
               IconButton(
                 icon: const Icon(Icons.add, size: 14, color: Color(0xFF6B7280)),
@@ -417,9 +583,16 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               ),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ...l1.children.map((l2) =>
-                    _buildNodeRow(context, provider, l2, frameworkMeta.level2Label)),
+                ...l1.children.map((l2) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildNodeRow(context, provider, costProvider, l2,
+                            frameworkMeta.level2Label),
+                        _buildLinkedCostLinesPanel(l2, costProvider),
+                      ],
+                    )),
                 // Add L2 button
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -439,6 +612,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                     ),
                   ),
                 ),
+                // Aggregate "Linked cost lines" panel for the L1 node itself
+                _buildLinkedCostLinesPanel(l1, costProvider),
               ],
             ),
           ),

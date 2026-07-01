@@ -4,12 +4,19 @@ library;
 ///
 /// Mirrors the Zustand store in the Next.js module.
 /// Persists to SharedPreferences as JSON.
+///
+/// The `setup()` method reads the project name from
+/// [ProjectDataHelper.lastKnownProjectName] when the caller passes an empty
+/// or default `'My Project'` name — this lets the Cost Estimate inherit the
+/// project name captured during the Initiation Phase without needing a
+/// [BuildContext].
 
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 const String _storageKey = 'ndu_cost_estimate_v1';
 const String currentUserEmail = 'you@ndu.project';
@@ -90,14 +97,22 @@ class CostEstimateProvider extends ChangeNotifier {
 
   // ---- Setup ----
 
+  /// Set up a fresh empty Cost Estimate.
+  ///
+  /// If [projectName] is empty or the literal default `'My Project'`, this
+  /// tries to fall back to [ProjectDataHelper.lastKnownProjectName] (which is
+  /// captured from the central [ProjectDataModel] during the Initiation
+  /// Phase). This lets the Cost Estimate inherit the project name without
+  /// needing a [BuildContext].
   void setup({
     required String projectName,
     required EstimateClass className,
     required DeliveryModel deliveryModel,
   }) {
+    final resolvedName = _resolveProjectName(projectName);
     _estimate = createEmptyEstimate(
       projectId: 'default',
-      projectName: projectName,
+      projectName: resolvedName,
       className: className,
       deliveryModel: deliveryModel,
       userEmail: currentUserEmail,
@@ -106,6 +121,65 @@ class CostEstimateProvider extends ChangeNotifier {
     _currentRole = RBACRole.admin;
     notifyListeners();
     _saveToStorage();
+  }
+
+  /// Pick the best project name: the explicit one if it's been customised,
+  /// otherwise [ProjectDataHelper.lastKnownProjectName] (if captured), else
+  /// the literal `'My Project'` default.
+  String _resolveProjectName(String projectName) {
+    final trimmed = projectName.trim();
+    if (trimmed.isNotEmpty && trimmed != 'My Project') return trimmed;
+    final cached = ProjectDataHelper.lastKnownProjectName;
+    if (cached != null && cached.trim().isNotEmpty) return cached;
+    return trimmed.isEmpty ? 'My Project' : trimmed;
+  }
+
+  /// Build a compact summary of the current cost estimate that other modules
+  /// (e.g. the Schedule) can surface in their context banners / AI prompts.
+  ///
+  /// Returns an empty string when no estimate has been set up yet.
+  String getContextScan() {
+    final estimate = _estimate;
+    if (estimate == null) return '';
+    final buf = StringBuffer();
+    buf.writeln('Cost Estimate');
+    buf.writeln('-------------');
+    buf.writeln('Project: ${estimate.projectName}');
+    buf.writeln('Class: ${estimate.className.label}');
+    buf.writeln('Delivery model: ${estimate.deliveryModel.label}');
+    buf.writeln('Status: ${estimate.status.label}');
+    buf.writeln('Currency: ${estimate.currency}');
+    final total = estimate.lines.fold<double>(0,
+        (s, l) => s + _effectiveLineTotalForContextScan(l));
+    buf.writeln(
+        'Total: ${total.toStringAsFixed(2)} ${estimate.currency}');
+    buf.writeln('Lines: ${estimate.lines.length}');
+    if (estimate.lines.isNotEmpty) {
+      final sorted = [...estimate.lines]
+        ..sort((a, b) => _effectiveLineTotalForContextScan(b)
+            .compareTo(_effectiveLineTotalForContextScan(a)));
+      final top = sorted.take(5).toList();
+      buf.writeln('Top cost lines:');
+      for (final l in top) {
+        final wbsRef = (l.wbsRef ?? '').trim();
+        final refSuffix = wbsRef.isEmpty ? '' : ' [WBS: $wbsRef]';
+        buf.writeln(
+            '- ${l.category.label} · ${l.description}$refSuffix · ${_effectiveLineTotalForContextScan(l).toStringAsFixed(2)} ${estimate.currency}');
+      }
+    }
+    return buf.toString().trim();
+  }
+
+  /// Effective line total mirroring [ComputeUtils] logic — used by
+  /// [getContextScan] to keep variance-aware totals consistent.
+  double _effectiveLineTotalForContextScan(CostLine l) {
+    if (l.varianceType == VarianceType.remove) {
+      return -(l.varianceBaselineTotal ?? 0);
+    }
+    if (l.varianceType == VarianceType.change) {
+      return l.varianceDelta ?? 0;
+    }
+    return l.total;
   }
 
   void resetEstimate() {

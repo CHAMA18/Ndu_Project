@@ -5,6 +5,13 @@ library;
 /// Fields: category, sub-category, description, WBS ref, quantity, unit, rate,
 /// total, in-schedule toggle, basis source (with KAZ AI disclaimer), confidence.
 ///
+/// The WBS reference field is a searchable dropdown populated from the
+/// [WBSProvider]. Selecting a WBS node both sets `wbsRef` on the cost line
+/// (using the node's path, e.g. `1.2.3`) and calls
+/// `WBSProvider.linkCostLine(nodeId, costLineId)` so the bidirectional link
+/// is established. When no WBS exists yet, the field falls back to free text
+/// with a hint to set the WBS up first.
+///
 /// Light-mode (white) theme — matches the rest of the app.
 
 import 'package:flutter/material.dart';
@@ -13,6 +20,8 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
+import 'package:ndu_project/wbs/models/wbs_models.dart';
+import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 
 class AddLineDialog extends StatefulWidget {
   final CostCategory defaultCategory;
@@ -33,6 +42,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
   late String _subCategory;
   late String _description;
   late String _wbsRef;
+  String? _wbsNodeId;
+  String? _previousWbsNodeId;
   late bool _useQtyRate;
   late String _quantity;
   late String _unit;
@@ -60,6 +71,33 @@ class _AddLineDialogState extends State<AddLineDialog> {
     _basisSource = l?.basisSource ?? CostSourceType.historical;
     _basisReference = l?.basisReference ?? '';
     _confidence = l?.confidence ?? Confidence.med;
+    // Resolve the existing wbsRef text back to a WBS node ID so the dropdown
+    // can pre-select the right node when editing an existing line.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _resolveWbsNodeIdFromRef();
+    });
+  }
+
+  /// Try to resolve [_wbsRef] (a path string like `1.2.3`) back to a WBS
+  /// node ID. This is best-effort — if the WBS isn't loaded or no node
+  /// matches, we leave [_wbsNodeId] as null and the user can re-pick.
+  void _resolveWbsNodeIdFromRef() {
+    final wbsProvider = context.read<WBSProvider>();
+    final wbs = wbsProvider.wbs;
+    if (wbs == null || _wbsRef.trim().isEmpty) return;
+    final flat = flattenWBS(wbs);
+    final match = flat.firstWhere(
+      (n) => n.path == _wbsRef.trim() || n.id == _wbsRef.trim(),
+      orElse: () => const FlattenedWBSNode(
+          id: '', path: '', name: '', level: WBSLevel.level0),
+    );
+    if (match.id.isNotEmpty) {
+      setState(() {
+        _wbsNodeId = match.id;
+        _previousWbsNodeId = match.id;
+      });
+    }
   }
 
   double get _computedTotal {
@@ -111,14 +149,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildTextField(
-                      label: 'WBS reference',
-                      value: _wbsRef,
-                      onChanged: (v) => _wbsRef = v,
-                      hint: 'e.g. 1.2.3',
-                      showKazAi: true,
-                      kazAiContext: 'Suggest a WBS reference code',
-                    ),
+                    child: _buildWbsReferencePicker(),
                   ),
                 ],
               ),
@@ -360,8 +391,10 @@ class _AddLineDialogState extends State<AddLineDialog> {
 
   void _handleSave() {
     final provider = context.read<CostEstimateProvider>();
+    final wbsProvider = context.read<WBSProvider>();
+    final lineId = widget.editingLine?.id ?? newId('line');
     final line = CostLine(
-      id: widget.editingLine?.id ?? newId('line'),
+      id: lineId,
       category: _category,
       subCategory: _subCategory.trim(),
       description: _description.trim(),
@@ -382,7 +415,362 @@ class _AddLineDialogState extends State<AddLineDialog> {
     } else {
       provider.addLine(line);
     }
+    // Bidirectional WBS ↔ Cost Line linkage.
+    // If the selected WBS node changed, unlink the old node (if any) and link
+    // the new one. We only call linkCostLine when a real WBS exists.
+    if (wbsProvider.wbs != null) {
+      if (_previousWbsNodeId != null &&
+          _previousWbsNodeId != _wbsNodeId &&
+          _previousWbsNodeId!.isNotEmpty) {
+        wbsProvider.unlinkCostLine(_previousWbsNodeId!, lineId);
+      }
+      if (_wbsNodeId != null &&
+          _wbsNodeId!.isNotEmpty &&
+          _wbsNodeId != _previousWbsNodeId) {
+        wbsProvider.linkCostLine(_wbsNodeId!, lineId);
+      }
+    }
     Navigator.of(context).pop();
+  }
+
+  /// Build the WBS reference picker.
+  ///
+  /// If the [WBSProvider] has a WBS tree loaded, this renders a searchable
+  /// dropdown (tap to open a popup with a search field and a filtered list of
+  /// all WBS nodes). Selecting a node:
+  ///   - sets [_wbsNodeId] (used to call [WBSProvider.linkCostLine] on save)
+  ///   - sets [_wbsRef] to the node's path (e.g. `1.2.3`)
+  ///
+  /// If no WBS is loaded yet, the picker falls back to a plain text field
+  /// with the hint "Set up WBS first to link cost lines".
+  Widget _buildWbsReferencePicker() {
+    final wbsProvider = context.watch<WBSProvider>();
+    final wbs = wbsProvider.wbs;
+
+    if (wbs == null) {
+      // Fallback: free-text field with a hint that WBS should be set up.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text(
+                'WBS REFERENCE',
+                style: TextStyle(
+                  color: Color(0xFF6B7280),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.8,
+                ),
+              ),
+              SizedBox(width: 6),
+              Tooltip(
+                message: 'Set up the WBS first to enable linked cost lines',
+                child: Icon(Icons.info_outline,
+                    size: 12, color: Color(0xFF9CA3AF)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          TextFormField(
+            initialValue: _wbsRef,
+            onChanged: (v) => _wbsRef = v,
+            decoration: InputDecoration(
+              hintText: 'Set up WBS first to link cost lines',
+              hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+              filled: true,
+              fillColor: Colors.white,
+              isDense: true,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide:
+                    const BorderSide(color: LightModeColors.accent, width: 1.6),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+              ),
+            ),
+            style: const TextStyle(color: Color(0xFF1A1D1F), fontSize: 14),
+          ),
+        ],
+      );
+    }
+
+    // We have a WBS — render the searchable dropdown.
+    final flat = flattenWBS(wbs);
+    final selected = _wbsNodeId == null
+        ? null
+        : flat
+            .where((n) => n.id == _wbsNodeId)
+            .firstOrNull;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'WBS REFERENCE',
+          style: TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 4),
+        InkWell(
+          onTap: () => _openWbsSearchDialog(flat),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: selected != null
+                    ? LightModeColors.accent.withValues(alpha: 0.6)
+                    : const Color(0xFFE4E7EC),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.account_tree_outlined,
+                    size: 14,
+                    color: LightModeColors.accent.withValues(alpha: 0.9)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    selected != null ? selected.label : 'Select WBS node…',
+                    style: TextStyle(
+                      color: selected != null
+                          ? const Color(0xFF1A1D1F)
+                          : const Color(0xFF9CA3AF),
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+                if (selected != null)
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _previousWbsNodeId = _wbsNodeId;
+                        _wbsNodeId = null;
+                        _wbsRef = '';
+                      });
+                    },
+                    child: const Padding(
+                      padding: EdgeInsets.all(2),
+                      child: Icon(Icons.clear,
+                          size: 14, color: Color(0xFF6B7280)),
+                    ),
+                  )
+                else
+                  const Icon(Icons.search,
+                      size: 14, color: Color(0xFF6B7280)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Open a searchable popup that lets the user filter WBS nodes by name or
+  /// path, then pick one. Selecting a node sets both [_wbsNodeId] (used for
+  /// the bidirectional link) and [_wbsRef] (the path string stored on the
+  /// cost line).
+  Future<void> _openWbsSearchDialog(List<FlattenedWBSNode> flat) async {
+    String query = '';
+    final searchCtrl = TextEditingController();
+    final result = await showDialog<FlattenedWBSNode>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            String normalize(String s) => s.toLowerCase().trim();
+            final q = normalize(query);
+            final filtered = q.isEmpty
+                ? flat
+                : flat
+                    .where((n) =>
+                        normalize(n.label).contains(q) ||
+                        normalize(n.name).contains(q) ||
+                        normalize(n.path).contains(q))
+                    .toList();
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              title: const Row(
+                children: [
+                  Icon(Icons.account_tree_outlined,
+                      color: LightModeColors.accent, size: 18),
+                  SizedBox(width: 8),
+                  Text('Select WBS node',
+                      style: TextStyle(
+                          color: Color(0xFF1A1D1F), fontSize: 16)),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                height: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: searchCtrl,
+                      autofocus: true,
+                      onChanged: (v) {
+                        query = v;
+                        setDialogState(() {});
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search by code or name (e.g. 1.2 or Found)',
+                        hintStyle: const TextStyle(
+                            color: Color(0xFF9CA3AF), fontSize: 12),
+                        prefixIcon: const Icon(Icons.search,
+                            size: 16, color: Color(0xFF6B7280)),
+                        filled: true,
+                        fillColor: const Color(0xFFF9FAFB),
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE4E7EC)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(
+                              color: LightModeColors.accent, width: 1.4),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide:
+                              const BorderSide(color: Color(0xFFE4E7EC)),
+                        ),
+                      ),
+                      style: const TextStyle(
+                          color: Color(0xFF1A1D1F), fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text(
+                                  'No WBS nodes match your search.',
+                                  style: TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontSize: 13),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            )
+                          : ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, __) => const Divider(
+                                  height: 1,
+                                  color: Color(0xFFF1F3F5)),
+                              itemBuilder: (_, i) {
+                                final node = filtered[i];
+                                final isSelected = node.id == _wbsNodeId;
+                                return InkWell(
+                                  onTap: () =>
+                                      Navigator.of(ctx).pop(node),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? LightModeColors.accent
+                                              .withValues(alpha: 0.08)
+                                          : Colors.transparent,
+                                      borderRadius:
+                                          BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF3F4F6),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                          ),
+                                          child: Text(node.path,
+                                              style: const TextStyle(
+                                                  color: Color(0xFF495057),
+                                                  fontSize: 11,
+                                                  fontFamily: 'monospace',
+                                                  fontWeight:
+                                                      FontWeight.bold)),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(node.name,
+                                              style: const TextStyle(
+                                                  color: Color(0xFF1A1D1F),
+                                                  fontSize: 13,
+                                                  fontWeight:
+                                                      FontWeight.w500),
+                                              overflow:
+                                                  TextOverflow.ellipsis),
+                                        ),
+                                        Text(
+                                          node.level == WBSLevel.level0
+                                              ? 'L0'
+                                              : node.level == WBSLevel.level1
+                                                  ? 'L1'
+                                                  : 'L2',
+                                          style: const TextStyle(
+                                              color: Color(0xFF9CA3AF),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cancel',
+                      style: TextStyle(color: Color(0xFF6B7280))),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+    searchCtrl.dispose();
+    if (result != null) {
+      setState(() {
+        _previousWbsNodeId = _wbsNodeId;
+        _wbsNodeId = result.id;
+        _wbsRef = result.path;
+      });
+    }
   }
 
   Widget _buildTextField({

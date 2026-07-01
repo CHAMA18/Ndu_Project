@@ -6,6 +6,11 @@ library;
 /// activity tree, a sample activity table demonstrates the columnar view that
 /// will appear on the Gantt and List View tabs once activities are added.
 ///
+/// A "Drawing from" context banner is rendered below the level-convention
+/// card so the user can see that this page consumes the WBS (deliverables +
+/// sub-deliverables) and the Cost Estimate (total budget) from earlier in
+/// the Planning Phase.
+///
 /// Rendered inside the parent module's `ResponsiveScaffold` body — no
 /// per-screen Scaffold wrapper (parent provides white background).
 
@@ -17,16 +22,30 @@ import 'package:provider/provider.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/schedule/models/schedule_models.dart';
 import 'package:ndu_project/schedule/providers/schedule_provider.dart';
+import 'package:ndu_project/wbs/providers/wbs_provider.dart';
+import 'package:ndu_project/wbs/models/wbs_models.dart';
+import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 
 class BuilderScreen extends StatelessWidget {
   const BuilderScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ScheduleProvider>(
-      builder: (context, provider, _) {
+    return Consumer3<ScheduleProvider, WBSProvider, CostEstimateProvider>(
+      builder: (context, provider, wbsProvider, costProvider, _) {
         final schedule = provider.schedule!;
         final root = schedule.activities[0];
+        final wbs = wbsProvider.wbs;
+        final wbsCounts = wbs != null ? countNodes(wbs) : null;
+        final estimate = costProvider.estimate;
+        final currency = estimate?.currency ?? 'USD';
+        final costTotal = estimate != null
+            ? estimate.lines.fold<double>(
+                0,
+                (s, l) => s + _effectiveScheduleBuilderLineTotal(l))
+            : 0.0;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -120,6 +139,16 @@ class BuilderScreen extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 12),
+              // "Drawing from" context banner — shows the upstream WBS and
+              // Cost Estimate data this builder is consuming.
+              _DrawingFromBanner(
+                wbs: wbs,
+                wbsCounts: wbsCounts,
+                costTotal: costTotal,
+                currency: currency,
+                hasEstimate: estimate != null,
+              ),
               const SizedBox(height: 24),
               // Live activity tree
               Text('Activity Tree',
@@ -173,6 +202,20 @@ class BuilderScreen extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Mirror of [ComputeUtils] effective line total so the schedule builder
+  /// can show a variance-aware total without re-implementing the full totals
+  /// computation. Kept private — this is the same logic the Cost Estimate
+  /// module uses internally.
+  double _effectiveScheduleBuilderLineTotal(CostLine l) {
+    if (l.varianceType == VarianceType.remove) {
+      return -(l.varianceBaselineTotal ?? 0);
+    }
+    if (l.varianceType == VarianceType.change) {
+      return l.varianceDelta ?? 0;
+    }
+    return l.total;
   }
 
   void _showAddDialog(BuildContext context, ScheduleProvider provider,
@@ -657,4 +700,114 @@ class _SampleRow {
   final int domainColor;
   const _SampleRow(this.id, this.name, this.duration, this.start, this.finish,
       this.predecessors, this.resources, this.domainColor);
+}
+
+/// "Drawing from" context banner shown at the top of the Schedule Builder.
+///
+/// Surfaces a one-line summary of the upstream Planning Phase data this page
+/// is consuming — the WBS (with deliverable + sub-deliverable counts) and
+/// the Cost Estimate total. Uses a soft accent-tinted surface so it sits
+/// naturally between the level-convention card and the activity tree.
+class _DrawingFromBanner extends StatelessWidget {
+  final WBS? wbs;
+  final ({int level0, int level1, int level2})? wbsCounts;
+  final double costTotal;
+  final String currency;
+  final bool hasEstimate;
+
+  const _DrawingFromBanner({
+    required this.wbs,
+    required this.wbsCounts,
+    required this.costTotal,
+    required this.currency,
+    required this.hasEstimate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasWbs = wbs != null && wbsCounts != null;
+    final l1Label = wbs?.framework.level1Label ?? 'deliverables';
+    final l2Label = wbs?.framework.level2Label ?? 'sub-deliverables';
+    final l1Count = wbsCounts?.level1 ?? 0;
+    final l2Count = wbsCounts?.level2 ?? 0;
+
+    final parts = <String>[];
+    if (hasWbs) {
+      parts.add(
+          'WBS ($l1Count $l1Label, $l2Count $l2Label)');
+    }
+    if (hasEstimate) {
+      parts.add('Cost Estimate (${formatCurrency(costTotal, currency)})');
+    }
+    if (parts.isEmpty) {
+      // Nothing to draw from yet — show a gentle hint instead.
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: LightModeColors.accent.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+              color: LightModeColors.accent.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.info_outline,
+                size: 16, color: LightModeColors.accent.withValues(alpha: 0.9)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'No WBS or Cost Estimate data found yet. Set up the WBS and Cost Estimate modules first to enrich the schedule context.',
+                style: TextStyle(
+                    color: const Color(0xFF495057),
+                    fontSize: 12,
+                    height: 1.5),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: LightModeColors.accent.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border:
+            Border.all(color: LightModeColors.accent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.input,
+              size: 16, color: LightModeColors.accent.withValues(alpha: 0.9)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                    color: Color(0xFF495057),
+                    fontSize: 12,
+                    height: 1.5,
+                    fontFamily: appFontFamily),
+                children: [
+                  const TextSpan(
+                    text: 'Drawing from: ',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  TextSpan(text: parts.join(' and ')),
+                  const TextSpan(
+                    text:
+                        ' — activities you add here should map to WBS nodes and consume the cost budget above.',
+                    style: TextStyle(color: Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

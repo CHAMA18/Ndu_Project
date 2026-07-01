@@ -9,11 +9,17 @@ library;
 /// Review / Baseline / Variance is a horizontal `TabBar` at the top of the
 /// content area (light-mode pills matching the Project Controls screen),
 /// replacing the old dark navy left rail.
+///
+/// A subtle [ContextBanner] is shown between the [SectionNavigator] and the
+/// tab content summarising upstream context (project name, WBS framework and
+/// deliverable count, solutions count) so the user can see what data this
+/// page is drawing from.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/section_navigator.dart';
+import 'package:ndu_project/widgets/context_banner.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/screens/setup_wizard_screen.dart';
@@ -25,6 +31,10 @@ import 'package:ndu_project/cost_estimate/screens/accounting_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/review_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/baseline_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/variance_screen.dart';
+import 'package:ndu_project/wbs/providers/wbs_provider.dart';
+import 'package:ndu_project/wbs/models/wbs_models.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 
 class CostEstimateModuleScreen extends StatefulWidget {
   const CostEstimateModuleScreen({super.key});
@@ -52,13 +62,19 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
     super.initState();
     _tabController.addListener(_onTabChanged);
     // Auto-complete setup with defaults so the user goes straight to the
-    // Cost Estimate dashboard without seeing the setup wizard.
+    // Cost Estimate dashboard without seeing the setup wizard. The project
+    // name is read from the central ProjectDataHelper (which captures the
+    // name from the Initiation Phase's ProjectDataModel) — falling back to
+    // 'My Project' when no name has been captured yet.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final provider = context.read<CostEstimateProvider>();
       if (provider.estimate == null || !provider.setupComplete) {
+        final projectName =
+            ProjectDataHelper.readProjectNameFromContext(context) ??
+                'My Project';
         provider.setup(
-          projectName: 'My Project',
+          projectName: projectName,
           className: EstimateClass.class3,
           deliveryModel: DeliveryModel.waterfall,
         );
@@ -81,8 +97,8 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<CostEstimateProvider>(
-      builder: (context, provider, _) {
+    return Consumer3<CostEstimateProvider, WBSProvider, ProjectDataProvider>(
+      builder: (context, provider, wbsProvider, projectProvider, _) {
         final estimate = provider.estimate;
 
         // Setup state — show the setup wizard (which itself uses
@@ -90,6 +106,18 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
         if (estimate == null || !provider.setupComplete) {
           return const SetupWizardScreen();
         }
+
+        // ---- Context banner data ----
+        final projectData = projectProvider.projectData;
+        final projectName = (projectData.projectName).trim().isNotEmpty
+            ? projectData.projectName
+            : estimate.projectName;
+        final solutionsCount = projectData.potentialSolutions.length;
+        final wbs = wbsProvider.wbs;
+        final wbsCounts = wbs != null ? countNodes(wbs) : null;
+        final wbsFrameworkLabel = wbs?.framework.label;
+        final wbsDeliverableWord =
+            wbs?.framework.level1Label ?? 'deliverables';
 
         return ResponsiveScaffold(
           activeItemLabel: 'Cost Estimate',
@@ -119,6 +147,29 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
                   controller: _tabController,
                   onChanged: (index) => setState(() {}),
                 ),
+              ),
+              // ── Context banner (drawn from Initiation + WBS) ──────────
+              ContextBanner(
+                storageKey: 'cost_estimate_module_context_banner',
+                items: [
+                  ContextBannerItem(
+                    label: 'Project',
+                    value: projectName,
+                    icon: Icons.flag_outlined,
+                  ),
+                  if (wbs != null && wbsCounts != null)
+                    ContextBannerItem(
+                      label: 'WBS',
+                      value:
+                          '${wbsFrameworkLabel ?? 'WBS'} · ${wbsCounts.level1} $wbsDeliverableWord',
+                      icon: Icons.account_tree_outlined,
+                    ),
+                  ContextBannerItem(
+                    label: 'Solutions',
+                    value: '$solutionsCount potential',
+                    icon: Icons.lightbulb_outline,
+                  ),
+                ],
               ),
               // Tab content
               Expanded(

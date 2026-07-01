@@ -6,10 +6,40 @@ import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/services/project_intelligence_service.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
+import 'package:ndu_project/wbs/models/wbs_models.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:provider/provider.dart';
 
 /// Helper functions for easy integration of ProjectDataProvider across screens
 class ProjectDataHelper {
+  /// The last project name observed by [buildProjectContextScan] or
+  /// [captureProjectName]. Used as a fallback by modules whose `setup()`
+  /// methods don't have access to a [BuildContext] (e.g. the Cost Estimate
+  /// provider's [CostEstimateProvider.setup] method).
+  static String? _lastKnownProjectName;
+  static String? get lastKnownProjectName => _lastKnownProjectName;
+
+  /// Capture the current project name so later modules (Cost Estimate,
+  /// Schedule) can read it without a [BuildContext].
+  static void captureProjectName(String? name) {
+    final trimmed = (name ?? '').trim();
+    if (trimmed.isEmpty) return;
+    _lastKnownProjectName = trimmed;
+  }
+
+  /// Read the project name from the [ProjectDataProvider] in [context], if
+  /// available, and update [lastKnownProjectName]. Returns the name (or null
+  /// if no provider is in scope or the name is empty).
+  static String? readProjectNameFromContext(BuildContext context) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (provider == null) return _lastKnownProjectName;
+    final name = provider.projectData.projectName.trim();
+    if (name.isNotEmpty) {
+      _lastKnownProjectName = name;
+    }
+    return _lastKnownProjectName;
+  }
+
   static ProjectMethodology? projectMethodologyFromOverallFramework(
       String? framework) {
     final normalized = (framework ?? '').trim().toLowerCase();
@@ -206,13 +236,108 @@ class ProjectDataHelper {
 
   /// Build a compact, structured context string for Front End Planning prompts.
   /// This aggregates prior inputs across the project to enable high‑quality AI suggestions.
-  static String buildProjectContextScan(ProjectDataModel data,
-      {String? sectionLabel}) {
+  ///
+  /// When [wbs] and/or [costEstimate] are provided, the scan is enriched with
+  /// a WBS structure section (framework + Level 1/2 node names) and a Cost
+  /// Estimate summary (total + top cost lines), so AI prompts on later pages
+  /// (Cost Estimate, Schedule, etc.) can reference the WBS and cost data.
+  static String buildProjectContextScan(
+    ProjectDataModel data, {
+    String? sectionLabel,
+    WBS? wbs,
+    CostEstimate? costEstimate,
+  }) {
+    // Capture the latest project name so modules without a BuildContext
+    // (e.g. CostEstimateProvider.setup) can read it later.
+    captureProjectName(data.projectName);
+
     final enriched = ProjectIntelligenceService.rebuildActivityLog(data);
-    return ProjectIntelligenceService.buildContextScan(
+    final base = ProjectIntelligenceService.buildContextScan(
       enriched,
       sectionLabel: sectionLabel,
     );
+
+    final wbsSection = wbs != null ? _wbsContextSection(wbs) : '';
+    final costSection =
+        costEstimate != null ? _costEstimateContextSection(costEstimate) : '';
+
+    final parts = <String>[
+      base,
+      if (wbsSection.isNotEmpty) wbsSection,
+      if (costSection.isNotEmpty) costSection,
+    ];
+    return parts.where((s) => s.trim().isNotEmpty).join('\n\n');
+  }
+
+  /// Build a compact WBS summary section for inclusion in AI context scans.
+  /// Shows the framework, project name, and Level 1 / Level 2 node names so
+  /// downstream AI prompts can reference the WBS structure.
+  static String _wbsContextSection(WBS wbs) {
+    final buf = StringBuffer();
+    final counts = countNodes(wbs);
+    buf.writeln('Work Breakdown Structure');
+    buf.writeln('------------------------');
+    buf.writeln('Project: ${wbs.projectName}');
+    buf.writeln('Framework: ${wbs.framework.label}');
+    buf.writeln(
+        'Levels: ${counts.level1} ${wbs.framework.level1Label} · ${counts.level2} ${wbs.framework.level2Label}');
+    if (wbs.level0.children.isNotEmpty) {
+      buf.writeln('${wbs.framework.level1Label}:');
+      for (final l1 in wbs.level0.children) {
+        buf.writeln('- ${l1.code} ${l1.name}');
+        if (l1.children.isNotEmpty) {
+          for (final l2 in l1.children) {
+            buf.writeln('    · ${l2.code} ${l2.name}');
+          }
+        }
+      }
+    }
+    return buf.toString().trim();
+  }
+
+  /// Build a compact Cost Estimate summary section for inclusion in AI
+  /// context scans. Shows the project name, estimate class, total, and the
+  /// top cost lines by amount so later pages can reference cost data.
+  static String _costEstimateContextSection(CostEstimate estimate) {
+    final buf = StringBuffer();
+    buf.writeln('Cost Estimate');
+    buf.writeln('-------------');
+    buf.writeln('Project: ${estimate.projectName}');
+    buf.writeln('Class: ${estimate.className.label} (${estimate.className.name})');
+    buf.writeln('Delivery model: ${estimate.deliveryModel.label}');
+    buf.writeln('Status: ${estimate.status.label}');
+    buf.writeln('Currency: ${estimate.currency}');
+    final total = estimate.lines.fold<double>(
+        0, (s, l) => s + _effectiveLineTotalForContext(l));
+    buf.writeln('Total: ${total.toStringAsFixed(2)} ${estimate.currency}');
+    buf.writeln('Lines: ${estimate.lines.length}');
+    if (estimate.lines.isNotEmpty) {
+      final sorted = [...estimate.lines]
+        ..sort((a, b) => _effectiveLineTotalForContext(b)
+            .compareTo(_effectiveLineTotalForContext(a)));
+      final top = sorted.take(8).toList();
+      buf.writeln('Top cost lines:');
+      for (final l in top) {
+        final wbsRef = (l.wbsRef ?? '').trim();
+        final refSuffix = wbsRef.isEmpty ? '' : ' [WBS: $wbsRef]';
+        buf.writeln(
+            '- ${l.category.label} · ${l.description}$refSuffix · ${_effectiveLineTotalForContext(l).toStringAsFixed(2)} ${estimate.currency}');
+      }
+    }
+    return buf.toString().trim();
+  }
+
+  /// Mirror of [ComputeUtils] effective line total — kept private to avoid
+  /// importing the cost estimate compute utils from this helper (which would
+  /// create a circular dependency in some downstream import graphs).
+  static double _effectiveLineTotalForContext(CostLine l) {
+    if (l.varianceType == VarianceType.remove) {
+      return -(l.varianceBaselineTotal ?? 0);
+    }
+    if (l.varianceType == VarianceType.change) {
+      return l.varianceDelta ?? 0;
+    }
+    return l.total;
   }
 
   static List<String> _formatInterfaceEntriesForContext(
