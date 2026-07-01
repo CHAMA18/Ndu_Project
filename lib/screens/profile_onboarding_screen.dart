@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/profile_onboarding_service.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 // ── Brand palette (mirrors the attached HTML design system) ─────────────
 // Top-level file-private constants so all widgets in this file can access
@@ -2082,15 +2083,17 @@ class _SearchableOptionListState extends State<_SearchableOptionList> {
           decoration: BoxDecoration(
             color: _bgSurfaceMid,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: _border.withOpacity(0.4), width: 1),
+            border: Border.all(color: _border.withValues(alpha: 0.4), width: 1),
           ),
-          child: TextField(
+          child: VoiceTextField(
             controller: _searchController,
             style: const TextStyle(color: _textPrimary, fontSize: 14),
             cursorColor: _gold,
+            voiceIconColor: _gold,
+            enableDocxImport: false,
             decoration: InputDecoration(
               hintText: widget.searchHint,
-              hintStyle: TextStyle(color: _textMuted.withOpacity(0.7), fontSize: 14),
+              hintStyle: TextStyle(color: _textMuted.withValues(alpha: 0.7), fontSize: 14),
               prefixIcon: const Icon(Icons.search_rounded, color: _textMuted, size: 18),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -2163,7 +2166,7 @@ class _OtherTextField extends StatelessWidget {
       decoration: BoxDecoration(
         color: _bgSurfaceMid,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _gold.withOpacity(0.4), width: 1),
+        border: Border.all(color: _gold.withValues(alpha: 0.4), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2180,13 +2183,15 @@ class _OtherTextField extends StatelessWidget {
               ),
             ),
           ),
-          TextField(
+          VoiceTextField(
             controller: controller,
             style: const TextStyle(color: _textPrimary, fontSize: 14),
             cursorColor: _gold,
+            voiceIconColor: _gold,
+            enableDocxImport: false,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: _textMuted.withOpacity(0.7), fontSize: 14),
+              hintStyle: TextStyle(color: _textMuted.withValues(alpha: 0.7), fontSize: 14),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
             ),
@@ -2220,7 +2225,7 @@ class _MultilineTextField extends StatelessWidget {
       decoration: BoxDecoration(
         color: _bgSurfaceMid,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _border.withOpacity(0.4), width: 1),
+        border: Border.all(color: _border.withValues(alpha: 0.4), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2237,16 +2242,18 @@ class _MultilineTextField extends StatelessWidget {
               ),
             ),
           ),
-          TextField(
+          VoiceTextField(
             controller: controller,
             style: const TextStyle(color: _textPrimary, fontSize: 14, height: 1.6),
             cursorColor: _gold,
+            voiceIconColor: _gold,
+            enableDocxImport: false,
             maxLines: maxLines,
             minLines: minLines,
             maxLength: maxLength,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: _textMuted.withOpacity(0.7), fontSize: 14, height: 1.5),
+              hintStyle: TextStyle(color: _textMuted.withValues(alpha: 0.7), fontSize: 14, height: 1.5),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
               counterStyle: const TextStyle(color: _textMuted, fontSize: 11),
@@ -2287,18 +2294,20 @@ class _CustomTextField extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
                 color: errorText != null
-                    ? Colors.redAccent.withOpacity(0.6)
-                    : _border.withOpacity(0.4),
+                    ? Colors.redAccent.withValues(alpha: 0.6)
+                    : _border.withValues(alpha: 0.4),
                 width: 1),
           ),
-          child: TextField(
+          child: VoiceTextField(
             controller: controller,
             style: const TextStyle(color: _textPrimary, fontSize: 14),
             cursorColor: _gold,
+            voiceIconColor: _gold,
+            enableDocxImport: false,
             keyboardType: keyboardType,
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: TextStyle(color: _textMuted.withOpacity(0.7), fontSize: 14),
+              hintStyle: TextStyle(color: _textMuted.withValues(alpha: 0.7), fontSize: 14),
               prefixIcon: prefixIcon != null
                   ? Icon(prefixIcon, color: _textMuted, size: 18)
                   : null,
