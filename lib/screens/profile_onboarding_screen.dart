@@ -5,7 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/profile_onboarding_service.dart';
+import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/utils/world_data.dart';
 
 // ── Brand palette (mirrors the attached HTML design system) ─────────────
 // Top-level file-private constants so all widgets in this file can access
@@ -322,6 +324,9 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
       );
       if (v != 'Other') _countryOtherController.clear();
     });
+    // Propagate country selection to UserPreferencesService so it's
+    // available across the entire app (date formats, compliance hints, etc.)
+    UserPreferencesService.setCountry(v);
   }
 
   void _setCurrency(String v) {
@@ -332,6 +337,9 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
       );
       if (v != 'Other') _currencyOtherController.clear();
     });
+    // Propagate currency selection to UserPreferencesService so it's
+    // available across the entire app (cost estimates, budgets, etc.)
+    UserPreferencesService.setCurrency(v);
   }
 
   void _toggleTool(String tool) {
@@ -978,15 +986,6 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
 
   // ── Step 3: Country ────────────────────────────────────────────────────
   Widget _buildCountryPage() {
-    const countries = [
-      'United States', 'United Kingdom', 'Canada', 'Australia',
-      'South Africa', 'Nigeria', 'Kenya', 'Ghana',
-      'United Arab Emirates', 'Saudi Arabia', 'Qatar',
-      'India', 'Singapore', 'Malaysia',
-      'Germany', 'France', 'Netherlands', 'Ireland',
-      'Brazil', 'Mexico', 'Argentina',
-      'Other',
-    ];
     return _StepShell(
       revealFade: _revealFade,
       revealSlide: _revealSlide,
@@ -998,11 +997,11 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               eyebrow: 'Step 03',
               title: 'Which country are you based in?',
               subtitle:
-                  'Used for default date formats, regional compliance hints, and to suggest locally relevant templates.',
+                  'Used for default date formats, regional compliance hints, and to suggest locally relevant templates. This selection is reflected across the entire application.',
             ),
             const SizedBox(height: 20),
             _SearchableOptionList(
-              options: countries,
+              options: worldCountries,
               selectedValue: _answers.country,
               onSelected: _setCountry,
               searchHint: 'Search countries...',
@@ -1026,26 +1025,6 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
 
   // ── Step 4: Currency ───────────────────────────────────────────────────
   Widget _buildCurrencyPage() {
-    const currencies = [
-      'USD (\$) — US Dollar',
-      'EUR (€) — Euro',
-      'GBP (£) — British Pound',
-      'ZAR (R) — South African Rand',
-      'NGN (₦) — Nigerian Naira',
-      'KES (KSh) — Kenyan Shilling',
-      'GHS (₵) — Ghanaian Cedi',
-      'AED (د.إ) — UAE Dirham',
-      'SAR (﷼) — Saudi Riyal',
-      'QAR (﷼) — Qatari Riyal',
-      'INR (₹) — Indian Rupee',
-      'SGD (S\$) — Singapore Dollar',
-      'MYR (RM) — Malaysian Ringgit',
-      'AUD (A\$) — Australian Dollar',
-      'CAD (C\$) — Canadian Dollar',
-      'BRL (R\$) — Brazilian Real',
-      'MXN (\$) — Mexican Peso',
-      'Other',
-    ];
     return _StepShell(
       revealFade: _revealFade,
       revealSlide: _revealSlide,
@@ -1057,11 +1036,11 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               eyebrow: 'Step 04',
               title: 'What is your main currency?',
               subtitle:
-                  'Sets the default currency for cost estimates, budgets, and earned-value reports. Multi-currency support is available per project.',
+                  'Sets the default currency for cost estimates, budgets, and earned-value reports across the entire application. Multi-currency support is available per project.',
             ),
             const SizedBox(height: 20),
             _SearchableOptionList(
-              options: currencies,
+              options: worldCurrencies,
               selectedValue: _answers.currency,
               onSelected: _setCurrency,
               searchHint: 'Search currencies...',

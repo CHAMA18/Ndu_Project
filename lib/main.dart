@@ -164,6 +164,7 @@ void main() async {
   }
   // Warm common local stores in background to reduce first-navigation latency.
   unawaited(UserPreferencesService.warmUp());
+  unawaited(UserPreferencesService.loadCountryCurrency());
   unawaited(ProjectNavigationService.instance.warmUp());
 
   runApp(const MyApp());

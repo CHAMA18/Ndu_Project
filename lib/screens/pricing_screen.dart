@@ -6,6 +6,7 @@ import 'package:ndu_project/screens/portfolio_dashboard_screen.dart';
 import 'package:ndu_project/screens/project_dashboard_screen.dart';
 import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/services/subscription_pricing_service.dart';
+import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
 
 const Color _pageBackground = Color(0xFFFFFFFF);
@@ -22,7 +23,10 @@ class PricingScreen extends StatefulWidget {
 }
 
 class _PricingScreenState extends State<PricingScreen> {
-  static final NumberFormat _currencyFormatter = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+  static final NumberFormat _currencyFormatter = NumberFormat.currency(
+    symbol: UserPreferencesService.currencySymbolSync,
+    decimalDigits: 0,
+  );
   _PlanTier _selectedTier = _PlanTier.program;
   // ignore: unused_field
   bool _isCheckingSubscription = false;
