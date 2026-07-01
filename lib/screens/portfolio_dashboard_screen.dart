@@ -517,10 +517,10 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   }
 
   Widget _buildKpis(BuildContext context) {
-    final isDesktop = MediaQuery.sizeOf(context).width > 1000;
-    final count = isDesktop ? 6 : MediaQuery.sizeOf(context).width > 600 ? 3 : 2;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isDesktop = screenWidth > 1000;
+    final isTablet = screenWidth > 600;
     final sp = 16.0;
-    final w = (MediaQuery.sizeOf(context).width - 64 - sp * (count - 1)) / count;
     final kpis = [
       ('Total Projects', '156', Icons.inventory_2_rounded, _blue, '+12% vs LY', _emerald, Icons.trending_up_rounded, null, null),
       ('On Track', '32%', Icons.check_circle_rounded, _emerald, '50 Projects', _muted, null, _emerald, null),
@@ -529,6 +529,26 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       ('Total Budget', '\$1.2B', Icons.account_balance_wallet_rounded, _blue, 'FY24/25 Allocation', _muted, null, null, null),
       ('Budget Spent', '\$780M', Icons.payments_rounded, _gold, '65% utilized', _muted, null, null, 0.65),
     ];
+
+    // Desktop: all 6 cards in one row using Expanded (never wraps)
+    if (isDesktop) {
+      return Row(
+        children: kpis.asMap().entries.map((entry) {
+          final i = entry.key;
+          final k = entry.value;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: i < kpis.length - 1 ? sp : 0),
+              child: _kpi(k),
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    // Tablet/mobile: use Wrap with 3 or 2 per row
+    final count = isTablet ? 3 : 2;
+    final w = (screenWidth - 64 - sp * (count - 1)) / count;
     return Wrap(spacing: sp, runSpacing: sp, children: kpis.map((k) => SizedBox(width: w, child: _kpi(k))).toList());
   }
 
