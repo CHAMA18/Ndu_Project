@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/screens/setup_wizard_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/builder_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/boe_screen.dart';
@@ -50,6 +51,19 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
   void initState() {
     super.initState();
     _tabController.addListener(_onTabChanged);
+    // Auto-complete setup with defaults so the user goes straight to the
+    // Cost Estimate dashboard without seeing the setup wizard.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final provider = context.read<CostEstimateProvider>();
+      if (provider.estimate == null || !provider.setupComplete) {
+        provider.setup(
+          projectName: 'My Project',
+          className: EstimateClass.class3,
+          deliveryModel: DeliveryModel.waterfall,
+        );
+      }
+    });
   }
 
   void _onTabChanged() {
