@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/screens/basic_plan_dashboard_screen.dart';
-import 'package:ndu_project/screens/management_level_screen.dart';
+import 'package:ndu_project/screens/program_dashboard_screen.dart';
+import 'package:ndu_project/screens/portfolio_dashboard_screen.dart';
+import 'package:ndu_project/screens/project_dashboard_screen.dart';
 import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/services/subscription_pricing_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
@@ -39,7 +41,7 @@ class _PricingScreenState extends State<PricingScreen> {
       if (!context.mounted) return;
       
       if (hasSubscription) {
-        _navigateToManagementLevel(navigator, isBasicPlan: isBasicPlan);
+        _navigateToManagementLevel(navigator, isBasicPlan: isBasicPlan, tier: plan.tier);
       } else {
         final price = _priceForPlan(plan);
         final paymentResult = await PaymentDialog.show(
@@ -63,7 +65,7 @@ class _PricingScreenState extends State<PricingScreen> {
         
         if (!context.mounted) return;
         if (paymentResult) {
-          _navigateToManagementLevel(navigator, isBasicPlan: isBasicPlan);
+          _navigateToManagementLevel(navigator, isBasicPlan: isBasicPlan, tier: plan.tier);
         }
       }
     } catch (e) {
@@ -104,10 +106,20 @@ class _PricingScreenState extends State<PricingScreen> {
     }
   }
   
-  void _navigateToManagementLevel(NavigatorState navigator, {bool isBasicPlan = false}) {
-    final screen = isBasicPlan
-        ? const BasicPlanDashboardScreen()
-        : const ManagementLevelScreen();
+  void _navigateToManagementLevel(NavigatorState navigator, {bool isBasicPlan = false, _PlanTier? tier}) {
+    // Navigate directly to the appropriate dashboard based on the plan tier,
+    // skipping the Management Level selection screen.
+    Widget screen;
+    if (isBasicPlan || tier == _PlanTier.basicProject) {
+      screen = const BasicPlanDashboardScreen();
+    } else if (tier == _PlanTier.program) {
+      screen = const ProgramDashboardScreen();
+    } else if (tier == _PlanTier.portfolio) {
+      screen = const PortfolioDashboardScreen();
+    } else {
+      // Default: Project dashboard
+      screen = const ProjectDashboardScreen();
+    }
     navigator.push(MaterialPageRoute(builder: (_) => screen));
   }
 
@@ -309,9 +321,10 @@ class _PricingScreenState extends State<PricingScreen> {
           if (navigator.canPop()) {
             navigator.maybePop();
           } else {
+            // Go to the project dashboard instead of the management level screen
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => const ManagementLevelScreen()),
+              MaterialPageRoute(builder: (_) => const ProjectDashboardScreen()),
             );
           }
         }),
