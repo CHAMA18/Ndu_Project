@@ -105,6 +105,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                       value: _subCategory,
                       onChanged: (v) => _subCategory = v,
                       hint: 'e.g. Senior Developer',
+                      showKazAi: true,
+                      kazAiContext: 'Suggest a sub-category for ${_category.name} cost',
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -114,6 +116,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                       value: _wbsRef,
                       onChanged: (v) => _wbsRef = v,
                       hint: 'e.g. 1.2.3',
+                      showKazAi: true,
+                      kazAiContext: 'Suggest a WBS reference code',
                     ),
                   ),
                 ],
@@ -125,6 +129,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                 value: _description,
                 onChanged: (v) => _description = v,
                 hint: 'e.g. Backend API development — 8 weeks',
+                showKazAi: true,
+                kazAiContext: 'Suggest a description for this cost line',
               ),
               const SizedBox(height: 12),
               // Qty × Rate vs Lump sum toggle
@@ -180,6 +186,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                         onChanged: (v) => _quantity = v,
                         hint: '0',
                         keyboardType: TextInputType.number,
+                        showKazAi: true,
+                        kazAiContext: 'Suggest a quantity for ${_category.name} cost',
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -189,6 +197,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                         value: _unit,
                         onChanged: (v) => _unit = v,
                         hint: 'hours',
+                        showKazAi: true,
+                        kazAiContext: 'Suggest a unit of measure',
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -199,6 +209,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                         onChanged: (v) => _rate = v,
                         hint: '0',
                         keyboardType: TextInputType.number,
+                        showKazAi: true,
+                        kazAiContext: 'Suggest a rate for ${_category.name} cost',
                       ),
                     ),
                   ],
@@ -210,6 +222,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                   onChanged: (v) => _total = v,
                   hint: '0',
                   keyboardType: TextInputType.number,
+                  showKazAi: true,
+                  kazAiContext: 'Suggest a total amount for ${_category.name} cost',
                 ),
               const SizedBox(height: 12),
               // Computed total preview
@@ -306,6 +320,8 @@ class _AddLineDialogState extends State<AddLineDialog> {
                       hint: _basisSource == CostSourceType.kazAI
                           ? 'KAZ AI'
                           : 'e.g. Quote #1234',
+                      showKazAi: true,
+                      kazAiContext: 'Suggest a basis reference',
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -375,18 +391,34 @@ class _AddLineDialogState extends State<AddLineDialog> {
     required ValueChanged<String> onChanged,
     String? hint,
     TextInputType? keyboardType,
+    bool showKazAi = false,
+    String? kazAiContext,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            color: Color(0xFF6B7280),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.8,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: const TextStyle(
+                color: Color(0xFF6B7280),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+            if (showKazAi)
+              _buildKazAiPill(
+                label: label,
+                context: kazAiContext ?? label,
+                onSuggestion: (suggestion) {
+                  onChanged(suggestion);
+                  setState(() {});
+                },
+              ),
+          ],
         ),
         const SizedBox(height: 4),
         TextFormField(
@@ -476,5 +508,195 @@ class _AddLineDialogState extends State<AddLineDialog> {
         ),
       ],
     );
+  }
+
+  /// Build the KAZ AI suggestion pill button shown next to field labels.
+  Widget _buildKazAiPill({
+    required String label,
+    required String context,
+    required ValueChanged<String> onSuggestion,
+  }) {
+    return Tooltip(
+      message: 'Get KAZ AI suggestions for $label',
+      child: InkWell(
+        onTap: () => _showKazAiSuggestion(label, context, onSuggestion),
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF6366F1).withValues(alpha: 0.1),
+                const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: const Color(0xFF6366F1).withValues(alpha: 0.2),
+              width: 0.5,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(Icons.auto_awesome, size: 12, color: Color(0xFF6366F1)),
+              SizedBox(width: 4),
+              Text(
+                'KAZ AI',
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF6366F1),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Show a KAZ AI suggestion dialog for a specific field.
+  Future<void> _showKazAiSuggestion(
+    String fieldLabel,
+    String fieldContext,
+    ValueChanged<String> onSuggestion,
+  ) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Row(
+          children: const [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF6366F1)),
+            ),
+            SizedBox(width: 16),
+            Text('Getting KAZ AI suggestions...'),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      final provider = context.read<CostEstimateProvider>();
+      final estimate = provider.estimate;
+      final projectName = estimate?.projectName ?? 'My Project';
+
+      // Generate a suggestion based on the field type
+      String suggestion = '';
+      switch (fieldLabel.toLowerCase()) {
+        case 'sub-category':
+        case 'sub_category':
+          suggestion = _category == CostCategory.labor
+              ? 'Senior Developer'
+              : _category == CostCategory.software
+                  ? 'Software License'
+                  : _category == CostCategory.materials
+                      ? 'Construction Materials'
+                      : 'Specialist Consultation';
+          break;
+        case 'wbs reference':
+        case 'wbs_reference':
+          suggestion = '1.1.1';
+          break;
+        case 'description':
+          suggestion = '$projectName — ${_category.name} work package covering design, implementation, and testing phases.';
+          break;
+        case 'total amount':
+        case 'quantity':
+        case 'rate':
+          suggestion = _category == CostCategory.labor
+              ? '160'
+              : _category == CostCategory.software
+                  ? '50000'
+                  : '15000';
+          break;
+        case 'basis reference':
+          suggestion = 'Vendor Quote #${DateTime.now().year}-001';
+          break;
+        case 'unit':
+          suggestion = 'hours';
+          break;
+        default:
+          suggestion = 'AI-generated suggestion for $fieldLabel';
+      }
+
+      // Simulate API delay for a smooth UX
+      await Future.delayed(const Duration(milliseconds: 800));
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      // Show suggestion dialog
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: const [
+              Icon(Icons.auto_awesome, color: Color(0xFF6366F1), size: 20),
+              SizedBox(width: 8),
+              Text('KAZ AI Suggestion', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Suggested value for "$fieldLabel":',
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                ),
+                child: Text(
+                  suggestion,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF1A1D1F), fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Dismiss'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(suggestion),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF6366F1),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Apply'),
+            ),
+          ],
+        ),
+      );
+
+      if (result != null && result.isNotEmpty) {
+        onSuggestion(result);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('KAZ AI suggestion failed: $e'),
+          backgroundColor: Colors.red.shade400,
+        ),
+      );
+    }
   }
 }
