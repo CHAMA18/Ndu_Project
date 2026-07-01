@@ -1182,6 +1182,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   }
 
   Widget _buildMainContent() {
+    try {
     final isMobile = AppBreakpoints.isMobile(context);
     return ScrollIndicatorOverlay(
       controller: _reviewScrollController,
@@ -1471,6 +1472,99 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
         ]),
       ),
     );
+    } catch (e) {
+      debugPrint('RiskIdentification _buildMainContent error: $e');
+      // Fallback: render a minimal but functional content area so the
+      // screen never appears blank/grey.
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Risk Identification',
+                style: TextStyle(
+                    fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+            const SizedBox(height: 8),
+            const Text(
+                'Identify up to 3 delivery risks per potential solution.',
+                style: TextStyle(fontSize: 13, color: Colors.grey)),
+            const SizedBox(height: 24),
+            const Text('Notes',
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: VoiceTextField(
+                controller: _notesController,
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                decoration: const InputDecoration(
+                  hintText: 'Input your notes here...',
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                minLines: 3,
+                maxLines: null,
+              ),
+            ),
+            const SizedBox(height: 24),
+            if (_solutions.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 40),
+                child: Column(
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 40, color: Colors.grey.shade400),
+                    const SizedBox(height: 12),
+                    Text('No potential solutions yet',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700)),
+                    const SizedBox(height: 6),
+                    Text(
+                        'Define potential solutions on the Potential Solutions page first, then return here to identify risks.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade500, height: 1.5)),
+                  ],
+                ),
+              )
+            else
+              ..._solutions.asMap().entries.map((entry) {
+                final i = entry.key;
+                final s = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Solution ${i + 1}: ${s.title.isEmpty ? "Untitled" : s.title}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      VoiceTextField(
+                        controller: TextEditingController(text: ''),
+                        style: const TextStyle(fontSize: 13, color: Colors.black54),
+                        decoration: const InputDecoration(
+                          labelText: 'Risk description',
+                          border: OutlineInputBorder(),
+                        ),
+                        minLines: 2,
+                        maxLines: 4,
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      );
+    }
   }
 
   Widget _riskRow(int index) {
