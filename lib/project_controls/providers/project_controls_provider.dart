@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ndu_project/project_controls/models/project_controls_models.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart' as ce_models;
 
 const String _storageKey = 'ndu_project_controls_v1';
 const String _currentUser = 'you@ndu.project';
@@ -65,6 +66,115 @@ class ProjectControlsProvider extends ChangeNotifier {
   // ─── Setup ───────────────────────────────────────────────────────────
   void setDeliveryModel(DeliveryModel model) {
     _state = _state.copyWith(deliveryModel: model);
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  /// Sync the BAC (Budget at Completion) from the Cost Estimate module.
+  ///
+  /// This ties the Project Controls dashboard to the Cost Estimate module:
+  /// the total authorized budget from the cost estimate becomes the BAC
+  /// for EVM calculations. If work packages don't exist yet, seed them
+  /// from cost lines (one work package per cost line with a WBS ref).
+  void syncFromCostEstimate(ce_models.CostEstimate? estimate) {
+    if (estimate == null) return;
+
+    final bac = estimate.totals.totalAuthorizedBudget;
+    if (bac <= 0) return;
+
+    // If we already have work packages, just update the total budget
+    // by scaling the original budgets proportionally to match the new BAC.
+    if (_state.workPackages.isNotEmpty) {
+      final currentTotal = _state.totalOriginalBudget;
+      if (currentTotal > 0 && (currentTotal - bac).abs() > 1) {
+        final scale = bac / currentTotal;
+        final updatedWPs = _state.workPackages.map((wp) {
+          return wp.copyWith(
+            originalBudget: wp.originalBudget * scale,
+            currentBudget: wp.originalBudget * scale,
+          );
+        }).toList();
+        _state = _state.copyWith(workPackages: updatedWPs);
+        _addAudit('BAC', '\$${currentTotal.toStringAsFixed(0)}',
+            '\$${bac.toStringAsFixed(0)}',
+            'BAC synced from Cost Estimate (total authorized budget)');
+        notifyListeners();
+        _saveToStorage();
+      }
+      return;
+    }
+
+    // No work packages yet — seed from cost lines that have WBS references.
+    final costLines = estimate.lines.where((l) =>
+        l.wbsRef != null && l.wbsRef!.isNotEmpty).toList();
+
+    if (costLines.isEmpty) {
+      // No WBS-linked cost lines — just set a single work package with the total BAC
+      _state = _state.copyWith(
+        workPackages: [
+          WorkPackageControl(
+            id: 'wp_ce_total',
+            wbsCode: '—',
+            name: 'Total Project (from Cost Estimate)',
+            scopeDescription: 'Auto-synced from Cost Estimate module',
+            deliverables: [],
+            acceptanceCriteria: [],
+            priority: 'Medium',
+            status: 'Not Started',
+            plannedStart: DateTime.now(),
+            plannedFinish: DateTime.now().add(const Duration(days: 365)),
+            percentComplete: 0,
+            isCriticalPath: false,
+            remainingDuration: 365,
+            floatDays: 0,
+            originalBudget: bac,
+            currentBudget: bac,
+            committedCost: 0,
+            actualCost: 0,
+            earnedValue: 0,
+            plannedValue: 0,
+            progressMethod: ProgressMethod.physicalPercent,
+          ),
+        ],
+      );
+    } else {
+      // Seed one work package per WBS-linked cost line
+      final wps = <WorkPackageControl>[];
+      for (int i = 0; i < costLines.length; i++) {
+        final line = costLines[i];
+        wps.add(WorkPackageControl(
+          id: 'wp_ce_${line.id}',
+          wbsCode: line.wbsRef ?? '—',
+          name: line.description.isNotEmpty
+              ? line.description
+              : line.subCategory.isNotEmpty
+                  ? line.subCategory
+                  : 'Cost Line ${i + 1}',
+          scopeDescription: '${line.category.name} — ${line.subCategory}',
+          deliverables: [],
+          acceptanceCriteria: [],
+          priority: 'Medium',
+          status: 'Not Started',
+          plannedStart: DateTime.now(),
+          plannedFinish: DateTime.now().add(const Duration(days: 180)),
+          percentComplete: 0,
+          isCriticalPath: i == 0,
+          remainingDuration: 180,
+          floatDays: 10,
+          originalBudget: line.total,
+          currentBudget: line.total,
+          committedCost: 0,
+          actualCost: 0,
+          earnedValue: 0,
+          plannedValue: line.total,
+          progressMethod: ProgressMethod.physicalPercent,
+        ));
+      }
+      _state = _state.copyWith(workPackages: wps);
+    }
+
+    _addAudit('BAC', '—', '\$${bac.toStringAsFixed(0)}',
+        'BAC synced from Cost Estimate (${estimate.lines.length} cost lines, \$$bac total)');
     notifyListeners();
     _saveToStorage();
   }

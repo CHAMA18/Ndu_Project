@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/project_controls/models/project_controls_models.dart';
 import 'package:ndu_project/project_controls/providers/project_controls_provider.dart';
+import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/theme.dart';
 
@@ -34,11 +36,21 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 10, vsync: this);
-    // Seed demo data if empty
+    // Sync from Cost Estimate module if available, otherwise seed demo data
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ProjectControlsProvider>();
+      final ceProvider = context.read<CostEstimateProvider>();
       if (provider.state.workPackages.isEmpty) {
-        provider.seedDemoData(DeliveryModel.waterfall);
+        // Try to sync from Cost Estimate first
+        if (ceProvider.estimate != null && ceProvider.setupComplete) {
+          provider.syncFromCostEstimate(ceProvider.estimate);
+        } else {
+          // No cost estimate yet — seed demo data
+          provider.seedDemoData(DeliveryModel.waterfall);
+        }
+      } else if (ceProvider.estimate != null && ceProvider.setupComplete) {
+        // Work packages exist — sync BAC from Cost Estimate if it changed
+        provider.syncFromCostEstimate(ceProvider.estimate);
       }
     });
   }
@@ -51,8 +63,8 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ProjectControlsProvider>(
-      builder: (context, provider, _) {
+    return Consumer2<ProjectControlsProvider, CostEstimateProvider>(
+      builder: (context, provider, ceProvider, _) {
         final state = provider.state;
         return ResponsiveScaffold(
           activeItemLabel: 'Project Controls',
@@ -136,6 +148,7 @@ class _DashboardTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currencySymbol = UserPreferencesService.currencySymbolSync;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -150,9 +163,9 @@ class _DashboardTab extends StatelessWidget {
             mainAxisSpacing: 16,
             childAspectRatio: 1.6,
             children: [
-              _kpiCard('Total Budget', '\$${(state.totalOriginalBudget / 1000000).toStringAsFixed(1)}M',
+              _kpiCard('Total Budget', '$currencySymbol${(state.totalOriginalBudget / 1000000).toStringAsFixed(1)}M',
                   Icons.account_balance_wallet, const Color(0xFF6366F1)),
-              _kpiCard('Actual Cost', '\$${(state.totalActualCost / 1000000).toStringAsFixed(1)}M',
+              _kpiCard('Actual Cost', '$currencySymbol${(state.totalActualCost / 1000000).toStringAsFixed(1)}M',
                   Icons.payments, const Color(0xFFD97706)),
               _kpiCard('CPI', state.portfolioCPI.toStringAsFixed(2),
                   Icons.trending_up, _cpiColor(state.portfolioCPI)),

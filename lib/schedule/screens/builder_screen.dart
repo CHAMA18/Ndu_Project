@@ -295,6 +295,60 @@ class BuilderScreen extends StatelessWidget {
   }
 
   void _showImportInfo(BuildContext context) {
+    final wbsProvider = context.read<WBSProvider>();
+    final scheduleProvider = context.read<ScheduleProvider>();
+
+    final wbs = wbsProvider.wbs;
+    if (wbs == null) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Color(0xFFE4E7EC))),
+          title: const Text('No WBS Available',
+              style: TextStyle(
+                  color: Color(0xFF1A1D1F), fontWeight: FontWeight.w600)),
+          content: const Text(
+            'Open the WBS module from the sidebar to create your work breakdown structure first, then return here to import it into the schedule.',
+            style: TextStyle(color: Color(0xFF495057), fontSize: 13, height: 1.5),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: FilledButton.styleFrom(
+                backgroundColor: LightModeColors.accent,
+                foregroundColor: LightModeColors.lightOnPrimary,
+              ),
+              child: const Text('Got it'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // Build the WBS node list in the format expected by importFromWBS
+    final l1Nodes = wbs.level0.children;
+    final wbsNodes = l1Nodes.map((l1) {
+      return (
+        id: l1.id,
+        code: l1.code,
+        name: l1.name,
+        description: l1.description,
+        children: l1.children.map((l2) {
+          return (
+            id: l2.id,
+            code: l2.code,
+            name: l2.name,
+            description: l2.description,
+          );
+        }).toList(),
+      );
+    }).toList();
+
+    // Show confirmation dialog
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -305,18 +359,33 @@ class BuilderScreen extends StatelessWidget {
         title: const Text('Import from WBS',
             style: TextStyle(
                 color: Color(0xFF1A1D1F), fontWeight: FontWeight.w600)),
-        content: const Text(
-          'Importing Level 1 and Level 2 nodes from your WBS will populate the activity tree. Open the WBS module from the sidebar to seed work packages, then return here to import them into the schedule.',
-          style: TextStyle(color: Color(0xFF495057), fontSize: 13, height: 1.5),
+        content: Text(
+          'This will import ${l1Nodes.length} Level 1 deliverable(s) and their sub-deliverables from your WBS into the schedule as activities. '
+          'Each WBS node becomes a schedule activity with its WBS reference preserved for traceability.',
+          style: const TextStyle(color: Color(0xFF495057), fontSize: 13, height: 1.5),
         ),
         actions: [
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              scheduleProvider.importFromWBS(wbsNodes);
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Imported ${l1Nodes.length} deliverable(s) from WBS'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: LightModeColors.accent,
+                ),
+              );
+            },
             style: FilledButton.styleFrom(
               backgroundColor: LightModeColors.accent,
               foregroundColor: LightModeColors.lightOnPrimary,
             ),
-            child: const Text('Got it'),
+            child: const Text('Import Now'),
           ),
         ],
       ),
