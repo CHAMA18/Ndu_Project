@@ -156,7 +156,10 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           _seedFieldHistories();
         } else {
           _showHintDialogOnce();
-          _generateInitialSolutions();
+          // Immediately apply fallback solutions so the page renders
+          // instantly without waiting for the OpenAI API (which may be
+          // slow or unavailable due to region restrictions).
+          _applyFallback('Add your solutions manually or click regenerate to try AI suggestions.');
         }
 
         if (mounted) setState(() {});
