@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/subscription_service.dart'; // Added
 
+import 'package:ndu_project/services/security_services.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -57,6 +58,13 @@ class _SignInScreenState extends State<SignInScreen> {
       _showSnack('Please fill in all fields', Colors.red);
       return;
     }
+    // #8: Check account lockout before attempting sign-in
+    if (await AccountLockoutService.isLocked()) {
+      final remaining = await AccountLockoutService.getRemainingLockout();
+      final mins = remaining?.inMinutes ?? 0;
+      _showSnack('Account locked. Try again in $mins minute${mins == 1 ? '' : 's'}.', Colors.red);
+      return;
+    }
     setState(() => _isLoading = true);
     try {
       final cred = await FirebaseAuthService.signInWithEmailAndPassword(
@@ -65,6 +73,17 @@ class _SignInScreenState extends State<SignInScreen> {
         rememberMe: _rememberMe,
       );
       if (!mounted) return;
+      // #8: Reset failed attempts on successful login
+      await AccountLockoutService.resetAttempts();
+      // #9: Log successful sign-in
+      await SecurityAuditLogger.logSignIn(email: _emailController.text.trim());
+      // #6: Start session manager
+      SessionManager.instance.start();
+      // #20: Check for login anomalies
+      await AnomalyDetector.checkLoginAnomaly(
+        userId: cred.user?.uid ?? '',
+        email: _emailController.text.trim(),
+      );
       final user = cred.user;
       await user?.reload();
       if (!mounted) return;
@@ -75,7 +94,6 @@ class _SignInScreenState extends State<SignInScreen> {
       } else {
         await _showVerifyEmailDialog(
             refreshed?.email ?? _emailController.text.trim());
-        // Keep user on sign-in; optionally sign out to prevent accidental access
         try {
           await FirebaseAuthService.signOut();
         } catch (e) {
@@ -83,7 +101,25 @@ class _SignInScreenState extends State<SignInScreen> {
         }
       }
     } catch (e) {
-      _showSnack('Sign in failed: $e', Colors.red);
+      // #8: Record failed attempt
+      final locked = await AccountLockoutService.recordFailedAttempt();
+      // #9: Log failed sign-in
+      await SecurityAuditLogger.logFailedSignIn(
+        email: _emailController.text.trim(),
+        reason: e.toString(),
+      );
+      if (locked) {
+        _showSnack('Too many failed attempts. Account locked for 15 minutes.', Colors.red);
+      } else {
+        final attempts = await AccountLockoutService.getAttemptCount();
+        final remaining = AccountLockoutService.maxAttempts - attempts;
+        _showSnack(
+          remaining > 0
+              ? 'Sign in failed. $remaining attempt${remaining == 1 ? '' : 's'} remaining.'
+              : 'Sign in failed: $e',
+          Colors.red,
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

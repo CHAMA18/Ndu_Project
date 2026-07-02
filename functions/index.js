@@ -1812,3 +1812,179 @@ exports.sendTeamInvitation = functions
       throw new functions.https.HttpsError('internal', `Failed to send invitation email: ${error.message}`);
     }
   });
+
+// ============================================================================
+// SECURITY UTILITIES (shared across all Cloud Functions)
+// ============================================================================
+
+/**
+ * #2: Rate Limiting — check per-user request count
+ * @param {string} uid - User ID
+ * @param {string} action - Action name (e.g. 'ai_request', 'invitation')
+ * @param {number} maxPerHour - Maximum requests per hour
+ * @throws {HttpsError} if rate limit exceeded
+ */
+async function checkRateLimit(uid, action, maxPerHour) {
+  const now = Date.now();
+  const hourAgo = now - (60 * 60 * 1000);
+  const ref = db.collection('rateLimits').doc(uid).collection(action);
+  const recent = await ref.where('timestamp', '>', new Date(hourAgo)).count().get();
+  if (recent.data().count >= maxPerHour) {
+    throw new functions.https.HttpsError('resource-exhausted', 
+      `Rate limit exceeded for ${action}. Maximum ${maxPerHour} per hour.`);
+  }
+  await ref.add({ timestamp: admin.firestore.FieldValue.serverTimestamp() });
+}
+
+/**
+ * #3: Input Sanitization — strip XSS and limit length
+ * @param {string} input - Raw input
+ * @param {number} maxLength - Maximum allowed length
+ * @returns {string} Sanitized input
+ */
+function sanitizeInput(input, maxLength = 1000) {
+  if (typeof input !== 'string') return '';
+  let sanitized = input.substring(0, maxLength);
+  // Remove script tags
+  sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  // Remove event handlers
+  sanitized = sanitized.replace(/\son\w+\s*=\s*"[^"]*"/gi, '');
+  sanitized = sanitized.replace(/\son\w+\s*=\s*'[^']*'/gi, '');
+  // Remove javascript: URLs
+  sanitized = sanitized.replace(/javascript:/gi, '');
+  // Remove data: URLs (can be used for XSS)
+  sanitized = sanitized.replace(/data:text\/html/gi, '');
+  // Remove SQL injection patterns
+  sanitized = sanitized.replace(/(\b(UNION|SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER)\b.*\b(FROM|INTO|TABLE|DATABASE)\b)/gi, '');
+  return sanitized.trim();
+}
+
+/**
+ * #5: CSRF Protection — validate Origin header
+ * @param {Object} req - HTTP request
+ * @throws {Error} if origin is invalid
+ */
+function validateOrigin(req) {
+  const allowedOrigins = [
+    'https://staging.nduproject.com',
+    'https://nduproject.com',
+    'https://www.nduproject.com',
+    'https://admin.nduproject.com',
+    'https://ndu-d3f60.web.app',
+    'https://ndu-d3f60.firebaseapp.com',
+  ];
+  // Allow localhost for development
+  const origin = req.headers.origin || req.headers.referer || '';
+  if (!origin) {
+    // Allow requests without origin (e.g. curl) but they must have auth token
+    return;
+  }
+  const isAllowed = allowedOrigins.some(allowed => origin.startsWith(allowed)) ||
+    /^https?:\/\/localhost(:\d+)?$/.test(origin) ||
+    /^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(origin);
+  if (!isAllowed) {
+    throw new Error(`Invalid origin: ${origin}`);
+  }
+}
+
+/**
+ * #14: WAF Rules — block malicious requests
+ * @param {Object} req - HTTP request
+ * @throws {Error} if request matches malicious patterns
+ */
+function checkWAFRules(req) {
+  const body = JSON.stringify(req.body || {});
+  const query = JSON.stringify(req.query || {});
+  const headers = JSON.stringify(req.headers || {});
+  const allInput = `${body}${query}${headers}`.toLowerCase();
+
+  // SQL Injection patterns
+  const sqlPatterns = [
+    /union\s+select/gi,
+    /or\s+1\s*=\s*1/gi,
+    /and\s+1\s*=\s*1/gi,
+    /';\s*drop\s+table/gi,
+    /';\s*delete\s+from/gi,
+    /';\s*insert\s+into/gi,
+    /';\s*update\s+.*\s+set/gi,
+    /exec\s*\(/gi,
+    /xp_cmdshell/gi,
+  ];
+
+  // XSS patterns
+  const xssPatterns = [
+    /<script[^>]*>/gi,
+    /<\/script>/gi,
+    /on\w+\s*=\s*"[^"]*"/gi,
+    /on\w+\s*=\s*'[^']*'/gi,
+    /javascript:/gi,
+    /vbscript:/gi,
+    /<iframe[^>]*>/gi,
+    /<object[^>]*>/gi,
+    /<embed[^>]*>/gi,
+  ];
+
+  // Path traversal patterns
+  const pathPatterns = [
+    /\.\.\.\//g,
+    /\.\.\\.\.\\/g,
+    /%2e%2e%2f/gi,
+    /%2e%2e%5c/gi,
+  ];
+
+  // Command injection patterns
+  const cmdPatterns = [
+    /;\s*(cat|ls|rm|wget|curl|bash|sh|nc|python|perl)\s/gi,
+    /\|\s*(cat|ls|rm|wget|curl|bash|sh|nc|python|perl)\s/gi,
+    /`[^`]*`/g,
+  ];
+
+  // Malicious user agents
+  const maliciousUserAgents = [
+    'sqlmap', 'nikto', 'nmap', 'masscan', 'metasploit',
+    'burp', 'owasp zap', 'w3af', 'dirb', 'gobuster',
+  ];
+
+  const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+  for (const agent of maliciousUserAgents) {
+    if (userAgent.includes(agent)) {
+      throw new Error(`Blocked: Malicious user agent detected`);
+    }
+  }
+
+  // Check all patterns
+  for (const pattern of [...sqlPatterns, ...xssPatterns, ...pathPatterns, ...cmdPatterns]) {
+    if (pattern.test(allInput)) {
+      throw new Error(`Blocked: Malicious input detected`);
+    }
+  }
+}
+
+/**
+ * #9: Security Audit Logger — log security events to Firestore
+ * @param {string} action - Action name
+ * @param {string} userId - User ID
+ * @param {Object} metadata - Additional data
+ */
+async function logSecurityEvent(action, userId, metadata = {}) {
+  try {
+    await db.collection('securityAudit').add({
+      action: action,
+      userId: userId,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      userAgent: typeof req !== 'undefined' ? (req.headers['user-agent'] || 'unknown') : 'cloud-function',
+      metadata: metadata,
+    });
+  } catch (e) {
+    console.error('[SecurityAudit] Failed to log:', e);
+  }
+}
+
+// Export security utilities for use in other functions
+module.exports.security = {
+  checkRateLimit,
+  sanitizeInput,
+  validateOrigin,
+  checkWAFRules,
+  logSecurityEvent,
+};

@@ -11,6 +11,7 @@ import 'package:ndu_project/services/api_config_secure.dart' show SecureAPIConfi
 import 'package:ndu_project/services/env_config_loader.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
+import 'package:ndu_project/services/security_services.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
@@ -167,6 +168,10 @@ void main() async {
   unawaited(UserPreferencesService.loadCountryCurrency());
   unawaited(ProjectNavigationService.instance.warmUp());
 
+  // #6: Start session manager (auto-logout after 30 minutes of inactivity)
+  // The timer is reset on any user interaction via the Listener widget in MyApp.
+  SessionManager.instance.start();
+
   runApp(const MyApp());
 }
 
@@ -194,7 +199,12 @@ class MyApp extends StatelessWidget {
               Provider.of<ProjectDataProvider>(context, listen: false);
           return ProjectDataInherited(
             provider: projectProvider,
-            child: MaterialApp.router(
+            child: Listener(
+              // #6: Reset session timer on any pointer interaction (mouse/touch)
+              onPointerDown: (_) => SessionManager.instance.resetTimer(),
+              onPointerMove: (_) => SessionManager.instance.resetTimer(),
+              onPointerUp: (_) => SessionManager.instance.resetTimer(),
+              child: MaterialApp.router(
               title: AppStrings.appName,
               debugShowCheckedModeBanner: false,
               theme: lightTheme,
@@ -212,6 +222,7 @@ class MyApp extends StatelessWidget {
               // Reduce checkerboard opacity for better performance
               checkerboardRasterCacheImages: false,
               checkerboardOffscreenLayers: false,
+            ),
             ),
           );
         },

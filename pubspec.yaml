@@ -39,6 +39,7 @@ dependencies:
 
   speech_to_text: ^7.0.0
   vector_math: any
+  crypto: ^3.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/elevated_auth_container.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ndu_project/services/security_services.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/routing/app_router.dart';
 
@@ -65,8 +66,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       return;
     }
 
-    if (_passwordController.text.length < 6) {
-      _showErrorSnackBar('Password must be at least 6 characters long');
+    // #7: Strong password validation
+    final passwordError = PasswordValidator.validate(_passwordController.text);
+    if (passwordError != null) {
+      _showErrorSnackBar(passwordError);
       return;
     }
 
