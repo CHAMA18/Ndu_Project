@@ -59,12 +59,8 @@ class _ChangeManagementModuleScreenState extends State<ChangeManagementModuleScr
     _tabController.addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ChangeManagementProvider>();
-      if (provider.changeRequests.isEmpty) {
-        provider.seedDemoData();
-      }
-      if (_selectedCRId == null && provider.changeRequests.isNotEmpty) {
-        _selectedCRId = provider.changeRequests.first.id;
-      }
+      // Load real data from Firestore — no phantom/demo data
+      provider.loadFromFirestore();
     });
   }
 

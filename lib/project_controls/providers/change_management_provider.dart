@@ -2,7 +2,14 @@
 ///
 /// Handles both Waterfall (strict MoC) and Agile (routine refinement
 /// + controlled baseline changes) change workflows.
+///
+/// Loads change requests, audit trail, and baseline history from Firestore
+/// (users/{uid}/changeManagement/). Falls back to empty state if no data
+/// exists — does NOT seed phantom/demo data.
 
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:ndu_project/project_controls/models/change_management_models.dart';
 
@@ -13,6 +20,11 @@ class ChangeManagementProvider extends ChangeNotifier {
   List<CMAuditEntry> _auditTrail = [];
   List<BaselineRevisionRecord> _baselineHistory = [];
   int _crCounter = 0;
+  StreamSubscription? _crSub;
+  StreamSubscription? _auditSub;
+  StreamSubscription? _baselineSub;
+  bool _isLoading = true;
+  String? _loadError;
 
   // Contingency / Reserve tracking
   double _totalContingency = 500000; // $500K default
@@ -28,6 +40,8 @@ class ChangeManagementProvider extends ChangeNotifier {
   List<CMChangeRequest> get changeRequests => _changeRequests;
   List<CMAuditEntry> get auditTrail => _auditTrail;
   List<BaselineRevisionRecord> get baselineHistory => _baselineHistory;
+  bool get isLoading => _isLoading;
+  String? get loadError => _loadError;
 
   double get totalContingency => _totalContingency;
   double get usedContingency => _usedContingency;
@@ -831,5 +845,381 @@ class ChangeManagementProvider extends ChangeNotifier {
       CMAuditEntry(id: 'a11', user: 'Finance Dept', timestamp: DateTime.now().subtract(const Duration(hours: 12)), action: 'Approval Decision', details: 'CR-2026-004 • Finance → Escalated (exceeds contingency)', linkedCRId: 'cm_demo_4'),
     ];
     notifyListeners();
+  }
+
+  // ─── Firestore integration ──────────────────────────────────────────
+
+  /// Collection references for the current user.
+  CollectionReference<Map<String, dynamic>>? get _crCollection {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('changeRequests');
+  }
+
+  CollectionReference<Map<String, dynamic>>? get _auditCollection {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cmAuditTrail');
+  }
+
+  CollectionReference<Map<String, dynamic>>? get _baselineCollection {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .collection('cmBaselineHistory');
+  }
+
+  /// Load all data from Firestore and set up live streams.
+  /// Called from the screen's initState.
+  Future<void> loadFromFirestore() async {
+    _isLoading = true;
+    _loadError = null;
+    notifyListeners();
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        _isLoading = false;
+        notifyListeners();
+        return;
+      }
+
+      // Cancel existing subscriptions
+      _crSub?.cancel();
+      _auditSub?.cancel();
+      _baselineSub?.cancel();
+
+      // Stream change requests
+      _crSub = _crCollection!
+          .orderBy('dateSubmitted', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        _changeRequests = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return _crFromFirestore(doc.id, data);
+        }).toList();
+        _crCounter = _changeRequests.length;
+        _isLoading = false;
+        notifyListeners();
+      }, onError: (e) {
+        debugPrint('[ChangeManagementProvider] CR stream error: $e');
+        _isLoading = false;
+        _loadError = 'Failed to load change requests: $e';
+        notifyListeners();
+      });
+
+      // Stream audit trail
+      _auditSub = _auditCollection!
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        _auditTrail = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return CMAuditEntry(
+            id: doc.id,
+            user: data['user'] as String? ?? 'Unknown',
+            timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            action: data['action'] as String? ?? '',
+            details: data['details'] as String? ?? '',
+            linkedCRId: data['linkedCRId'] as String?,
+          );
+        }).toList();
+        notifyListeners();
+      }, onError: (e) {
+        debugPrint('[ChangeManagementProvider] Audit stream error: $e');
+      });
+
+      // Stream baseline history
+      _baselineSub = _baselineCollection!
+          .orderBy('revisionDate', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        _baselineHistory = snapshot.docs.map((doc) {
+          final data = doc.data();
+          return BaselineRevisionRecord(
+            version: data['version'] as int? ?? 1,
+            revisionDate: (data['revisionDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+            revisedBy: data['revisedBy'] as String? ?? data['approver'] as String? ?? 'Unknown',
+            linkedCRId: data['linkedCRId'] as String? ?? '',
+            reason: data['reason'] as String? ?? '',
+            updatedBaselines: (data['updatedBaselines'] as List<dynamic>?)
+                    ?.map((e) => e.toString())
+                    .toList() ??
+                const [],
+            previousBudget: (data['previousBAC'] as num?)?.toDouble(),
+            revisedBudget: (data['revisedBAC'] as num?)?.toDouble(),
+            previousFinish: (data['previousBaselineFinish'] as Timestamp?)?.toDate(),
+            revisedFinish: (data['revisedBaselineFinish'] as Timestamp?)?.toDate(),
+            previousScopeHash: data['previousScopeHash'] as String?,
+            revisedScopeHash: data['revisedScopeHash'] as String?,
+            approver: data['approver'] as String?,
+          );
+        }).toList();
+        notifyListeners();
+      }, onError: (e) {
+        debugPrint('[ChangeManagementProvider] Baseline stream error: $e');
+      });
+    } catch (e) {
+      debugPrint('[ChangeManagementProvider] loadFromFirestore error: $e');
+      _isLoading = false;
+      _loadError = 'Failed to load: $e';
+      notifyListeners();
+    }
+  }
+
+  /// Convert a Firestore document to a CMChangeRequest.
+  CMChangeRequest _crFromFirestore(String id, Map<String, dynamic> data) {
+    // Parse impact dimensions
+    ImpactDimension _parseDim(String name, Map<String, dynamic>? d) {
+      if (d == null) return ImpactDimension(name: name);
+      return ImpactDimension(
+        name: d['name'] as String? ?? name,
+        impactLevel: d['impactLevel'] as int? ?? 0,
+        narrative: d['narrative'] as String? ?? '',
+        owner: d['owner'] as String?,
+        dueDate: (d['dueDate'] as Timestamp?)?.toDate(),
+      );
+    }
+
+    final impactData = data['impact'] as Map<String, dynamic>? ?? {};
+    final dimensions = <String, ImpactDimension>{
+      'Scope': _parseDim('Scope', impactData['scope'] as Map<String, dynamic>?),
+      'Schedule': _parseDim('Schedule', impactData['schedule'] as Map<String, dynamic>?),
+      'Cost': _parseDim('Cost', impactData['cost'] as Map<String, dynamic>?),
+      'Resources': _parseDim('Resources', impactData['resources'] as Map<String, dynamic>?),
+      'Procurement': _parseDim('Procurement', impactData['procurement'] as Map<String, dynamic>?),
+      'Contracts': _parseDim('Contracts', impactData['contracts'] as Map<String, dynamic>?),
+      'Risks': _parseDim('Risks', impactData['risks'] as Map<String, dynamic>?),
+      'Quality': _parseDim('Quality', impactData['quality'] as Map<String, dynamic>?),
+      'Safety': _parseDim('Safety', impactData['safety'] as Map<String, dynamic>?),
+      'Stakeholders': _parseDim('Stakeholders', impactData['stakeholders'] as Map<String, dynamic>?),
+      'Funding': _parseDim('Funding', impactData['funding'] as Map<String, dynamic>?),
+      'Benefits': _parseDim('Benefits', impactData['benefits'] as Map<String, dynamic>?),
+      'Dependencies': _parseDim('Dependencies', impactData['dependencies'] as Map<String, dynamic>?),
+      'Interfaces': _parseDim('Interfaces', impactData['interfaces'] as Map<String, dynamic>?),
+      'Technical': _parseDim('Technical', impactData['technical'] as Map<String, dynamic>?),
+    };
+
+    final impact = FullImpactAssessment(
+      scope: dimensions['Scope']!,
+      schedule: dimensions['Schedule']!,
+      cost: dimensions['Cost']!,
+      resources: dimensions['Resources']!,
+      procurement: dimensions['Procurement']!,
+      contracts: dimensions['Contracts']!,
+      risks: dimensions['Risks']!,
+      quality: dimensions['Quality']!,
+      safety: dimensions['Safety']!,
+      stakeholders: dimensions['Stakeholders']!,
+      funding: dimensions['Funding']!,
+      benefits: dimensions['Benefits']!,
+      dependencies: dimensions['Dependencies']!,
+      interfaces: dimensions['Interfaces']!,
+      technical: dimensions['Technical']!,
+    );
+
+    // Parse approval steps
+    final stepsData = data['approvalSteps'] as List<dynamic>? ?? [];
+    final steps = stepsData.map((s) {
+      final m = s as Map<String, dynamic>;
+      return CMApprovalStep(
+        id: m['id'] as String? ?? '',
+        roleLabel: m['roleLabel'] as String? ?? m['role'] as String? ?? 'Approver',
+        role: ApprovalRole.values.firstWhere(
+          (r) => r.name == m['role'],
+          orElse: () => ApprovalRole.projectManager,
+        ),
+        assigneeName: m['decisionMaker'] as String? ?? m['assigneeName'] as String?,
+        decision: ApprovalDecision.values.firstWhere(
+          (d) => d.name == m['decision'],
+          orElse: () => ApprovalDecision.pending,
+        ),
+        decidedAt: (m['decisionDate'] as Timestamp?)?.toDate(),
+        comments: m['comments'] as String? ?? '',
+        dueDate: (m['dueDate'] as Timestamp?)?.toDate(),
+        escalationTarget: m['escalationTarget'] as String?,
+        escalationReason: m['escalationReason'] as String?,
+        delegatedFrom: m['delegatedFrom'] as String?,
+      );
+    }).toList();
+
+    // Parse implementation tasks
+    final tasksData = data['implementationTasks'] as List<dynamic>? ?? [];
+    final tasks = tasksData.map((t) {
+      final m = t as Map<String, dynamic>;
+      return ImplementationTask(
+        id: m['id'] as String? ?? '',
+        workPackageId: m['workPackageId'] as String? ?? '',
+        workPackageName: m['workPackageName'] as String? ?? m['workPackageId'] as String? ?? '',
+        status: ImplementationStatus.values.firstWhere(
+          (s) => s.name == m['status'],
+          orElse: () => ImplementationStatus.todo,
+        ),
+        assignee: m['assignee'] as String?,
+        dueDate: (m['dueDate'] as Timestamp?)?.toDate(),
+        completedAt: (m['completedAt'] as Timestamp?)?.toDate(),
+      );
+    }).toList();
+
+    return CMChangeRequest(
+      id: id,
+      crNumber: data['crNumber'] as String? ?? id,
+      title: data['title'] as String? ?? 'Untitled',
+      description: data['description'] as String? ?? '',
+      changeType: CMChangeType.values.firstWhere(
+        (t) => t.name == data['changeType'],
+        orElse: () => CMChangeType.scope,
+      ),
+      priority: CMPriority.values.firstWhere(
+        (p) => p.name == data['priority'],
+        orElse: () => CMPriority.medium,
+      ),
+      status: CMStatus.values.firstWhere(
+        (s) => s.name == data['status'],
+        orElse: () => CMStatus.draft,
+      ),
+      submittedBy: data['submittedBy'] as String? ?? 'Unknown',
+      dateSubmitted: (data['dateSubmitted'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      requestedCompletion: (data['requestedCompletion'] as Timestamp?)?.toDate(),
+      businessJustification: data['businessJustification'] as String? ?? '',
+      rootCause: data['rootCause'] as String?,
+      impact: impact,
+      approvalSteps: steps,
+      currentStepIndex: data['currentStepIndex'] as int? ?? 0,
+      isEmergency: data['isEmergency'] as bool? ?? false,
+      isAgileRoutineRefinement: data['isAgileRoutineRefinement'] as bool? ?? false,
+      affectedRegisters: (data['affectedRegisters'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      affectedBaselines: (data['affectedBaselines'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      contingencyUsed: (data['contingencyUsed'] as num?)?.toDouble(),
+      reserveUsed: (data['reserveUsed'] as num?)?.toDouble(),
+      implementationTasks: tasks,
+    );
+  }
+
+  /// Save a change request to Firestore.
+  Future<void> _saveCRToFirestore(CMChangeRequest cr) async {
+    final col = _crCollection;
+    if (col == null) return;
+    final data = <String, dynamic>{
+      'crNumber': cr.crNumber,
+      'title': cr.title,
+      'description': cr.description,
+      'changeType': cr.changeType.name,
+      'priority': cr.priority.name,
+      'status': cr.status.name,
+      'submittedBy': cr.submittedBy,
+      'dateSubmitted': Timestamp.fromDate(cr.dateSubmitted),
+      'businessJustification': cr.businessJustification,
+      'rootCause': cr.rootCause,
+      'currentStepIndex': cr.currentStepIndex,
+      'isEmergency': cr.isEmergency,
+      'isAgileRoutineRefinement': cr.isAgileRoutineRefinement,
+      'affectedRegisters': cr.affectedRegisters,
+      'affectedBaselines': cr.affectedBaselines,
+      'contingencyUsed': cr.contingencyUsed,
+      'reserveUsed': cr.reserveUsed,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+    if (cr.requestedCompletion != null) {
+      data['requestedCompletion'] = Timestamp.fromDate(cr.requestedCompletion!);
+    }
+    // Save impact dimensions
+    final impactMap = <String, dynamic>{};
+    for (final dim in cr.impact.all) {
+      impactMap[(dim.name).toLowerCase()] = {
+        'name': dim.name,
+        'impactLevel': dim.impactLevel,
+        'narrative': dim.narrative,
+        'owner': dim.owner,
+        'dueDate': dim.dueDate != null ? Timestamp.fromDate(dim.dueDate!) : null,
+      };
+    }
+    data['impact'] = impactMap;
+    // Save approval steps
+    data['approvalSteps'] = cr.approvalSteps.map((s) => {
+      'role': s.role?.name ?? 'projectManager',
+      'decision': s.decision.name,
+      'decisionMaker': s.assigneeName,
+      'roleLabel': s.roleLabel,
+      'id': s.id,
+      'decisionDate': s.decidedAt != null ? Timestamp.fromDate(s.decidedAt!) : null,
+      'comments': s.comments,
+      'dueDate': s.dueDate != null ? Timestamp.fromDate(s.dueDate!) : null,
+      'escalationTarget': s.escalationTarget,
+      'escalationReason': s.escalationReason,
+      'delegatedFrom': s.delegatedFrom,
+    }).toList();
+    // Save implementation tasks
+    data['implementationTasks'] = cr.implementationTasks.map((t) => {
+      'workPackageId': t.workPackageId,
+      'status': t.status.name,
+      'assignee': t.assignee,
+      'dueDate': t.dueDate != null ? Timestamp.fromDate(t.dueDate!) : null,
+      'completedAt': t.completedAt != null ? Timestamp.fromDate(t.completedAt!) : null,
+    }).toList();
+
+    await col.doc(cr.id).set(data, SetOptions(merge: true));
+  }
+
+  /// Save an audit entry to Firestore.
+  Future<void> _saveAuditToFirestore(CMAuditEntry entry) async {
+    final col = _auditCollection;
+    if (col == null) return;
+    await col.doc(entry.id).set({
+      'user': entry.user,
+      'timestamp': Timestamp.fromDate(entry.timestamp),
+      'action': entry.action,
+      'details': entry.details,
+      'linkedCRId': entry.linkedCRId,
+      'createdAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  /// Save a baseline revision to Firestore.
+  Future<void> _saveBaselineToFirestore(BaselineRevisionRecord rec) async {
+    final col = _baselineCollection;
+    if (col == null) return;
+    await col.add({
+      'version': rec.version,
+      'revisionDate': Timestamp.fromDate(rec.revisionDate),
+      'previousBAC': rec.previousBudget,
+      'revisedBAC': rec.revisedBudget,
+      'previousScopeHash': rec.previousScopeHash,
+      'revisedScopeHash': rec.revisedScopeHash,
+      'approver': rec.approver,
+      'revisedBy': rec.revisedBy,
+      'updatedBaselines': rec.updatedBaselines,
+      'linkedCRId': rec.linkedCRId,
+      'reason': rec.reason,
+      'previousBaselineFinish': rec.previousFinish != null
+          ? Timestamp.fromDate(rec.previousFinish!)
+          : null,
+      'revisedBaselineFinish': rec.revisedFinish != null
+          ? Timestamp.fromDate(rec.revisedFinish!)
+          : null,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  @override
+  void dispose() {
+    _crSub?.cancel();
+    _auditSub?.cancel();
+    _baselineSub?.cancel();
+    super.dispose();
   }
 }
