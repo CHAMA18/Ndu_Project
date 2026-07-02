@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/profile_onboarding_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
+import 'package:ndu_project/services/team_invitation_service.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/world_data.dart';
 
@@ -279,6 +280,26 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
         skipped: false,
       );
       await ProfileOnboardingService.markComplete(_answers);
+
+      // Send invitation emails to queued team members
+      if (_answers.invitedEmails.isNotEmpty) {
+        final user = FirebaseAuth.instance.currentUser;
+        final inviterName = user?.displayName ??
+            user?.email ??
+            'A team member';
+        for (final email in _answers.invitedEmails) {
+          try {
+            await TeamInvitationService.sendInvitation(
+              email: email,
+              inviterName: inviterName,
+              projectName: 'NDU Project',
+            );
+            debugPrint('[Onboarding] Invitation sent to $email');
+          } catch (e) {
+            debugPrint('[Onboarding] Failed to send invitation to $email: $e');
+          }
+        }
+      }
     } catch (e) {
       debugPrint('[Onboarding] finish save error (non-blocking): $e');
     } finally {
@@ -1318,7 +1339,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Auto-link emails will be sent when you finish setup. Each link expires in 7 days and takes the recipient to the sign-in page.',
+                            'Branded invitation emails will be sent from nduproject.tech when you finish setup. Each link expires in 7 days and takes the recipient to the sign-in page.',
                             style: TextStyle(
                               color: _textSecondary.withOpacity(0.85),
                               fontSize: 11,

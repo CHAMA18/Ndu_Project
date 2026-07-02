@@ -1623,3 +1623,192 @@ exports.cancelSubscription = functions
       res.status(500).json({ error: error.message });
     }
   });
+
+// ============================================================================
+// TEAM INVITATION EMAIL
+// ============================================================================
+
+/**
+ * Send Team Invitation Email
+ * 
+ * Sends an invitation email to a team member using SMTP credentials stored
+ * as Firebase secrets. The email contains a secure link to the sign-in page.
+ * 
+ * Setup Instructions:
+ * 1. Set SMTP secrets in Firebase:
+ *    firebase functions:secrets:set SMTP_HOST
+ *    firebase functions:secrets:set SMTP_PORT
+ *    firebase functions:secrets:set SMTP_USER
+ *    firebase functions:secrets:set SMTP_PASSWORD
+ *    firebase functions:secrets:set SMTP_FROM_NAME
+ *    firebase functions:secrets:set SMTP_FROM_EMAIL
+ * 
+ * 2. Deploy this function:
+ *    firebase deploy --only functions:sendTeamInvitation
+ * 
+ * 3. The Flutter app calls this via HTTPS Callable:
+ *    FirebaseFunctions.instance.httpsCallable('sendTeamInvitation')
+ * 
+ * Security:
+ * - SMTP credentials stored as Firebase secrets (never in code)
+ * - Requires Firebase Auth token (only authenticated users can invite)
+ * - Email validation on server side
+ * - Invitation record stored in Firestore for tracking
+ */
+exports.sendTeamInvitation = functions
+  .runWith({
+    secrets: ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM_EMAIL'],
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
+    // Verify authentication
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to send invitations.');
+    }
+
+    const { email, inviterName, projectName, inviteLink } = data;
+
+    // Validate email
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      throw new functions.https.HttpsError('invalid-argument', 'A valid email address is required.');
+    }
+
+    // Check SMTP configuration
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPassword = process.env.SMTP_PASSWORD;
+    const smtpFromEmail = process.env.SMTP_FROM_EMAIL || 'noreply@nduproject.tech';
+
+    if (!smtpHost || !smtpUser || !smtpPassword) {
+      console.error('SMTP secrets not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD via firebase functions:secrets:set');
+      throw new functions.https.HttpsError('failed-precondition', 'Email service not configured. Please contact support.');
+    }
+
+    const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
+    const inviter = inviterName || context.auth.token.name || context.auth.token.email || 'A team member';
+    const project = projectName || 'NDU Project';
+    const signInLink = inviteLink || 'https://staging.nduproject.com/#/sign-in';
+
+    try {
+      // Dynamically import nodemailer (avoid load issues if not installed)
+      const nodemailer = require('nodemailer');
+
+      // Create SMTP transporter
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPassword,
+        },
+      });
+
+      // Build HTML email
+      const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:40px 0;">
+    <tr>
+      <td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+          <!-- Header -->
+          <tr>
+            <td style="background:#051424;padding:32px 40px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:1px;">
+                NDU <span style="color:#f8bd2a;">PROJECT</span>
+              </div>
+              <div style="font-size:11px;color:#909096;letter-spacing:3px;margin-top:4px;">
+                NAVIGATE. DELIVER. UPGRADE.
+              </div>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding:40px;">
+              <h1 style="font-size:22px;font-weight:700;color:#1a1d1f;margin:0 0 16px;">
+                You're invited to join ${project}
+              </h1>
+              <p style="font-size:15px;color:#495057;line-height:1.6;margin:0 0 24px;">
+                <strong>${inviter}</strong> has invited you to collaborate on <strong>${project}</strong> using NDU Project — the project delivery operating system.
+              </p>
+              <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 32px;">
+                Click the button below to accept the invitation and sign in. If you don't have an account yet, you'll be able to create one.
+              </p>
+              <!-- CTA Button -->
+              <table cellpadding="0" cellspacing="0" style="margin:0 auto 32px;">
+                <tr>
+                  <td style="background:#ffc107;border-radius:12px;">
+                    <a href="${signInLink}" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:700;color:#1a1d1f;text-decoration:none;">
+                      Accept Invitation &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="font-size:13px;color:#9ca3af;line-height:1.5;margin:0 0 8px;">
+                Or copy this link into your browser:
+              </p>
+              <p style="font-size:13px;color:#6366f1;word-break:break-all;margin:0 0 32px;">
+                ${signInLink}
+              </p>
+              <div style="border-top:1px solid #e4e7ec;padding-top:24px;">
+                <p style="font-size:12px;color:#9ca3af;margin:0;">
+                  This invitation was sent by ${inviter} via NDU Project. If you weren't expecting this invitation, you can safely ignore this email.
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:11px;color:#9ca3af;margin:24px 0 0;">
+          &copy; 2026 NDU Project. All rights reserved.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `;
+
+      // Send email
+      const info = await transporter.sendMail({
+        from: `"NDU Project" <${smtpFromEmail}>`,
+        to: email,
+        subject: `You're invited to join ${project} on NDU Project`,
+        html: htmlBody,
+        text: `${inviter} has invited you to join ${project} on NDU Project. Visit ${signInLink} to accept the invitation.`,
+      });
+
+      console.log(`Invitation email sent to ${email}: ${info.messageId}`);
+
+      // Store invitation record in Firestore for tracking
+      const inviteRef = db.collection('teamInvitations').doc();
+      await inviteRef.set({
+        id: inviteRef.id,
+        email: email.toLowerCase().trim(),
+        inviterUid: context.auth.uid,
+        inviterName: inviter,
+        projectName: project,
+        signInLink: signInLink,
+        status: 'sent',
+        messageId: info.messageId,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+
+      return {
+        success: true,
+        message: `Invitation sent to ${email}`,
+        messageId: info.messageId,
+      };
+
+    } catch (error) {
+      console.error('Team invitation email error:', error);
+      throw new functions.https.HttpsError('internal', `Failed to send invitation email: ${error.message}`);
+    }
+  });
