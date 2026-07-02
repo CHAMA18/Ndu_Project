@@ -28,8 +28,80 @@ import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart'
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 
-class BuilderScreen extends StatelessWidget {
+class BuilderScreen extends StatefulWidget {
   const BuilderScreen({super.key});
+
+  @override
+  State<BuilderScreen> createState() => _BuilderScreenState();
+}
+
+class _BuilderScreenState extends State<BuilderScreen> {
+  bool _hasAutoImported = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-populate schedule from WBS on first load
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _hasAutoImported) return;
+      _autoImportFromWBS();
+    });
+  }
+
+  void _autoImportFromWBS() {
+    final wbsProvider = context.read<WBSProvider>();
+    final scheduleProvider = context.read<ScheduleProvider>();
+
+    final wbs = wbsProvider.wbs;
+    if (wbs == null) return;
+
+    final root = scheduleProvider.schedule?.activities[0];
+    if (root == null) return;
+
+    // Only auto-import if the schedule is empty (no child activities)
+    if (root.children.isNotEmpty) {
+      _hasAutoImported = true;
+      return;
+    }
+
+    // Build WBS nodes and import
+    final l1Nodes = wbs.level0.children;
+    if (l1Nodes.isEmpty) {
+      _hasAutoImported = true;
+      return;
+    }
+
+    final wbsNodes = l1Nodes.map((l1) {
+      return (
+        id: l1.id,
+        code: l1.code,
+        name: l1.name,
+        description: l1.description,
+        children: l1.children.map((l2) {
+          return (
+            id: l2.id,
+            code: l2.code,
+            name: l2.name,
+            description: l2.description,
+          );
+        }).toList(),
+      );
+    }).toList();
+
+    scheduleProvider.importFromWBS(wbsNodes);
+    _hasAutoImported = true;
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Auto-populated ${l1Nodes.length} deliverable(s) from WBS into schedule'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: LightModeColors.accent,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
