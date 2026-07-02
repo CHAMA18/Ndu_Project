@@ -1036,7 +1036,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       return 'OpenAI rate limit reached. Try again shortly.';
     }
     if (lower.contains('api key')) {
-      return 'OpenAI rejected the API key. Please verify it.';
+      return 'OpenAI API key not accepted. Please check the key in Settings or contact support.';
     }
     final sanitized = message.replaceFirst(RegExp(r'^Exception: '), '').trim();
     if (sanitized.length > 180) {

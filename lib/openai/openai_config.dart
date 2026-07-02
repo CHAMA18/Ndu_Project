@@ -28,13 +28,20 @@ class OpenAiConfig {
 
   /// Base endpoint for OpenAI API requests.
   ///
-  /// Always uses the Cloud Function proxy (SecureAPIConfig.baseUrl) which
-  /// holds the key server-side AND runs on Firebase's servers in a supported
-  /// region. Direct browser calls to api.openai.com fail in some regions
-  /// with "unsupported_country_region_territory" errors — the proxy avoids
-  /// this by making the request server-side.
+  /// When a client-side API key is available, calls OpenAI directly at
+  /// api.openai.com/v1. The browser's region determines whether OpenAI
+  /// accepts the request — if the user's browser is in a supported region,
+  /// direct calls work fine.
+  ///
+  /// When no client-side key is available, falls back to the Cloud Function
+  /// proxy (SecureAPIConfig.baseUrl) which holds the key server-side.
   static String get baseEndpoint {
     if (_trimmedEnvEndpoint.isNotEmpty) return _trimmedEnvEndpoint;
+    // If we have a client-side key, call OpenAI directly
+    if (apiKeyValue.isNotEmpty) {
+      return 'https://api.openai.com/v1';
+    }
+    // No client-side key — use the Cloud Function proxy
     return SecureAPIConfig.baseUrl;
   }
 
@@ -249,7 +256,14 @@ class OpenAiAutocompleteService {
         throw Exception('OpenAI rate limit reached. Please try again shortly.');
       }
       if (response.statusCode == 401) {
-        throw Exception('OpenAI rejected the API key. Please verify it.');
+        throw Exception('OpenAI API key not accepted. Please check the key in Settings or contact support.');
+      }
+      if (response.statusCode == 403) {
+        final body = response.body;
+        if (body.contains('unsupported_country_region_territory')) {
+          throw Exception('OpenAI is not available in your region. Please use a VPN or contact support.');
+        }
+        throw Exception('OpenAI access denied (${response.statusCode}). Please check your API key.');
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
