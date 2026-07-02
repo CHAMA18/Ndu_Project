@@ -212,33 +212,56 @@ class _DashboardTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // KPI Row — 7 cards (5 original + Approval Cycle Time + Re-baseline This Quarter)
-          GridView.count(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisCount: MediaQuery.sizeOf(context).width > 1100 ? 7 : (MediaQuery.sizeOf(context).width > 700 ? 4 : 2),
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: 1.4,
-            children: [
-              _kpiCard('Open CRs', '${provider.openCRs}', Icons.pending_actions, const Color(0xFFF59E0B)),
-              _kpiCard('Pending Approval', '${provider.pendingApprovals}', Icons.assignment_late, const Color(0xFF8B5CF6)),
-              _kpiCard('Approved', '${provider.approvedCRs}', Icons.check_circle, const Color(0xFF10B981)),
-              _kpiCard('Emergency', '${provider.emergencyCRs}', Icons.emergency, const Color(0xFFEF4444)),
-              _kpiCard('Re-baselines', '${provider.rebaselineCount}', Icons.history, const Color(0xFF6366F1)),
-              _kpiCard(
-                'Approval Cycle (avg)',
-                provider.avgApprovalCycleDays == 0 ? '—' : '${provider.avgApprovalCycleDays.toStringAsFixed(1)}d',
-                Icons.timer_outlined,
-                const Color(0xFF06B6D4),
-              ),
-              _kpiCard(
-                'Re-baselines (Qtr)',
-                '${provider.rebaselineCountThisQuarter}',
-                Icons.event_repeat,
-                const Color(0xFFD97706),
-              ),
-            ],
+          // KPI Row — 7 cards in one row (desktop), wraps on tablet/mobile
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final kpiCards = <Widget>[
+                _kpiCard('Open CRs', '${provider.openCRs}', Icons.pending_actions, const Color(0xFFF59E0B)),
+                _kpiCard('Pending Approval', '${provider.pendingApprovals}', Icons.assignment_late, const Color(0xFF8B5CF6)),
+                _kpiCard('Approved', '${provider.approvedCRs}', Icons.check_circle, const Color(0xFF10B981)),
+                _kpiCard('Emergency', '${provider.emergencyCRs}', Icons.emergency, const Color(0xFFEF4444)),
+                _kpiCard('Re-baselines', '${provider.rebaselineCount}', Icons.history, const Color(0xFF6366F1)),
+                _kpiCard(
+                  'Approval Cycle (avg)',
+                  provider.avgApprovalCycleDays == 0 ? '—' : '${provider.avgApprovalCycleDays.toStringAsFixed(1)}d',
+                  Icons.timer_outlined,
+                  const Color(0xFF06B6D4),
+                ),
+                _kpiCard(
+                  'Re-baselines (Qtr)',
+                  '${provider.rebaselineCountThisQuarter}',
+                  Icons.event_repeat,
+                  const Color(0xFFD97706),
+                ),
+              ];
+
+              // Desktop: all 7 in one row using Expanded (no overflow)
+              if (constraints.maxWidth > 1100) {
+                return Row(
+                  children: kpiCards.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(right: i < kpiCards.length - 1 ? 12 : 0),
+                        child: entry.value,
+                      ),
+                    );
+                  }).toList(),
+                );
+              }
+
+              // Tablet/mobile: GridView with 4 or 2 columns
+              final count = constraints.maxWidth > 700 ? 4 : 2;
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: count,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.4,
+                children: kpiCards,
+              );
+            },
           ),
           const SizedBox(height: 24),
           // 7-day CR-volume sparkline + Contingency & Reserve
@@ -312,7 +335,7 @@ class _DashboardTab extends StatelessWidget {
 
   Widget _kpiCard(String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _cardBg,
         borderRadius: BorderRadius.circular(12),
@@ -322,11 +345,35 @@ class _DashboardTab extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(label, style: const TextStyle(color: _textSecondary, fontSize: 11, fontWeight: FontWeight.w600)),
-            Container(width: 28, height: 28, decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)), child: Icon(icon, color: color, size: 14)),
-          ]),
-          Text(value, style: TextStyle(color: _textPrimary, fontSize: 24, fontWeight: FontWeight.w900, fontFamily: appFontFamily)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: _textSecondary, fontSize: 10, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(5)),
+                child: Icon(icon, color: color, size: 12),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(color: _textPrimary, fontSize: 22, fontWeight: FontWeight.w900, fontFamily: appFontFamily),
+            ),
+          ),
         ],
       ),
     );
