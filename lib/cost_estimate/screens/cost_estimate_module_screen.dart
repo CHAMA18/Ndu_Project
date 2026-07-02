@@ -129,7 +129,7 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
           backgroundColor: Colors.white,
           body: Column(
             children: [
-              // ── World-class Section Navigator ─────────────────────────
+              // ── World-class Section Navigator (always visible, pinned) ─
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: SectionNavigator(

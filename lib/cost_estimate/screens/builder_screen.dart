@@ -88,15 +88,29 @@ class _BuilderScreenState extends State<BuilderScreen>
 
         return Column(
           children: [
-            // Secondary sub-tab bar (more compact than the module tab bar)
+            // Sub-tab bar for cost categories (below the main Section Navigator)
             Container(
-              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFE4E7EC)),
-              ),
-              child: TabBar(
+              margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Row(
+                children: [
+                  const Text(
+                    'Cost Categories:',
+                    style: TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
+                      ),
+                      child: TabBar(
                 controller: _tabController,
                 isScrollable: true,
                 tabAlignment: TabAlignment.start,
@@ -116,6 +130,10 @@ class _BuilderScreenState extends State<BuilderScreen>
                 labelPadding:
                     const EdgeInsets.symmetric(horizontal: 12),
                 tabs: _subTabs.map((t) => Tab(text: t.$1)).toList(),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             // Baselined warning
