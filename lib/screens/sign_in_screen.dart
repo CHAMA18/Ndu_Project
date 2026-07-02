@@ -10,6 +10,7 @@ import 'package:ndu_project/widgets/elevated_auth_container.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/subscription_service.dart'; // Added
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
@@ -422,8 +423,12 @@ class _SignInScreenState extends State<SignInScreen> {
                   // ── Admin Panel button ──────────────────────────────────
                   Center(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        context.go('/admin-home');
+                      onPressed: () async {
+                        final uri = Uri.parse('https://admin.nduproject.com');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF1A1D1F),
