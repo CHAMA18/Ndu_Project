@@ -529,6 +529,7 @@ class _ChangeRegisterTabState extends State<_ChangeRegisterTab> {
   String _statusFilter = 'All';
   String _priorityFilter = 'All';
   final _searchCtrl = TextEditingController();
+  bool _isTableView = false; // false = card view, true = table view
 
   static const _statusOptions = ['All', 'Draft', 'Submitted', 'Pending Approval', 'Approved', 'Rejected', 'Implemented', 'Closed'];
   static const _priorityOptions = ['All', 'Low', 'Medium', 'High', 'Critical', 'Emergency'];
@@ -588,11 +589,30 @@ class _ChangeRegisterTabState extends State<_ChangeRegisterTab> {
         children: [
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Change Register', style: TextStyle(color: _textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-            ElevatedButton.icon(
-              onPressed: () => _showNewCRDialog(context),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Quick CR'),
-              style: ElevatedButton.styleFrom(backgroundColor: LightModeColors.accent, foregroundColor: _textPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            Row(
+              children: [
+                // View toggle: Card / Table
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: _surfaceBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      _viewToggleBtn(Icons.view_agenda_outlined, !_isTableView, () => setState(() => _isTableView = false), 'Card view'),
+                      _viewToggleBtn(Icons.table_chart_outlined, _isTableView, () => setState(() => _isTableView = true), 'Table view'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => _showNewCRDialog(context),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Quick CR'),
+                  style: ElevatedButton.styleFrom(backgroundColor: LightModeColors.accent, foregroundColor: _textPrimary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                ),
+              ],
             ),
           ]),
           const SizedBox(height: 4),
@@ -647,10 +667,132 @@ class _ChangeRegisterTabState extends State<_ChangeRegisterTab> {
                 const Text('No change requests match your filters', style: TextStyle(color: _textSecondary, fontSize: 13)),
               ])),
             )
+          else if (_isTableView)
+            _buildTableView(filtered)
           else
             ...filtered.map((cr) => _changeRequestCard(cr, context)),
         ],
       ),
+    );
+  }
+
+  Widget _viewToggleBtn(IconData icon, bool isActive, VoidCallback onTap, String tooltip) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: isActive ? LightModeColors.accent : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, size: 16, color: isActive ? _textPrimary : _textSecondary),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTableView(List<CMChangeRequest> crs) {
+    return Container(
+      decoration: BoxDecoration(
+        color: _cardBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _surfaceBorder),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: DataTable(
+          columnSpacing: 20,
+          horizontalMargin: 16,
+          headingRowColor: WidgetStateProperty.all(const Color(0xFFF5F7FB)),
+          dataRowColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected) ? LightModeColors.accent.withValues(alpha: 0.08) : null;
+          }),
+          columns: const [
+            DataColumn(label: Text('CR #', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Title', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Type', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Priority', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Status', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Score', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Cost Impact', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Schedule', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Originator', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+            DataColumn(label: Text('Date', style: TextStyle(color: Color(0xFF475467), fontSize: 12, fontWeight: FontWeight.w700))),
+          ],
+          rows: crs.map((cr) {
+            final isSelected = cr.id == widget.selectedCRId;
+            return DataRow(
+              selected: isSelected,
+              onSelectChanged: (_) => widget.onSelectCR(cr.id),
+              cells: [
+                DataCell(Text(cr.id, style: const TextStyle(color: Color(0xFF6366F1), fontSize: 12, fontWeight: FontWeight.w600))),
+                DataCell(ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 200),
+                  child: Text(cr.title, style: const TextStyle(color: _textPrimary, fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                )),
+                DataCell(Text(cr.changeType.label, style: const TextStyle(color: _textSecondary, fontSize: 12))),
+                DataCell(_priorityBadge(cr.priority)),
+                DataCell(_statusBadge(cr.status)),
+                DataCell(Text(cr.impact.compositeImpactScore.toStringAsFixed(2), style: TextStyle(color: _scoreColor(cr.impact.compositeImpactScore), fontSize: 12, fontWeight: FontWeight.w700))),
+                DataCell(Text('\$${cr.impact.totalCostImpact.toStringAsFixed(0)}', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12, fontWeight: FontWeight.w600))),
+                DataCell(Text('${cr.impact.totalScheduleImpact > 0 ? "+" : ""}${cr.impact.totalScheduleImpact.toStringAsFixed(0)}d', style: TextStyle(color: cr.impact.totalScheduleImpact > 0 ? const Color(0xFFEF4444) : const Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.w600))),
+                DataCell(Text(cr.submittedBy, style: const TextStyle(color: _textSecondary, fontSize: 12))),
+                DataCell(Text(_formatDate(cr.dateSubmitted), style: const TextStyle(color: _textSecondary, fontSize: 12))),
+              ],
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Color _scoreColor(double score) {
+    if (score >= 4.0) return const Color(0xFFEF4444);
+    if (score >= 3.0) return const Color(0xFFF59E0B);
+    if (score >= 2.0) return const Color(0xFF10B981);
+    return const Color(0xFF6B7280);
+  }
+
+  String _formatDate(DateTime dt) {
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
+  Widget _priorityBadge(CMPriority p) {
+    final colors = <CMPriority, Color>{
+      CMPriority.low: const Color(0xFF6B7280),
+      CMPriority.medium: const Color(0xFF3B82F6),
+      CMPriority.high: const Color(0xFFF59E0B),
+      CMPriority.critical: const Color(0xFFEF4444),
+      CMPriority.emergency: const Color(0xFFDC2626),
+    };
+    final color = colors[p] ?? const Color(0xFF6B7280);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+      child: Text(p.name[0].toUpperCase() + p.name.substring(1), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  Widget _statusBadge(CMStatus s) {
+    final colors = <CMStatus, Color>{
+      CMStatus.draft: const Color(0xFF6B7280),
+      CMStatus.submitted: const Color(0xFF3B82F6),
+      CMStatus.underReview: const Color(0xFF8B5CF6),
+      CMStatus.pendingApproval: const Color(0xFFF59E0B),
+      CMStatus.approved: const Color(0xFF10B981),
+      CMStatus.rejected: const Color(0xFFEF4444),
+      CMStatus.implemented: const Color(0xFF06B6D4),
+      CMStatus.closed: const Color(0xFF64748B),
+    };
+    final color = colors[s] ?? const Color(0xFF6B7280);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+      child: Text(s.name[0].toUpperCase() + s.name.substring(1), style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 
