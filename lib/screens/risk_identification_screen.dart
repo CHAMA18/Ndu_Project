@@ -158,9 +158,14 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       if (projectData.solutionRisks.isNotEmpty) {
         _loadSavedRisks(projectData.solutionRisks);
       } else if (_solutions.isEmpty && widget.businessCase.trim().isNotEmpty) {
-        _bootstrapFromBusinessCase();
+        // Skip AI bootstrap — just show empty state so page loads instantly.
+        // Users can click "Generate risks" to try AI suggestions.
+        if (mounted) setState(() {});
       } else if (_solutions.isNotEmpty) {
-        _generateRisks();
+        // Skip AI generation — just show the risk table with empty fields
+        // so the page loads instantly. Users can click "Generate risks"
+        // to try AI suggestions.
+        if (mounted) setState(() {});
       }
       } catch (e) {
         debugPrint('RiskIdentification initState error: $e');
