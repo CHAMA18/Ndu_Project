@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/widgets/launch_modal.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
 const double _defaultColumnWidth = 160;
@@ -129,7 +130,7 @@ class LaunchDataTable extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -880,7 +881,7 @@ class LaunchStatusDropdown extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.08),
+            color: statusColor.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
@@ -927,9 +928,9 @@ class LaunchStatusDropdown extends StatelessWidget {
       height: 40,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: statusColor.withOpacity(0.08),
+          color: statusColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: statusColor.withOpacity(0.15)),
+          border: Border.all(color: statusColor.withValues(alpha: 0.15)),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -939,7 +940,7 @@ class LaunchStatusDropdown extends StatelessWidget {
               isDense: true,
               isExpanded: true,
               iconSize: 14,
-              iconDisabledColor: statusColor.withOpacity(0.5),
+              iconDisabledColor: statusColor.withValues(alpha: 0.5),
               iconEnabledColor: statusColor,
               style: TextStyle(
                 fontSize: 11,
@@ -1016,22 +1017,29 @@ Future<bool> launchConfirmDelete(BuildContext context,
     {String itemName = 'item'}) async {
   final result = await showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text('Delete Entry',
-          style:
-              TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-      content: Text(
-          'Are you sure you want to delete this $itemName? This action cannot be undone.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: const Text('Cancel'),
+    barrierDismissible: true,
+    builder: (ctx) => LaunchModalShell(
+      icon: Icons.delete_outline_rounded,
+      accent: const Color(0xFFEF4444),
+      title: 'Delete Entry',
+      subtitle: 'This action cannot be undone.',
+      body: Text(
+        'Are you sure you want to delete this $itemName? '
+        'Once removed, the entry cannot be recovered.',
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFF4B5563),
+          height: 1.5,
         ),
-        TextButton(
+      ),
+      actions: [
+        LaunchModalCancelButton(
+          label: 'Cancel',
+          onPressed: () => Navigator.pop(ctx, false),
+        ),
+        LaunchModalDangerButton(
+          label: 'Delete',
           onPressed: () => Navigator.pop(ctx, true),
-          style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-          child: const Text('Delete'),
         ),
       ],
     ),
@@ -1086,81 +1094,32 @@ class _AddItemDialogState extends State<_AddItemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-      actionsPadding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2563EB).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.add_circle_outline,
-                color: Color(0xFF2563EB), size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              'Add New Item',
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close, size: 20, color: Color(0xFF9CA3AF)),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: 480,
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: widget.columns
-                .map((col) => Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: _buildField(col),
-                    ))
-                .toList(),
-          ),
+    return LaunchModalShell(
+      icon: Icons.add_rounded,
+      title: 'Add to ${widget.title}',
+      subtitle: 'Fill in the fields below to add a new entry to this table.',
+      body: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 0; i < widget.columns.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              _buildField(widget.columns[i]),
+            ],
+          ],
         ),
       ),
       actions: [
-        TextButton(
+        LaunchModalCancelButton(
+          label: 'Cancel',
           onPressed: () => Navigator.pop(context),
-          style: TextButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-          child: const Text('Cancel',
-              style: TextStyle(
-                  fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
         ),
-        const SizedBox(width: 8),
-        ElevatedButton(
+        LaunchModalPrimaryButton(
+          label: 'Add Item',
+          icon: Icons.check_rounded,
           onPressed: _submit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2563EB),
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            elevation: 0,
-          ),
-          child: const Text('Add Item',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         ),
       ],
     );
@@ -1169,16 +1128,10 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   Widget _buildField(LaunchColumn col) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          col.label,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF374151),
-          ),
-        ),
-        const SizedBox(height: 6),
+        LaunchModalLabel(col.label),
+        const SizedBox(height: 4),
         _buildInput(col),
       ],
     );
@@ -1187,30 +1140,11 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   Widget _buildInput(LaunchColumn col) {
     switch (col.fieldType) {
       case LaunchFieldType.text:
-        return TextFormField(
+        return VoiceTextField(
           controller: _controllers[col.label],
-          style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
-          decoration: InputDecoration(
-            hintText: col.hint ?? 'Enter ${col.label.toLowerCase()}',
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-            filled: true,
-            fillColor: const Color(0xFFF9FAFB),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
-          ),
+          enableDocxImport: false,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
+          decoration: _addFieldDecoration(hint: col.hint),
         );
       case LaunchFieldType.date:
         return _buildDateField(col);
@@ -1224,16 +1158,18 @@ class _AddItemDialogState extends State<_AddItemDialog> {
     final display = value.isEmpty ? '' : value;
     return InkWell(
       onTap: () => _pickDate(col.label),
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
-          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
-              color: display.isEmpty
-                  ? const Color(0xFFE5E7EB)
-                  : const Color(0xFF2563EB)),
+            color: display.isEmpty
+                ? const Color(0xFFE4E7EC)
+                : const Color(0xFFFFC107),
+            width: display.isEmpty ? 1 : 1.6,
+          ),
         ),
         child: Row(
           children: [
@@ -1244,7 +1180,7 @@ class _AddItemDialogState extends State<_AddItemDialog> {
                   fontSize: 13,
                   color: display.isEmpty
                       ? const Color(0xFF9CA3AF)
-                      : const Color(0xFF111827),
+                      : const Color(0xFF1A1D1F),
                 ),
               ),
             ),
@@ -1276,9 +1212,9 @@ class _AddItemDialogState extends State<_AddItemDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE4E7EC), width: 1),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -1286,8 +1222,9 @@ class _AddItemDialogState extends State<_AddItemDialog> {
           isExpanded: true,
           hint: Text(col.hint ?? 'Select ${col.label.toLowerCase()}',
               style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
-          iconSize: 18,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded,
+              size: 20, color: Color(0xFF6B7280)),
+          style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
           items: items
               .map((s) => DropdownMenuItem(
                     value: s,
@@ -1314,4 +1251,27 @@ class _AddItemDialogState extends State<_AddItemDialog> {
     }
     Navigator.pop(context, values);
   }
+}
+
+InputDecoration _addFieldDecoration({String? hint}) {
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+    isDense: true,
+    filled: true,
+    fillColor: Colors.white,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFFE4E7EC), width: 1),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFFE4E7EC), width: 1),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFFFFC107), width: 1.6),
+    ),
+  );
 }

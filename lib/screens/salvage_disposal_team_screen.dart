@@ -10,9 +10,9 @@ import 'package:ndu_project/services/salvage_service.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_modal.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
-import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 class SalvageDisposalTeamScreen extends StatefulWidget {
@@ -1453,48 +1453,86 @@ void _applyDefaults() {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Inventory Item'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              VoiceTextField(
-                  controller: assetIdController,
-                  decoration: const InputDecoration(labelText: 'Asset ID *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: categoryController,
-                  decoration: const InputDecoration(labelText: 'Category *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: conditionController,
-                  decoration: const InputDecoration(labelText: 'Condition *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: locationController,
-                  decoration: const InputDecoration(labelText: 'Location *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: statusController,
-                  decoration: const InputDecoration(labelText: 'Status *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: valueController,
-                  decoration:
-                      const InputDecoration(labelText: 'Estimated Value *')),
-            ],
-          ),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.edit_rounded,
+        accent: const Color(0xFF0EA5E9),
+        title: 'Edit Inventory Item',
+        subtitle: 'Update the salvage inventory item details.',
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LaunchModalTextField(
+              label: 'Asset ID *',
+              controller: assetIdController,
+              hint: 'Unique asset identifier',
+            ),
+            const SizedBox(height: 12),
+            LaunchModalTextField(
+              label: 'Name *',
+              controller: nameController,
+              hint: 'Asset name or description',
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Category *',
+                    controller: categoryController,
+                    hint: 'e.g. Electronics',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Condition *',
+                    controller: conditionController,
+                    hint: 'e.g. Good',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Location *',
+                    controller: locationController,
+                    hint: 'Where it is stored',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Status *',
+                    controller: statusController,
+                    hint: 'Pending / Disposed / etc.',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LaunchModalTextField(
+              label: 'Estimated Value *',
+              controller: valueController,
+              hint: 'e.g. 1500.00',
+              keyboardType: TextInputType.text,
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          LaunchModalPrimaryButton(
+            label: 'Update',
+            icon: Icons.check_rounded,
             onPressed: () async {
               try {
                 await SalvageService.updateInventoryItem(
@@ -1508,19 +1546,18 @@ void _applyDefaults() {
                   status: statusController.text,
                   estimatedValue: valueController.text,
                 );
-                if (context.mounted) {
-                  Navigator.pop(context);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Item updated successfully')));
                 }
               } catch (e) {
-                if (context.mounted) {
+                if (ctx.mounted) {
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
-            child: const Text('Update'),
           ),
         ],
       ),
@@ -1548,48 +1585,86 @@ void _applyDefaults() {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Inventory Item'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              VoiceTextField(
-                  controller: assetIdController,
-                  decoration: const InputDecoration(labelText: 'Asset ID *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: categoryController,
-                  decoration: const InputDecoration(labelText: 'Category *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: conditionController,
-                  decoration: const InputDecoration(labelText: 'Condition *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: locationController,
-                  decoration: const InputDecoration(labelText: 'Location *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: statusController,
-                  decoration: const InputDecoration(labelText: 'Status *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: valueController,
-                  decoration:
-                      const InputDecoration(labelText: 'Estimated Value *')),
-            ],
-          ),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.inventory_2_rounded,
+        accent: const Color(0xFF0EA5E9),
+        title: 'Add Inventory Item',
+        subtitle: 'Capture a new salvageable inventory item.',
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LaunchModalTextField(
+              label: 'Asset ID *',
+              controller: assetIdController,
+              hint: 'Unique asset identifier',
+            ),
+            const SizedBox(height: 12),
+            LaunchModalTextField(
+              label: 'Name *',
+              controller: nameController,
+              hint: 'Asset name or description',
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Category *',
+                    controller: categoryController,
+                    hint: 'e.g. Electronics',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Condition *',
+                    controller: conditionController,
+                    hint: 'e.g. Good',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Location *',
+                    controller: locationController,
+                    hint: 'Where it is stored',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: LaunchModalTextField(
+                    label: 'Status *',
+                    controller: statusController,
+                    hint: 'Pending / Disposed / etc.',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            LaunchModalTextField(
+              label: 'Estimated Value *',
+              controller: valueController,
+              hint: 'e.g. 1500.00',
+              keyboardType: TextInputType.text,
+            ),
+          ],
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          LaunchModalPrimaryButton(
+            label: 'Add Item',
+            icon: Icons.add_rounded,
             onPressed: () async {
               if (assetIdController.text.isEmpty ||
                   nameController.text.isEmpty ||
@@ -1616,19 +1691,18 @@ void _applyDefaults() {
                   status: statusController.text,
                   estimatedValue: valueController.text,
                 );
-                if (context.mounted) {
-                  Navigator.pop(context);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Item added successfully')));
                 }
               } catch (e) {
-                if (context.mounted) {
+                if (ctx.mounted) {
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
-            child: const Text('Add'),
           ),
         ],
       ),
@@ -1642,32 +1716,44 @@ void _applyDefaults() {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Inventory Item'),
-        content: Text('Are you sure you want to delete "${item.name}"?'),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Inventory Item',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.name}"? '
+          'Once removed, the inventory record cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
+          ),
+        ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
-          ElevatedButton(
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () async {
               try {
                 await SalvageService.deleteInventoryItem(
                     projectId: projectId, itemId: item.id);
-                if (context.mounted) {
-                  Navigator.pop(context);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                       content: Text('Item deleted successfully')));
                 }
               } catch (e) {
-                if (context.mounted) {
+                if (ctx.mounted) {
                   ScaffoldMessenger.of(context)
                       .showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1687,13 +1773,26 @@ Execution snapshot:
 ''';
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Salvage & Disposal Snapshot'),
-        content: Text(report.trim()),
+      barrierDismissible: true,
+      builder: (dialogContext) => LaunchModalShell(
+        icon: Icons.insights_rounded,
+        accent: const Color(0xFF0EA5E9),
+        title: 'Salvage & Disposal Snapshot',
+        subtitle: 'A quick summary of execution readiness.',
+        body: Text(
+          report.trim(),
+          style: const TextStyle(
+            fontSize: 13,
+            color: Color(0xFF4B5563),
+            height: 1.6,
+            fontFamily: 'monospace',
+          ),
+        ),
         actions: [
-          TextButton(
+          LaunchModalPrimaryButton(
+            label: 'Close',
+            icon: Icons.check_rounded,
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Close'),
           ),
         ],
       ),
@@ -1730,56 +1829,74 @@ Execution snapshot:
 
     showDialog<void>(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Team Member' : 'Add Team Member'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                VoiceTextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name *'),
-                ),
-                const SizedBox(height: 12),
-                VoiceTextField(
-                  controller: roleController,
-                  decoration: const InputDecoration(labelText: 'Role *'),
-                ),
-                const SizedBox(height: 12),
-                VoiceTextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(labelText: 'Email *'),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  decoration: const InputDecoration(labelText: 'Status'),
-                  items: const ['Active', 'On Leave', 'Inactive']
-                      .map((value) =>
-                          DropdownMenuItem(value: value, child: Text(value)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => selectedStatus = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                VoiceTextField(
-                  controller: itemsHandledController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Items Handled'),
-                ),
-              ],
-            ),
+        builder: (dialogContext, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.group_add_rounded,
+          accent: const Color(0xFF10B981),
+          title: isEdit ? 'Edit Team Member' : 'Add Team Member',
+          subtitle: isEdit
+              ? 'Update the salvage team member profile.'
+              : 'Capture a new salvage team member with role and contact.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LaunchModalTextField(
+                label: 'Name *',
+                controller: nameController,
+                hint: 'Full name of the team member',
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Role *',
+                controller: roleController,
+                hint: 'e.g. Salvage Lead',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Email *',
+                      controller: emailController,
+                      hint: 'name@company.com',
+                      keyboardType: TextInputType.emailAddress,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: selectedStatus,
+                      items: const ['Active', 'On Leave', 'Inactive'],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedStatus = value);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Items Handled',
+                controller: itemsHandledController,
+                hint: 'Number of items handled',
+                keyboardType: TextInputType.number,
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Update' : 'Add Member',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () async {
                 if (nameController.text.trim().isEmpty ||
                     roleController.text.trim().isEmpty ||
@@ -1832,7 +1949,6 @@ Execution snapshot:
                   );
                 }
               },
-              child: Text(isEdit ? 'Update' : 'Add'),
             ),
           ],
         ),
@@ -1847,15 +1963,28 @@ Execution snapshot:
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Team Member'),
-        content: Text('Are you sure you want to delete "${member.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (dialogContext) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Team Member',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${member.name}"? '
+          'Once removed, the member record cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          ElevatedButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () async {
               try {
                 await SalvageService.deleteTeamMember(
@@ -1874,8 +2003,6 @@ Execution snapshot:
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -1925,225 +2052,187 @@ Execution snapshot:
 
     showDialog<void>(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Disposal Item' : 'Add Disposal Item'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: SizedBox(
-            width: 600,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        builder: (dialogContext, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.recycling_rounded,
+          accent: const Color(0xFF0EA5E9),
+          title: isEdit ? 'Edit Disposal Item' : 'Add Disposal Item',
+          subtitle: isEdit
+              ? 'Update the disposal queue item details.'
+              : 'Capture a new asset for disposal processing.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Asset ID & Description
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: assetIdController,
-                          decoration: const InputDecoration(
-                            labelText: 'Asset ID *',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 2,
-                        child: VoiceTextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Description *',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Asset ID *',
+                      controller: assetIdController,
+                      hint: 'Unique asset ID',
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                  // Row 2: Category & Condition
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: categoryController,
-                          decoration: const InputDecoration(
-                            labelText: 'Category *',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: conditionController.text.isEmpty
-                              ? 'Good'
-                              : conditionController.text,
-                          decoration: const InputDecoration(
-                            labelText: 'Condition',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const [
-                            'Excellent', 'Good', 'Fair', 'Poor', 'Non-Functional'
-                          ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) conditionController.text = v;
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 3: Location & Disposal Method
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: locationController,
-                          decoration: const InputDecoration(
-                            labelText: 'Location',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedDisposalMethod,
-                          decoration: const InputDecoration(
-                            labelText: 'Disposal Method',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const [
-                            'Auction', 'Recycle', 'Donate', 'Scrap', 'Resell', 'Trade-In', 'Transfer'
-                          ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedDisposalMethod = v);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 4: Status & Priority
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedStatus,
-                          decoration: const InputDecoration(
-                            labelText: 'Status',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const [
-                            'Pending Review',
-                            'Approved',
-                            'In Progress',
-                            'Pending Disposal',
-                            'Completed',
-                            'On Hold',
-                            'Cancelled',
-                          ].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedStatus = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedPriority,
-                          decoration: const InputDecoration(
-                            labelText: 'Priority',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const ['Critical', 'High', 'Medium', 'Low']
-                              .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedPriority = v);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 5: Est. Value & Disposal Cost
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: valueController,
-                          decoration: const InputDecoration(
-                            labelText: 'Estimated Value *',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            prefixText: '\$ ',
-                          ),
-                          keyboardType: TextInputType.text,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: disposalCostController,
-                          decoration: const InputDecoration(
-                            labelText: 'Disposal Cost',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            prefixText: '\$ ',
-                          ),
-                          keyboardType: TextInputType.text,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 6: Assigned To & Target Date
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: assignedToController,
-                          decoration: const InputDecoration(
-                            labelText: 'Assigned To',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: targetDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Target Date',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            hintText: 'e.g. 2026-06-15',
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: LaunchModalTextField(
+                      label: 'Description *',
+                      controller: nameController,
+                      hint: 'Asset description',
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Category *',
+                      controller: categoryController,
+                      hint: 'e.g. Electronics',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Condition',
+                      value: conditionController.text.isEmpty
+                          ? 'Good'
+                          : conditionController.text,
+                      items: const [
+                        'Excellent', 'Good', 'Fair', 'Poor', 'Non-Functional'
+                      ],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => conditionController.text = v);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Location',
+                      controller: locationController,
+                      hint: 'Current location',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Disposal Method',
+                      value: selectedDisposalMethod,
+                      items: const [
+                        'Auction', 'Recycle', 'Donate', 'Scrap', 'Resell', 'Trade-In', 'Transfer'
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedDisposalMethod = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: selectedStatus,
+                      items: const [
+                        'Pending Review',
+                        'Approved',
+                        'In Progress',
+                        'Pending Disposal',
+                        'Completed',
+                        'On Hold',
+                        'Cancelled',
+                      ],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedStatus = v);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Priority',
+                      value: selectedPriority,
+                      items: const ['Critical', 'High', 'Medium', 'Low'],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedPriority = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Estimated Value *',
+                      controller: valueController,
+                      hint: '0.00',
+                      keyboardType: TextInputType.text,
+                      suffixText: '\$',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Disposal Cost',
+                      controller: disposalCostController,
+                      hint: '0.00',
+                      keyboardType: TextInputType.text,
+                      suffixText: '\$',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Assigned To',
+                      controller: assignedToController,
+                      hint: 'Team member responsible',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Target Date',
+                      controller: targetDateController,
+                      hint: 'e.g. 2026-06-15',
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Update' : 'Add Item',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () async {
                 if (assetIdController.text.trim().isEmpty ||
                     nameController.text.trim().isEmpty ||
@@ -2211,7 +2300,6 @@ Execution snapshot:
                   );
                 }
               },
-              child: Text(isEdit ? 'Update' : 'Add'),
             ),
           ],
         ),
@@ -2226,15 +2314,28 @@ Execution snapshot:
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Disposal Item'),
-        content: Text('Are you sure you want to delete "${item.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (dialogContext) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Disposal Item',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.name}"? '
+          'Once removed, the disposal record cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          ElevatedButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () async {
               try {
                 await SalvageService.deleteDisposalItem(
@@ -2253,8 +2354,6 @@ Execution snapshot:
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -3232,44 +3331,45 @@ Execution snapshot:
   void _showDisposalItemDetailDialog(BuildContext context, SalvageDisposalItemModel item) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(children: [
-          const Icon(Icons.inventory_2_outlined, size: 20, color: Color(0xFF0EA5E9)),
-          const SizedBox(width: 8),
-          Expanded(child: Text(item.name, style: const TextStyle(fontSize: 16))),
-        ]),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        content: SizedBox(
-          width: 480,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _detailRow('Asset ID', item.assetId),
-              _detailRow('Category', item.category),
-              _detailRow('Condition', item.condition.isNotEmpty ? item.condition : 'Not specified'),
-              _detailRow('Location', item.location.isNotEmpty ? item.location : 'Not specified'),
-              _detailRow('Disposal Method', item.disposalMethod.isNotEmpty ? item.disposalMethod : 'Not specified'),
-              _detailRow('Status', item.status),
-              _detailRow('Priority', item.priority),
-              _detailRow('Estimated Value', item.estimatedValue),
-              _detailRow('Disposal Cost', item.disposalCost.isNotEmpty ? item.disposalCost : 'Not specified'),
-              _detailRow('Assigned To', item.assignedTo.isNotEmpty ? item.assignedTo : 'Unassigned'),
-              _detailRow('Target Date', item.targetDate.isNotEmpty ? item.targetDate : 'Not set'),
-              const Divider(height: 24),
-              _detailRow('Created By', item.createdByName),
-              _detailRow('Created At', _formatDate(item.createdAt)),
-              _detailRow('Updated At', _formatDate(item.updatedAt)),
-            ],
-          ),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.inventory_2_outlined,
+        accent: const Color(0xFF0EA5E9),
+        title: item.name,
+        subtitle: 'Disposal item details and audit trail.',
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _detailRow('Asset ID', item.assetId),
+            _detailRow('Category', item.category),
+            _detailRow('Condition', item.condition.isNotEmpty ? item.condition : 'Not specified'),
+            _detailRow('Location', item.location.isNotEmpty ? item.location : 'Not specified'),
+            _detailRow('Disposal Method', item.disposalMethod.isNotEmpty ? item.disposalMethod : 'Not specified'),
+            _detailRow('Status', item.status),
+            _detailRow('Priority', item.priority),
+            _detailRow('Estimated Value', item.estimatedValue),
+            _detailRow('Disposal Cost', item.disposalCost.isNotEmpty ? item.disposalCost : 'Not specified'),
+            _detailRow('Assigned To', item.assignedTo.isNotEmpty ? item.assignedTo : 'Unassigned'),
+            _detailRow('Target Date', item.targetDate.isNotEmpty ? item.targetDate : 'Not set'),
+            const Divider(height: 24),
+            _detailRow('Created By', item.createdByName),
+            _detailRow('Created At', _formatDate(item.createdAt)),
+            _detailRow('Updated At', _formatDate(item.updatedAt)),
+          ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-          FilledButton.icon(
-            onPressed: () { Navigator.pop(ctx); _showEditDisposalDialog(context, item); },
-            icon: const Icon(Icons.edit, size: 16),
-            label: const Text('Edit'),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
+          LaunchModalCancelButton(
+            label: 'Close',
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          LaunchModalPrimaryButton(
+            label: 'Edit',
+            icon: Icons.edit_rounded,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showEditDisposalDialog(context, item);
+            },
           ),
         ],
       ),
@@ -3706,86 +3806,170 @@ Execution snapshot:
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Regulation' : 'Add Regulation'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.gavel_rounded,
+          accent: const Color(0xFF0EA5E9),
+          title: isEdit ? 'Edit Regulation' : 'Add Regulation',
+          subtitle: isEdit
+              ? 'Update the compliance regulation record.'
+              : 'Capture a regulatory compliance requirement for tracking.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LaunchModalTextField(
+                label: 'Regulation / Standard',
+                controller: regulationCtrl,
+                hint: 'e.g. EPA Hazardous Waste Rule',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  VoiceTextField(controller: regulationCtrl, decoration: const InputDecoration(labelText: 'Regulation/Standard', border: OutlineInputBorder())),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: DropdownButtonFormField<String>(
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Category',
                       value: category,
-                      decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
-                      items: ['Environmental', 'Safety', 'Health', 'Legal', 'Financial', 'Quality'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                      items: const ['Environmental', 'Safety', 'Health', 'Legal', 'Financial', 'Quality'],
                       onChanged: (v) => setDialogState(() => category = v ?? 'Environmental'),
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(child: DropdownButtonFormField<String>(
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Compliance Status',
                       value: complianceStatus,
-                      decoration: const InputDecoration(labelText: 'Compliance Status', border: OutlineInputBorder()),
-                      items: ['Compliant', 'Non-Compliant', 'Conditional', 'Renewal Due', 'Pending', 'Expired'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+                      items: const ['Compliant', 'Non-Compliant', 'Conditional', 'Renewal Due', 'Pending', 'Expired'],
                       onChanged: (v) => setDialogState(() => complianceStatus = v ?? 'Compliant'),
-                    )),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: VoiceTextField(controller: scoreCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Compliance Score %', border: OutlineInputBorder()))),
-                    const SizedBox(width: 10),
-                    Expanded(child: VoiceTextField(controller: daysToExpiryCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Days to Expiry', border: OutlineInputBorder()))),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: VoiceTextField(controller: lastAuditCtrl, decoration: const InputDecoration(labelText: 'Last Audit Date', border: OutlineInputBorder()))),
-                    const SizedBox(width: 10),
-                    Expanded(child: VoiceTextField(controller: nextAuditCtrl, decoration: const InputDecoration(labelText: 'Next Audit Due', border: OutlineInputBorder()))),
-                  ]),
-                  const SizedBox(height: 14),
-                  VoiceTextField(controller: responsibleCtrl, decoration: const InputDecoration(labelText: 'Responsible Party', border: OutlineInputBorder())),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: DropdownButtonFormField<String>(
-                      value: riskLevel,
-                      decoration: const InputDecoration(labelText: 'Risk Level', border: OutlineInputBorder()),
-                      items: ['Critical', 'High', 'Medium', 'Low'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                      onChanged: (v) => setDialogState(() => riskLevel = v ?? 'Low'),
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(child: DropdownButtonFormField<String>(
-                      value: priority,
-                      decoration: const InputDecoration(labelText: 'Priority', border: OutlineInputBorder()),
-                      items: ['P1', 'P2', 'P3', 'P4'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                      onChanged: (v) => setDialogState(() => priority = v ?? 'P3'),
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(child: DropdownButtonFormField<String>(
-                      value: status,
-                      decoration: const InputDecoration(labelText: 'Workflow', border: OutlineInputBorder()),
-                      items: ['Active', 'Under Review', 'Closed'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                      onChanged: (v) => setDialogState(() => status = v ?? 'Active'),
-                    )),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: VoiceTextField(controller: findingsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Open Findings', border: OutlineInputBorder()))),
-                    const SizedBox(width: 10),
-                    Expanded(child: VoiceTextField(controller: correctiveCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Corrective Actions', border: OutlineInputBorder()))),
-                    const SizedBox(width: 10),
-                    Expanded(child: VoiceTextField(controller: lastUpdatedCtrl, decoration: const InputDecoration(labelText: 'Last Updated', border: OutlineInputBorder()))),
-                  ]),
+                    ),
+                  ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Compliance Score %',
+                      controller: scoreCtrl,
+                      hint: '0–100',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Days to Expiry',
+                      controller: daysToExpiryCtrl,
+                      hint: 'e.g. 90',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Last Audit Date',
+                      controller: lastAuditCtrl,
+                      hint: 'e.g. 2025-01-15',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Next Audit Due',
+                      controller: nextAuditCtrl,
+                      hint: 'e.g. 2026-01-15',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Responsible Party',
+                controller: responsibleCtrl,
+                hint: 'Person or team accountable',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Risk Level',
+                      value: riskLevel,
+                      items: const ['Critical', 'High', 'Medium', 'Low'],
+                      onChanged: (v) => setDialogState(() => riskLevel = v ?? 'Low'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Priority',
+                      value: priority,
+                      items: const ['P1', 'P2', 'P3', 'P4'],
+                      onChanged: (v) => setDialogState(() => priority = v ?? 'P3'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Workflow',
+                      value: status,
+                      items: const ['Active', 'Under Review', 'Closed'],
+                      onChanged: (v) => setDialogState(() => status = v ?? 'Active'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Open Findings',
+                      controller: findingsCtrl,
+                      hint: '0',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Corrective Actions',
+                      controller: correctiveCtrl,
+                      hint: '0',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Last Updated',
+                      controller: lastUpdatedCtrl,
+                      hint: 'Just now',
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
+            LaunchModalCancelButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Update' : 'Add Regulation',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () {
                 final row = _ComplianceRegulationRow(
                   regulation: regulationCtrl.text.trim(),
@@ -3818,7 +4002,6 @@ Execution snapshot:
                   behavior: SnackBarBehavior.floating,
                 ));
               },
-              child: Text(isEdit ? 'Update' : 'Add'),
             ),
           ],
         ),
@@ -3829,14 +4012,28 @@ Execution snapshot:
   void _deleteComplianceRow(int index) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Regulation'),
-        content: Text('Are you sure you want to delete "${_complianceRows[index].regulation}"? This action cannot be undone.'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Regulation',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${_complianceRows[index].regulation}"? '
+          'Once removed, the regulation record cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () {
               setState(() => _complianceRows.removeAt(index));
               _saveComplianceToFirestore();
@@ -3847,7 +4044,6 @@ Execution snapshot:
                 behavior: SnackBarBehavior.floating,
               ));
             },
-            child: const Text('Delete'),
           ),
         ],
       ),
@@ -4227,199 +4423,174 @@ Execution snapshot:
 
     showDialog<void>(
       context: context,
+      barrierDismissible: true,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(isEdit ? 'Edit Milestone' : 'Add Milestone'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          content: SizedBox(
-            width: 600,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        builder: (dialogContext, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.flag_rounded,
+          accent: const Color(0xFF0EA5E9),
+          title: isEdit ? 'Edit Milestone' : 'Add Milestone',
+          subtitle: isEdit
+              ? 'Update the disposal timeline milestone.'
+              : 'Plan a new milestone on the disposal timeline.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Milestone & Description
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: VoiceTextField(
-                          controller: milestoneController,
-                          decoration: const InputDecoration(
-                            labelText: 'Milestone *',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 3,
-                        child: VoiceTextField(
-                          controller: descriptionController,
-                          decoration: const InputDecoration(
-                            labelText: 'Description',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    flex: 2,
+                    child: LaunchModalTextField(
+                      label: 'Milestone *',
+                      controller: milestoneController,
+                      hint: 'e.g. Asset Disposal Kickoff',
+                    ),
                   ),
-                  const SizedBox(height: 14),
-                  // Row 2: Phase & Status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedPhase,
-                          decoration: const InputDecoration(
-                            labelText: 'Phase',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const ['Planning', 'Execution', 'Review', 'Closure']
-                              .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedPhase = v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedStatus,
-                          decoration: const InputDecoration(
-                            labelText: 'Status',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const ['Not Started', 'In Progress', 'Completed', 'Overdue', 'On Hold']
-                              .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedStatus = v);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 3: Owner & Priority
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: ownerController,
-                          decoration: const InputDecoration(
-                            labelText: 'Owner / Responsible',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: selectedPriority,
-                          decoration: const InputDecoration(
-                            labelText: 'Priority',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          items: const ['Critical', 'High', 'Medium', 'Low']
-                              .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                          onChanged: (v) {
-                            if (v != null) setDialogState(() => selectedPriority = v);
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 4: Start Date & Due Date
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: startDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Start Date',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            hintText: 'e.g. 2026-05-01',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: dueDateController,
-                          decoration: const InputDecoration(
-                            labelText: 'Due Date',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            hintText: 'e.g. 2026-06-15',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 5: Progress slider
-                  Row(
-                    children: [
-                      Text('Progress: ', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
-                      Expanded(
-                        child: Slider(
-                          value: progressValue.toDouble(),
-                          min: 0,
-                          max: 100,
-                          divisions: 20,
-                          label: '$progressValue%',
-                          onChanged: (v) => setDialogState(() => progressValue = v.round()),
-                        ),
-                      ),
-                      Text('$progressValue%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Row 6: Dependencies & Notes
-                  Row(
-                    children: [
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: dependenciesController,
-                          decoration: const InputDecoration(
-                            labelText: 'Dependencies',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                            hintText: 'e.g. Milestone A, B',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: VoiceTextField(
-                          controller: notesController,
-                          decoration: const InputDecoration(
-                            labelText: 'Notes',
-                            border: OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 3,
+                    child: LaunchModalTextField(
+                      label: 'Description',
+                      controller: descriptionController,
+                      hint: 'What this milestone covers',
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Phase',
+                      value: selectedPhase,
+                      items: const ['Planning', 'Execution', 'Review', 'Closure'],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedPhase = v);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: selectedStatus,
+                      items: const ['Not Started', 'In Progress', 'Completed', 'Overdue', 'On Hold'],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedStatus = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Owner / Responsible',
+                      controller: ownerController,
+                      hint: 'Person accountable',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Priority',
+                      value: selectedPriority,
+                      items: const ['Critical', 'High', 'Medium', 'Low'],
+                      onChanged: (v) {
+                        if (v != null) setDialogState(() => selectedPriority = v);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Start Date',
+                      controller: startDateController,
+                      hint: 'e.g. 2026-05-01',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Due Date',
+                      controller: dueDateController,
+                      hint: 'e.g. 2026-06-15',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      const LaunchModalLabel('Progress'),
+                      const Spacer(),
+                      Text(
+                        '$progressValue%',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1A1D1F),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Slider(
+                    value: progressValue.toDouble(),
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    label: '$progressValue%',
+                    activeColor: const Color(0xFFFFC107),
+                    onChanged: (v) => setDialogState(() => progressValue = v.round()),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Dependencies',
+                      controller: dependenciesController,
+                      hint: 'e.g. Milestone A, B',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Notes',
+                      controller: notesController,
+                      hint: 'Optional context',
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF0EA5E9)),
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Update' : 'Add Milestone',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () async {
                 if (milestoneController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -4477,7 +4648,6 @@ Execution snapshot:
                   );
                 }
               },
-              child: Text(isEdit ? 'Update' : 'Add'),
             ),
           ],
         ),
@@ -4491,17 +4661,28 @@ Execution snapshot:
 
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Milestone'),
-        content: Text('Are you sure you want to delete "${item.milestone}"? This action cannot be undone.'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (dialogContext) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Milestone',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.milestone}"? '
+          'Once removed, the milestone record cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(dialogContext).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () async {
               try {
                 await SalvageService.deleteTimelineItem(
@@ -4524,7 +4705,6 @@ Execution snapshot:
                 );
               }
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

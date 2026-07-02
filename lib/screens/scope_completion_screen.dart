@@ -15,6 +15,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_modal.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
@@ -1289,225 +1290,134 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Row(
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.add_rounded,
+          accent: const Color(0xFF4154F1),
+          title: isEdit ? 'Edit Work Package' : 'Add Work Package',
+          subtitle: isEdit
+              ? 'Update the deliverable details below.'
+              : 'Capture a new deliverable for scope acceptance tracking.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
-                  size: 22, color: const Color(0xFF4154F1)),
-              const SizedBox(width: 10),
-              Text(isEdit ? 'Edit Work Package' : 'Add Work Package',
-                  style: const TextStyle(fontSize: 18)),
-            ],
-          ),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              LaunchModalTextField(
+                label: 'WBS Code',
+                controller: wbsCtl,
+                hint: 'e.g. 1.2.3',
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Work Package Title *',
+                controller: titleCtl,
+                hint: 'Describe the deliverable',
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // WBS Code
-                  const _DialogLabel('WBS Code'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: wbsCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'e.g. 1.2.3',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Owner',
+                      controller: ownerCtl,
+                      hint: 'Responsible person',
                     ),
-                    style: const TextStyle(fontFamily: 'monospace'),
                   ),
-                  const SizedBox(height: 14),
-                  // Title
-                  const _DialogLabel('Work Package Title *'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: titleCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe the deliverable',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Milestone',
+                      controller: milestoneCtl,
+                      hint: 'Target milestone',
                     ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 14),
-                  // Owner & Milestone
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Owner'),
-                            const SizedBox(height: 4),
-                            VoiceTextField(
-                              controller: ownerCtl,
-                              decoration: const InputDecoration(
-                                hintText: 'Responsible person',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Milestone'),
-                            const SizedBox(height: 4),
-                            VoiceTextField(
-                              controller: milestoneCtl,
-                              decoration: const InputDecoration(
-                                hintText: 'Target milestone',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Dates
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Baseline Date'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: baselineDate,
-                              onPicked: (d) =>
-                                  setDialogState(() => baselineDate = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Actual Date'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: actualDate,
-                              onPicked: (d) =>
-                                  setDialogState(() => actualDate = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // % Complete + Status + Impact
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('% Complete'),
-                            const SizedBox(height: 4),
-                            VoiceTextField(
-                              controller: pctCtl,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                hintText: '0–100',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                                suffixText: '%',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Status'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: status,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _workStatuses
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => status = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Impact'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: impact,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _impactLevels
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => impact = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Notes
-                  const _DialogLabel('Notes'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: notesCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Additional context or remarks',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Baseline Date',
+                      initialDate: baselineDate,
+                      onPicked: (d) =>
+                          setDialogState(() => baselineDate = d),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Actual Date',
+                      initialDate: actualDate,
+                      onPicked: (d) =>
+                          setDialogState(() => actualDate = d),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: '% Complete',
+                      controller: pctCtl,
+                      hint: '0–100',
+                      keyboardType: TextInputType.number,
+                      suffixText: '%',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: status,
+                      items: _workStatuses,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => status = v);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Impact',
+                      value: impact,
+                      items: _impactLevels,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => impact = v);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Notes',
+                controller: notesCtl,
+                hint: 'Additional context or remarks',
+                maxLines: 3,
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Save Changes' : 'Add Package',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () {
                 final pct =
                     (int.tryParse(pctCtl.text.trim()) ?? 0).clamp(0, 100);
@@ -1532,12 +1442,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                 }
                 Navigator.of(ctx).pop();
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4154F1),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(isEdit ? 'Save Changes' : 'Add Package'),
             ),
           ],
         ),
@@ -1588,30 +1492,32 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   void _confirmDeleteWorkPackage(_WorkPackageItem item) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 10),
-            Text('Delete Work Package'),
-          ],
-        ),
-        content: Text(
-            'Are you sure you want to delete "${item.title.isNotEmpty ? item.title : 'this package'}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Work Package',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.title.isNotEmpty ? item.title : 'this package'}"? '
+          'Once removed, the entry cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          FilledButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () {
               _deleteWorkPackage(item.id);
               Navigator.of(ctx).pop();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-            child: const Text('Delete'),
           ),
         ],
       ),
@@ -1880,168 +1786,104 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Row(
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.add_rounded,
+          accent: const Color(0xFF4154F1),
+          title: isEdit ? 'Edit Checkpoint' : 'Add Checkpoint',
+          subtitle: isEdit
+              ? 'Update the formal acceptance checkpoint details.'
+              : 'Define a formal acceptance checkpoint for sponsor sign-off.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
-                  size: 22, color: const Color(0xFF4154F1)),
-              const SizedBox(width: 10),
-              Text(isEdit ? 'Edit Checkpoint' : 'Add Checkpoint',
-                  style: const TextStyle(fontSize: 18)),
-            ],
-          ),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              LaunchModalTextField(
+                label: 'Reference Code',
+                controller: refCodeCtl,
+                hint: 'e.g. ACC-001',
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Checkpoint Description *',
+                controller: titleCtl,
+                hint: 'Describe the acceptance checkpoint',
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Ref Code
-                  const _DialogLabel('Reference Code'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: refCodeCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'e.g. ACC-001',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    style: const TextStyle(fontFamily: 'monospace'),
-                  ),
-                  const SizedBox(height: 14),
-                  // Title
-                  const _DialogLabel('Checkpoint Description *'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: titleCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe the acceptance checkpoint',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 14),
-                  // Owner & Status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Approver'),
-                            const SizedBox(height: 4),
-                            VoiceTextField(
-                              controller: ownerCtl,
-                              decoration: const InputDecoration(
-                                hintText: 'Approver name',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Status'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: status,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _checkpointStatuses
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => status = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Dates
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Due Date'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: dueDate,
-                              onPicked: (d) =>
-                                  setDialogState(() => dueDate = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Sign-off Date'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: signOffDate,
-                              onPicked: (d) =>
-                                  setDialogState(() => signOffDate = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Evidence
-                  const _DialogLabel('Evidence / Artifact'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: evidenceCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Reference to evidence or artifact',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Approver',
+                      controller: ownerCtl,
+                      hint: 'Approver name',
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  // Notes
-                  const _DialogLabel('Notes'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: notesCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Additional context or remarks',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: status,
+                      items: _checkpointStatuses,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => status = v);
+                        }
+                      },
                     ),
-                    maxLines: 3,
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Due Date',
+                      initialDate: dueDate,
+                      onPicked: (d) =>
+                          setDialogState(() => dueDate = d),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Sign-off Date',
+                      initialDate: signOffDate,
+                      onPicked: (d) =>
+                          setDialogState(() => signOffDate = d),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Evidence / Artifact',
+                controller: evidenceCtl,
+                hint: 'Reference to evidence or artifact',
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Notes',
+                controller: notesCtl,
+                hint: 'Additional context or remarks',
+                maxLines: 3,
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Save Changes' : 'Add Checkpoint',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () {
                 final newItem = _CheckpointItem(
                   id: existing?.id ?? _newId(),
@@ -2062,12 +1904,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                 }
                 Navigator.of(ctx).pop();
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4154F1),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(isEdit ? 'Save Changes' : 'Add Checkpoint'),
             ),
           ],
         ),
@@ -2114,30 +1950,32 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   void _confirmDeleteCheckpoint(_CheckpointItem item) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 10),
-            Text('Delete Checkpoint'),
-          ],
-        ),
-        content: Text(
-            'Are you sure you want to delete "${item.title.isNotEmpty ? item.title : 'this checkpoint'}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Checkpoint',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.title.isNotEmpty ? item.title : 'this checkpoint'}"? '
+          'Once removed, the entry cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          FilledButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () {
               _deleteCheckpoint(item.id);
               Navigator.of(ctx).pop();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-            child: const Text('Delete'),
           ),
         ],
       ),
@@ -2339,154 +2177,95 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Row(
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.add_rounded,
+          accent: const Color(0xFF4154F1),
+          title: isEdit ? 'Edit Signal' : 'Add Signal',
+          subtitle: isEdit
+              ? 'Update the acceptance signal details.'
+              : 'Capture a sponsor or operations acceptance signal.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
-                  size: 22, color: const Color(0xFF4154F1)),
-              const SizedBox(width: 10),
-              Text(isEdit ? 'Edit Signal' : 'Add Signal',
-                  style: const TextStyle(fontSize: 18)),
-            ],
-          ),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              LaunchModalTextField(
+                label: 'Signal / Tag Name *',
+                controller: labelCtl,
+                hint: 'Name of the acceptance signal',
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Label
-                  const _DialogLabel('Signal / Tag Name *'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: labelCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Name of the acceptance signal',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Category',
+                      value: category,
+                      items: _signalCategories,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => category = v);
+                        }
+                      },
                     ),
-                    maxLines: 2,
                   ),
-                  const SizedBox(height: 14),
-                  // Category & Status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Category'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: category,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _signalCategories
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => category = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Status'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: status,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _checkpointStatuses
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => status = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Verified By & Date
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Verified By'),
-                            const SizedBox(height: 4),
-                            VoiceTextField(
-                              controller: verifiedByCtl,
-                              decoration: const InputDecoration(
-                                hintText: 'Person who verified',
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Date Verified'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: dateVerified,
-                              onPicked: (d) =>
-                                  setDialogState(() => dateVerified = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Notes
-                  const _DialogLabel('Notes'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: notesCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Additional context or remarks',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: status,
+                      items: _checkpointStatuses,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => status = v);
+                        }
+                      },
                     ),
-                    maxLines: 3,
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Verified By',
+                      controller: verifiedByCtl,
+                      hint: 'Person who verified',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Date Verified',
+                      initialDate: dateVerified,
+                      onPicked: (d) =>
+                          setDialogState(() => dateVerified = d),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Notes',
+                controller: notesCtl,
+                hint: 'Additional context or remarks',
+                maxLines: 3,
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Save Changes' : 'Add Signal',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () {
                 final newItem = _AcceptanceTagItem(
                   id: existing?.id ?? _newId(),
@@ -2505,12 +2284,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                 }
                 Navigator.of(ctx).pop();
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4154F1),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(isEdit ? 'Save Changes' : 'Add Signal'),
             ),
           ],
         ),
@@ -2536,30 +2309,32 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   void _confirmDeleteAcceptanceTag(_AcceptanceTagItem item) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 10),
-            Text('Delete Signal'),
-          ],
-        ),
-        content: Text(
-            'Are you sure you want to delete "${item.label.isNotEmpty ? item.label : 'this signal'}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Signal',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.label.isNotEmpty ? item.label : 'this signal'}"? '
+          'Once removed, the entry cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          FilledButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () {
               _deleteAcceptanceTag(item.id);
               Navigator.of(ctx).pop();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-            child: const Text('Delete'),
           ),
         ],
       ),
@@ -2859,202 +2634,122 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
 
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          title: Row(
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.add_rounded,
+          accent: const Color(0xFF4154F1),
+          title: isEdit ? 'Edit Scope Change' : 'Add Scope Change',
+          subtitle: isEdit
+              ? 'Update the scope change request details.'
+              : 'Log a new change request affecting the delivered scope.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(isEdit ? Icons.edit_outlined : Icons.add_circle_outline,
-                  size: 22, color: const Color(0xFF4154F1)),
-              const SizedBox(width: 10),
-              Text(isEdit ? 'Edit Scope Change' : 'Add Scope Change',
-                  style: const TextStyle(fontSize: 18)),
-            ],
-          ),
-          content: SizedBox(
-            width: 560,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              LaunchModalTextField(
+                label: 'Change Request ID',
+                controller: crIdCtl,
+                hint: 'e.g. CR-001',
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Change Description *',
+                controller: detailCtl,
+                hint: 'Describe the scope change',
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // CR ID
-                  const _DialogLabel('Change Request ID'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: crIdCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'e.g. CR-001',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    style: const TextStyle(fontFamily: 'monospace'),
-                  ),
-                  const SizedBox(height: 14),
-                  // Detail
-                  const _DialogLabel('Change Description *'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: detailCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Describe the scope change',
-                      isDense: true,
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 14),
-                  // Type + Impact + Status
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Type'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: changeType,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _changeTypes
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => changeType = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Impact'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: impactLevel,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _impactLevels
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => impactLevel = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Status'),
-                            const SizedBox(height: 4),
-                            DropdownButtonFormField<String>(
-                              value: status,
-                              decoration: const InputDecoration(
-                                isDense: true,
-                                border: OutlineInputBorder(),
-                              ),
-                              items: _changeStatuses
-                                  .map((s) => DropdownMenuItem(
-                                      value: s, child: Text(s)))
-                                  .toList(),
-                              onChanged: (v) {
-                                if (v != null) {
-                                  setDialogState(() => status = v);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Requested By
-                  const _DialogLabel('Requested By'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: requestedByCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Who requested this change',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Type',
+                      value: changeType,
+                      items: _changeTypes,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => changeType = v);
+                        }
+                      },
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  // Dates
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Date Raised'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: dateRaised,
-                              onPicked: (d) =>
-                                  setDialogState(() => dateRaised = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const _DialogLabel('Decision Date'),
-                            const SizedBox(height: 4),
-                            _DateField(
-                              initialDate: decisionDate,
-                              onPicked: (d) =>
-                                  setDialogState(() => decisionDate = d),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Notes
-                  const _DialogLabel('Notes'),
-                  const SizedBox(height: 4),
-                  VoiceTextField(
-                    controller: notesCtl,
-                    decoration: const InputDecoration(
-                      hintText: 'Additional context or remarks',
-                      isDense: true,
-                      border: OutlineInputBorder(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Impact',
+                      value: impactLevel,
+                      items: _impactLevels,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => impactLevel = v);
+                        }
+                      },
                     ),
-                    maxLines: 3,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status',
+                      value: status,
+                      items: _changeStatuses,
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => status = v);
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Requested By',
+                controller: requestedByCtl,
+                hint: 'Who requested this change',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Date Raised',
+                      initialDate: dateRaised,
+                      onPicked: (d) =>
+                          setDialogState(() => dateRaised = d),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalDateField(
+                      label: 'Decision Date',
+                      initialDate: decisionDate,
+                      onPicked: (d) =>
+                          setDialogState(() => decisionDate = d),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Notes',
+                controller: notesCtl,
+                hint: 'Additional context or remarks',
+                maxLines: 3,
+              ),
+            ],
           ),
           actions: [
-            TextButton(
+            LaunchModalCancelButton(
+              label: 'Cancel',
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Save Changes' : 'Add Change',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
               onPressed: () {
                 final newItem = _ScopeChangeItem(
                   id: existing?.id ?? _newId(),
@@ -3076,12 +2771,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
                 }
                 Navigator.of(ctx).pop();
               },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF4154F1),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(isEdit ? 'Save Changes' : 'Add Change'),
             ),
           ],
         ),
@@ -3130,30 +2819,32 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
   void _confirmDeleteScopeChange(_ScopeChangeItem item) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444)),
-            SizedBox(width: 10),
-            Text('Delete Scope Change'),
-          ],
-        ),
-        content: Text(
-            'Are you sure you want to delete "${item.detail.isNotEmpty ? item.detail : 'this change'}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Scope Change',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${item.detail.isNotEmpty ? item.detail : 'this change'}"? '
+          'Once removed, the entry cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          FilledButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () {
               _deleteScopeChange(item.id);
               Navigator.of(ctx).pop();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-            ),
-            child: const Text('Delete'),
           ),
         ],
       ),
@@ -4179,63 +3870,5 @@ class _Debouncer {
 
   void dispose() {
     _timer?.cancel();
-  }
-}
-
-class _DialogLabel extends StatelessWidget {
-  const _DialogLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF374151),
-      ),
-    );
-  }
-}
-
-class _DateField extends StatelessWidget {
-  const _DateField({required this.onPicked, this.initialDate});
-  final DateTime? initialDate;
-  final ValueChanged<DateTime?> onPicked;
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = TextEditingController(
-      text: initialDate != null ? _formatDateShort(initialDate!) : '',
-    );
-
-    return VoiceTextField(
-      controller: controller,
-      readOnly: true,
-      decoration: InputDecoration(
-        hintText: 'Select date',
-        isDense: true,
-        border: const OutlineInputBorder(),
-        suffixIcon: const Icon(Icons.calendar_today_outlined, size: 16),
-      ),
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: initialDate ?? DateTime.now(),
-          firstDate: DateTime(2020),
-          lastDate: DateTime(2040),
-        );
-        onPicked(picked);
-      },
-    );
-  }
-
-  static String _formatDateShort(DateTime dt) {
-    const months = [
-      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-    ];
-    return '${dt.day} ${months[dt.month]} ${dt.year}';
   }
 }

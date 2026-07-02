@@ -418,6 +418,34 @@ class _SignInScreenState extends State<SignInScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  // ── Admin Panel button ──────────────────────────────────
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        context.go('/admin-home');
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1A1D1F),
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFFE4E7EC), width: 1.5),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.shield_outlined,
+                          size: 18, color: Color(0xFF6B7280)),
+                      label: const Text(
+                        'Admin Panel',
+                        style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4B5563)),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 20),
                   Center(
                     child: GestureDetector(

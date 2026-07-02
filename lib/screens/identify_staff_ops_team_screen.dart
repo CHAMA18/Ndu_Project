@@ -11,9 +11,9 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
+import 'package:ndu_project/widgets/launch_modal.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
-import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 class IdentifyStaffOpsTeamScreen extends StatefulWidget {
@@ -924,111 +924,139 @@ class _IdentifyStaffOpsTeamScreenState
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEdit ? 'Edit Ops Member' : 'Add New Ops Member'),
-        content: SingleChildScrollView(
-          child: Column(
+      barrierDismissible: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: isEdit ? Icons.edit_rounded : Icons.person_add_rounded,
+          accent: const Color(0xFF10B981),
+          title: isEdit ? 'Edit Ops Member' : 'Add Ops Member',
+          subtitle: isEdit
+              ? 'Update the operations team member profile.'
+              : 'Capture a new operations team member with role and readiness.',
+          body: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              VoiceTextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(labelText: 'Name *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: roleController,
-                  decoration: const InputDecoration(labelText: 'Role *')),
-              const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: responsibilityController,
-                  decoration:
-                      const InputDecoration(labelText: 'Responsibility *')),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: statusController.text,
-                decoration: const InputDecoration(labelText: 'Status *'),
-                items: ['Active', 'Pending', 'Inactive']
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                    .toList(),
-                onChanged: (v) => statusController.text = v ?? 'Active',
+              LaunchModalTextField(
+                label: 'Name *',
+                controller: nameController,
+                hint: 'Full name of the team member',
               ),
               const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: readinessController,
-                  decoration: const InputDecoration(
-                      labelText: 'Readiness Score (0-100) *')),
+              LaunchModalTextField(
+                label: 'Role *',
+                controller: roleController,
+                hint: 'e.g. Operations Lead',
+              ),
               const SizedBox(height: 12),
-              VoiceTextField(
-                  controller: notesController,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                  maxLines: 3),
+              LaunchModalTextField(
+                label: 'Responsibility *',
+                controller: responsibilityController,
+                hint: 'Primary responsibility on the ops team',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: LaunchModalDropdown<String>(
+                      label: 'Status *',
+                      value: statusController.text,
+                      items: const ['Active', 'Pending', 'Inactive'],
+                      onChanged: (v) {
+                        if (v != null) {
+                          setDialogState(() => statusController.text = v);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: LaunchModalTextField(
+                      label: 'Readiness Score (0-100) *',
+                      controller: readinessController,
+                      hint: '0–100',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              LaunchModalTextField(
+                label: 'Notes',
+                controller: notesController,
+                hint: 'Optional context about this member',
+                maxLines: 3,
+              ),
             ],
           ),
+          actions: [
+            LaunchModalCancelButton(
+              label: 'Cancel',
+              onPressed: () => Navigator.pop(ctx),
+            ),
+            LaunchModalPrimaryButton(
+              label: isEdit ? 'Update' : 'Add Member',
+              icon: isEdit ? Icons.check_rounded : Icons.add_rounded,
+              onPressed: () async {
+                if (nameController.text.isEmpty || roleController.text.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Please fill in required fields')),
+                  );
+                  return;
+                }
+
+                try {
+                  final readiness = int.tryParse(readinessController.text) ?? 0;
+
+                  if (isEdit) {
+                    await OpsService.updateMember(
+                      projectId: projectId,
+                      memberId: member.id,
+                      name: nameController.text,
+                      role: roleController.text,
+                      responsibility: responsibilityController.text,
+                      status: statusController.text,
+                      readinessScore: readiness,
+                      notes: notesController.text.isEmpty
+                          ? null
+                          : notesController.text,
+                    );
+                  } else {
+                    await OpsService.createMember(
+                      projectId: projectId,
+                      name: nameController.text,
+                      role: roleController.text,
+                      responsibility: responsibilityController.text,
+                      status: statusController.text,
+                      readinessScore: readiness,
+                      notes: notesController.text.isEmpty
+                          ? null
+                          : notesController.text,
+                    );
+                  }
+
+                  if (ctx.mounted) {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(isEdit
+                              ? 'Member updated successfully'
+                              : 'Member added successfully')),
+                    );
+                  }
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty || roleController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Please fill in required fields')),
-                );
-                return;
-              }
-
-              try {
-                final readiness = int.tryParse(readinessController.text) ?? 0;
-
-                if (isEdit) {
-                  await OpsService.updateMember(
-                    projectId: projectId,
-                    memberId: member.id,
-                    name: nameController.text,
-                    role: roleController.text,
-                    responsibility: responsibilityController.text,
-                    status: statusController.text,
-                    readinessScore: readiness,
-                    notes: notesController.text.isEmpty
-                        ? null
-                        : notesController.text,
-                  );
-                } else {
-                  await OpsService.createMember(
-                    projectId: projectId,
-                    name: nameController.text,
-                    role: roleController.text,
-                    responsibility: responsibilityController.text,
-                    status: statusController.text,
-                    readinessScore: readiness,
-                    notes: notesController.text.isEmpty
-                        ? null
-                        : notesController.text,
-                  );
-                }
-
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(isEdit
-                            ? 'Member updated successfully'
-                            : 'Member added successfully')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              }
-            },
-            child: Text(isEdit ? 'Update' : 'Add'),
-          ),
-        ],
       ),
     );
   }
@@ -1045,38 +1073,48 @@ class _IdentifyStaffOpsTeamScreenState
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Member'),
-        content: Text(
-            'Are you sure you want to delete "${member.name}"? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+      barrierDismissible: true,
+      builder: (ctx) => LaunchModalShell(
+        icon: Icons.delete_outline_rounded,
+        accent: const Color(0xFFEF4444),
+        title: 'Delete Member',
+        subtitle: 'This action cannot be undone.',
+        body: Text(
+          'Are you sure you want to delete "${member.name}"? '
+          'Once removed, the member record cannot be recovered.',
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF4B5563),
+            height: 1.5,
           ),
-          ElevatedButton(
+        ),
+        actions: [
+          LaunchModalCancelButton(
+            label: 'Cancel',
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          LaunchModalDangerButton(
+            label: 'Delete',
             onPressed: () async {
               try {
                 await OpsService.deleteMember(
                     projectId: projectId, memberId: member.id);
-                if (context.mounted) {
-                  Navigator.pop(context);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text('Member deleted successfully')),
                   );
                 }
               } catch (e) {
-                if (context.mounted) {
-                  Navigator.pop(context);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Error deleting member: $e')),
                   );
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
