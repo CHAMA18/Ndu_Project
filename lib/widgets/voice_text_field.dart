@@ -60,7 +60,7 @@ class VoiceTextField extends StatefulWidget {
     this.enableVoice = true,
     this.voiceIconColor,
     this.onTapOutside,
-    this.enableDocxImport = true,
+    this.enableDocxImport = false,
     this.docxImportIconColor,
     this.docxImportTooltip = 'Import from .docx / .doc',
   });
@@ -493,7 +493,7 @@ class VoiceTextFormField extends StatefulWidget {
     this.restorationId,
     this.enableVoice = true,
     this.voiceIconColor,
-    this.enableDocxImport = true,
+    this.enableDocxImport = false,
     this.docxImportIconColor,
     this.docxImportTooltip = 'Import from .docx / .doc',
   });
