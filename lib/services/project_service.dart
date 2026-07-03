@@ -620,12 +620,8 @@ class ProjectService {
     } catch (e) {
       // Log error and throw exception to block save
       debugPrint('Error checking duplicate project name: $e');
-<<<<<<< HEAD
       throw StateError(
           'Unable to verify project name uniqueness. Please try again.');
-=======
-      throw StateError('Unable to verify project name uniqueness. Please try again.');
->>>>>>> 1ee471ae (Merge codebases)
     }
   }
 
@@ -693,23 +689,15 @@ class ProjectService {
     bool filterByOwner = true,
   }) {
     // Start with base query - NO status filter to show ALL projects (Draft, Initiation, In Progress, etc.)
-<<<<<<< HEAD
     Query<Map<String, dynamic>> query =
         _projectsCol.orderBy('createdAt', descending: true).limit(limit);
-=======
-    Query<Map<String, dynamic>> query = _projectsCol.orderBy('createdAt', descending: true).limit(limit);
->>>>>>> 1ee471ae (Merge codebases)
     if (filterByOwner && ownerId != null && ownerId.isNotEmpty) {
       query = query.where('ownerId', isEqualTo: ownerId);
     }
     return query.snapshots().map((snapshot) {
       final projects = snapshot.docs.map(ProjectRecord.fromDoc).toList();
-<<<<<<< HEAD
       debugPrint(
           '📊 StreamProjects: Found ${projects.length} projects for ownerId: $ownerId');
-=======
-      debugPrint('📊 StreamProjects: Found ${projects.length} projects for ownerId: $ownerId');
->>>>>>> 1ee471ae (Merge codebases)
       return projects;
     });
   }

@@ -390,7 +390,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   }
 
   void _addNewRisk() {
-<<<<<<< HEAD
     // Only allow admins (on admin host) to add risks.
     if (!_canUseAdminControls) return;
     if (_solutions.length >= 3) {
@@ -401,16 +400,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     setState(() {
       _solutions.add(AiSolutionItem(title: '', description: ''));
       _riskControllers.add(List.generate(3, (_) => _createRiskController()));
-=======
-    // Add a new solution row with empty risk fields
-    setState(() {
-      _solutions.add(AiSolutionItem(title: '', description: ''));
-      _riskControllers.add(List.generate(3, (_) {
-        final controller = TextEditingController();
-        controller.addListener(_onDataChanged);
-        return controller;
-      }));
->>>>>>> 1ee471ae (Merge codebases)
     });
     _onDataChanged(); // Trigger auto-save
   }
@@ -1368,7 +1357,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           ),
           const SizedBox(height: 16),
 
-<<<<<<< HEAD
           if (_error != null)
             Container(
               width: double.infinity,
@@ -1569,27 +1557,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
               setState(() => _reviewConfirmed = value);
             },
             reviewScrollController: _reviewScrollController,
-=======
-        // Auto-save status indicator
-        _buildAutoSaveIndicator(),
-        const SizedBox(height: 16),
-        
-        // Info + Add Risk + Next
-        Row(children: [
-          Container(width: 44, height: 44, decoration: const BoxDecoration(color: Color(0xFFB3D9FF), shape: BoxShape.circle), child: const Icon(Icons.info_outline, color: Colors.white)),
-          const SizedBox(width: 24),
-          ElevatedButton.icon(
-            onPressed: _addNewRisk,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Risk'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
->>>>>>> 1ee471ae (Merge codebases)
           ),
         ]),
       ),

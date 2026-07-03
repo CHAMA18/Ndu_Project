@@ -635,17 +635,8 @@ class _ChangeRequestRegisterTable extends StatelessWidget {
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.label, required this.color});
 
-<<<<<<< HEAD
   final String label;
   final Color color;
-=======
-  _TableRow({
-    required this.cells,
-    required this.isHeader,
-    this.request,
-    this.onEdit,
-  });
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {

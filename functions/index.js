@@ -8,10 +8,7 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
 // Lazy-load config to avoid deployment timeouts
 function getRuntimeConfig() {
   try {
@@ -40,11 +37,8 @@ function getCorsAllowedOrigins() {
     /\.firebaseapp\.com$/,
     /^https:\/\/staging\.admin\.nduproject\.com$/,
     /^https:\/\/.*\.nduproject\.com$/, // Allow all nduproject.com subdomains
-<<<<<<< HEAD
     /^https:\/\/nduproject\.com$/, // Allow bare domain
     /^https:\/\/www\.nduproject\.com$/, // Allow www
-=======
->>>>>>> 1ee471ae (Merge codebases)
     APP_BASE_URL,
     ...EXTRA_ALLOWED_ORIGINS
   ];
@@ -78,15 +72,9 @@ async function verifyAuthToken(req) {
  * Set CORS headers for response
  */
 function setCorsHeaders(req, res) {
-<<<<<<< HEAD
   const origin = (req.headers.origin || '').toString().trim();
   const CORS_ALLOWED_ORIGINS = getCorsAllowedOrigins();
   const isAllowed = origin.length > 0 && CORS_ALLOWED_ORIGINS.some((allowed) =>
-=======
-  const origin = req.headers.origin;
-  const CORS_ALLOWED_ORIGINS = getCorsAllowedOrigins();
-  const isAllowed = origin && CORS_ALLOWED_ORIGINS.some((allowed) =>
->>>>>>> 1ee471ae (Merge codebases)
     typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
   );
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -32,7 +33,6 @@ class SecurityManagementScreen extends StatefulWidget {
 
 class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
   _SecurityTab _selectedTab = _SecurityTab.dashboard;
-<<<<<<< HEAD
   final List<_RoleRowData> _roles = [];
   final List<_PermissionRowData> _permissions = [];
   final List<_SettingEntry> _settings = [];
@@ -90,15 +90,12 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
       if (mounted) setState(() => _loadingData = false);
     }
   }
-=======
->>>>>>> 1ee471ae (Merge codebases)
 
   void _handleTabSelected(_SecurityTab tab) {
     if (_selectedTab == tab) return;
     setState(() => _selectedTab = tab);
   }
 
-<<<<<<< HEAD
   void _logAccess({
     required String action,
     required String resource,
@@ -338,8 +335,6 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
     await projectRef.collection('security_settings_system').doc('current').set(data.toFirestore());
   }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
   @override
   Widget build(BuildContext context) {
     final double horizontalPadding = AppBreakpoints.isMobile(context) ? 20 : 32;
@@ -392,7 +387,6 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                           },
                         ),
                         const SizedBox(height: 28),
-<<<<<<< HEAD
                         _TabContent(
                           selectedTab: _selectedTab,
                           roles: _roles,
@@ -405,9 +399,6 @@ class _SecurityManagementScreenState extends State<SecurityManagementScreen> {
                           onSaveSettings: _handleSettingsSaved,
                           systemSettings: _systemSettings,
                         ),
-=======
-                        _TabContent(selectedTab: _selectedTab),
->>>>>>> 1ee471ae (Merge codebases)
                         const SizedBox(height: 48),
                       ],
                     ),
@@ -660,11 +651,7 @@ class _TabStrip extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-<<<<<<< HEAD
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 18, offset: const Offset(0, 12)),
-=======
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 18, offset: const Offset(0, 12)),
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
       child: SingleChildScrollView(
@@ -736,7 +723,6 @@ class _TabChip extends StatelessWidget {
 }
 
 class _TabContent extends StatelessWidget {
-<<<<<<< HEAD
   const _TabContent({
     required this.selectedTab,
     required this.roles,
@@ -760,17 +746,11 @@ class _TabContent extends StatelessWidget {
   final VoidCallback onAddSetting;
   final ValueChanged<_SystemSettingsData> onSaveSettings;
   final _SystemSettingsData systemSettings;
-=======
-  const _TabContent({required this.selectedTab});
-
-  final _SecurityTab selectedTab;
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
     switch (selectedTab) {
       case _SecurityTab.dashboard:
-<<<<<<< HEAD
         return _DashboardView(
           roles: roles,
           permissions: permissions,
@@ -790,42 +770,10 @@ class _TabContent extends StatelessWidget {
         );
       case _SecurityTab.accessLogs:
         return _AccessLogsView(logs: accessLogs);
-=======
-        return const _EmptySecurityState(
-          title: 'No security dashboard data yet',
-          message: 'Add security inputs to populate monitoring and alert insights.',
-          icon: Icons.shield_outlined,
-        );
-      case _SecurityTab.roles:
-        return const _EmptySecurityState(
-          title: 'No role data yet',
-          message: 'Define security roles to populate access coverage.',
-          icon: Icons.badge_outlined,
-        );
-      case _SecurityTab.permissions:
-        return const _EmptySecurityState(
-          title: 'No permission data yet',
-          message: 'Capture permissions and access scopes to populate this view.',
-          icon: Icons.lock_open_outlined,
-        );
-      case _SecurityTab.settings:
-        return const _EmptySecurityState(
-          title: 'No security settings yet',
-          message: 'Add configuration details to populate security settings.',
-          icon: Icons.settings_outlined,
-        );
-      case _SecurityTab.accessLogs:
-        return const _EmptySecurityState(
-          title: 'No access logs yet',
-          message: 'Log security events to populate access history.',
-          icon: Icons.receipt_long_outlined,
-        );
->>>>>>> 1ee471ae (Merge codebases)
     }
   }
 }
 
-<<<<<<< HEAD
 // ignore: unused_element
 class _EmptySecurityState extends StatelessWidget {
   const _EmptySecurityState({required this.title, required this.message, required this.icon});
@@ -884,55 +832,6 @@ class _DashboardView extends StatelessWidget {
   final List<_PermissionRowData> permissions;
   final List<_SettingEntry> settings;
   final List<_AccessLogEntry> accessLogs;
-=======
-class _EmptySecurityState extends StatelessWidget {
-  const _EmptySecurityState({required this.title, required this.message, required this.icon});
-
-  final String title;
-  final String message;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF7ED),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: const Color(0xFFF59E0B)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
-                const SizedBox(height: 6),
-                Text(message, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DashboardView extends StatelessWidget {
-  const _DashboardView();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -960,7 +859,6 @@ class _DashboardView extends StatelessWidget {
               spacing: 16,
               runSpacing: 16,
               children: [
-<<<<<<< HEAD
                 SizedBox(width: cardWidth, child: _RoleTiersCard(roles: roles)),
                 SizedBox(width: cardWidth, child: _ResourcePermissionsCard(permissions: permissions)),
                 SizedBox(
@@ -972,28 +870,18 @@ class _DashboardView extends StatelessWidget {
                     latestLog: latestLog,
                   ),
                 ),
-=======
-                SizedBox(width: cardWidth, child: const _RoleTiersCard()),
-                SizedBox(width: cardWidth, child: const _ResourcePermissionsCard()),
-                SizedBox(width: cardWidth, child: const _SecurityStatusCard()),
->>>>>>> 1ee471ae (Merge codebases)
               ],
             );
           },
         ),
         const SizedBox(height: 28),
-<<<<<<< HEAD
         _RecentActivityCard(logs: accessLogs),
-=======
-        const _RecentActivityCard(),
->>>>>>> 1ee471ae (Merge codebases)
       ],
     );
   }
 }
 
 class _SettingsView extends StatefulWidget {
-<<<<<<< HEAD
   const _SettingsView({
     required this.settings,
     required this.onAddSetting,
@@ -1006,16 +894,11 @@ class _SettingsView extends StatefulWidget {
   final ValueChanged<_SystemSettingsData> onSave;
   final _SystemSettingsData initialSettings;
 
-=======
-  const _SettingsView();
-
->>>>>>> 1ee471ae (Merge codebases)
   @override
   State<_SettingsView> createState() => _SettingsViewState();
 }
 
 class _SettingsViewState extends State<_SettingsView> {
-<<<<<<< HEAD
   late final TextEditingController _sessionTimeoutController;
   late final TextEditingController _minPasswordLengthController;
   late bool _requireMfa;
@@ -1049,14 +932,6 @@ class _SettingsViewState extends State<_SettingsView> {
       setState(() {});
     }
   }
-=======
-  final TextEditingController _sessionTimeoutController = TextEditingController(text: '30');
-  final TextEditingController _minPasswordLengthController = TextEditingController(text: '10');
-  bool _requireMfa = true;
-  bool _requireUppercase = true;
-  bool _requireNumbers = true;
-  bool _requireSpecial = true;
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   void dispose() {
@@ -1294,7 +1169,6 @@ class _SettingsViewState extends State<_SettingsView> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-<<<<<<< HEAD
               onPressed: () {
                 final data = _SystemSettingsData(
                   sessionTimeoutMinutes: int.tryParse(_sessionTimeoutController.text) ?? 30,
@@ -1306,9 +1180,6 @@ class _SettingsViewState extends State<_SettingsView> {
                 );
                 widget.onSave(data);
               },
-=======
-              onPressed: () {},
->>>>>>> 1ee471ae (Merge codebases)
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFFFB020),
                   foregroundColor: Colors.white,
@@ -1327,13 +1198,9 @@ class _SettingsViewState extends State<_SettingsView> {
 }
 
 class _AccessLogsView extends StatefulWidget {
-<<<<<<< HEAD
   const _AccessLogsView({required this.logs});
 
   final List<_AccessLogEntry> logs;
-=======
-  const _AccessLogsView();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   State<_AccessLogsView> createState() => _AccessLogsViewState();
@@ -1345,7 +1212,6 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
   late final VoidCallback _searchListener;
 
   @override
-<<<<<<< HEAD
   void initState() {
     super.initState();
     _searchListener = () => setState(() {});
@@ -1353,8 +1219,6 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
   }
 
   @override
-=======
->>>>>>> 1ee471ae (Merge codebases)
   void dispose() {
     _searchController.removeListener(_searchListener);
     _searchController.dispose();
@@ -1363,7 +1227,6 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
     final query = _searchController.text.trim().toLowerCase();
     final filtered = widget.logs.where((entry) {
       final matchesStatus = _statusFilter == null || entry.status == _statusFilter;
@@ -1378,8 +1241,6 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
       return haystack.contains(query);
     }).toList();
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 30),
@@ -1514,7 +1375,6 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
                       ],
                     ),
                   ),
-<<<<<<< HEAD
                   if (filtered.isEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 68),
@@ -1582,26 +1442,6 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
                       if (i != filtered.length - 1)
                         const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
                     ],
-=======
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 68),
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Text(
-                          'No access logs available',
-                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF9CA3AF)),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'System access history will appear here once recorded',
-                          style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                        ),
-                      ],
-                    ),
-                  ),
->>>>>>> 1ee471ae (Merge codebases)
                 ],
               ),
             ),
@@ -1847,14 +1687,10 @@ class _StatusDropdown extends StatelessWidget {
 }
 
 class _RolesView extends StatelessWidget {
-<<<<<<< HEAD
   const _RolesView({required this.roles, required this.onAdd});
 
   final List<_RoleRowData> roles;
   final VoidCallback onAdd;
-=======
-  const _RolesView();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -1963,7 +1799,6 @@ class _RolesView extends StatelessWidget {
                       ],
                     ),
                   ),
-<<<<<<< HEAD
                   if (roles.isEmpty)
                     Container(
                       padding: const EdgeInsets.symmetric(vertical: 60),
@@ -2027,61 +1862,6 @@ class _RolesView extends StatelessWidget {
                       if (i != roles.length - 1)
                         const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
                     ],
-=======
-                  for (int i = 0; i < roles.length; i++) ...[
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              roles[i].name,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
-                            ),
-                          ),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: _RoleTierBadge(
-                                label: roles[i].tierLabel,
-                                variant: roles[i].tierVariant,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              roles[i].description,
-                              style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              roles[i].created,
-                              style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Wrap(
-                                spacing: 10,
-                                children: const [
-                                  _TableActionButton(label: 'Edit'),
-                                  _TableActionButton(label: 'Permissions'),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (i != roles.length - 1)
-                      const Divider(height: 1, thickness: 1, color: Color(0xFFE5E7EB)),
-                  ],
->>>>>>> 1ee471ae (Merge codebases)
                 ],
               ),
             ),
@@ -2098,14 +1878,10 @@ class _RolesView extends StatelessWidget {
 }
 
 class _PermissionsView extends StatefulWidget {
-<<<<<<< HEAD
   const _PermissionsView({required this.permissions, required this.onAdd});
 
   final List<_PermissionRowData> permissions;
   final VoidCallback onAdd;
-=======
-  const _PermissionsView();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   State<_PermissionsView> createState() => _PermissionsViewState();
@@ -2309,10 +2085,7 @@ class _PermissionsViewState extends State<_PermissionsView> {
 
 class _RoleRowData {
   const _RoleRowData({
-<<<<<<< HEAD
-    required this.id,
-=======
->>>>>>> 1ee471ae (Merge codebases)
+    this.id = '',
     required this.name,
     required this.tierLabel,
     required this.tierVariant,
@@ -2320,16 +2093,12 @@ class _RoleRowData {
     required this.created,
   });
 
-<<<<<<< HEAD
   final String id;
-=======
->>>>>>> 1ee471ae (Merge codebases)
   final String name;
   final String tierLabel;
   final _TierBadgeVariant tierVariant;
   final String description;
   final String created;
-<<<<<<< HEAD
 
   factory _RoleRowData.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -2352,8 +2121,6 @@ class _RoleRowData {
       'createdAt': Timestamp.now(),
     };
   }
-=======
->>>>>>> 1ee471ae (Merge codebases)
 }
 
 enum _TierBadgeVariant { primary, neutral, text }
@@ -2393,25 +2160,18 @@ class _RoleTierBadge extends StatelessWidget {
 
 class _PermissionRowData {
   const _PermissionRowData({
-<<<<<<< HEAD
-    required this.id,
-=======
->>>>>>> 1ee471ae (Merge codebases)
+    this.id = '',
     required this.name,
     required this.resource,
     required this.action,
     required this.description,
   });
 
-<<<<<<< HEAD
   final String id;
-=======
->>>>>>> 1ee471ae (Merge codebases)
   final String name;
   final String resource;
   final String action;
   final String description;
-<<<<<<< HEAD
 
   factory _PermissionRowData.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? {};
@@ -2566,8 +2326,6 @@ class _SystemSettingsData {
       'updatedAt': Timestamp.now(),
     };
   }
-=======
->>>>>>> 1ee471ae (Merge codebases)
 }
 
 class _TableHeaderCell extends StatelessWidget {
@@ -2612,13 +2370,9 @@ class _TableActionButton extends StatelessWidget {
 }
 
 class _RoleTiersCard extends StatelessWidget {
-<<<<<<< HEAD
   const _RoleTiersCard({required this.roles});
 
   final List<_RoleRowData> roles;
-=======
-  const _RoleTiersCard();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -2649,7 +2403,6 @@ class _RoleTiersCard extends StatelessWidget {
       headerSubtitle: 'Access level distribution',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-<<<<<<< HEAD
         children: [
           if (roles.isEmpty)
             const _EmptyMetricState(
@@ -2675,29 +2428,6 @@ class _RoleTiersCard extends StatelessWidget {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
             ),
           ],
-=======
-        children: const [
-          _PieChart(
-            slices: [
-              _PieSlice(color: Color(0xFF0EA5E9), value: 33, label: 'Tier 1'),
-              _PieSlice(color: Color(0xFF22D3EE), value: 33, label: 'Tier 3'),
-              _PieSlice(color: Color(0xFFFBBF24), value: 34, label: 'Tier 2'),
-            ],
-          ),
-          SizedBox(height: 18),
-          _PieLegend(
-            entries: [
-              _LegendEntry(label: 'Tier 1', value: '33%', color: Color(0xFF0EA5E9)),
-              _LegendEntry(label: 'Tier 3', value: '33%', color: Color(0xFF22D3EE)),
-              _LegendEntry(label: 'Tier 2', value: '33%', color: Color(0xFFFBBF24)),
-            ],
-          ),
-          SizedBox(height: 18),
-          Text(
-            'Total Roles: 3',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
-          ),
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
     );
@@ -2705,13 +2435,9 @@ class _RoleTiersCard extends StatelessWidget {
 }
 
 class _ResourcePermissionsCard extends StatelessWidget {
-<<<<<<< HEAD
   const _ResourcePermissionsCard({required this.permissions});
 
   final List<_PermissionRowData> permissions;
-=======
-  const _ResourcePermissionsCard();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -2733,7 +2459,6 @@ class _ResourcePermissionsCard extends StatelessWidget {
       headerSubtitle: 'Permissions by resource type',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-<<<<<<< HEAD
         children: [
           if (permissions.isEmpty)
             const _EmptyMetricState(
@@ -2761,41 +2486,12 @@ class _ResourcePermissionsCard extends StatelessWidget {
               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
             ),
           ],
-=======
-        children: const [
-          _PieChart(
-            slices: [
-              _PieSlice(color: Color(0xFF22D3EE), value: 8, label: 'Users'),
-              _PieSlice(color: Color(0xFFFB7185), value: 8, label: 'Reports'),
-              _PieSlice(color: Color(0xFFF97316), value: 25, label: 'Bids'),
-              _PieSlice(color: Color(0xFF6366F1), value: 8, label: 'Roles'),
-              _PieSlice(color: Color(0xFF34D399), value: 8, label: 'Audits'),
-            ],
-          ),
-          SizedBox(height: 18),
-          _PieLegend(
-            wrap: true,
-            entries: [
-              _LegendEntry(label: 'Users', value: '8%', color: Color(0xFF22D3EE)),
-              _LegendEntry(label: 'Reports', value: '8%', color: Color(0xFFFB7185)),
-              _LegendEntry(label: 'Bids', value: '25%', color: Color(0xFFF97316)),
-              _LegendEntry(label: 'Roles', value: '8%', color: Color(0xFF6366F1)),
-              _LegendEntry(label: 'Audits', value: '8%', color: Color(0xFF34D399)),
-            ],
-          ),
-          SizedBox(height: 18),
-          Text(
-            'Total Permissions: 12',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
-          ),
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
     );
   }
 }
 
-<<<<<<< HEAD
 String _formatShortDate(DateTime date) {
   return '${date.month}/${date.day}/${date.year}';
 }
@@ -2848,10 +2544,6 @@ class _SecurityStatusCard extends StatelessWidget {
   final int permissionsCount;
   final int settingsCount;
   final _AccessLogEntry? latestLog;
-=======
-class _SecurityStatusCard extends StatelessWidget {
-  const _SecurityStatusCard();
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -2863,7 +2555,6 @@ class _SecurityStatusCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-<<<<<<< HEAD
           _StatusTile(
             icon: Icons.badge_outlined,
             label: 'Roles configured',
@@ -2887,45 +2578,6 @@ class _SecurityStatusCard extends StatelessWidget {
           Text(
             latestLog == null ? 'No security activity yet' : 'Latest activity ${_formatTime(latestLog!.time)}',
             style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-=======
-          const _StatusTile(
-            icon: Icons.verified_user_outlined,
-            label: 'MFA Enabled',
-            value: 'Enabled',
-          ),
-          const SizedBox(height: 12),
-          const _StatusTile(
-            icon: Icons.password_outlined,
-            label: 'Password Min Length',
-            value: '10 chars',
-          ),
-          const SizedBox(height: 12),
-          const _StatusTile(
-            icon: Icons.schedule_outlined,
-            label: 'Session Timeout',
-            value: '30 min',
-          ),
-          const SizedBox(height: 12),
-          const _StatusTile(
-            icon: Icons.warning_amber_outlined,
-            label: 'Failed Logins (24h)',
-            value: '0',
-          ),
-          const SizedBox(height: 22),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                foregroundColor: const Color(0xFF1A1D1F),
-                textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Text('Manage Settings'),
-            ),
->>>>>>> 1ee471ae (Merge codebases)
           ),
         ],
       ),
@@ -2981,7 +2633,6 @@ class _StatusTile extends StatelessWidget {
 }
 
 class _RecentActivityCard extends StatelessWidget {
-<<<<<<< HEAD
   const _RecentActivityCard({required this.logs});
 
   final List<_AccessLogEntry> logs;
@@ -2989,12 +2640,6 @@ class _RecentActivityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final recent = logs.take(5).toList();
-=======
-  const _RecentActivityCard();
-
-  @override
-  Widget build(BuildContext context) {
->>>>>>> 1ee471ae (Merge codebases)
     return _MetricCard(
       padding: const EdgeInsets.all(26),
       headerIcon: Icons.description_outlined,
@@ -3004,27 +2649,28 @@ class _RecentActivityCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 12),
-          SizedBox(
-            height: 200,
-            child: _DashedBorderBox(
-              child: Container(
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: const Color(0xFFF9FAFB),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.timeline_outlined, color: Color(0xFFD1D5DB), size: 42),
-                    SizedBox(height: 12),
-                    Text('No activity yet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9CA3AF))),
-                    SizedBox(height: 4),
-                    Text('Security logs will appear here when available', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
-                  ],
+          if (recent.isEmpty)
+            SizedBox(
+              height: 200,
+              child: _DashedBorderBox(
+                child: Container(
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: const Color(0xFFF9FAFB),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.timeline_outlined, color: Color(0xFFD1D5DB), size: 42),
+                      SizedBox(height: 12),
+                      Text('No activity yet', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF9CA3AF))),
+                      SizedBox(height: 4),
+                      Text('Security logs will appear here when available', style: TextStyle(fontSize: 12, color: Color(0xFF9CA3AF))),
+                    ],
+                  ),
                 ),
               ),
-<<<<<<< HEAD
             )
           else
             Column(
@@ -3035,10 +2681,7 @@ class _RecentActivityCard extends StatelessWidget {
                     const Divider(height: 18, thickness: 1, color: Color(0xFFE5E7EB)),
                 ],
               ],
-=======
->>>>>>> 1ee471ae (Merge codebases)
             ),
-          ),
           const SizedBox(height: 18),
           Wrap(
             spacing: 16,
@@ -3069,7 +2712,6 @@ class _RecentActivityCard extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
 class _ActivityRow extends StatelessWidget {
   const _ActivityRow({required this.entry});
 
@@ -3150,8 +2792,6 @@ class _EmptyMetricState extends StatelessWidget {
   }
 }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
 class _DashedBorderBox extends StatelessWidget {
   const _DashedBorderBox({required this.child});
 

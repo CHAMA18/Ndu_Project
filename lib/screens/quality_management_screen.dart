@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 
@@ -7,9 +8,6 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/quality_metrics_calculator.dart';
-=======
-
->>>>>>> 1ee471ae (Merge codebases)
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -317,7 +315,6 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
     setState(() => _selectedTab = tab);
   }
 
-<<<<<<< HEAD
   Widget _buildNavigationHint() {
     return InnerPageNavigationHint(
       pageId: 'quality_management',
@@ -381,8 +378,6 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
     );
   }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
   @override
   Widget build(BuildContext context) {
     final isMobile = AppBreakpoints.isMobile(context);
@@ -502,7 +497,6 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                               'Summarize quality targets, assurance cadence, and control measures.',
                         ),
                         const SizedBox(height: 24),
-<<<<<<< HEAD
                         _TabStrip(
                           selectedTab: _selectedTab,
                           onSelected: _handleTabSelected,
@@ -522,11 +516,6 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
                             'quality_management',
                           ),
                         ),
-=======
-                        _TabStrip(selectedTab: _selectedTab, onSelected: _handleTabSelected),
-                        const SizedBox(height: 28),
-                        _TabContent(selectedTab: _selectedTab),
->>>>>>> 1ee471ae (Merge codebases)
                         const SizedBox(height: 48),
                       ],
                     ),
@@ -703,7 +692,6 @@ class _TabStrip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-<<<<<<< HEAD
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
@@ -712,12 +700,6 @@ class _TabStrip extends StatelessWidget {
             blurRadius: 18,
             offset: const Offset(0, 12),
           ),
-=======
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 18, offset: const Offset(0, 12)),
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
       child: SingleChildScrollView(
@@ -760,14 +742,9 @@ class _TabChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
     final background = selected ? const Color(0xFFFFC044) : Colors.transparent;
     final textColor =
         selected ? const Color(0xFF1A1D1F) : const Color(0xFF4B5563);
-=======
-    final Color background = selected ? const Color(0xFFFFC044) : Colors.transparent;
-    final Color textColor = selected ? const Color(0xFF1A1D1F) : const Color(0xFF4B5563);
->>>>>>> 1ee471ae (Merge codebases)
 
     return Material(
       color: Colors.transparent,
@@ -779,11 +756,7 @@ class _TabChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
           decoration: BoxDecoration(
             color: background,
-<<<<<<< HEAD
             borderRadius: BorderRadius.circular(16),
-=======
-            borderRadius: BorderRadius.circular(14),
->>>>>>> 1ee471ae (Merge codebases)
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -817,11 +790,7 @@ class _TabContent extends StatelessWidget {
       case _QualityTab.plan:
         return const _QualityPlanView();
       case _QualityTab.targets:
-<<<<<<< HEAD
         return const _ObjectivesView();
-=======
-        return const _TargetsView();
->>>>>>> 1ee471ae (Merge codebases)
       case _QualityTab.qaTracking:
         return const _QaTrackingView();
       case _QualityTab.qcTracking:
@@ -840,7 +809,6 @@ class _QualityPlanView extends StatefulWidget {
 }
 
 class _QualityPlanViewState extends State<_QualityPlanView> {
-<<<<<<< HEAD
   late final TextEditingController _planController;
   late final TextEditingController _reviewCadenceController;
   late final TextEditingController _escalationPathController;
@@ -855,14 +823,10 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
       if (mounted) _savePlan();
     });
   }
-=======
-  late final TextEditingController _controller;
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
     ApiKeyManager.initializeApiKey();
     _planController = TextEditingController();
     _reviewCadenceController = TextEditingController();
@@ -884,14 +848,10 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
     _escalationPathController.addListener(_onFieldChanged);
     _changeControlController.addListener(_onFieldChanged);
     _didInit = true;
-=======
-    _controller = TextEditingController();
->>>>>>> 1ee471ae (Merge codebases)
   }
 
   @override
   void dispose() {
-<<<<<<< HEAD
     _saveDebounce?.cancel();
     _planController.removeListener(_onFieldChanged);
     _reviewCadenceController.removeListener(_onFieldChanged);
@@ -1142,22 +1102,6 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
       },
     );
   }
-=======
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleSave() {
-    FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Quality plan saved'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -1168,325 +1112,8 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
       iconBackground: const Color(0xFFEFF6FF),
       iconColor: const Color(0xFF2563EB),
       title: 'Quality Plan',
-<<<<<<< HEAD
       subtitle:
           'Define standards, governance cadence, and change/escalation controls for planning quality management',
-=======
-      subtitle: 'Describe the quality plan including quality targets, quality assurance, and quality control aspects',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _controller,
-            minLines: 8,
-            maxLines: 12,
-            decoration: InputDecoration(
-              hintText:
-                  'Enter your quality plan details here...\n\nQuality Targets: Identify key aspects that need quality assurance and control\nQuality Assurance: Define systematic processes to prevent defects\nQuality Control: Outline inspections, checks, and testing methods\nMonitor and Measure: Track progress against quality metrics',
-              hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14, height: 1.45),
-              filled: true,
-              fillColor: const Color(0xFFF9FAFB),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary, width: 1.6),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
-            ),
-            style: const TextStyle(fontSize: 15, color: Color(0xFF1F2937), height: 1.5),
-          ),
-          const SizedBox(height: 24),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              onPressed: _handleSave,
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Save Plan'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TargetsView extends StatefulWidget {
-  const _TargetsView();
-
-  @override
-  State<_TargetsView> createState() => _TargetsViewState();
-}
-
-class _TargetsViewState extends State<_TargetsView> {
-  final List<_QualityTarget> _targets = [];
-
-  Future<void> _showAddTargetDialog() async {
-    final nameController = TextEditingController();
-    final metricController = TextEditingController();
-    final targetValueController = TextEditingController();
-    final currentValueController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    _QualityTargetStatus selectedStatus = _QualityTargetStatus.onTrack;
-
-    final result = await showDialog<_QualityTarget>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setInnerState) {
-            return AlertDialog(
-              title: const Text('Add Quality Target'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(labelText: 'Target Name'),
-                        validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a target name' : null,
-                      ),
-                      TextFormField(
-                        controller: metricController,
-                        decoration: const InputDecoration(labelText: 'Metric'),
-                        validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a metric' : null,
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: targetValueController,
-                              decoration: const InputDecoration(labelText: 'Target'),
-                              validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter target value' : null,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: currentValueController,
-                              decoration: const InputDecoration(labelText: 'Current'),
-                              validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter current value' : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<_QualityTargetStatus>(
-                        initialValue: selectedStatus,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: _QualityTargetStatus.values
-                            .map((status) => DropdownMenuItem<_QualityTargetStatus>(
-                                  value: status,
-                                  child: Text(_TargetsViewState._statusLabel(status)),
-                                ))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setInnerState(() => selectedStatus = value);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState?.validate() ?? false) {
-                      Navigator.of(dialogContext).pop(
-                        _QualityTarget(
-                          name: nameController.text.trim(),
-                          metric: metricController.text.trim(),
-                          target: targetValueController.text.trim(),
-                          current: currentValueController.text.trim(),
-                          status: selectedStatus,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Add Target'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    nameController.dispose();
-    metricController.dispose();
-    targetValueController.dispose();
-    currentValueController.dispose();
-
-    if (result != null) {
-      setState(() => _targets.add(result));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Target "${result.name}" added'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _handleRemoveTarget(int index) {
-    final removed = _targets.removeAt(index);
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Removed target "${removed.name}"'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _handleEditTarget(int index) {
-    final original = _targets[index];
-    final nameController = TextEditingController(text: original.name);
-    final metricController = TextEditingController(text: original.metric);
-    final targetValueController = TextEditingController(text: original.target);
-    final currentValueController = TextEditingController(text: original.current);
-    final formKey = GlobalKey<FormState>();
-    _QualityTargetStatus selectedStatus = original.status;
-
-    showDialog<_QualityTarget>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setInnerState) {
-            return AlertDialog(
-              title: const Text('Edit Quality Target'),
-              content: SingleChildScrollView(
-                child: Form(
-                  key: formKey,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(labelText: 'Target Name'),
-                        validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a target name' : null,
-                      ),
-                      TextFormField(
-                        controller: metricController,
-                        decoration: const InputDecoration(labelText: 'Metric'),
-                        validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a metric' : null,
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: targetValueController,
-                              decoration: const InputDecoration(labelText: 'Target'),
-                              validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter target value' : null,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: currentValueController,
-                              decoration: const InputDecoration(labelText: 'Current'),
-                              validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter current value' : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<_QualityTargetStatus>(
-                        initialValue: selectedStatus,
-                        decoration: const InputDecoration(labelText: 'Status'),
-                        items: _QualityTargetStatus.values
-                            .map((status) => DropdownMenuItem<_QualityTargetStatus>(
-                                  value: status,
-                                  child: Text(_TargetsViewState._statusLabel(status)),
-                                ))
-                            .toList(),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setInnerState(() => selectedStatus = value);
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState?.validate() ?? false) {
-                      Navigator.of(dialogContext).pop(
-                        _QualityTarget(
-                          name: nameController.text.trim(),
-                          metric: metricController.text.trim(),
-                          target: targetValueController.text.trim(),
-                          current: currentValueController.text.trim(),
-                          status: selectedStatus,
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Save Changes'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((updated) {
-      nameController.dispose();
-      metricController.dispose();
-      targetValueController.dispose();
-      currentValueController.dispose();
-
-      if (updated != null) {
-        setState(() => _targets[index] = updated);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated target "${updated.name}"'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _PrimaryCard(
-      icon: Icons.flag_outlined,
-      iconBackground: const Color(0xFFF3F4FF),
-      iconColor: const Color(0xFF7C3AED),
-      title: 'Quality Targets',
-      subtitle: 'Key quality metrics and their target values',
->>>>>>> 1ee471ae (Merge codebases)
       actions: [
         ElevatedButton.icon(
           onPressed: _isGenerating ? null : _generateFromContext,
@@ -1523,57 +1150,6 @@ class _TargetsViewState extends State<_TargetsView> {
           ),
         ),
       ],
-<<<<<<< HEAD
-=======
-      child: _QualityTargetsTable(
-        targets: _targets,
-        onRemove: _handleRemoveTarget,
-        onEdit: _handleEditTarget,
-      ),
-    );
-  }
-
-  static String _statusLabel(_QualityTargetStatus status) {
-    switch (status) {
-      case _QualityTargetStatus.onTrack:
-        return 'On Track';
-      case _QualityTargetStatus.monitoring:
-        return 'Monitoring';
-      case _QualityTargetStatus.offTrack:
-        return 'Off Track';
-    }
-  }
-
-  static Color _statusColor(_QualityTargetStatus status) {
-    switch (status) {
-      case _QualityTargetStatus.onTrack:
-        return const Color(0xFF16A34A);
-      case _QualityTargetStatus.monitoring:
-        return const Color(0xFFF59E0B);
-      case _QualityTargetStatus.offTrack:
-        return const Color(0xFFDC2626);
-    }
-  }
-}
-
-class _QualityTargetsTable extends StatelessWidget {
-  const _QualityTargetsTable({required this.targets, required this.onRemove, required this.onEdit});
-
-  final List<_QualityTarget> targets;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<int> onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool hasTargets = targets.isNotEmpty;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
->>>>>>> 1ee471ae (Merge codebases)
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1587,7 +1163,6 @@ class _QualityTargetsTable extends StatelessWidget {
               'Describe goals, assurance methods, control steps, and KPI governance.',
             ),
           ),
-<<<<<<< HEAD
           const SizedBox(height: 18),
           Row(
             children: [
@@ -1604,126 +1179,6 @@ class _QualityTargetsTable extends StatelessWidget {
                       ),
                     ),
                   ],
-=======
-          if (hasTargets)
-            for (int i = 0; i < targets.length; i++)
-              _TargetDataRow(
-                data: targets[i],
-                index: i,
-                isLast: i == targets.length - 1,
-                onRemove: onRemove,
-                onEdit: onEdit,
-              )
-          else
-            Container(
-              height: 120,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Text(
-                'No quality targets defined yet. Click "Add Target" to get started.',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TargetsHeaderCell extends StatelessWidget {
-  const _TargetsHeaderCell({required this.label, required this.flex, this.alignEnd = false});
-
-  final String label;
-  final int flex;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Align(
-        alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
-        ),
-      ),
-    );
-  }
-}
-
-class _TargetDataRow extends StatelessWidget {
-  const _TargetDataRow({
-    required this.data,
-    required this.index,
-    required this.isLast,
-    required this.onRemove,
-    required this.onEdit,
-  });
-
-  final _QualityTarget data;
-  final int index;
-  final bool isLast;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<int> onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color statusColor = _TargetsViewState._statusColor(data.status);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.white : const Color(0xFFFAFAFF),
-        border: Border(
-          bottom: isLast ? BorderSide.none : const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 25,
-            child: Text(
-              data.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
-            ),
-          ),
-          Expanded(
-            flex: 18,
-            child: Text(
-              data.metric,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
-            ),
-          ),
-          Expanded(
-            flex: 12,
-            child: Text(
-              data.target,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
-            ),
-          ),
-          Expanded(
-            flex: 12,
-            child: Text(
-              data.current,
-              style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
-            ),
-          ),
-          Expanded(
-            flex: 13,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  _TargetsViewState._statusLabel(data.status),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: statusColor),
->>>>>>> 1ee471ae (Merge codebases)
                 ),
               ),
               const SizedBox(width: 12),
@@ -1795,7 +1250,6 @@ class _TargetDataRow extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
 class _ObjectivesView extends StatefulWidget {
   const _ObjectivesView();
 
@@ -1895,25 +1349,6 @@ class _ObjectivesViewState extends State<_ObjectivesView> {
     );
   }
 }
-=======
-class _QualityTarget {
-  const _QualityTarget({
-    required this.name,
-    required this.metric,
-    required this.target,
-    required this.current,
-    required this.status,
-  });
-
-  final String name;
-  final String metric;
-  final String target;
-  final String current;
-  final _QualityTargetStatus status;
-}
-
-enum _QualityTargetStatus { onTrack, monitoring, offTrack }
->>>>>>> 1ee471ae (Merge codebases)
 
 class _QaTrackingView extends StatefulWidget {
   const _QaTrackingView();
@@ -1923,118 +1358,12 @@ class _QaTrackingView extends StatefulWidget {
 }
 
 class _QaTrackingViewState extends State<_QaTrackingView> {
-<<<<<<< HEAD
   Future<void> _addWorkflowControl() async {
     final result = await showDialog<QualityWorkflowControl>(
       context: context,
       builder: (_) => _WorkflowControlDialog(
         initialType: QualityWorkflowType.qa,
         ownerOptions: _ownerOptions(context),
-=======
-  final List<_QaTechnique> _techniques = [];
-
-  Future<void> _showAddTechniqueDialog() async {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final frequencyController = TextEditingController();
-    final standardsController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final result = await showDialog<_QaTechnique>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Add QA Technique'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Technique'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a technique' : null,
-                  ),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a description' : null,
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: frequencyController,
-                          decoration: const InputDecoration(labelText: 'Frequency'),
-                          validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter frequency' : null,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: standardsController,
-                          decoration: const InputDecoration(labelText: 'Standards'),
-                          validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter standards' : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(
-                    _QaTechnique(
-                      name: nameController.text.trim(),
-                      description: descriptionController.text.trim(),
-                      frequency: frequencyController.text.trim(),
-                      standards: standardsController.text.trim(),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Add Technique'),
-            ),
-          ],
-        );
-      },
-    );
-
-    nameController.dispose();
-    descriptionController.dispose();
-    frequencyController.dispose();
-    standardsController.dispose();
-
-    if (result != null) {
-      setState(() => _techniques.add(result));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Technique "${result.name}" added'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _handleRemoveTechnique(int index) {
-    final removed = _techniques.removeAt(index);
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Removed technique "${removed.name}"'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
     if (!mounted) return;
@@ -2053,7 +1382,6 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
     );
   }
 
-<<<<<<< HEAD
   Future<void> _editWorkflowControl(QualityWorkflowControl control) async {
     final result = await showDialog<QualityWorkflowControl>(
       context: context,
@@ -2149,100 +1477,6 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
         return current.copyWith(qaTaskLog: updated);
       },
     );
-=======
-  void _handleEditTechnique(int index) {
-    final original = _techniques[index];
-    final nameController = TextEditingController(text: original.name);
-    final descriptionController = TextEditingController(text: original.description);
-    final frequencyController = TextEditingController(text: original.frequency);
-    final standardsController = TextEditingController(text: original.standards);
-    final formKey = GlobalKey<FormState>();
-
-    showDialog<_QaTechnique>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Edit QA Technique'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Technique'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a technique' : null,
-                  ),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a description' : null,
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: frequencyController,
-                          decoration: const InputDecoration(labelText: 'Frequency'),
-                          validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter frequency' : null,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: standardsController,
-                          decoration: const InputDecoration(labelText: 'Standards'),
-                          validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter standards' : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(
-                    _QaTechnique(
-                      name: nameController.text.trim(),
-                      description: descriptionController.text.trim(),
-                      frequency: frequencyController.text.trim(),
-                      standards: standardsController.text.trim(),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save Changes'),
-            ),
-          ],
-        );
-      },
-    ).then((result) {
-      nameController.dispose();
-      descriptionController.dispose();
-      frequencyController.dispose();
-      standardsController.dispose();
-
-      if (result != null) {
-        setState(() => _techniques[index] = result);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated technique "${result.name}"'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    });
->>>>>>> 1ee471ae (Merge codebases)
   }
 
   @override
@@ -2280,7 +1514,6 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
           label: const Text('Create Training'),
         ),
       ],
-<<<<<<< HEAD
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2308,12 +1541,6 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
             onRemove: _removeTask,
           ),
         ],
-=======
-      child: _QaTechniquesTable(
-        techniques: _techniques,
-        onRemove: _handleRemoveTechnique,
-        onEdit: _handleEditTechnique,
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
@@ -2327,101 +1554,12 @@ class _QcTrackingView extends StatefulWidget {
 }
 
 class _QcTrackingViewState extends State<_QcTrackingView> {
-<<<<<<< HEAD
   Future<void> _addWorkflowControl() async {
     final result = await showDialog<QualityWorkflowControl>(
       context: context,
       builder: (_) => _WorkflowControlDialog(
         initialType: QualityWorkflowType.qc,
         ownerOptions: _ownerOptions(context),
-=======
-  final List<_QcTechnique> _techniques = [];
-
-  Future<void> _showAddTechniqueDialog() async {
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final frequencyController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final result = await showDialog<_QcTechnique>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Add QC Technique'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Technique'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a technique' : null,
-                  ),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a description' : null,
-                  ),
-                  TextFormField(
-                    controller: frequencyController,
-                    decoration: const InputDecoration(labelText: 'Frequency'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter frequency' : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(
-                    _QcTechnique(
-                      name: nameController.text.trim(),
-                      description: descriptionController.text.trim(),
-                      frequency: frequencyController.text.trim(),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Add Technique'),
-            ),
-          ],
-        );
-      },
-    );
-
-    nameController.dispose();
-    descriptionController.dispose();
-    frequencyController.dispose();
-
-    if (result != null) {
-      setState(() => _techniques.add(result));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Technique "${result.name}" added'),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _handleRemoveTechnique(int index) {
-    final removed = _techniques.removeAt(index);
-    setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Removed technique "${removed.name}"'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
     if (!mounted) return;
@@ -2440,7 +1578,6 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
     );
   }
 
-<<<<<<< HEAD
   Future<void> _editWorkflowControl(QualityWorkflowControl control) async {
     final result = await showDialog<QualityWorkflowControl>(
       context: context,
@@ -2659,83 +1796,6 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
         return current.copyWith(correctiveActions: updated);
       },
     );
-=======
-  void _handleEditTechnique(int index) {
-    final original = _techniques[index];
-    final nameController = TextEditingController(text: original.name);
-    final descriptionController = TextEditingController(text: original.description);
-    final frequencyController = TextEditingController(text: original.frequency);
-    final formKey = GlobalKey<FormState>();
-
-    showDialog<_QcTechnique>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Edit QC Technique'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(labelText: 'Technique'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a technique' : null,
-                  ),
-                  TextFormField(
-                    controller: descriptionController,
-                    decoration: const InputDecoration(labelText: 'Description'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter a description' : null,
-                  ),
-                  TextFormField(
-                    controller: frequencyController,
-                    decoration: const InputDecoration(labelText: 'Frequency'),
-                    validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter frequency' : null,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(
-                    _QcTechnique(
-                      name: nameController.text.trim(),
-                      description: descriptionController.text.trim(),
-                      frequency: frequencyController.text.trim(),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save Changes'),
-            ),
-          ],
-        );
-      },
-    ).then((result) {
-      nameController.dispose();
-      descriptionController.dispose();
-      frequencyController.dispose();
-
-      if (result != null) {
-        setState(() => _techniques[index] = result);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Updated technique "${result.name}"'),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    });
->>>>>>> 1ee471ae (Merge codebases)
   }
 
   @override
@@ -2778,35 +1838,6 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
           label: const Text('Create Training'),
         ),
       ],
-<<<<<<< HEAD
-=======
-      child: _QcTechniquesTable(
-        techniques: _techniques,
-        onRemove: _handleRemoveTechnique,
-        onEdit: _handleEditTechnique,
-      ),
-    );
-  }
-}
-
-class _QcTechniquesTable extends StatelessWidget {
-  const _QcTechniquesTable({required this.techniques, required this.onRemove, required this.onEdit});
-
-  final List<_QcTechnique> techniques;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<int> onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool hasTechniques = techniques.isNotEmpty;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
->>>>>>> 1ee471ae (Merge codebases)
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2815,95 +1846,11 @@ class _QcTechniquesTable extends StatelessWidget {
             subtitle:
                 'Inspection methods, checklists, and frequencies that detect defects early.',
           ),
-<<<<<<< HEAD
           const SizedBox(height: 12),
           _WorkflowControlsTable(
             controls: controls,
             onEdit: _editWorkflowControl,
             onRemove: _removeWorkflowControl,
-=======
-          if (hasTechniques)
-            for (int i = 0; i < techniques.length; i++)
-              _QcDataRow(
-                data: techniques[i],
-                index: i,
-                isLast: i == techniques.length - 1,
-                onRemove: onRemove,
-                onEdit: onEdit,
-              )
-          else
-            Container(
-              height: 120,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: const Text(
-                'No QC techniques defined yet. Click "Add Technique" to get started.',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
-                textAlign: TextAlign.center,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QcHeaderCell extends StatelessWidget {
-  const _QcHeaderCell({required this.label, required this.flex, this.alignEnd = false});
-
-  final String label;
-  final int flex;
-  final bool alignEnd;
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
-      child: Align(
-        alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
-        child: Text(
-          label,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
-        ),
-      ),
-    );
-  }
-}
-
-class _QcDataRow extends StatelessWidget {
-  const _QcDataRow({
-    required this.data,
-    required this.index,
-    required this.isLast,
-    required this.onRemove,
-    required this.onEdit,
-  });
-
-  final _QcTechnique data;
-  final int index;
-  final bool isLast;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<int> onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-      decoration: BoxDecoration(
-        color: index.isEven ? Colors.white : const Color(0xFFFAFAFF),
-        border: Border(
-          bottom: isLast ? BorderSide.none : const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 26,
-            child: Text(
-              data.name,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
-            ),
->>>>>>> 1ee471ae (Merge codebases)
           ),
           const SizedBox(height: 24),
           _SectionHeader(
@@ -2948,7 +1895,6 @@ class _QcDataRow extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
 class _MetricsView extends StatefulWidget {
   const _MetricsView();
 
@@ -3189,57 +2135,6 @@ class _MetricsViewState extends State<_MetricsView> {
             : const <double>[0, 0, 0, 0, 0, 0];
 
     const trendLabels = ['M1', 'M2', 'M3', 'M4', 'M5', 'M6'];
-=======
-class _QcTechnique {
-  const _QcTechnique({required this.name, required this.description, required this.frequency});
-
-  final String name;
-  final String description;
-  final String frequency;
-}
-
-class _MetricsView extends StatelessWidget {
-  const _MetricsView();
-
-  @override
-  Widget build(BuildContext context) {
-    const summaries = [
-      _MetricSummaryData(
-        title: 'Defect Density',
-        value: 'N/A',
-        changeLabel: '-15%',
-        changeContext: 'per 1000 LOC',
-        trend: _MetricTrend.down,
-      ),
-      _MetricSummaryData(
-        title: 'Customer Satisfaction',
-        value: 'N/A',
-        changeLabel: '+5%',
-        changeContext: 'from surveys',
-        trend: _MetricTrend.up,
-      ),
-      _MetricSummaryData(
-        title: 'On-Time Delivery',
-        value: 'N/A',
-        changeLabel: '+3%',
-        changeContext: 'last quarter',
-        trend: _MetricTrend.up,
-      ),
-      _MetricSummaryData(
-        title: 'Test Coverage',
-        value: 'N/A',
-        changeLabel: '0%',
-        changeContext: 'code coverage',
-        trend: _MetricTrend.neutral,
-      ),
-    ];
-
-    const defectTrendPoints = [12.0, 9.0, 15.0, 8.0, 6.0, 7.0];
-    const defectLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
-
-    const satisfactionTrendPoints = [4.0, 4.2, 4.3, 4.5, 4.6, 4.6];
-    const satisfactionLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
->>>>>>> 1ee471ae (Merge codebases)
 
     return _PrimaryCard(
       icon: Icons.analytics_outlined,
@@ -3269,7 +2164,6 @@ class _MetricsView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-<<<<<<< HEAD
           LayoutBuilder(
             builder: (context, constraints) {
               final isWide = constraints.maxWidth >= 900;
@@ -3353,80 +2247,28 @@ class _MetricsView extends StatelessWidget {
               final sideBySide = constraints.maxWidth >= 900;
 
               if (sideBySide) {
-=======
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final bool isWide = constraints.maxWidth >= 900;
-              final bool isTablet = constraints.maxWidth >= 640;
-
-              if (isWide) {
                 return Row(
                   children: [
-                    for (int i = 0; i < summaries.length; i++) ...[
-                      Expanded(child: _MetricSummaryCard(data: summaries[i])),
-                      if (i != summaries.length - 1) const SizedBox(width: 16),
-                    ],
-                  ],
-                );
-              }
-
-              final double itemWidth = isTablet ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  for (final data in summaries)
-                    SizedBox(width: itemWidth, child: _MetricSummaryCard(data: data)),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 32),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final bool showSideBySide = constraints.maxWidth >= 900;
-              if (showSideBySide) {
->>>>>>> 1ee471ae (Merge codebases)
-                return Row(
-                  children: const [
                     Expanded(
                       child: _TrendCard(
                         title: 'Defect Trend',
-<<<<<<< HEAD
                         subtitle: 'Failed audits + blocked tasks trend',
                         lineColor: const Color(0xFF7C3AED),
                         areaColor: const Color(0xFFDAD5FF),
                         dataPoints: defectTrendPoints,
                         labels: trendLabels,
                         maxYBuffer: 1,
-=======
-                        subtitle: 'Number of defects found over time',
-                        lineColor: Color(0xFF7C3AED),
-                        areaColor: Color(0xFFDAD5FF),
-                        dataPoints: defectTrendPoints,
-                        labels: defectLabels,
-                        maxYBuffer: 4,
->>>>>>> 1ee471ae (Merge codebases)
                       ),
                     ),
-                    SizedBox(width: 20),
+                    const SizedBox(width: 20),
                     Expanded(
                       child: _TrendCard(
-<<<<<<< HEAD
                         title: 'Satisfaction Proxy Trend',
                         subtitle: 'Completion-based satisfaction proxy',
                         lineColor: const Color(0xFF16A34A),
                         areaColor: const Color(0xFFCDEFD6),
                         dataPoints: satisfactionTrendPoints,
                         labels: trendLabels,
-=======
-                        title: 'Customer Satisfaction Trend',
-                        subtitle: 'Customer satisfaction scores by month',
-                        lineColor: Color(0xFF16A34A),
-                        areaColor: Color(0xFFCDEFD6),
-                        dataPoints: satisfactionTrendPoints,
-                        labels: satisfactionLabels,
->>>>>>> 1ee471ae (Merge codebases)
                         maxYBuffer: 1,
                       ),
                     ),
@@ -3435,7 +2277,6 @@ class _MetricsView extends StatelessWidget {
               }
 
               return Column(
-<<<<<<< HEAD
                 children: [
                   _TrendCard(
                     title: 'Defect Trend',
@@ -3454,33 +2295,12 @@ class _MetricsView extends StatelessWidget {
                     areaColor: const Color(0xFFCDEFD6),
                     dataPoints: satisfactionTrendPoints,
                     labels: trendLabels,
-=======
-                children: const [
-                  _TrendCard(
-                    title: 'Defect Trend',
-                    subtitle: 'Number of defects found over time',
-                    lineColor: Color(0xFF7C3AED),
-                    areaColor: Color(0xFFDAD5FF),
-                    dataPoints: defectTrendPoints,
-                    labels: defectLabels,
-                    maxYBuffer: 4,
-                  ),
-                  SizedBox(height: 20),
-                  _TrendCard(
-                    title: 'Customer Satisfaction Trend',
-                    subtitle: 'Customer satisfaction scores by month',
-                    lineColor: Color(0xFF16A34A),
-                    areaColor: Color(0xFFCDEFD6),
-                    dataPoints: satisfactionTrendPoints,
-                    labels: satisfactionLabels,
->>>>>>> 1ee471ae (Merge codebases)
                     maxYBuffer: 1,
                   ),
                 ],
               );
             },
           ),
-<<<<<<< HEAD
           const SizedBox(height: 24),
           _SectionHeader(
             title: 'Quality Activity Roadmap',
@@ -3489,8 +2309,6 @@ class _MetricsView extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _RoadmapTimeline(items: roadmapItems),
-=======
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
     );
@@ -3526,15 +2344,11 @@ class _PrimaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(26),
         border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
-<<<<<<< HEAD
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
             blurRadius: 20,
             offset: const Offset(0, 14),
           ),
-=======
-          BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 14)),
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
       child: Column(
@@ -3605,15 +2419,9 @@ class _SectionHeader extends StatelessWidget {
     this.trailing,
   });
 
-<<<<<<< HEAD
   final String title;
   final String subtitle;
   final Widget? trailing;
-=======
-  final List<_QaTechnique> techniques;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<int> onEdit;
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   Widget build(BuildContext context) {
@@ -4570,16 +3378,8 @@ class _QualityObjectiveDialog extends StatefulWidget {
     this.initialValue,
   });
 
-<<<<<<< HEAD
   final List<String> ownerOptions;
   final QualityObjective? initialValue;
-=======
-  final _QaTechnique data;
-  final int index;
-  final bool isLast;
-  final ValueChanged<int> onRemove;
-  final ValueChanged<int> onEdit;
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   State<_QualityObjectiveDialog> createState() =>
@@ -6344,22 +5144,6 @@ class _QaTechnique {
   final String standards;
 }
 
-class _MetricSummaryData {
-  const _MetricSummaryData({
-    required this.title,
-    required this.value,
-    required this.changeLabel,
-    required this.changeContext,
-    required this.trend,
-  });
-
-  final String title;
-  final String value;
-  final String changeLabel;
-  final String changeContext;
-  final _MetricTrend trend;
-}
-
 class _MetricSummaryCard extends StatelessWidget {
   const _MetricSummaryCard({required this.data});
 
@@ -6389,13 +5173,8 @@ class _MetricSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
     final trendColor = _trendColor();
     final isNeutral = data.trend == _MetricTrend.neutral;
-=======
-    final Color trendColor = _trendColor();
-    final bool isNeutral = data.trend == _MetricTrend.neutral;
->>>>>>> 1ee471ae (Merge codebases)
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
@@ -6419,15 +5198,11 @@ class _MetricSummaryCard extends StatelessWidget {
             children: [
               Text(
                 data.title,
-<<<<<<< HEAD
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF4B5563),
                 ),
-=======
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
->>>>>>> 1ee471ae (Merge codebases)
               ),
               Icon(_trendIcon(), color: trendColor, size: 20),
             ],
@@ -6435,15 +5210,11 @@ class _MetricSummaryCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             data.value,
-<<<<<<< HEAD
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w700,
               color: Color(0xFF111827),
             ),
-=======
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
->>>>>>> 1ee471ae (Merge codebases)
           ),
           const SizedBox(height: 8),
           RichText(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
-<<<<<<< HEAD
 import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/services/project_intelligence_service.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
@@ -79,21 +78,6 @@ class ProjectDataHelper {
     final projectData = provider.projectData;
     final currentCheckpoint = projectData.currentCheckpoint;
 
-=======
-import 'package:ndu_project/services/sidebar_navigation_service.dart';
-
-/// Helper functions for easy integration of ProjectDataProvider across screens
-class ProjectDataHelper {
-  /// Check if a destination checkpoint is locked/not accessible
-  /// Returns true if the destination is locked, false if accessible
-  static bool isDestinationLocked(BuildContext context, String destinationCheckpoint) {
-    final provider = ProjectDataInherited.maybeOf(context);
-    if (provider == null) return true; // Lock if no provider
-    
-    final projectData = provider.projectData;
-    final currentCheckpoint = projectData.currentCheckpoint ?? '';
-    
->>>>>>> 1ee471ae (Merge codebases)
     // Check if it's a Basic Plan locked item
     const basicPlanLockedCheckpoints = {
       'fep_contract_vendor_quotes',
@@ -118,7 +102,6 @@ class ProjectDataHelper {
       'warranties_operations_support',
       'project_financial_review',
     };
-<<<<<<< HEAD
 
     if (projectData.isBasicPlanProject &&
         basicPlanLockedCheckpoints.contains(destinationCheckpoint)) {
@@ -144,28 +127,6 @@ class ProjectDataHelper {
       SnackBar(
         content: Text(
             'Please complete the current requirements before accessing $destinationName.'),
-=======
-    
-    if (projectData.isBasicPlanProject && basicPlanLockedCheckpoints.contains(destinationCheckpoint)) {
-      return true;
-    }
-    
-    // Check if checkpoint has been reached
-    if (currentCheckpoint.isEmpty) {
-      // Only allow first checkpoint if no progress
-      return destinationCheckpoint != SidebarNavigationService.instance.getNextItem(null)?.checkpoint;
-    }
-    
-    return !SidebarNavigationService.instance.isCheckpointReached(destinationCheckpoint, currentCheckpoint);
-  }
-  
-  /// Show a message when user tries to navigate to a locked destination
-  static void showLockedDestinationMessage(BuildContext context, String destinationName) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Please complete the current requirements before accessing $destinationName.'),
->>>>>>> 1ee471ae (Merge codebases)
         backgroundColor: Colors.orange,
         duration: const Duration(seconds: 3),
         action: SnackBarAction(
@@ -176,7 +137,6 @@ class ProjectDataHelper {
       ),
     );
   }
-<<<<<<< HEAD
 
   /// Show a message when required data is missing
   static void showMissingDataMessage(BuildContext context, String message) {
@@ -190,8 +150,6 @@ class ProjectDataHelper {
     );
   }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
   /// Save current screen data and navigate to next screen with automatic Firebase sync
   /// Includes security check to prevent navigation to locked destinations
   static Future<void> saveAndNavigate({
@@ -199,7 +157,6 @@ class ProjectDataHelper {
     required String checkpoint,
     required Widget Function() nextScreenBuilder,
     ProjectDataModel Function(ProjectDataModel)? dataUpdater,
-<<<<<<< HEAD
     String?
         destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
     String? destinationName, // Optional: human-readable name for error messages
@@ -214,19 +171,6 @@ class ProjectDataHelper {
       return; // Block navigation
     }
 
-=======
-    String? destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
-    String? destinationName, // Optional: human-readable name for error messages
-  }) async {
-    final provider = ProjectDataInherited.of(context);
-    
-    // Security check: Verify destination is not locked
-    if (destinationCheckpoint != null && isDestinationLocked(context, destinationCheckpoint)) {
-      showLockedDestinationMessage(context, destinationName ?? 'the next page');
-      return; // Block navigation
-    }
-    
->>>>>>> 1ee471ae (Merge codebases)
     // Update data if updater is provided
     if (dataUpdater != null) {
       provider.updateField(dataUpdater);
@@ -1107,7 +1051,6 @@ class ProjectDataHelper {
     String? milestoneStartDate,
     String? milestoneEndDate,
     List<RequirementItem>? requirementItems,
-<<<<<<< HEAD
     // Added optional list fields so screens can update persisted lists centrally
     List<ScenarioRecord>? scenarioMatrixItems,
     List<RoleItem>? securityRoles,
@@ -1125,8 +1068,6 @@ class ProjectDataHelper {
     List<InfrastructurePlanningItem>? infrastructureItems,
     List<OpportunityItem>? opportunityItems,
     List<PlanningDashboardItem>? successCriteriaItems,
-=======
->>>>>>> 1ee471ae (Merge codebases)
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? current.requirements,
@@ -1147,7 +1088,6 @@ class ProjectDataHelper {
       milestoneStartDate: milestoneStartDate ?? current.milestoneStartDate,
       milestoneEndDate: milestoneEndDate ?? current.milestoneEndDate,
       requirementItems: requirementItems ?? current.requirementItems,
-<<<<<<< HEAD
       // Preserve or replace list fields
       scenarioMatrixItems: scenarioMatrixItems ?? current.scenarioMatrixItems,
       securityRoles: securityRoles ?? current.securityRoles,
@@ -1168,8 +1108,6 @@ class ProjectDataHelper {
       opportunityItems: opportunityItems ?? current.opportunityItems,
       successCriteriaItems:
           successCriteriaItems ?? current.successCriteriaItems,
-=======
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 

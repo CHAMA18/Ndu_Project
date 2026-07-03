@@ -22,10 +22,6 @@ import 'package:ndu_project/screens/it_considerations_screen.dart';
 import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/core_stakeholders_screen.dart';
 import 'package:ndu_project/screens/cost_analysis_screen.dart';
-<<<<<<< HEAD
-=======
-import 'package:ndu_project/screens/project_framework_screen.dart';
->>>>>>> 1ee471ae (Merge codebases)
 import 'package:ndu_project/screens/front_end_planning_summary.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
@@ -564,7 +560,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
   Future<void> _handleSkipPressed() async {
     FocusScope.of(context).unfocus();
 
-<<<<<<< HEAD
     // If business case is empty, generate it with AI
     if (_businessCaseController.text.trim().isEmpty) {
       if (!mounted) return;
@@ -628,9 +623,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
 
     // If business case already exists, show modal explaining skip requirements
-=======
-    // Show modal explaining skip requirements
->>>>>>> 1ee471ae (Merge codebases)
     final shouldProceed = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -652,7 +644,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 16),
-<<<<<<< HEAD
             _RequirementItem(
                 icon: Icons.people_outline, text: 'Core Stakeholders'),
             _RequirementItem(
@@ -660,11 +651,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
             _RequirementItem(
                 icon: Icons.business_outlined,
                 text: 'Infrastructure Considerations'),
-=======
-            _RequirementItem(icon: Icons.people_outline, text: 'Core Stakeholders'),
-            _RequirementItem(icon: Icons.computer_outlined, text: 'IT Considerations'),
-            _RequirementItem(icon: Icons.business_outlined, text: 'Infrastructure Considerations'),
->>>>>>> 1ee471ae (Merge codebases)
             SizedBox(height: 12),
             Text(
               'You will be directed to fill these fields before proceeding to Front End Planning.',
@@ -696,21 +682,12 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
 
     // Check which mandatory fields are missing
     final missingFields = <String, String>{};
-<<<<<<< HEAD
 
     // Check Core Stakeholders - validation: lists must not be empty (regardless of AI or manual entry)
     final hasCoreStakeholders = projectData.coreStakeholdersData != null &&
         projectData.coreStakeholdersData!.solutionStakeholderData.isNotEmpty &&
         projectData.coreStakeholdersData!.solutionStakeholderData
             .any((item) => item.notableStakeholders.trim().isNotEmpty);
-=======
-    
-    // Check Core Stakeholders - validation: lists must not be empty (regardless of AI or manual entry)
-    final hasCoreStakeholders = projectData.coreStakeholdersData != null &&
-        projectData.coreStakeholdersData!.solutionStakeholderData.isNotEmpty &&
-        projectData.coreStakeholdersData!.solutionStakeholderData.any((item) => 
-          item.notableStakeholders.trim().isNotEmpty);
->>>>>>> 1ee471ae (Merge codebases)
     if (!hasCoreStakeholders) {
       missingFields['Core Stakeholders'] = 'core_stakeholders';
     }
@@ -718,19 +695,13 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     // Check IT Considerations - validation: lists must not be empty (regardless of AI or manual entry)
     final hasITConsiderations = projectData.itConsiderationsData != null &&
         projectData.itConsiderationsData!.solutionITData.isNotEmpty &&
-<<<<<<< HEAD
         projectData.itConsiderationsData!.solutionITData
             .any((item) => item.coreTechnology.trim().isNotEmpty);
-=======
-        projectData.itConsiderationsData!.solutionITData.any((item) => 
-          item.coreTechnology.trim().isNotEmpty);
->>>>>>> 1ee471ae (Merge codebases)
     if (!hasITConsiderations) {
       missingFields['IT Considerations'] = 'it_considerations';
     }
 
     // Check Infrastructure Considerations - validation: lists must not be empty (regardless of AI or manual entry)
-<<<<<<< HEAD
     final hasInfrastructure = projectData.infrastructureConsiderationsData !=
             null &&
         projectData.infrastructureConsiderationsData!.solutionInfrastructureData
@@ -747,27 +718,11 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
       if (!mounted) return;
 
       // Save current data first so the next phase still has the latest context.
-=======
-    final hasInfrastructure = projectData.infrastructureConsiderationsData != null &&
-        projectData.infrastructureConsiderationsData!.solutionInfrastructureData.isNotEmpty &&
-        projectData.infrastructureConsiderationsData!.solutionInfrastructureData.any((item) => 
-          item.majorInfrastructure.trim().isNotEmpty);
-    if (!hasInfrastructure) {
-      missingFields['Infrastructure Considerations'] = 'infrastructure_considerations';
-    }
-
-    // If fields are missing, route to the first missing screen
-    if (missingFields.isNotEmpty) {
-      if (!mounted) return;
-      
-      // Save current data first
->>>>>>> 1ee471ae (Merge codebases)
       provider.updateInitiationData(
         notes: _notesController.text.trim(),
         businessCase: _businessCaseController.text.trim(),
       );
       await provider.saveToFirebase(checkpoint: 'business_case');
-<<<<<<< HEAD
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -790,54 +745,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
 
     // Proceed to Front End Planning even if some setup is still empty.
-=======
-
-      // Show dialog indicating which fields need to be filled
-      await showDialog(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Required Information Missing'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Please complete the following sections:'),
-              const SizedBox(height: 12),
-              ...missingFields.keys.map((field) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    Icon(Icons.circle, size: 8, color: Colors.orange),
-                    const SizedBox(width: 8),
-                    Text(field, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              )),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                // Navigate to first missing field
-                final firstMissingCheckpoint = missingFields.values.first;
-                _navigateToRequiredField(firstMissingCheckpoint);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-              ),
-              child: const Text('Fill Required Fields'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
-    // All required fields are filled - proceed to Front End Planning
->>>>>>> 1ee471ae (Merge codebases)
     provider.updateInitiationData(
       notes: _notesController.text.trim(),
       businessCase: _businessCaseController.text.trim(),
@@ -870,7 +777,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
     }
 
     if (!mounted) return;
-<<<<<<< HEAD
 
     // Show Select Project dialog on Scope Statement page so user can pick a solution
     final options = projectData.potentialSolutions
@@ -1114,51 +1020,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
         PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
         PdfSection.text('Business Case', businessCase.isEmpty ? 'No data recorded.' : businessCase),
       ],
-=======
-    // Navigate to Front End Planning Summary
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const FrontEndPlanningSummaryScreen(),
-      ),
->>>>>>> 1ee471ae (Merge codebases)
     );
-  }
-
-  void _navigateToRequiredField(String checkpoint) {
-    final provider = ProjectDataHelper.getProvider(context);
-    final projectData = provider.projectData;
-
-    Widget? screen;
-    switch (checkpoint) {
-      case 'core_stakeholders':
-        screen = CoreStakeholdersScreen(
-          notes: projectData.coreStakeholdersData?.notes ?? projectData.notes ?? '',
-          solutions: projectData.potentialSolutions
-              .map((s) => AiSolutionItem(title: s.title, description: s.description))
-              .toList(),
-        );
-        break;
-      case 'it_considerations':
-        screen = ITConsiderationsScreen(
-          notes: projectData.itConsiderationsData?.notes ?? projectData.notes ?? '',
-          solutions: projectData.potentialSolutions
-              .map((s) => AiSolutionItem(title: s.title, description: s.description))
-              .toList(),
-        );
-        break;
-      case 'infrastructure_considerations':
-        screen = InfrastructureConsiderationsScreen(
-          notes: projectData.infrastructureConsiderationsData?.notes ?? projectData.notes ?? '',
-          solutions: projectData.potentialSolutions
-              .map((s) => AiSolutionItem(title: s.title, description: s.description))
-              .toList(),
-        );
-        break;
-    }
-
-    if (screen != null) {
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen!));
-    }
   }
 
   String _formatSuggestionError(Object error) {
@@ -2853,13 +2715,6 @@ class _RingPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-<<<<<<< HEAD
-=======
-// Simple wrappers since dart:math isn't imported at top of file
-double MathSin(double v) => Math.sin(v);
-double MathCos(double v) => Math.cos(v);
-
->>>>>>> 1ee471ae (Merge codebases)
 class _RequirementItem extends StatelessWidget {
   const _RequirementItem({required this.icon, required this.text});
 

@@ -20,9 +20,9 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/staff_team_screen.dart';
-
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/models/project_data_model.dart';
 /// Front End Planning – Project Opportunities page
 /// Built to match the provided screenshot exactly:
 /// - Left ProgramWorkspaceSidebar

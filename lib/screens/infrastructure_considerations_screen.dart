@@ -65,7 +65,6 @@ class _InfrastructureConsiderationsScreenState
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _reviewScrollController = ScrollController();
   late final TextEditingController _notesController;
-<<<<<<< HEAD
   late List<TextEditingController>
       _infraControllers; // Made mutable for dynamic addition
   late final List<AiSolutionItem> _solutions; // Local mutable list
@@ -109,44 +108,20 @@ class _InfrastructureConsiderationsScreenState
       ],
     );
   }
-=======
-  late List<TextEditingController> _infraControllers; // Made mutable for dynamic addition
-  late final List<AiSolutionItem> _solutions; // Local mutable list
-  final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
-  bool _isGenerating = false;
-  String? _error;
-  bool _initiationExpanded = true;
-  bool _businessCaseExpanded = true;
-  
-  void _addNewItem() {
-    setState(() {
-      _solutions.add(AiSolutionItem(title: '', description: ''));
-      _infraControllers.add(TextEditingController());
-    });
-  }
->>>>>>> 1ee471ae (Merge codebases)
 
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
     _notesController = RichTextEditingController(text: widget.notes);
-=======
-    _notesController = TextEditingController(text: widget.notes);
->>>>>>> 1ee471ae (Merge codebases)
     _solutions = List.from(widget.solutions); // Create mutable copy
     // Initialize with at least one empty item if solutions list is empty
     if (_solutions.isEmpty) {
       _solutions.add(AiSolutionItem(title: '', description: ''));
     }
-<<<<<<< HEAD
     _infraControllers =
         List.generate(_solutions.length, (_) => RichTextEditingController());
 
     // Initialize API key manager
-=======
-    _infraControllers = List.generate(_solutions.length, (_) => TextEditingController());
->>>>>>> 1ee471ae (Merge codebases)
     ApiKeyManager.initializeApiKey();
 
     // Check admin status (controls Add Item visibility)
@@ -156,7 +131,6 @@ class _InfrastructureConsiderationsScreenState
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-<<<<<<< HEAD
       try {
         _loadExistingData();
       } catch (e) { debugPrint('initState error: $e'); }
@@ -171,13 +145,6 @@ class _InfrastructureConsiderationsScreenState
       );
       });
       _generateInfrastructureIfNeeded();
-=======
-      _loadExistingData();
-      // Only auto-generate if we have actual solutions (not empty placeholder)
-      if (widget.solutions.isNotEmpty) {
-        _generateInfrastructure();
-      }
->>>>>>> 1ee471ae (Merge codebases)
     });
   }
 
@@ -195,7 +162,6 @@ class _InfrastructureConsiderationsScreenState
 
       // Load infrastructure data for each solution
       // Ensure we have enough controllers and solutions
-<<<<<<< HEAD
       while (_infraControllers.length <
           infraData.solutionInfrastructureData.length) {
         _solutions.add(AiSolutionItem(title: '', description: ''));
@@ -205,13 +171,6 @@ class _InfrastructureConsiderationsScreenState
           i < infraData.solutionInfrastructureData.length &&
               i < _infraControllers.length;
           i++) {
-=======
-      while (_infraControllers.length < infraData.solutionInfrastructureData.length) {
-        _solutions.add(AiSolutionItem(title: '', description: ''));
-        _infraControllers.add(TextEditingController());
-      }
-      for (int i = 0; i < infraData.solutionInfrastructureData.length && i < _infraControllers.length; i++) {
->>>>>>> 1ee471ae (Merge codebases)
         final solutionInfra = infraData.solutionInfrastructureData[i];
         if (i < _solutions.length) {
           _solutions[i] = AiSolutionItem(
@@ -1212,7 +1171,6 @@ class _InfrastructureConsiderationsScreenState
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
-<<<<<<< HEAD
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
                 color: Colors.white,
@@ -1228,71 +1186,6 @@ class _InfrastructureConsiderationsScreenState
                   contentPadding: EdgeInsets.zero),
               minLines: 1,
               maxLines: null,
-=======
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
-            child: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 18),
-              const SizedBox(width: 8),
-              Expanded(child: Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis)),
-              TextButton(onPressed: _isGenerating ? null : _generateInfrastructure, child: const Text('Retry')),
-            ]),
-          ),
-        ],
-        if (_isGenerating) ...[
-          const SizedBox(height: 8),
-          const LinearProgressIndicator(minHeight: 2),
-        ],
-        const SizedBox(height: 24),
-        if (isMobile) ...[
-          Column(children: List.generate(_solutions.length, (i) => _row(i))),
-        ] else ...[
-          const Text('Potential Solution', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: const Row(children: [
-              Expanded(child: Text('Potential Solution', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-              Expanded(child: Text('Major Infrastructure', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(children: List.generate(_solutions.length, (i) => _row(i))),
-          ),
-        ],
-        const SizedBox(height: 16),
-        // Add Item button
-        Row(children: [
-          Tooltip(
-            message: 'Add a new infrastructure consideration entry manually',
-            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _addNewItem,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Item'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ]),
-        const SizedBox(height: 24),
-        if (isMobile) ...[
-          Row(children: [
-            Tooltip(
-              message:
-                  'While AI suggestions are helpful, we strongly encourage you to make the required adjustments for the best possible results',
-              child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
->>>>>>> 1ee471ae (Merge codebases)
             ),
           ),
           const SizedBox(height: 24),
@@ -1771,7 +1664,6 @@ class _InfrastructureConsiderationsScreenState
 
   Future<void> _saveInfrastructureConsiderationsData() async {
     try {
-<<<<<<< HEAD
       final provider = ProjectDataInherited.read(context);
 
       // Collect all infrastructure data from all solutions (including manually added items)
@@ -1786,20 +1678,6 @@ class _InfrastructureConsiderationsScreenState
 
         // Only add if there's actual content (majorInfrastructure is not empty)
         if (majorInfrastructure.isNotEmpty) {
-=======
-      final provider = ProjectDataInherited.of(context);
-      
-      // Collect all infrastructure data from all solutions (including manually added items)
-      final solutionInfrastructureData = <SolutionInfrastructureData>[];
-      for (int i = 0; i < _solutions.length && i < _infraControllers.length; i++) {
-        final solutionTitle = _solutions[i].title.isNotEmpty 
-            ? _solutions[i].title 
-            : 'Infrastructure Entry ${i + 1}';
-        final majorInfrastructure = _infraControllers[i].text.trim();
-        
-        // Only add if there's actual content (name or infrastructure)
-        if (solutionTitle.isNotEmpty || majorInfrastructure.isNotEmpty) {
->>>>>>> 1ee471ae (Merge codebases)
           solutionInfrastructureData.add(SolutionInfrastructureData(
             solutionTitle: solutionTitle,
             majorInfrastructure: majorInfrastructure,
@@ -1827,16 +1705,11 @@ class _InfrastructureConsiderationsScreenState
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
-<<<<<<< HEAD
     final isStriped = index.isOdd;
     // Handle cases where we have more controllers than initial solutions (user added items)
     final s = index < _solutions.length
         ? _solutions[index]
         : AiSolutionItem(title: '', description: '');
-=======
-    // Handle cases where we have more controllers than initial solutions (user added items)
-    final s = index < _solutions.length ? _solutions[index] : AiSolutionItem(title: '', description: '');
->>>>>>> 1ee471ae (Merge codebases)
     return Container(
       constraints: BoxConstraints(
         minHeight: isMobile ? 0 : 168,
@@ -2013,7 +1886,6 @@ class _InfrastructureConsiderationsScreenState
     final provider = ProjectDataHelper.getProvider(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-<<<<<<< HEAD
       final solution = _solutions[index];
       final solutionsToUse = [solution];
 
@@ -2033,62 +1905,6 @@ class _InfrastructureConsiderationsScreenState
         messenger.showSnackBar(
           const SnackBar(content: Text('Infrastructure field regenerated')),
         );
-=======
-      // Get project context for fallback if solutions are empty
-      final provider = ProjectDataInherited.maybeOf(context);
-      final projectData = provider?.projectData;
-      final projectName = projectData?.projectName ?? '';
-      final projectDescription = projectData?.solutionDescription ?? projectData?.businessCase ?? '';
-      
-      // Use solutions if available, otherwise create a placeholder from project name
-      final solutionsToUse = _solutions.where((s) => s.title.isNotEmpty || s.description.isNotEmpty).toList();
-      if (solutionsToUse.isEmpty && projectName.isNotEmpty) {
-        solutionsToUse.add(AiSolutionItem(
-          title: projectName,
-          description: projectDescription,
-        ));
-        // Ensure we have a controller for this
-        if (_infraControllers.isEmpty) {
-          _infraControllers.add(TextEditingController());
-        }
-        if (_solutions.isEmpty) {
-          _solutions.addAll(solutionsToUse);
-        }
-      }
-      
-      if (solutionsToUse.isEmpty) {
-        setState(() {
-          _error = 'Please add at least one solution or project name to generate infrastructure considerations.';
-          _isGenerating = false;
-        });
-        return;
-      }
-      
-      // Combine notes with additional infrastructure info
-      String contextNotes = _notesController.text.trim();
-      if (contextNotes.isEmpty && projectName.isNotEmpty) {
-        contextNotes = 'Project: $projectName';
-        if (projectDescription.isNotEmpty) {
-          contextNotes += '\nDescription: $projectDescription';
-        }
-      }
-      if (additionalInfo.isNotEmpty) {
-        contextNotes = contextNotes.isEmpty 
-            ? additionalInfo 
-            : '$contextNotes\n\nAdditional Infrastructure Info: $additionalInfo';
-      }
-          
-      final map = await _openAi.generateInfrastructureForSolutions(
-        solutionsToUse,
-        contextNotes: contextNotes,
-      );
-      
-      // Apply generated data to controllers
-      for (int i = 0; i < solutionsToUse.length && i < _infraControllers.length; i++) {
-        final title = solutionsToUse[i].title;
-        final infra = map[title] ?? const <String>[];
-        _infraControllers[i].text = infra.isEmpty ? '' : infra.map((e) => '- $e').join('\n');
->>>>>>> 1ee471ae (Merge codebases)
       }
     } catch (e) {
       if (mounted) {

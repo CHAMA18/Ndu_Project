@@ -287,7 +287,6 @@ class _Level1ScheduleScreenState
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
     final isMobile = AppBreakpoints.isMobile(context);
     final horizontalPadding = isMobile ? 20.0 : 32.0;
 
@@ -372,18 +371,6 @@ class _Level1ScheduleScreenState
             ),
           ],
         ),
-=======
-    return _ProjectPlanSectionScreen(
-      config: _ProjectPlanSectionConfig(
-        title: 'Level 1 - Project Schedule',
-        subtitle:
-            'Map major phases, milestone timing, and governance checkpoints.',
-        noteKey: 'planning_project_plan_level1_notes',
-        checkpoint: 'project_plan_level1_schedule',
-        activeItemLabel: 'Project Plan - Level 1 - Project Schedule',
-        metrics: const [],
-        sections: const [],
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
@@ -4636,7 +4623,6 @@ class _ProjectPlanSectionScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _TopHeader(
-<<<<<<< HEAD
                               title: config.title,
                               onBack: () =>
                                   PlanningPhaseNavigation.goToPrevious(
@@ -4644,10 +4630,6 @@ class _ProjectPlanSectionScreen extends StatelessWidget {
                               onForward: () => PlanningPhaseNavigation.goToNext(
                                   context, config.checkpoint),
                             ),
-=======
-                                title: config.title,
-                                onBack: () => Navigator.maybePop(context)),
->>>>>>> 1ee471ae (Merge codebases)
                             const SizedBox(height: 12),
                             Text(
                               config.subtitle,
@@ -4702,13 +4684,9 @@ class _ProjectPlanSectionScreen extends StatelessWidget {
                     ),
                   ),
                   const Positioned(
-<<<<<<< HEAD
                       right: 24,
                       bottom: 24,
                       child: KazAiChatBubble(positioned: false)),
-=======
-                      right: 24, bottom: 24, child: KazAiChatBubble()),
->>>>>>> 1ee471ae (Merge codebases)
                 ],
               ),
             ),
@@ -4810,7 +4788,6 @@ class _UserChip extends StatelessWidget {
         FirebaseAuthService.displayNameOrEmail(fallback: 'User');
     final email = user?.email ?? '';
 
-<<<<<<< HEAD
     return StreamBuilder<bool>(
       stream: UserService.watchAdminStatus(),
       builder: (context, snapshot) {
@@ -4822,37 +4799,10 @@ class _UserChip extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: const Color(0xFFE5E7EB)),
-=======
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: const Color(0xFFE5E7EB),
-            backgroundImage:
-                user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
-            child: user?.photoURL == null
-                ? Text(
-                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
-                    style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF374151)),
-                  )
-                : null,
->>>>>>> 1ee471ae (Merge codebases)
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-<<<<<<< HEAD
               CircleAvatar(
                 radius: 16,
                 backgroundColor: const Color(0xFFE5E7EB),
@@ -4891,20 +4841,6 @@ class _UserChip extends StatelessWidget {
           ),
         );
       },
-=======
-              Text(displayName,
-                  style: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600)),
-              const Text('Product manager',
-                  style: TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
-            ],
-          ),
-          const SizedBox(width: 6),
-          const Icon(Icons.keyboard_arrow_down,
-              size: 18, color: Color(0xFF9CA3AF)),
-        ],
-      ),
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 }
@@ -4936,17 +4872,12 @@ class _MetricData {
 }
 
 class _MetricCard extends StatelessWidget {
-<<<<<<< HEAD
   const _MetricCard({
     required this.label,
     required this.value,
     required this.accent,
     this.icon,
   });
-=======
-  const _MetricCard(
-      {required this.label, required this.value, required this.accent});
->>>>>>> 1ee471ae (Merge codebases)
 
   final String label;
   final String value;
@@ -4966,7 +4897,6 @@ class _MetricCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-<<<<<<< HEAD
           Row(
             children: [
               if (icon != null) ...[
@@ -4978,10 +4908,6 @@ class _MetricCard extends StatelessWidget {
                       const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
             ],
           ),
-=======
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
->>>>>>> 1ee471ae (Merge codebases)
           const SizedBox(height: 6),
           Text(
             value,
@@ -4998,14 +4924,8 @@ class _SectionData {
   const _SectionData({
     required this.title,
     required this.subtitle,
-<<<<<<< HEAD
   })  : bullets = const [],
         statusRows = const [];
-=======
-    this.bullets = const [],
-    this.statusRows = const [],
-  });
->>>>>>> 1ee471ae (Merge codebases)
 
   final String title;
   final String subtitle;

@@ -4,7 +4,6 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/user_role.dart';
@@ -15,8 +14,6 @@ import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/requirements_implementation_screen.dart';
-=======
->>>>>>> 1ee471ae (Merge codebases)
 import 'package:ndu_project/screens/development_set_up_screen.dart';
 import 'package:ndu_project/screens/ui_ux_design_screen.dart';
 import 'package:pdf/pdf.dart';

@@ -16,27 +16,11 @@ library;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-<<<<<<< HEAD
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
-=======
-import 'package:firebase_auth/firebase_auth.dart';
-
-import '../routing/app_router.dart';
-import '../models/program_model.dart';
-import '../services/navigation_context_service.dart';
-import '../services/program_service.dart';
-import '../services/project_service.dart';
-import '../services/project_navigation_service.dart';
-import '../utils/navigation_route_resolver.dart';
-import '../providers/project_data_provider.dart';
-import '../screens/initiation_phase_screen.dart';
-import '../widgets/dashboard_stat_card.dart';
-import '../widgets/kaz_ai_chat_bubble.dart';
->>>>>>> 1ee471ae (Merge codebases)
 
 class ProgramDashboardScreen extends StatefulWidget {
   final String? programId;
@@ -1474,7 +1458,6 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
     );
   }
 
-<<<<<<< HEAD
   Widget _cityBuilding(double w, double h, Color c) {
     return Container(
         width: w,
@@ -1483,82 +1466,6 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
             color: c,
             borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(2), topRight: Radius.circular(2))));
-=======
-  Future<void> _handleProjectTap(BuildContext context, String projectId) async {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(strokeWidth: 3),
-                SizedBox(height: 16),
-                Text(
-                  'Loading project...',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    try {
-      final provider = ProjectDataInherited.of(context);
-      debugPrint('📥 Calling loadFromFirebase for project: $projectId');
-      
-      final success = await provider.loadFromFirebase(projectId);
-
-      debugPrint('📤 Load result: $success, error: ${provider.lastError}');
-
-      if (!context.mounted) return;
-
-      Navigator.of(context).pop(); // Close loading dialog
-
-      if (success) {
-        // Get checkpoint from Firestore (primary source) or fallback to SharedPreferences
-        final projectRecord = await ProjectService.getProjectById(projectId);
-        final checkpointRoute = projectRecord?.checkpointRoute.isNotEmpty == true
-            ? projectRecord!.checkpointRoute
-            : await ProjectNavigationService.instance.getLastPage(projectId);
-        debugPrint('✅ Project loaded successfully, navigating to checkpoint: $checkpointRoute');
-        
-        // Resolve checkpoint to screen widget
-        final screen = NavigationRouteResolver.resolveCheckpointToScreen(
-          checkpointRoute.isEmpty ? 'initiation' : checkpointRoute,
-          context,
-        );
-        
-        // Navigate to the resolved screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => screen ?? const InitiationPhaseScreen()),
-        );
-      } else {
-        debugPrint('❌ Failed to load project: ${provider.lastError}');
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to load project: ${provider.lastError ?? "Unknown error"}')),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading project: $e');
-      if (context.mounted) {
-        Navigator.of(context).pop(); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading project: $e')),
-        );
-      }
-    }
->>>>>>> 1ee471ae (Merge codebases)
   }
 }
 

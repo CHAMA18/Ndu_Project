@@ -474,7 +474,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
   }
 
   Future<void> _handleNextPressed() async {
-<<<<<<< HEAD
     final projectGoals = _goals
         .map((g) => ProjectGoal(
               name: g.nameController.text.trim(),
@@ -520,25 +519,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     } else {
       nextScreen = const WorkBreakdownStructureScreen();
     }
-=======
-    // Validate required fields before proceeding
-    if (_selectedOverallFramework == null || _selectedOverallFramework!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an Overall Framework before proceeding.'),
-          backgroundColor: Color(0xFFEF4444),
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    final projectGoals = _goals.map((g) => ProjectGoal(
-      name: g.name,
-      description: g.controller.text.trim(),
-      framework: g.framework,
-    )).toList();
->>>>>>> 1ee471ae (Merge codebases)
 
     if (projectGoals.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(

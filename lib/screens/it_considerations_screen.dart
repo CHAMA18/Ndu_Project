@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
-<<<<<<< HEAD
 import 'package:ndu_project/widgets/voice_text_field.dart';
-=======
->>>>>>> 1ee471ae (Merge codebases)
 // AiSolutionItem is exported from openai_service_secure.dart
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -117,32 +114,19 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
-  void _addNewItem() {
-    setState(() {
-      _solutions.add(AiSolutionItem(
-          title: '', description: '')); // Add a new solution item
-      _techControllers.add(TextEditingController()); // Add a new controller
-    });
-  }
-
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
     // IMPORTANT: don't read inherited widgets in initState (causes dependOnInheritedWidget errors).
     // We'll hydrate from provider in didChangeDependencies.
     _notesController = RichTextEditingController(text: widget.notes);
     // Notes = prose; no auto-bullet
 
-=======
-    _notesController = TextEditingController(text: widget.notes);
->>>>>>> 1ee471ae (Merge codebases)
     _solutions = List.from(widget.solutions); // Create mutable copy
     // Initialize with at least one empty item if solutions list is empty
     if (_solutions.isEmpty) {
       _solutions.add(AiSolutionItem(title: '', description: ''));
     }
-<<<<<<< HEAD
     _techControllers = List.generate(_solutions.length, (_) {
       final controller = RichTextEditingController();
       controller.enableAutoBullet(); // Enable auto-bullet for each tech field
@@ -170,14 +154,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             'List the core technology considerations for each potential solution. Click "Generate Technologies" to get AI suggestions tailored to each solution.',
       );
       });
-=======
-    _techControllers =
-        List.generate(_solutions.length, (_) => TextEditingController());
-    ApiKeyManager.initializeApiKey();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _loadExistingData();
->>>>>>> 1ee471ae (Merge codebases)
       // Only auto-generate if we have actual solutions (not empty placeholder)
       if (widget.solutions.isNotEmpty) {
         _generateTechnologies();
@@ -185,7 +161,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     });
   }
 
-<<<<<<< HEAD
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -199,8 +174,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     }
   }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
   void _loadExistingData() {
     try {
       final provider = ProjectDataInherited.read(context);
@@ -214,7 +187,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       }
 
       // Load IT data for each solution
-<<<<<<< HEAD
       // Limit to 3 items for non-admins
       final maxItems = _isAdmin
           ? itData.solutionITData.length
@@ -233,20 +205,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         if (i < _solutions.length) {
           _solutions[i] = AiSolutionItem(
             title: _cleanSolutionTitle(solutionIT.solutionTitle),
-=======
-      // Ensure we have enough controllers and solutions
-      while (_techControllers.length < itData.solutionITData.length) {
-        _solutions.add(AiSolutionItem(title: '', description: ''));
-        _techControllers.add(TextEditingController());
-      }
-      for (int i = 0;
-          i < itData.solutionITData.length && i < _techControllers.length;
-          i++) {
-        final solutionIT = itData.solutionITData[i];
-        if (i < _solutions.length) {
-          _solutions[i] = AiSolutionItem(
-            title: solutionIT.solutionTitle,
->>>>>>> 1ee471ae (Merge codebases)
             description: '',
           );
         }
@@ -266,7 +224,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       _error = null;
     });
     try {
-<<<<<<< HEAD
       final provider = ProjectDataHelper.getProvider(context);
 
       // Add current values to history before regenerating
@@ -282,14 +239,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       final projectData = provider.projectData;
       final projectName = projectData.projectName;
       final projectDescription = projectData.solutionDescription;
-=======
-      // Get project context for fallback if solutions are empty
-      final provider = ProjectDataInherited.maybeOf(context);
-      final projectData = provider?.projectData;
-      final projectName = projectData?.projectName ?? '';
-      final projectDescription =
-          projectData?.solutionDescription ?? projectData?.businessCase ?? '';
->>>>>>> 1ee471ae (Merge codebases)
 
       // Use solutions if available, otherwise create a placeholder from project name
       final solutionsToUse = _solutions
@@ -302,11 +251,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         ));
         // Ensure we have a controller for this
         if (_techControllers.isEmpty) {
-<<<<<<< HEAD
           _techControllers.add(RichTextEditingController());
-=======
-          _techControllers.add(TextEditingController());
->>>>>>> 1ee471ae (Merge codebases)
         }
         if (_solutions.isEmpty) {
           _solutions.addAll(solutionsToUse);
@@ -344,7 +289,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         final tech = map[title] ?? const <String>[];
         _techControllers[i].text =
             tech.isEmpty ? '' : tech.map((e) => '- $e').join('\n');
-<<<<<<< HEAD
       }
 
       // Auto-save after regeneration
@@ -356,8 +300,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
           const SnackBar(
               content: Text('IT considerations regenerated successfully')),
         );
-=======
->>>>>>> 1ee471ae (Merge codebases)
       }
     } catch (e) {
       _error = (e.toString().contains('Failed to fetch') ||
@@ -394,7 +336,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
-<<<<<<< HEAD
       drawer: null,
       body: SafeArea(
         top: true,
@@ -465,19 +406,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                     tooltip: 'Regenerate all',
                   ),
                 ],
-=======
-      drawer: isMobile ? _buildMobileDrawer() : null,
-      body: Stack(
-        children: [
-          Column(children: [
-            BusinessCaseHeader(scaffoldKey: _scaffoldKey),
-            Expanded(
-                child: Row(children: [
-              DraggableSidebar(
-                openWidth: sidebarWidth,
-                child: const InitiationLikeSidebar(
-                    activeItemLabel: 'IT Considerations'),
->>>>>>> 1ee471ae (Merge codebases)
               ),
             ),
             Expanded(
@@ -836,12 +764,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-<<<<<<< HEAD
           right: BorderSide(color: Colors.grey.withOpacity(0.25), width: 0.8),
-=======
-          right: BorderSide(
-              color: Colors.grey.withValues(alpha: 0.25), width: 0.8),
->>>>>>> 1ee471ae (Merge codebases)
         ),
       ),
       child: Column(children: [
@@ -943,106 +866,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Drawer _buildMobileDrawer() {
     return Drawer(
-<<<<<<< HEAD
       width: MediaQuery.sizeOf(context).width * 0.88,
       child: const SafeArea(
         child: InitiationLikeSidebar(
           activeItemLabel: 'IT Considerations',
-=======
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          children: [
-            const ListTile(
-                leading: CircleAvatar(
-                    radius: 18,
-                    backgroundColor: Color(0xFFFFD700),
-                    child: Icon(Icons.person_outline, color: Colors.black87)),
-                title: Text('StackOne')),
-            const Divider(height: 1),
-            _buildMenuItem(Icons.home_outlined, 'Home', onTap: () {
-              Navigator.of(context).maybePop();
-              HomeScreen.open(context);
-            }),
-            _buildExpandableHeader(
-              Icons.flag_outlined,
-              'Initiation Phase',
-              expanded: _initiationExpanded,
-              onTap: () =>
-                  setState(() => _initiationExpanded = !_initiationExpanded),
-              isActive: true,
-            ),
-            if (_initiationExpanded) ...[
-              _buildExpandableHeader(
-                Icons.business_center_outlined,
-                'Business Case',
-                expanded: _businessCaseExpanded,
-                onTap: () => setState(
-                    () => _businessCaseExpanded = !_businessCaseExpanded),
-                isActive: false,
-              ),
-              if (_businessCaseExpanded) ...[
-                _buildNestedSubMenuItem('Potential Solutions', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openPotentialSolutions();
-                }),
-                _buildNestedSubMenuItem('Risk Identification', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openRiskIdentification();
-                }),
-                _buildNestedSubMenuItem('IT Considerations', isActive: true),
-                _buildNestedSubMenuItem('Infrastructure Considerations',
-                    onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openInfrastructureConsiderations();
-                }),
-                _buildNestedSubMenuItem('Core Stakeholders', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openCoreStakeholders();
-                }),
-                _buildNestedSubMenuItem(
-                    'Cost Benefit Analysis & Financial Metrics', onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openCostAnalysis();
-                }),
-                _buildNestedSubMenuItem('Preferred Solution Analysis',
-                    onTap: () {
-                  Navigator.of(context).maybePop();
-                  _openPreferredSolutionAnalysis();
-                }),
-              ],
-              _buildExpandableHeader(
-                Icons.timeline,
-                'Initiation: Front End Planning',
-                expanded: _frontEndExpanded,
-                onTap: () =>
-                    setState(() => _frontEndExpanded = !_frontEndExpanded),
-                isActive: false,
-              ),
-              if (_frontEndExpanded) ...[
-                _buildNestedSubMenuItem('Project Requirements',
-                    onTap: () => Navigator.of(context).maybePop()),
-                _buildNestedSubMenuItem('Project Risks',
-                    onTap: () => Navigator.of(context).maybePop()),
-                _buildNestedSubMenuItem('Project Opportunities',
-                    onTap: () => Navigator.of(context).maybePop()),
-              ],
-            ],
-            _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
-            _buildMenuItem(Icons.bolt_outlined, 'Agile Roadmap'),
-            _buildMenuItem(Icons.description_outlined, 'Contracting'),
-            _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
-            const Divider(height: 1),
-            _buildMenuItem(Icons.settings_outlined, 'Settings', onTap: () {
-              Navigator.of(context).maybePop();
-              SettingsScreen.open(context);
-            }),
-            _buildMenuItem(Icons.logout_outlined, 'LogOut', onTap: () {
-              Navigator.of(context).maybePop();
-              AuthNav.signOutAndExit(context);
-            }),
-          ],
->>>>>>> 1ee471ae (Merge codebases)
         ),
       ),
     );
@@ -1092,10 +919,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     );
   }
 
-<<<<<<< HEAD
   // ignore: unused_element
-=======
->>>>>>> 1ee471ae (Merge codebases)
   Widget _buildSubMenuItem(String title,
       {VoidCallback? onTap, bool isActive = false}) {
     final primary = Theme.of(context).colorScheme.primary;
@@ -1106,12 +930,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
-=======
-            color:
-                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
->>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1145,12 +964,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
-=======
-            color:
-                isActive ? primary.withValues(alpha: 0.10) : Colors.transparent,
->>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(children: [
@@ -1185,12 +999,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-<<<<<<< HEAD
             color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
-=======
-            color:
-                isActive ? primary.withValues(alpha: 0.12) : Colors.transparent,
->>>>>>> 1ee471ae (Merge codebases)
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -1493,7 +1302,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
   Future<void> _openInfrastructureConsiderations() async {
     // 1. Save data FIRST before validation
     await _saveITConsiderationsData();
-<<<<<<< HEAD
     if (!mounted) return;
 
     // 2. Validate data completeness
@@ -1555,10 +1363,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     }
 
     // Show loading dialog
-=======
-
-    // Show 3-second loading dialog
->>>>>>> 1ee471ae (Merge codebases)
     if (!mounted) return;
     showDialog(
       context: context,
@@ -1580,11 +1384,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
       ),
     );
 
-<<<<<<< HEAD
     await Future.delayed(const Duration(seconds: 1)); // Reduced delay
-=======
-    await Future.delayed(const Duration(seconds: 3));
->>>>>>> 1ee471ae (Merge codebases)
 
     if (!mounted) return;
     Navigator.of(context).pop(); // Close loading dialog
@@ -1602,11 +1402,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Future<void> _saveITConsiderationsData() async {
     try {
-<<<<<<< HEAD
       final provider = ProjectDataInherited.read(context);
-=======
-      final provider = ProjectDataInherited.of(context);
->>>>>>> 1ee471ae (Merge codebases)
 
       // Collect all IT data from all solutions (including manually added items)
       final solutionITData = <SolutionITData>[];
@@ -1618,13 +1414,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             : 'IT Entry ${i + 1}';
         final coreTechnology = _techControllers[i].text.trim();
 
-<<<<<<< HEAD
         // Only add if there's actual content (coreTechnology is not empty)
         if (coreTechnology.isNotEmpty) {
-=======
-        // Only add if there's actual content (name or technology)
-        if (solutionTitle.isNotEmpty || coreTechnology.isNotEmpty) {
->>>>>>> 1ee471ae (Merge codebases)
           solutionITData.add(SolutionITData(
             solutionTitle: solutionTitle,
             coreTechnology: coreTechnology,
@@ -1688,7 +1479,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Widget _buildMainContent() {
     final isMobile = AppBreakpoints.isMobile(context);
-<<<<<<< HEAD
     return ScrollIndicatorOverlay(
       controller: _reviewScrollController,
       child: SingleChildScrollView(
@@ -1866,165 +1656,15 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
           ),
         ]),
       ),
-=======
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          const EditableContentText(
-              contentKey: 'it_considerations_heading',
-              fallback: 'IT Considerations ',
-              category: 'business_case',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black)),
-          EditableContentText(
-              contentKey: 'it_considerations_description',
-              fallback:
-                  '(List core IT considerations for each Potential Solution)',
-              category: 'business_case',
-              style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-        ]),
-        SizedBox(height: AppBreakpoints.fieldGap(context)),
-        const EditableContentText(
-          contentKey: 'it_considerations_notes_heading',
-          fallback: 'Notes',
-          category: 'business_case',
-          style: TextStyle(
-              fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.withValues(alpha: 0.3))),
-          child: TextField(
-            controller: _notesController,
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            decoration: InputDecoration(
-                hintText: 'Input your notes here...',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero),
-            minLines: 1,
-            maxLines: null,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (_error != null)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-                color: Colors.red.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.red.withValues(alpha: 0.3))),
-            child: Row(children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 18),
-              const SizedBox(width: 8),
-              Expanded(
-                  child: Text(_error!,
-                      style: const TextStyle(color: Colors.red, fontSize: 12),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis)),
-              TextButton(
-                  onPressed: _isGenerating ? null : _generateTechnologies,
-                  child: const Text('Retry')),
-            ]),
-          ),
-        const SizedBox(height: 8),
-        const Text('IT Considerations for each potential solution',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black)),
-        const SizedBox(height: 12),
-        if (isMobile) ...[
-          Column(
-              children: List.generate(_techControllers.length, (i) => _row(i))),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: const Row(children: [
-              Expanded(
-                  child: Text('Potential Solution',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
-              Expanded(
-                  child: Text('Core Technology',
-                      style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w600))),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(
-                children:
-                    List.generate(_techControllers.length, (i) => _row(i))),
-          ),
-        ],
-        const SizedBox(height: 16),
-        // Add Item button
-        Row(children: [
-          Tooltip(
-            message:
-                'While AI suggestions are helpful, we strongly encourage you to make the required adjustments for the best possible results',
-            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _addNewItem,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Item'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ]),
-        const SizedBox(height: 24),
-
-        // Navigation Buttons
-        BusinessCaseNavigationButtons(
-          currentScreen: 'IT Considerations',
-          padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-          onNext: _openInfrastructureConsiderations,
-        ),
-      ]),
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
   String _potentialSolutionLabel(int index) {
     final number = index + 1;
     if (index < 0 || index >= _solutions.length) {
-<<<<<<< HEAD
       return 'Solution $number';
     }
     final title = _cleanSolutionTitle(_solutions[index].title).trim();
-=======
-      return 'Potential Solution $number';
-    }
-    final title = _solutions[index].title.trim();
->>>>>>> 1ee471ae (Merge codebases)
     if (title.isEmpty) {
       return 'Solution $number';
     }
@@ -2046,10 +1686,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
 
   Widget _row(int index) {
     final isMobile = AppBreakpoints.isMobile(context);
-<<<<<<< HEAD
     final isStriped = index.isOdd;
-=======
->>>>>>> 1ee471ae (Merge codebases)
     // Handle cases where we have more controllers than solutions (user added items)
     final s = index < _solutions.length
         ? _solutions[index]
@@ -2057,14 +1694,9 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-<<<<<<< HEAD
           color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
           border:
               Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
-=======
-          border: Border(
-              top: BorderSide(color: Colors.grey.withValues(alpha: 0.25)))),
->>>>>>> 1ee471ae (Merge codebases)
       child: isMobile
           ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2092,10 +1724,7 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-<<<<<<< HEAD
                             mainAxisAlignment: MainAxisAlignment.start,
-=======
->>>>>>> 1ee471ae (Merge codebases)
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               _numberBadge(index + 1),
@@ -2103,16 +1732,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                               Expanded(
                                 child: Text(
                                   _potentialSolutionLabel(index),
-<<<<<<< HEAD
                                   textAlign: TextAlign.left,
                                   style: const TextStyle(
                                       fontSize: 13,
                                       color: Color(0xFF1F2937),
-=======
-                                  style: const TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.black87,
->>>>>>> 1ee471ae (Merge codebases)
                                       fontWeight: FontWeight.w600),
                                 ),
                               ),
@@ -2120,17 +1743,11 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
                         if (s.description.isNotEmpty) ...[
                           const SizedBox(height: 6),
                           Text(s.description,
-<<<<<<< HEAD
                               textAlign: TextAlign.left,
                               style: const TextStyle(
                                   fontSize: 12, color: Color(0xFF6B7280)),
                               maxLines: 5,
                               softWrap: true,
-=======
-                              style: const TextStyle(
-                                  fontSize: 12, color: Colors.grey),
-                              maxLines: 3,
->>>>>>> 1ee471ae (Merge codebases)
                               overflow: TextOverflow.ellipsis),
                         ]
                       ]),
@@ -2155,7 +1772,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
         borderRadius: BorderRadius.circular(11),
       ),
       child: Text('$number',
-<<<<<<< HEAD
           style: const TextStyle(
               fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
     );
@@ -2230,33 +1846,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
             ),
           ),
         ],
-=======
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: primary)),
-    );
-  }
-
-  Widget _techTextArea(TextEditingController controller) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.grey.withValues(alpha: 0.25))),
-      child: TextField(
-        controller: controller,
-        minLines: 2,
-        maxLines: null,
-        decoration: InputDecoration(
-          border: InputBorder.none,
-          isDense: true,
-          contentPadding: EdgeInsets.zero,
-          hintText:
-              'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
-          hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
-        ),
-        style: const TextStyle(fontSize: 12, color: Colors.black87),
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }

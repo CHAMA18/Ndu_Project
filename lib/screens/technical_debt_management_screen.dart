@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
 import 'package:ndu_project/screens/identify_staff_ops_team_screen.dart';
 import 'package:ndu_project/screens/punchlist_actions_screen.dart';
-=======
->>>>>>> 1ee471ae (Merge codebases)
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -32,7 +29,6 @@ class TechnicalDebtManagementScreen extends StatefulWidget {
       _TechnicalDebtManagementScreenState();
 }
 
-<<<<<<< HEAD
 class _TechnicalDebtManagementScreenState
     extends State<TechnicalDebtManagementScreen> {
   static const List<_GovernanceColorOption> _governanceColorOptions = [
@@ -61,32 +57,6 @@ class _TechnicalDebtManagementScreenState
     });
   }
 
-=======
-class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementScreen> {
-  final Set<String> _selectedFilters = {'All'};
-
-  final List<_DebtItem> _debtItems = const [
-    _DebtItem('TD-014', 'Auth token refresh gaps', 'Security', 'Platform', 'Critical', 'In progress', 'Oct 10'),
-    _DebtItem('TD-021', 'Legacy API throttling', 'Performance', 'Core services', 'High', 'Backlog', 'Oct 18'),
-    _DebtItem('TD-036', 'Uncached reporting queries', 'Analytics', 'Data team', 'Medium', 'Planned', 'Nov 02'),
-    _DebtItem('TD-041', 'Retry policy inconsistencies', 'Reliability', 'Integration', 'High', 'In review', 'Oct 25'),
-    _DebtItem('TD-052', 'Audit log schema drift', 'Compliance', 'Security', 'Medium', 'Planned', 'Nov 12'),
-  ];
-
-  final List<_DebtInsight> _rootCauses = const [
-    _DebtInsight('Incomplete handoff docs', '5 items tied to missing runbooks.'),
-    _DebtInsight('Non-standard error handling', '4 services require alignment.'),
-    _DebtInsight('Deferred infra upgrades', '3 hotspots awaiting capacity swap.'),
-  ];
-
-  final List<_RemediationTrack> _tracks = const [
-    _RemediationTrack('Critical fixes', 0.72, Color(0xFFEF4444)),
-    _RemediationTrack('Security hardening', 0.58, Color(0xFFF97316)),
-    _RemediationTrack('Performance backlog', 0.44, Color(0xFF6366F1)),
-    _RemediationTrack('Reliability guardrails', 0.66, Color(0xFF10B981)),
-  ];
-
->>>>>>> 1ee471ae (Merge codebases)
   @override
   Widget build(BuildContext context) {
     final data = ProjectDataHelper.getData(context).frontEndPlanning;
@@ -197,7 +167,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
       spacing: 10,
       runSpacing: 10,
       children: [
-<<<<<<< HEAD
         _actionButton(Icons.add, 'Add debt item',
             onPressed: _showAddDebtItemDialog),
         _actionButton(Icons.tune, 'Prioritize backlog', onPressed: () {
@@ -209,19 +178,14 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
         }),
         _actionButton(Icons.description_outlined, 'Generate report',
             onPressed: _showDebtSnapshotReport),
-=======
-        _actionButton(Icons.add, 'Add debt item'),
-        _actionButton(Icons.tune, 'Prioritize backlog'),
-        _actionButton(Icons.description_outlined, 'Generate report'),
->>>>>>> 1ee471ae (Merge codebases)
         _primaryButton('Launch remediation sprint'),
       ],
     );
   }
 
-  Widget _actionButton(IconData icon, String label) {
+  Widget _actionButton(IconData icon, String label, {VoidCallback? onPressed}) {
     return OutlinedButton.icon(
-      onPressed: () {},
+      onPressed: onPressed ?? () {},
       icon: Icon(icon, size: 18, color: const Color(0xFF64748B)),
       label: Text(label,
           style: const TextStyle(
@@ -258,7 +222,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     );
   }
 
-<<<<<<< HEAD
   Widget _buildStatsRow(bool isNarrow) {
     final stats = [
       _StatCardData(
@@ -267,51 +230,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
           'In remediation', '7', '2 sprint owners', const Color(0xFF0EA5E9)),
       _StatCardData(
           'Monthly burn-down', '14%', 'Goal 20%', const Color(0xFF10B981)),
-=======
-  Widget _buildFilterChips() {
-    const filters = ['All', 'Critical', 'High impact', 'Due this month', 'Blocked'];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: filters.map((filter) {
-        final selected = _selectedFilters.contains(filter);
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              if (selected) {
-                _selectedFilters.remove(filter);
-              } else {
-                _selectedFilters.add(filter);
-              }
-            });
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: selected ? const Color(0xFF111827) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Text(
-              filter,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: selected ? Colors.white : const Color(0xFF475569),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  Widget _buildStatsRow(bool isNarrow) {
-    final stats = [
-      _StatCardData('Open debt items', '18', '6 critical', const Color(0xFFEF4444)),
-      _StatCardData('In remediation', '7', '2 sprint owners', const Color(0xFF0EA5E9)),
-      _StatCardData('Monthly burn-down', '14%', 'Goal 20%', const Color(0xFF10B981)),
->>>>>>> 1ee471ae (Merge codebases)
       _StatCardData('Owner coverage', '92%', '2 gaps', const Color(0xFF6366F1)),
     ];
 
@@ -324,7 +242,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     }
 
     return Row(
-<<<<<<< HEAD
       children: stats
           .map((stat) => Expanded(
                 child: Padding(
@@ -333,14 +250,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
                 ),
               ))
           .toList(),
-=======
-      children: stats.map((stat) => Expanded(
-        child: Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: _buildStatCard(stat),
-        ),
-      )).toList(),
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
@@ -355,28 +264,20 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-<<<<<<< HEAD
           Text(data.value,
               style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: data.color)),
-=======
-          Text(data.value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: data.color)),
->>>>>>> 1ee471ae (Merge codebases)
           const SizedBox(height: 6),
           Text(data.label,
               style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
           const SizedBox(height: 6),
-<<<<<<< HEAD
           Text(data.supporting,
               style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: data.color)),
-=======
-          Text(data.supporting, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: data.color)),
->>>>>>> 1ee471ae (Merge codebases)
         ],
       ),
     );
@@ -386,7 +287,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     return _PanelShell(
       title: 'Debt register',
       subtitle: 'Track high-impact debt items and remediation targets',
-<<<<<<< HEAD
       trailing: Row(children: [
         _actionButton(Icons.filter_list, 'Filter', onPressed: () {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -536,34 +436,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
             ],
           );
         },
-=======
-      trailing: _actionButton(Icons.filter_list, 'Filter'),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
-          columns: const [
-            DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Item', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Area', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Owner', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Severity', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600))),
-            DataColumn(label: Text('Target', style: TextStyle(fontWeight: FontWeight.w600))),
-          ],
-          rows: _debtItems.map((item) {
-            return DataRow(cells: [
-              DataCell(Text(item.id, style: const TextStyle(fontSize: 12, color: Color(0xFF0EA5E9)))),
-              DataCell(Text(item.title, style: const TextStyle(fontSize: 13))),
-              DataCell(_chip(item.area)),
-              DataCell(Text(item.owner, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)))),
-              DataCell(_severityChip(item.severity)),
-              DataCell(_statusChip(item.status)),
-              DataCell(Text(item.target, style: const TextStyle(fontSize: 12))),
-            ]);
-          }).toList(),
-        ),
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
@@ -572,7 +444,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     final rows = _remediationTableRows();
     return _PanelShell(
       title: 'Remediation runway',
-<<<<<<< HEAD
       subtitle: 'Risk-ranked closure plan with acceptance evidence',
       trailing: _tableToolbar(
         chipLabel: 'Weekly cadence',
@@ -609,38 +480,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
             ];
           },
         ).toList(),
-=======
-      subtitle: 'Progress by priority lane',
-      trailing: _chip('Weekly cadence'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: _tracks.map((track) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(child: Text(track.label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                    Text('${(track.progress * 100).round()}%', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: track.progress,
-                    minHeight: 8,
-                    backgroundColor: const Color(0xFFE2E8F0),
-                    valueColor: AlwaysStoppedAnimation<Color>(track.color),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }).toList(),
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
@@ -649,7 +488,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     final rows = _rootCauseTableRows();
     return _PanelShell(
       title: 'Root cause signals',
-<<<<<<< HEAD
       subtitle: 'Leading indicators mapped to controls and verification',
       trailing: _tableToolbar(
         buttonLabel: 'Add signal',
@@ -685,29 +523,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
             ];
           },
         ).toList(),
-=======
-      subtitle: 'Clustered themes driving technical debt',
-      child: Column(
-        children: _rootCauses.map((item) {
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(item.subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              ],
-            ),
-          );
-        }).toList(),
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
@@ -716,7 +531,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     final rows = _ownershipTableRows();
     return _PanelShell(
       title: 'Ownership coverage',
-<<<<<<< HEAD
       subtitle: 'RACI coverage, review checkpoints, and escalation triggers',
       trailing: _tableToolbar(
         chipLabel: 'Next review: Oct 14',
@@ -753,22 +567,10 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
             ];
           },
         ).toList(),
-=======
-      subtitle: 'Confirm accountable owners and next review',
-      trailing: _chip('Next review: Oct 14'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _OwnerItem('Platform team', '4 items', 'Coverage solid'),
-          _OwnerItem('Security', '3 items', 'Awaiting sign-off'),
-          _OwnerItem('Data team', '2 items', 'Handoff in progress'),
-        ],
->>>>>>> 1ee471ae (Merge codebases)
       ),
     );
   }
 
-<<<<<<< HEAD
   bool _isPlaceholderText(String value) {
     final normalized = value.trim().toLowerCase();
     return normalized.isEmpty ||
@@ -2131,8 +1933,6 @@ class _TechnicalDebtManagementScreenState extends State<TechnicalDebtManagementS
     );
   }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
   Widget _chip(String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -2883,14 +2683,5 @@ class _RemediationTrack {
 
   final String label;
   final double progress;
-  final Color color;
-}
-
-class _StatCardData {
-  const _StatCardData(this.label, this.value, this.supporting, this.color);
-
-  final String label;
-  final String value;
-  final String supporting;
   final Color color;
 }

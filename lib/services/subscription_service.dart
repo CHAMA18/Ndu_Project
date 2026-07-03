@@ -55,7 +55,6 @@ class Subscription {
     if (pausedUntil != null && pausedUntil!.isAfter(DateTime.now())) {
       return false; // Subscription is paused
     }
-<<<<<<< HEAD
     return (status == SubscriptionStatus.active ||
             status == SubscriptionStatus.trial) &&
         (endDate == null || endDate!.isAfter(DateTime.now()));
@@ -67,24 +66,12 @@ class Subscription {
       trialEndDate != null &&
       trialEndDate!.isAfter(DateTime.now());
 
-=======
-    return (status == SubscriptionStatus.active || status == SubscriptionStatus.trial) && 
-      (endDate == null || endDate!.isAfter(DateTime.now()));
-  }
-  
-  bool get isTrialActive => isTrial && 
-    status == SubscriptionStatus.trial && 
-    trialEndDate != null && 
-    trialEndDate!.isAfter(DateTime.now());
-  
->>>>>>> 1ee471ae (Merge codebases)
   int get trialDaysRemaining {
     if (!isTrialActive || trialEndDate == null) return 0;
     return trialEndDate!.difference(DateTime.now()).inDays;
   }
 
   Map<String, dynamic> toJson() => {
-<<<<<<< HEAD
         'id': id,
         'userId': userId,
         'tier': tier.name,
@@ -105,24 +92,6 @@ class Subscription {
         'pausedUntil':
             pausedUntil != null ? Timestamp.fromDate(pausedUntil!) : null,
       };
-=======
-    'id': id,
-    'userId': userId,
-    'tier': tier.name,
-    'status': status.name,
-    'provider': provider.name,
-    'startDate': Timestamp.fromDate(startDate),
-    'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
-    'nextBillingDate': nextBillingDate != null ? Timestamp.fromDate(nextBillingDate!) : null,
-    'isAnnual': isAnnual,
-    'externalSubscriptionId': externalSubscriptionId,
-    'createdAt': Timestamp.fromDate(createdAt),
-    'updatedAt': Timestamp.fromDate(updatedAt),
-    'isTrial': isTrial,
-    'trialEndDate': trialEndDate != null ? Timestamp.fromDate(trialEndDate!) : null,
-    'pausedUntil': pausedUntil != null ? Timestamp.fromDate(pausedUntil!) : null,
-  };
->>>>>>> 1ee471ae (Merge codebases)
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
     return Subscription(
@@ -662,18 +631,12 @@ class SubscriptionService {
       if (user == null) return false;
 
       final pausedUntil = DateTime.now().add(Duration(days: months * 30));
-<<<<<<< HEAD
 
       // Update user document in Firestore
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update({
-=======
-      
-      // Update user document in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
->>>>>>> 1ee471ae (Merge codebases)
         'pausedUntil': Timestamp.fromDate(pausedUntil),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -693,14 +656,10 @@ class SubscriptionService {
       if (user == null) return false;
 
       // Clear paused_until from user document
-<<<<<<< HEAD
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update({
-=======
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
->>>>>>> 1ee471ae (Merge codebases)
         'pausedUntil': FieldValue.delete(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
@@ -719,19 +678,14 @@ class SubscriptionService {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) return false;
 
-<<<<<<< HEAD
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .get();
-=======
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
->>>>>>> 1ee471ae (Merge codebases)
       if (!userDoc.exists) return false;
 
       final data = userDoc.data();
       final pausedUntil = data?['pausedUntil'];
-<<<<<<< HEAD
 
       if (pausedUntil == null) return false;
 
@@ -739,15 +693,6 @@ class SubscriptionService {
         return pausedUntil.toDate().isAfter(DateTime.now());
       }
 
-=======
-      
-      if (pausedUntil == null) return false;
-      
-      if (pausedUntil is Timestamp) {
-        return pausedUntil.toDate().isAfter(DateTime.now());
-      }
-      
->>>>>>> 1ee471ae (Merge codebases)
       return false;
     } catch (e) {
       debugPrint('Error checking subscription pause status: $e');

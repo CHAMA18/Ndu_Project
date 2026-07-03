@@ -1751,7 +1751,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
               showDelete: showDeleteColumn,
             ),
         ],
-      ],
+      ),
     );
   }
 

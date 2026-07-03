@@ -88,6 +88,11 @@
     .loading-brand .accent {
       color: #3b82f6;
     }
+    .loading-container.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
   </style>
 </head>
 <body>
@@ -97,6 +102,19 @@
     <div class="loading-spinner"></div>
     <div class="loading-text">Loading NDU Project...</div>
   </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', function() {
+      var loader = document.getElementById('loading-indicator');
+      if (!loader) return;
+      loader.classList.add('is-hidden');
+      window.setTimeout(function() {
+        if (loader.parentNode) {
+          loader.parentNode.removeChild(loader);
+        }
+      }, 220);
+    });
+  </script>
 
   <!-- Runtime environment config — loaded BEFORE Flutter so the keys are
        available when EnvConfigLoader.load() runs in main().

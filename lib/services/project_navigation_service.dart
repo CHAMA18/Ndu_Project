@@ -44,11 +44,7 @@ class ProjectNavigationService {
       
       // Secondary: Save to SharedPreferences for offline support
       try {
-<<<<<<< HEAD
         final prefs = await _prefs();
-=======
-        final prefs = await SharedPreferences.getInstance();
->>>>>>> 1ee471ae (Merge codebases)
         await prefs.setString('$_keyPrefix$projectId', routeName);
       } catch (e) {
         debugPrint('ProjectNavigationService: Error saving to SharedPreferences: $e');
@@ -61,11 +57,7 @@ class ProjectNavigationService {
       debugPrint('ProjectNavigationService: Error saving last page: $e');
       // Fallback to SharedPreferences only if Firestore fails
       try {
-<<<<<<< HEAD
         final prefs = await _prefs();
-=======
-        final prefs = await SharedPreferences.getInstance();
->>>>>>> 1ee471ae (Merge codebases)
         await prefs.setString('$_keyPrefix$projectId', routeName);
       } catch (e2) {
         debugPrint('ProjectNavigationService: Error saving to SharedPreferences fallback: $e2');
@@ -88,11 +80,7 @@ class ProjectNavigationService {
       }
       
       // Fallback: Read from SharedPreferences (for backward compatibility)
-<<<<<<< HEAD
       final prefs = await _prefs();
-=======
-      final prefs = await SharedPreferences.getInstance();
->>>>>>> 1ee471ae (Merge codebases)
       final lastPage = prefs.getString('$_keyPrefix$projectId');
       if (kDebugMode) {
         debugPrint('ProjectNavigationService: Retrieved from SharedPreferences for $projectId -> ${lastPage ?? 'initiation (default)'}');
@@ -102,11 +90,7 @@ class ProjectNavigationService {
       debugPrint('ProjectNavigationService: Error getting last page: $e');
       // Final fallback to SharedPreferences
       try {
-<<<<<<< HEAD
         final prefs = await _prefs();
-=======
-        final prefs = await SharedPreferences.getInstance();
->>>>>>> 1ee471ae (Merge codebases)
         final lastPage = prefs.getString('$_keyPrefix$projectId');
         return lastPage ?? 'initiation';
       } catch (e2) {

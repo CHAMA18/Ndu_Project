@@ -24,7 +24,6 @@ import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
 import 'package:ndu_project/screens/settings_screen.dart';
 import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-<<<<<<< HEAD
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
 import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/services/user_service.dart';
@@ -52,8 +51,6 @@ class _StakeholderAutoFillPreviewRow {
   final List<String> internalItems;
   final List<String> externalItems;
 }
-=======
->>>>>>> 1ee471ae (Merge codebases)
 
 class CoreStakeholdersScreen extends StatefulWidget {
   final String notes;
@@ -69,14 +66,10 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final ScrollController _reviewScrollController = ScrollController();
   late final TextEditingController _notesController;
-<<<<<<< HEAD
   late List<TextEditingController>
       _internalStakeholderControllers; // Made mutable for dynamic addition
   late List<TextEditingController>
       _externalStakeholderControllers; // Made mutable for dynamic addition
-=======
-  late List<TextEditingController> _stakeholderControllers; // Made mutable for dynamic addition
->>>>>>> 1ee471ae (Merge codebases)
   late final List<AiSolutionItem> _solutions; // Local mutable list
   late final OpenAiServiceSecure _openAi;
   bool _isGenerating = false;
@@ -144,21 +137,16 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
     // IMPORTANT: don't read inherited widgets in initState (causes dependOnInheritedWidget errors).
     // We'll hydrate from provider in didChangeDependencies.
     _notesController = RichTextEditingController(text: widget.notes);
     // Notes = prose; no auto-bullet
 
-=======
-    _notesController = TextEditingController(text: widget.notes);
->>>>>>> 1ee471ae (Merge codebases)
     _solutions = List.from(widget.solutions); // Create mutable copy
     // Initialize with at least one empty item if solutions list is empty
     if (_solutions.isEmpty) {
       _solutions.add(AiSolutionItem(title: '', description: ''));
     }
-<<<<<<< HEAD
 
     // Initialize controllers lists to match solutions length
     _internalStakeholderControllers = List.generate(
@@ -170,9 +158,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       (index) => _createStakeholderController(),
     );
 
-=======
-    _stakeholderControllers = List.generate(_solutions.length, (_) => TextEditingController());
->>>>>>> 1ee471ae (Merge codebases)
     ApiKeyManager.initializeApiKey();
     _openAi = OpenAiServiceSecure();
 
@@ -183,7 +168,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-<<<<<<< HEAD
       try {
         _loadExistingData();
       } catch (e) { debugPrint('initState error: $e'); }
@@ -197,23 +181,10 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
             'Identify key stakeholders for each potential solution. Separate internal stakeholders (team members, departments) from external stakeholders (regulatory bodies, vendors, government agencies).',
       );
       });
-=======
-      _loadExistingData();
->>>>>>> 1ee471ae (Merge codebases)
       // Only auto-generate if we have actual solutions (not empty placeholder)
       if (widget.solutions.isNotEmpty) {
         _generateStakeholders();
       }
-<<<<<<< HEAD
-=======
-    });
-  }
-  
-  void _addNewItem() {
-    setState(() {
-      _solutions.add(AiSolutionItem(title: '', description: ''));
-      _stakeholderControllers.add(TextEditingController());
->>>>>>> 1ee471ae (Merge codebases)
     });
   }
 
@@ -258,7 +229,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
       // Load stakeholder data for each solution
       // Ensure we have enough controllers and solutions
-<<<<<<< HEAD
       final requiredLength = stakeholdersData.solutionStakeholderData.length;
       while (_internalStakeholderControllers.length < requiredLength) {
         _solutions.add(AiSolutionItem(title: '', description: ''));
@@ -266,21 +236,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
         _internalStakeholderControllers.add(newInternalController);
         final newExternalController = _createStakeholderController();
         _externalStakeholderControllers.add(newExternalController);
-=======
-      while (_stakeholderControllers.length < stakeholdersData.solutionStakeholderData.length) {
-        _solutions.add(AiSolutionItem(title: '', description: ''));
-        _stakeholderControllers.add(TextEditingController());
-      }
-      for (int i = 0; i < stakeholdersData.solutionStakeholderData.length && i < _stakeholderControllers.length; i++) {
-        final solutionStakeholder = stakeholdersData.solutionStakeholderData[i];
-        if (i < _solutions.length) {
-          _solutions[i] = AiSolutionItem(
-            title: solutionStakeholder.solutionTitle,
-            description: '',
-          );
-        }
-        _stakeholderControllers[i].text = solutionStakeholder.notableStakeholders;
->>>>>>> 1ee471ae (Merge codebases)
       }
       // Limit to 3 items for non-admins
       final itemsToLoad = _isAdmin
@@ -812,7 +767,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
             ],
           ),
         ),
-<<<<<<< HEAD
         // Scrollable content area
         Expanded(
           child: Stack(
@@ -1146,65 +1100,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                     ],
                   ),
                 ),
-=======
-        const SizedBox(height: 24),
-        const EditableContentText(contentKey: 'internal_stakeholders_heading', fallback: 'Internal Stakeholders', category: 'business_case', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black)),
-        const SizedBox(height: 12),
-        if (isMobile) ...[
-          Column(children: List.generate(_solutions.length, (i) => _row(i))),
-        ] else ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: const Row(children: [
-              Expanded(child: EditableContentText(contentKey: 'stakeholders_table_header_solution', fallback: 'Potential Solution', category: 'business_case', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-              Expanded(child: EditableContentText(contentKey: 'stakeholders_table_header_notable', fallback: 'Notable Stakeholders', category: 'business_case', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
-            ]),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.grey.withValues(alpha: 0.35))),
-            child: Column(children: List.generate(_solutions.length, (i) => _row(i))),
-          ),
-        ],
-        const SizedBox(height: 16),
-        // Add Item button
-        Row(children: [
-          Tooltip(
-            message: 'Add a new stakeholder entry manually',
-            child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-          ),
-          const SizedBox(width: 8),
-          ElevatedButton.icon(
-            onPressed: _addNewItem,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Item'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFD700),
-              foregroundColor: Colors.black,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-          ),
-          const SizedBox(width: 12),
-        ]),
-        const SizedBox(height: 24),
-        if (isMobile) ...[
-          Row(children: [
-            Tooltip(
-              message:
-                  'While AI suggestions are helpful, we strongly encourage you to make the required adjustments for the best possible results',
-              child: const Icon(Icons.lightbulb_outline, color: Colors.black87),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: _isGenerating ? null : _generateStakeholders,
-                icon: const Icon(Icons.auto_awesome),
-                label: Text(_isGenerating ? 'Generating...' : 'Generate stakeholders'),
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
->>>>>>> 1ee471ae (Merge codebases)
               ),
             ],
           ),
@@ -1509,16 +1404,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
   }
 
   Future<void> _handleNextPressed() async {
-<<<<<<< HEAD
     // 1. Save data FIRST before validation check
-=======
-    // Security check: Verify destination is not locked
-    if (ProjectDataHelper.isDestinationLocked(context, 'cost_analysis')) {
-      ProjectDataHelper.showLockedDestinationMessage(context, 'Cost Benefit Analysis');
-      return;
-    }
-    
->>>>>>> 1ee471ae (Merge codebases)
     await _saveCoreStakeholdersData();
 
     if (!mounted) return;
@@ -1642,7 +1528,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
 
   Future<void> _saveCoreStakeholdersData() async {
     try {
-<<<<<<< HEAD
       final provider = ProjectDataInherited.read(context);
 
       // Collect all stakeholder data from all solutions (including manually added items)
@@ -1669,23 +1554,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
                 '', // Deprecated but kept for backward compatibility
             internalStakeholders: internalStakeholders,
             externalStakeholders: externalStakeholders,
-=======
-      final provider = ProjectDataInherited.of(context);
-      
-      // Collect all stakeholder data from all solutions (including manually added items)
-      final solutionStakeholderData = <SolutionStakeholderData>[];
-      for (int i = 0; i < _solutions.length && i < _stakeholderControllers.length; i++) {
-        final solutionTitle = _solutions[i].title.isNotEmpty 
-            ? _solutions[i].title 
-            : 'Stakeholder Entry ${i + 1}';
-        final notableStakeholders = _stakeholderControllers[i].text.trim();
-        
-        // Only add if there's actual content (name or stakeholders)
-        if (solutionTitle.isNotEmpty || notableStakeholders.isNotEmpty) {
-          solutionStakeholderData.add(SolutionStakeholderData(
-            solutionTitle: solutionTitle,
-            notableStakeholders: notableStakeholders,
->>>>>>> 1ee471ae (Merge codebases)
           ));
         }
       }
@@ -1707,60 +1575,12 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
     }
   }
 
-<<<<<<< HEAD
   Widget _buildInternalRow(int index) {
     return _buildStakeholderRow(
       index,
       _internalStakeholderControllers[index],
       'Enter internal stakeholders for Solution ${index + 1}...',
       isInternal: true,
-=======
-  Widget _row(int index) {
-    final isMobile = AppBreakpoints.isMobile(context);
-    // Handle cases where we have more controllers than initial solutions (user added items)
-    final s = index < _solutions.length ? _solutions[index] : AiSolutionItem(title: '', description: '');
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.25)))),
-      child: isMobile
-          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _numberBadge(index + 1),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(s.title.isEmpty ? 'Potential Solution' : s.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                ),
-              ]),
-              if (s.description.isNotEmpty) ...[
-                const SizedBox(height: 6),
-                Text(s.description, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-              const SizedBox(height: 10),
-              _stakeholderTextArea(_stakeholderControllers[index]),
-            ])
-          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Expanded(
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      _numberBadge(index + 1),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(s.title.isEmpty ? 'Potential Solution' : s.title, style: const TextStyle(fontSize: 13, color: Colors.black87, fontWeight: FontWeight.w600)),
-                      ),
-                    ]),
-                    if (s.description.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(s.description, style: const TextStyle(fontSize: 12, color: Colors.grey), maxLines: 3, overflow: TextOverflow.ellipsis),
-                    ]
-                  ]),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(child: _stakeholderTextArea(_stakeholderControllers[index])),
-            ]),
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
@@ -2044,7 +1864,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
       _error = null;
     });
     try {
-<<<<<<< HEAD
       final provider = ProjectDataHelper.getProvider(context);
 
       // Add current values to history before regenerating
@@ -2061,57 +1880,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
               fieldKey, _externalStakeholderControllers[i].text,
               isAiGenerated: true);
         }
-=======
-      // Get project context for fallback if solutions are empty
-      final provider = ProjectDataInherited.maybeOf(context);
-      final projectData = provider?.projectData;
-      final projectName = projectData?.projectName ?? '';
-      final projectDescription = projectData?.solutionDescription ?? projectData?.businessCase ?? '';
-      
-      // Use solutions if available, otherwise create a placeholder from project name
-      final solutionsToUse = _solutions.where((s) => s.title.isNotEmpty || s.description.isNotEmpty).toList();
-      if (solutionsToUse.isEmpty && projectName.isNotEmpty) {
-        solutionsToUse.add(AiSolutionItem(
-          title: projectName,
-          description: projectDescription,
-        ));
-        // Ensure we have a controller for this
-        if (_stakeholderControllers.isEmpty) {
-          _stakeholderControllers.add(TextEditingController());
-        }
-        if (_solutions.isEmpty) {
-          _solutions.addAll(solutionsToUse);
-        }
-      }
-      
-      if (solutionsToUse.isEmpty) {
-        setState(() {
-          _error = 'Please add at least one solution or project name to generate stakeholders.';
-          _isGenerating = false;
-        });
-        return;
-      }
-      
-      // Build context notes with project info if available
-      String contextNotes = _notesController.text.trim();
-      if (contextNotes.isEmpty && projectName.isNotEmpty) {
-        contextNotes = 'Project: $projectName';
-        if (projectDescription.isNotEmpty) {
-          contextNotes += '\nDescription: $projectDescription';
-        }
-      }
-      
-      final map = await _openAi.generateStakeholdersForSolutions(
-        solutionsToUse,
-        contextNotes: contextNotes,
-      );
-      
-      // Apply generated data to controllers
-      for (int i = 0; i < solutionsToUse.length && i < _stakeholderControllers.length; i++) {
-        final title = solutionsToUse[i].title;
-        final stakeholders = map[title] ?? const <String>[];
-        _stakeholderControllers[i].text = stakeholders.isEmpty ? '' : stakeholders.map((e) => '- $e').join('\n');
->>>>>>> 1ee471ae (Merge codebases)
       }
 
       // Get project context for fallback if solutions are empty

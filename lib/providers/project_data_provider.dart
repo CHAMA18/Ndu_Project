@@ -149,7 +149,6 @@ class ProjectDataProvider extends ChangeNotifier {
       } else {
         // Create new project
         dataPayload['createdAt'] = now;
-<<<<<<< HEAD
         dataPayload['status'] = dataPayload['status'] ??
             'Initiation'; // Use Initiation instead of 'In Progress' to match query expectations
         dataPayload['progress'] = dataPayload['progress'] ?? 0.1;
@@ -160,44 +159,23 @@ class ProjectDataProvider extends ChangeNotifier {
         // Ensure both 'name' and 'projectName' are set for query compatibility
         final projectName =
             dataPayload['projectName'] ?? dataPayload['name'] ?? '';
-=======
-        dataPayload['status'] = dataPayload['status'] ?? 'Initiation'; // Use Initiation instead of 'In Progress' to match query expectations
-        dataPayload['progress'] = dataPayload['progress'] ?? 0.1;
-        dataPayload['investmentMillions'] = dataPayload['investmentMillions'] ?? 0.0;
-        dataPayload['milestone'] = checkpoint ?? 'initiation';
-        
-        // Ensure both 'name' and 'projectName' are set for query compatibility
-        final projectName = dataPayload['projectName'] ?? dataPayload['name'] ?? '';
->>>>>>> 1ee471ae (Merge codebases)
         if (projectName.isNotEmpty) {
           dataPayload['name'] = projectName;
           dataPayload['projectName'] = projectName;
         }
-<<<<<<< HEAD
 
         // Ensure isBasicPlanProject is set
         dataPayload['isBasicPlanProject'] =
             dataPayload['isBasicPlanProject'] ?? false;
 
-=======
-        
-        // Ensure isBasicPlanProject is set
-        dataPayload['isBasicPlanProject'] = dataPayload['isBasicPlanProject'] ?? false;
-        
->>>>>>> 1ee471ae (Merge codebases)
         final ref = await projectsCol.add(dataPayload);
         _projectData = _projectData.copyWith(
           projectId: ref.id,
           createdAt: DateTime.now(),
         );
-<<<<<<< HEAD
 
         debugPrint(
             '✅ Project created with ID: ${ref.id}, name: $projectName, ownerId: ${user.uid}');
-=======
-        
-        debugPrint('✅ Project created with ID: ${ref.id}, name: $projectName, ownerId: ${user.uid}');
->>>>>>> 1ee471ae (Merge codebases)
       }
 
       _projectData = _projectData.copyWith(
@@ -257,7 +235,6 @@ class ProjectDataProvider extends ChangeNotifier {
 
   /// Load project data from Firebase by ID
   Future<bool> loadFromFirebase(String projectId) async {
-<<<<<<< HEAD
     if (_activeLoadFuture != null) {
       if (_activeLoadProjectId == projectId) {
         return _activeLoadFuture!;
@@ -290,24 +267,15 @@ class ProjectDataProvider extends ChangeNotifier {
     // Skip if already loaded and cached, but only if data is valid
     if (_cachedProjectId == projectId &&
         _projectData.projectId == projectId &&
-=======
-    // Skip if already loaded and cached, but only if data is valid
-    if (_cachedProjectId == projectId && 
-        _projectData.projectId == projectId && 
->>>>>>> 1ee471ae (Merge codebases)
         _projectData.projectId != null &&
         _projectData.projectId!.isNotEmpty) {
       // Verify the cached data is still valid by checking if project exists
       try {
-<<<<<<< HEAD
         final doc = await FirebaseFirestore.instance
             .collection('projects')
             .doc(projectId)
             .get()
             .timeout(cacheValidationTimeout);
-=======
-        final doc = await FirebaseFirestore.instance.collection('projects').doc(projectId).get();
->>>>>>> 1ee471ae (Merge codebases)
         if (doc.exists) {
           return true; // Cached data is valid
         }
@@ -343,12 +311,8 @@ class ProjectDataProvider extends ChangeNotifier {
       debugPrint('Raw data keys: ${data.keys.toList()}');
 
       // Convert Firestore Timestamps to ISO8601 strings for compatibility (recursive)
-<<<<<<< HEAD
       final sanitizedData =
           _sanitizeTimestampsRecursive(data) as Map<String, dynamic>;
-=======
-      final sanitizedData = _sanitizeTimestampsRecursive(data) as Map<String, dynamic>;
->>>>>>> 1ee471ae (Merge codebases)
 
       try {
         _projectData = _decodeProjectData(sanitizedData, projectId);
@@ -391,7 +355,6 @@ class ProjectDataProvider extends ChangeNotifier {
     }
   }
 
-<<<<<<< HEAD
   ProjectDataModel _decodeProjectData(
       Map<String, dynamic> source, String projectId) {
     final parsed = ProjectDataModel.fromJson(source);
@@ -478,8 +441,6 @@ class ProjectDataProvider extends ChangeNotifier {
     return compact;
   }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
   /// Recursively sanitize Timestamp objects in nested data structures
   static dynamic _sanitizeTimestampsRecursive(dynamic value) {
     if (value is Timestamp) {

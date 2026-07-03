@@ -124,14 +124,10 @@ class ProjectDataModel {
 
   // Front End Planning Data
   FrontEndPlanningData frontEndPlanning;
-<<<<<<< HEAD
   // Technology/IT Data
   List<Map<String, dynamic>> technologyDefinitions;
   List<Map<String, dynamic>> technologyInventory;
 
-=======
-  
->>>>>>> 1ee471ae (Merge codebases)
   // SSHER Data
   SSHERData ssherData;
 
@@ -156,7 +152,6 @@ class ProjectDataModel {
 
   // Core Stakeholders Data
   CoreStakeholdersData? coreStakeholdersData;
-<<<<<<< HEAD
 
   // Organisation Plan Data
   List<RoleDefinition> projectRoles;
@@ -221,9 +216,6 @@ class ProjectDataModel {
   /// Last time project-level EVM was recalculated.
   DateTime? evmLastRecalculated;
 
-=======
-  
->>>>>>> 1ee471ae (Merge codebases)
   // Metadata
   bool isBasicPlanProject;
   Map<String, int> aiUsageCounts;
@@ -314,14 +306,11 @@ class ProjectDataModel {
     this.itConsiderationsData,
     this.infrastructureConsiderationsData,
     this.coreStakeholdersData,
-<<<<<<< HEAD
     List<RoleDefinition>? projectRoles,
     List<StaffingRequirement>? staffingRequirements,
     List<InfrastructurePlanningItem>? planningInfrastructureItems,
     List<TrainingActivity>? trainingActivities,
     DesignDeliverablesData? designDeliverablesData,
-=======
->>>>>>> 1ee471ae (Merge codebases)
     this.isBasicPlanProject = false,
     Map<String, int>? aiUsageCounts,
     List<Map<String, dynamic>>? aiIntegrations,
@@ -394,7 +383,6 @@ class ProjectDataModel {
         teamMembers = teamMembers ?? [],
         launchChecklistItems = launchChecklistItems ?? [],
         costEstimateItems = costEstimateItems ?? [],
-<<<<<<< HEAD
         workPackages = workPackages ?? [],
         controlAccounts = controlAccounts ?? [],
         obsElements = obsElements ?? [],
@@ -433,9 +421,6 @@ class ProjectDataModel {
                     ?.map((e) => PlanningDashboardItem(description: e))
                     .toList() ??
                 []);
-=======
-        aiUsageCounts = aiUsageCounts ?? {};
->>>>>>> 1ee471ae (Merge codebases)
 
   ProjectDataModel copyWith({
     String? projectName,
@@ -489,11 +474,8 @@ class ProjectDataModel {
     List<IssueLogItem>? issueLogItems,
     List<LessonRecord>? lessonsLearned,
     FrontEndPlanningData? frontEndPlanning,
-<<<<<<< HEAD
     List<Map<String, dynamic>>? technologyDefinitions,
     List<Map<String, dynamic>>? technologyInventory,
-=======
->>>>>>> 1ee471ae (Merge codebases)
     SSHERData? ssherData,
     List<TeamMember>? teamMembers,
     List<LaunchChecklistItem>? launchChecklistItems,
@@ -503,7 +485,6 @@ class ProjectDataModel {
     ITConsiderationsData? itConsiderationsData,
     InfrastructureConsiderationsData? infrastructureConsiderationsData,
     CoreStakeholdersData? coreStakeholdersData,
-<<<<<<< HEAD
     List<RoleDefinition>? projectRoles,
     List<StaffingRequirement>? staffingRequirements,
     List<InfrastructurePlanningItem>? planningInfrastructureItems,
@@ -513,8 +494,6 @@ class ProjectDataModel {
     ExecutionPhaseData? executionPhaseData,
     MonitoringControlsData? monitoringControls,
     LaunchPhaseData? launchPhaseData,
-=======
->>>>>>> 1ee471ae (Merge codebases)
     bool? isBasicPlanProject,
     Map<String, int>? aiUsageCounts,
     List<Map<String, dynamic>>? aiIntegrations,
@@ -656,7 +635,6 @@ class ProjectDataModel {
       infrastructureConsiderationsData: infrastructureConsiderationsData ??
           this.infrastructureConsiderationsData,
       coreStakeholdersData: coreStakeholdersData ?? this.coreStakeholdersData,
-<<<<<<< HEAD
       projectRoles: projectRoles ?? this.projectRoles,
       staffingRequirements: staffingRequirements ?? this.staffingRequirements,
       planningInfrastructureItems:
@@ -667,8 +645,6 @@ class ProjectDataModel {
       executionPhaseData: executionPhaseData ?? this.executionPhaseData,
       monitoringControls: monitoringControls ?? this.monitoringControls,
       launchPhaseData: launchPhaseData ?? this.launchPhaseData,
-=======
->>>>>>> 1ee471ae (Merge codebases)
       isBasicPlanProject: isBasicPlanProject ?? this.isBasicPlanProject,
       aiUsageCounts: aiUsageCounts ?? this.aiUsageCounts,
       aiIntegrations: aiIntegrations ?? this.aiIntegrations,
@@ -810,7 +786,6 @@ class ProjectDataModel {
       'frontEndPlanning': frontEndPlanning.toJson(),
       'ssherData': ssherData.toJson(),
       'teamMembers': teamMembers.map((m) => m.toJson()).toList(),
-<<<<<<< HEAD
       'launchChecklistItems':
           launchChecklistItems.map((item) => item.toJson()).toList(),
       if (costAnalysisData != null)
@@ -832,14 +807,6 @@ class ProjectDataModel {
           planningInfrastructureItems.map((item) => item.toJson()).toList(),
       'trainingActivities': trainingActivities.map((t) => t.toJson()).toList(),
       'designDeliverables': designDeliverablesData.toJson(),
-=======
-      'launchChecklistItems': launchChecklistItems.map((item) => item.toJson()).toList(),
-      if (costAnalysisData != null) 'costAnalysisData': costAnalysisData!.toJson(),
-      'costEstimateItems': costEstimateItems.map((item) => item.toJson()).toList(),
-      if (itConsiderationsData != null) 'itConsiderationsData': itConsiderationsData!.toJson(),
-      if (infrastructureConsiderationsData != null) 'infrastructureConsiderationsData': infrastructureConsiderationsData!.toJson(),
-      if (coreStakeholdersData != null) 'coreStakeholdersData': coreStakeholdersData!.toJson(),
->>>>>>> 1ee471ae (Merge codebases)
       'currentCheckpoint': currentCheckpoint,
       'isBasicPlanProject': isBasicPlanProject,
       'aiUsageCounts': aiUsageCounts,
@@ -1081,7 +1048,6 @@ class ProjectDataModel {
               .toList() ??
           [],
       issueLogItems: safeParseList('issueLogItems', IssueLogItem.fromJson),
-<<<<<<< HEAD
       lessonsLearned: safeParseList('lessonsLearned', LessonRecord.fromJson),
       technologyDefinitions: (json['technologyDefinitions'] as List?)
               ?.map((e) => Map<String, dynamic>.from(e as Map))
@@ -1126,17 +1092,6 @@ class ProjectDataModel {
           safeParseSingle('executionPhaseData', ExecutionPhaseData.fromJson),
       designManagementData: safeParseSingle(
           'designManagementData', DesignManagementData.fromJson),
-=======
-      frontEndPlanning: safeParseSingle('frontEndPlanning', FrontEndPlanningData.fromJson) ?? FrontEndPlanningData(),
-      ssherData: safeParseSingle('ssherData', SSHERData.fromJson) ?? SSHERData(),
-      teamMembers: safeParseList('teamMembers', TeamMember.fromJson),
-      launchChecklistItems: safeParseList('launchChecklistItems', LaunchChecklistItem.fromJson),
-      costAnalysisData: safeParseSingle('costAnalysisData', CostAnalysisData.fromJson),
-      costEstimateItems: safeParseList('costEstimateItems', CostEstimateItem.fromJson),
-      itConsiderationsData: safeParseSingle('itConsiderationsData', ITConsiderationsData.fromJson),
-      infrastructureConsiderationsData: safeParseSingle('infrastructureConsiderationsData', InfrastructureConsiderationsData.fromJson),
-      coreStakeholdersData: safeParseSingle('coreStakeholdersData', CoreStakeholdersData.fromJson),
->>>>>>> 1ee471ae (Merge codebases)
       isBasicPlanProject: json['isBasicPlanProject'] == true,
       aiUsageCounts: (json['aiUsageCounts'] is Map)
           ? Map<String, int>.from(
@@ -2043,7 +1998,6 @@ class RequirementItem {
   }
 }
 
-<<<<<<< HEAD
 class PlanningRequirementItem {
   String id;
   List<String> sourceRequirementIds;
@@ -2105,8 +2059,6 @@ class PlanningRequirementItem {
   }
 }
 
-=======
->>>>>>> 1ee471ae (Merge codebases)
 class FrontEndPlanningData {
   String requirements;
   String requirementsPlan;
@@ -2128,7 +2080,6 @@ class FrontEndPlanningData {
   String milestoneStartDate;
   String milestoneEndDate;
   List<RequirementItem> requirementItems;
-<<<<<<< HEAD
   // Persisted scenario matrix items
   List<ScenarioRecord> scenarioMatrixItems;
   // Security management items
@@ -2153,8 +2104,6 @@ class FrontEndPlanningData {
   List<InfrastructurePlanningItem> infrastructureItems;
   // Success Criteria items
   List<PlanningDashboardItem> successCriteriaItems;
-=======
->>>>>>> 1ee471ae (Merge codebases)
 
   FrontEndPlanningData({
     this.requirements = '',
@@ -2174,7 +2123,6 @@ class FrontEndPlanningData {
     this.milestoneStartDate = '',
     this.milestoneEndDate = '',
     List<RequirementItem>? requirementItems,
-<<<<<<< HEAD
     List<ScenarioRecord>? scenarioMatrixItems,
     List<RoleItem>? securityRoles,
     List<PermissionItem>? securityPermissions,
@@ -2282,9 +2230,6 @@ class FrontEndPlanningData {
       successCriteriaItems: successCriteriaItems ?? this.successCriteriaItems,
     );
   }
-=======
-  }) : requirementItems = requirementItems ?? [];
->>>>>>> 1ee471ae (Merge codebases)
 
   Map<String, dynamic> toJson() => {
         'requirements': requirements,
@@ -2301,7 +2246,6 @@ class FrontEndPlanningData {
         'personnel': personnel,
         'infrastructure': infrastructure,
         'contracts': contracts,
-<<<<<<< HEAD
         'milestoneStartDate': milestoneStartDate,
         'milestoneEndDate': milestoneEndDate,
         'allowanceItems': allowanceItems.map((e) => e.toJson()).toList(),
@@ -2334,9 +2278,6 @@ class FrontEndPlanningData {
         'securitySettings': securitySettings.map((s) => s.toJson()).toList(),
         'securityAccessLogs':
             securityAccessLogs.map((a) => a.toJson()).toList(),
-=======
-        'requirementsItems': requirementItems.map((item) => item.toJson()).toList(),
->>>>>>> 1ee471ae (Merge codebases)
       };
 
   factory FrontEndPlanningData.fromJson(Map<String, dynamic> json) {
@@ -2361,7 +2302,6 @@ class FrontEndPlanningData {
               ?.map((e) => AllowanceItem.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-<<<<<<< HEAD
       staffingRows: (json['staffingRows'] as List?)
               ?.map(
                   (item) => StaffingRow.fromJson(item as Map<String, dynamic>))
@@ -3153,8 +3093,6 @@ class AccessLogItem {
       user: json['user'] ?? '',
       action: json['action'] ?? '',
       timestamp: json['timestamp'] ?? '',
-=======
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 }

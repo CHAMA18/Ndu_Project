@@ -9,6 +9,24 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Generated outputs and vendored package sources should not be analyzed as
+    # application code. Including them causes false failures after local builds.
+    - build/**
+    - .dart_tool/**
+    - ios/Flutter/ephemeral/**
+    - macos/Flutter/ephemeral/**
+    - windows/flutter/ephemeral/**
+    - linux/flutter/ephemeral/**
+
+    # FlutterFlow AI DSL reference files are design/reference artifacts, not
+    # part of this Flutter app's runtime source or dependency graph.
+    - dsl/**
+    - patterns/**
+    - references/**
+    - test/app_test.dart
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

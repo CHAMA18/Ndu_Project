@@ -745,7 +745,6 @@ class AppRouter {
           path: '/${AppRoutes.securityManagement}',
           pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const SecurityManagementScreen())),
       // Program basics
-<<<<<<< HEAD
       GoRoute(
           name: AppRoutes.programBasics,
           path: '/${AppRoutes.programBasics}',
@@ -890,42 +889,6 @@ class AppRouter {
           name: AppRoutes.termsConditions,
           path: '/${AppRoutes.termsConditions}',
           pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const TermsConditionsScreen())),
-=======
-      GoRoute(name: AppRoutes.programBasics, path: '/${AppRoutes.programBasics}', builder: (c, s) => const ProgramBasicsScreen()),
-      GoRoute(name: AppRoutes.initiationPhase, path: '/${AppRoutes.initiationPhase}', builder: (c, s) => const InitiationPhaseScreen()),
-      GoRoute(name: AppRoutes.designPhase, path: '/${AppRoutes.designPhase}', builder: (c, s) => const DesignPhaseScreen()),
-      GoRoute(name: AppRoutes.requirementsImplementation, path: '/${AppRoutes.requirementsImplementation}', builder: (c, s) => const RequirementsImplementationScreen()),
-      GoRoute(name: AppRoutes.deliverablesRoadmap, path: '/${AppRoutes.deliverablesRoadmap}', builder: (c, s) => const DeliverablesRoadmapScreen()),
-      GoRoute(name: AppRoutes.deliverProjectClosure, path: '/${AppRoutes.deliverProjectClosure}', builder: (c, s) => const DeliverProjectClosureScreen()),
-      GoRoute(name: AppRoutes.transitionToProdTeam, path: '/${AppRoutes.transitionToProdTeam}', builder: (c, s) => const TransitionToProdTeamScreen()),
-      GoRoute(name: AppRoutes.contractCloseOut, path: '/${AppRoutes.contractCloseOut}', builder: (c, s) => const ContractCloseOutScreen()),
-      GoRoute(name: AppRoutes.vendorAccountCloseOut, path: '/${AppRoutes.vendorAccountCloseOut}', builder: (c, s) => const VendorAccountCloseOutScreen()),
-      GoRoute(name: AppRoutes.uiUxDesign, path: '/${AppRoutes.uiUxDesign}', builder: (c, s) => const UiUxDesignScreen()),
-      GoRoute(name: AppRoutes.developmentSetUp, path: '/${AppRoutes.developmentSetUp}', builder: (c, s) => const DevelopmentSetUpScreen()),
-      GoRoute(name: AppRoutes.technicalAlignment, path: '/${AppRoutes.technicalAlignment}', builder: (c, s) => const TechnicalAlignmentScreen()),
-      GoRoute(name: AppRoutes.backendDesign, path: '/${AppRoutes.backendDesign}', builder: (c, s) => const BackendDesignScreen()),
-      GoRoute(name: AppRoutes.longLeadEquipmentOrdering, path: '/${AppRoutes.longLeadEquipmentOrdering}', builder: (c, s) => const LongLeadEquipmentOrderingScreen()),
-      GoRoute(name: AppRoutes.projectCloseOut, path: '/${AppRoutes.projectCloseOut}', builder: (c, s) => const ProjectCloseOutScreen()),
-      GoRoute(name: AppRoutes.demobilizeTeam, path: '/${AppRoutes.demobilizeTeam}', builder: (c, s) => const DemobilizeTeamScreen()),
-      GoRoute(name: AppRoutes.technicalDevelopment, path: '/${AppRoutes.technicalDevelopment}', builder: (c, s) => const TechnicalDevelopmentScreen()),
-      GoRoute(name: AppRoutes.toolsIntegration, path: '/${AppRoutes.toolsIntegration}', builder: (c, s) => const ToolsIntegrationScreen()),
-      GoRoute(name: AppRoutes.summarizeAccountRisks, path: '/${AppRoutes.summarizeAccountRisks}', builder: (c, s) => const SummarizeAccountRisksScreen()),
-      GoRoute(name: AppRoutes.agileDevelopmentIterations, path: '/${AppRoutes.agileDevelopmentIterations}', builder: (c, s) => const AgileDevelopmentIterationsScreen()),
-      GoRoute(name: AppRoutes.engineeringDesign, path: '/${AppRoutes.engineeringDesign}', builder: (c, s) => const EngineeringDesignScreen()),
-      GoRoute(name: AppRoutes.scopeCompletion, path: '/${AppRoutes.scopeCompletion}', builder: (c, s) => const ScopeCompletionScreen()),
-      GoRoute(name: AppRoutes.technicalDebtManagement, path: '/${AppRoutes.technicalDebtManagement}', builder: (c, s) => const TechnicalDebtManagementScreen()),
-      GoRoute(name: AppRoutes.riskTracking, path: '/${AppRoutes.riskTracking}', builder: (c, s) => const RiskTrackingScreen()),
-      GoRoute(name: AppRoutes.identifyStaffOpsTeam, path: '/${AppRoutes.identifyStaffOpsTeam}', builder: (c, s) => const IdentifyStaffOpsTeamScreen()),
-      GoRoute(name: AppRoutes.contractsTracking, path: '/${AppRoutes.contractsTracking}', builder: (c, s) => const ContractsTrackingScreen()),
-      GoRoute(name: AppRoutes.vendorTracking, path: '/${AppRoutes.vendorTracking}', builder: (c, s) => const VendorTrackingScreen()),
-      GoRoute(name: AppRoutes.detailedDesign, path: '/${AppRoutes.detailedDesign}', builder: (c, s) => const DetailedDesignScreen()),
-      GoRoute(name: AppRoutes.scopeTrackingImplementation, path: '/${AppRoutes.scopeTrackingImplementation}', builder: (c, s) => const ScopeTrackingImplementationScreen()),
-      GoRoute(name: AppRoutes.stakeholderAlignment, path: '/${AppRoutes.stakeholderAlignment}', builder: (c, s) => const StakeholderAlignmentScreen()),
-      GoRoute(name: AppRoutes.updateOpsMaintenancePlans, path: '/${AppRoutes.updateOpsMaintenancePlans}', builder: (c, s) => const UpdateOpsMaintenancePlansScreen()),
-      GoRoute(name: AppRoutes.privacyPolicy, path: '/${AppRoutes.privacyPolicy}', builder: (c, s) => const PrivacyPolicyScreen()),
-      GoRoute(name: AppRoutes.termsConditions, path: '/${AppRoutes.termsConditions}', builder: (c, s) => const TermsConditionsScreen()),
-
->>>>>>> 1ee471ae (Merge codebases)
       // SSHER suite
       GoRoute(
           name: AppRoutes.ssherStacked,
@@ -959,18 +922,12 @@ class AppRouter {
     debugLogDiagnostics: kDebugMode,
     initialLocation: '/',
     redirect: (context, state) {
-<<<<<<< HEAD
       User? user;
       try {
         user = FirebaseAuth.instance.currentUser;
       } catch (_) {}
       final currentPath = state.uri.path;
 
-=======
-      final user = FirebaseAuth.instance.currentUser;
-      final currentPath = state.uri.path;
-      
->>>>>>> 1ee471ae (Merge codebases)
       // On admin domain, handle routing specially
       if (AccessPolicy.isRestrictedAdminHost()) {
         // Redirect /landing to appropriate page (it doesn't exist in admin router)
@@ -982,11 +939,7 @@ class AppRouter {
           }
           return '/${AppRoutes.signIn}';
         }
-<<<<<<< HEAD
 
-=======
-        
->>>>>>> 1ee471ae (Merge codebases)
         // If user is authenticated (has email), allow access
         final email = user?.email;
         if (email != null && email.isNotEmpty) {
@@ -997,49 +950,30 @@ class AppRouter {
           // Allow access to other routes
           return null;
         }
-<<<<<<< HEAD
 
         // If not authenticated, redirect to sign-in (unless already on sign-in)
         if (currentPath != '/${AppRoutes.signIn}' &&
             currentPath != '/sign-in') {
-=======
-        
-        // If not authenticated, redirect to sign-in (unless already on sign-in)
-        if (currentPath != '/${AppRoutes.signIn}' && currentPath != '/sign-in') {
->>>>>>> 1ee471ae (Merge codebases)
           return '/${AppRoutes.signIn}';
         }
         return null;
       }
-<<<<<<< HEAD
 
       // For non-admin domains, use the standard guard
       final block = _adminHostGuard(user);
       if (block != null) return block;
 
-=======
-      
-      // For non-admin domains, use the standard guard
-      final block = _adminHostGuard(user);
-      if (block != null) return block;
-      
->>>>>>> 1ee471ae (Merge codebases)
       // Default: if authenticated and on root, go to admin home
       if (user != null && (currentPath == '/' || currentPath.isEmpty)) {
         return '/${AppRoutes.adminHome}';
       }
-<<<<<<< HEAD
 
-=======
-      
->>>>>>> 1ee471ae (Merge codebases)
       return null;
     },
     routes: [
       // Root path - will be handled by redirect function above
       GoRoute(
         path: '/',
-<<<<<<< HEAD
         pageBuilder: (c, s) {
           // This should never be reached due to redirect, but provide fallback
           User? user;
@@ -1060,58 +994,26 @@ class AppRouter {
         name: AppRoutes.adminHome,
         path: '/${AppRoutes.adminHome}',
         pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminHomeScreen())),
-=======
-        builder: (c, s) {
-          // This should never be reached due to redirect, but provide fallback
-          final user = FirebaseAuth.instance.currentUser;
-          if (user?.email != null && user!.email!.isNotEmpty) {
-            return const AdminAuthWrapper(child: AdminHomeScreen());
-          }
-          return const SignInScreen();
-        },
-      ),
-      GoRoute(name: AppRoutes.signIn, path: '/${AppRoutes.signIn}', builder: (c, s) => const SignInScreen()),
-      GoRoute(
-        name: AppRoutes.adminHome,
-        path: '/${AppRoutes.adminHome}',
-        builder: (c, s) => const AdminAuthWrapper(child: AdminHomeScreen()),
->>>>>>> 1ee471ae (Merge codebases)
       ),
       GoRoute(
         name: AppRoutes.adminProjects,
         path: '/${AppRoutes.adminProjects}',
-<<<<<<< HEAD
         pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminProjectsScreen())),
-=======
-        builder: (c, s) => const AdminAuthWrapper(child: AdminProjectsScreen()),
->>>>>>> 1ee471ae (Merge codebases)
       ),
       GoRoute(
         name: AppRoutes.adminUsers,
         path: '/${AppRoutes.adminUsers}',
-<<<<<<< HEAD
         pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminUsersScreen())),
-=======
-        builder: (c, s) => const AdminAuthWrapper(child: AdminUsersScreen()),
->>>>>>> 1ee471ae (Merge codebases)
       ),
       GoRoute(
         name: AppRoutes.adminCoupons,
         path: '/${AppRoutes.adminCoupons}',
-<<<<<<< HEAD
         pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminCouponsScreen())),
-=======
-        builder: (c, s) => const AdminAuthWrapper(child: AdminCouponsScreen()),
->>>>>>> 1ee471ae (Merge codebases)
       ),
       GoRoute(
         name: AppRoutes.adminSubscriptionLookup,
         path: '/${AppRoutes.adminSubscriptionLookup}',
-<<<<<<< HEAD
         pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const AdminAuthWrapper(child: AdminSubscriptionLookupScreen())),
-=======
-        builder: (c, s) => const AdminAuthWrapper(child: AdminSubscriptionLookupScreen()),
->>>>>>> 1ee471ae (Merge codebases)
       ),
       GoRoute(
         name: AppRoutes.settings,

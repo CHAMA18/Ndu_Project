@@ -395,7 +395,6 @@ class _IdentifyStaffOpsTeamScreenState
         final pendingCount = members.where((m) => m.status == 'Pending').length;
 
         final stats = [
-<<<<<<< HEAD
           _StatCardData(
               'Roles filled',
               '$activeCount/${members.length}',
@@ -410,12 +409,6 @@ class _IdentifyStaffOpsTeamScreenState
               const Color(0xFFF59E0B)),
           _StatCardData('Total members', '${members.length}', 'Ops team size',
               const Color(0xFF6366F1)),
-=======
-          _StatCardData('Roles filled', '${activeCount}/${members.length}', '${members.length - activeCount} open roles', const Color(0xFF0EA5E9)),
-          _StatCardData('Avg readiness', '${avgReadiness.round()}%', 'Team capability', const Color(0xFF10B981)),
-          _StatCardData('Pending', '$pendingCount', pendingCount > 0 ? 'Awaiting assignment' : 'All assigned', const Color(0xFFF59E0B)),
-          _StatCardData('Total members', '${members.length}', 'Ops team size', const Color(0xFF6366F1)),
->>>>>>> 1ee471ae (Merge codebases)
         ];
 
         if (isNarrow) {

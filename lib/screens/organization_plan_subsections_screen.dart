@@ -1553,14 +1553,10 @@ class _SectionData {
     required this.title,
     required this.subtitle,
     this.bullets = const [],
-<<<<<<< HEAD
     // ignore: unused_element_parameter
     this.statusRows = const [],
     this.onEdit,
     this.onDelete,
-=======
-    this.statusRows = const [],
->>>>>>> 1ee471ae (Merge codebases)
   });
 
   final String title;

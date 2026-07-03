@@ -1952,7 +1952,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-<<<<<<< HEAD
                 // Vendor/Party Name with suggestions from External roles
                 if (externalRoles.isNotEmpty && !isEdit) ...[
                   Text(
@@ -1981,21 +1980,6 @@ class _ContractsTrackingScreenState extends State<ContractsTrackingScreen> {
                     labelText: 'Vendor/Party Name *',
                     isDense: true,
                   ),
-=======
-                TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Contract Name *')),
-                const SizedBox(height: 12),
-                TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description *'), maxLines: 2),
-                const SizedBox(height: 12),
-                TextField(controller: contractTypeController, decoration: const InputDecoration(labelText: 'Contract Type *')),
-                const SizedBox(height: 12),
-                TextField(controller: paymentTypeController, decoration: const InputDecoration(labelText: 'Payment Type *')),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: statusController.text,
-                  decoration: const InputDecoration(labelText: 'Status *'),
-                  items: ['Active', 'Renewal due', 'At risk', 'Pending sign-off', 'Archived'].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                  onChanged: (v) => setDialogState(() => statusController.text = v ?? 'Active'),
->>>>>>> 1ee471ae (Merge codebases)
                 ),
                 const SizedBox(height: 12),
                 VoiceTextField(

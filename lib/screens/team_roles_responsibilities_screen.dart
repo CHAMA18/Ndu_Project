@@ -2436,6 +2436,7 @@ class _DialogTextField extends StatelessWidget {
   final IconData? icon;
   final TextInputType? keyboardType;
   final int maxLines;
+  final ValueChanged<String>? onChanged;
 
   const _DialogTextField({
     required this.controller,

@@ -161,12 +161,7 @@ class _FrontEndPlanningContractsScreenState
   void _navigateToProcurement() {
     Navigator.push(
       context,
-<<<<<<< HEAD
       MaterialPageRoute(builder: (_) => const PlanningProcurementScreen()),
-=======
-      MaterialPageRoute(
-          builder: (_) => const FrontEndPlanningProcurementScreen()),
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
@@ -252,12 +247,8 @@ class _FrontEndPlanningContractsScreenState
   @override
   Widget build(BuildContext context) {
     final projectData = ProjectDataHelper.getData(context);
-<<<<<<< HEAD
     final isNarrow = MediaQuery.sizeOf(context).width < 1100;
     final hasDashboardPayload =
-=======
-    final hasContractData =
->>>>>>> 1ee471ae (Merge codebases)
         (projectData.planningNotes['contract_dashboard_payload'] ?? '')
             .trim()
             .isNotEmpty;
@@ -328,36 +319,16 @@ class _FrontEndPlanningContractsScreenState
                               _ContractTabs(
                                 selectedIndex: _selectedTabIndex,
                                 onTabSelected: (index) {
-<<<<<<< HEAD
-=======
-                                  if (index == 1) {
-                                    // Navigate to the dedicated Contract Details dashboard screen
-                                    // using the named route for clean, web-friendly URLs.
-                                    context
-                                        .pushNamed(AppRoutes.contractDetails);
-                                    return;
-                                  }
->>>>>>> 1ee471ae (Merge codebases)
                                   setState(() => _selectedTabIndex = index);
                                 },
                               ),
                               const SizedBox(height: 20),
-<<<<<<< HEAD
                               _PlanningSummaryRow(
                                 projectId: projectData.projectId,
                                 approvalsText: projectData
                                     .planningNotes[_contractPlanApprovalsKey],
                                 timelineText: projectData
                                     .planningNotes[_contractPlanTimelineKey],
-=======
-                              const PlanningAiNotesCard(
-                                title: 'AI Notes',
-                                sectionLabel: 'Contract',
-                                noteKey: 'planning_contract_notes',
-                                checkpoint: 'contracts',
-                                description:
-                                    'Summarize contract scope, vendor commitments, and negotiation priorities.',
->>>>>>> 1ee471ae (Merge codebases)
                               ),
                               const SizedBox(height: 20),
                               _AdditionalNotesSection(
@@ -636,13 +607,8 @@ class _FrontEndPlanningContractsScreenState
                                 child: ElevatedButton(
                                   onPressed: _navigateToProcurement,
                                   style: ElevatedButton.styleFrom(
-<<<<<<< HEAD
                                     backgroundColor: _kFabYellow,
                                     foregroundColor: _kFabOnYellow,
-=======
-                                    backgroundColor: const Color(0xFF0987FF),
-                                    foregroundColor: Colors.white,
->>>>>>> 1ee471ae (Merge codebases)
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 32, vertical: 16),
                                     elevation: 0,
@@ -844,14 +810,9 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
         );
       }
 
-<<<<<<< HEAD
       messenger.showSnackBar(SnackBar(
           content: Text(
               _isEdit ? 'Contract updated.' : 'Contract saved successfully.')));
-=======
-      messenger.showSnackBar(
-          const SnackBar(content: Text('Contract saved successfully.')));
->>>>>>> 1ee471ae (Merge codebases)
 
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -951,7 +912,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                   // Update provider if data changed
                                   if (provider != null) {
                                     final currentData = provider.projectData;
-<<<<<<< HEAD
                                     final syncedProjectName =
                                         projectName.isNotEmpty
                                             ? projectName
@@ -986,22 +946,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                         latestProvider.updateInitiationData(
                                           projectName: syncedProjectName,
                                           solutionTitle: syncedSolutionTitle,
-=======
-                                    if (currentData.projectName !=
-                                            projectName ||
-                                        currentData.solutionTitle !=
-                                            solutionTitle) {
-                                      WidgetsBinding.instance
-                                          .addPostFrameCallback((_) {
-                                        provider.updateInitiationData(
-                                          projectName: projectName.isNotEmpty
-                                              ? projectName
-                                              : currentData.projectName,
-                                          solutionTitle:
-                                              solutionTitle.isNotEmpty
-                                                  ? solutionTitle
-                                                  : currentData.solutionTitle,
->>>>>>> 1ee471ae (Merge codebases)
                                         );
                                       });
                                     }
@@ -1176,14 +1120,9 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                         validator: (v) {
                                           final t = v?.trim() ?? '';
                                           final d = double.tryParse(t);
-<<<<<<< HEAD
                                           if (d == null || d <= 0) {
                                             return 'Enter a valid amount';
                                           }
-=======
-                                          if (d == null || d <= 0)
-                                            return 'Enter a valid amount';
->>>>>>> 1ee471ae (Merge codebases)
                                           return null;
                                         },
                                       ),
@@ -1294,14 +1233,8 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                     ElevatedButton(
                                       onPressed: _handleSubmit,
                                       style: ElevatedButton.styleFrom(
-<<<<<<< HEAD
                                         backgroundColor: _kFabYellow,
                                         foregroundColor: _kFabOnYellow,
-=======
-                                        backgroundColor:
-                                            const Color(0xFF0987FF),
-                                        foregroundColor: Colors.white,
->>>>>>> 1ee471ae (Merge codebases)
                                         padding: const EdgeInsets.symmetric(
                                             horizontal: 34, vertical: 18),
                                         elevation: 0,
@@ -1311,7 +1244,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
-<<<<<<< HEAD
                                         children: [
                                           Text(_isEdit ? 'Save' : 'Next',
                                               style: const TextStyle(
@@ -1322,15 +1254,6 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
                                             const Icon(Icons.arrow_forward,
                                                 size: 18),
                                           ],
-=======
-                                        children: const [
-                                          Text('Next',
-                                              style: TextStyle(
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w600)),
-                                          SizedBox(width: 12),
-                                          Icon(Icons.arrow_forward, size: 18),
->>>>>>> 1ee471ae (Merge codebases)
                                         ],
                                       ),
                                     ),
@@ -1574,11 +1497,7 @@ class _ContractingStrategyScreenState extends State<ContractingStrategyScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _openContractDetails,
                             style: ElevatedButton.styleFrom(
-<<<<<<< HEAD
                               backgroundColor: const Color(0xFFFFC812),
-=======
-                              backgroundColor: const Color(0xFF2563EB),
->>>>>>> 1ee471ae (Merge codebases)
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 28, vertical: 16),
@@ -1656,11 +1575,7 @@ class _StrategyStepPills extends StatelessWidget {
     Widget buildPill(String label, int index) {
       final bool isSelected = index == selectedIndex;
       final Color backgroundColor =
-<<<<<<< HEAD
           isSelected ? const Color(0xFFFFC812) : const Color(0xFFFFC947);
-=======
-          isSelected ? const Color(0xFF1D9BF0) : const Color(0xFFFFC947);
->>>>>>> 1ee471ae (Merge codebases)
       final Color textColor =
           isSelected ? Colors.white : const Color(0xFF1F2937);
 
@@ -2274,14 +2189,10 @@ class _QuoteRowData {
 }
 
 class _LabeledField extends StatelessWidget {
-<<<<<<< HEAD
   const _LabeledField({
     required this.label,
     required this.child,
   });
-=======
-  const _LabeledField({required this.label, required this.child, this.helper});
->>>>>>> 1ee471ae (Merge codebases)
 
   final String label;
   final Widget child;
@@ -3422,11 +3333,7 @@ class _TimelineSectionState extends State<_TimelineSection> {
                 Navigator.pop(ctx);
               },
               style: ElevatedButton.styleFrom(
-<<<<<<< HEAD
                   backgroundColor: const Color(0xFFFFC812),
-=======
-                  backgroundColor: const Color(0xFF2563EB),
->>>>>>> 1ee471ae (Merge codebases)
                   foregroundColor: Colors.white),
               child: const Text('Save'),
             ),
@@ -3480,7 +3387,6 @@ class _TimelineSectionState extends State<_TimelineSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-<<<<<<< HEAD
         if (widget.showHeader) ...[
           const Text(
             'Confirm Contracting Timeline',
@@ -3491,16 +3397,6 @@ class _TimelineSectionState extends State<_TimelineSection> {
           ),
           const SizedBox(height: 16),
         ],
-=======
-        const Text(
-          'Confirm Contracting Timeline',
-          style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF111827)),
-        ),
-        const SizedBox(height: 16),
->>>>>>> 1ee471ae (Merge codebases)
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
@@ -3542,240 +3438,6 @@ class _TimelineSectionState extends State<_TimelineSection> {
   }
 }
 
-<<<<<<< HEAD
-=======
-class _ContractDashboardSection extends StatelessWidget {
-  const _ContractDashboardSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = ProjectDataInherited.maybeOf(context);
-    final projectId = provider?.projectData.projectId;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Contract Dashboard',
-          style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF111827)),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'Review successfully created contracts, their status, and key milestones at a glance.',
-          style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-        ),
-        const SizedBox(height: 20),
-        if (projectId == null || projectId.isEmpty) ...[
-          const _ContractMetricsRow(metrics: [
-            _ContractMetricData(
-                label: 'Total Contracts',
-                value: '0',
-                detail: 'Create a project first',
-                icon: Icons.layers_outlined,
-                accentColor: Color(0xFF2563EB)),
-            _ContractMetricData(
-                label: 'Active',
-                value: '0',
-                detail: '—',
-                icon: Icons.sync_alt_rounded,
-                accentColor: Color(0xFF0EA5E9)),
-            _ContractMetricData(
-                label: 'Completed',
-                value: '0',
-                detail: '—',
-                icon: Icons.verified_outlined,
-                accentColor: Color(0xFF10B981)),
-          ]),
-          const SizedBox(height: 12),
-          const Text(
-              'No project selected. Open or create a project to see contracts.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-        ] else ...[
-          StreamBuilder<List<ContractModel>>(
-            // Build the stream defensively so synchronous errors don’t crash the tree
-            stream: (() {
-              try {
-                return ContractService.streamContracts(projectId);
-              } catch (e, st) {
-                debugPrint('⚠️ Contracts stream init failed: $e\n$st');
-                // Return an empty stream to keep UI responsive
-                return const Stream<List<ContractModel>>.empty();
-              }
-            })(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                debugPrint('❌ Contracts stream error: ${snapshot.error}');
-                const fallbackMetrics = [
-                  _ContractMetricData(
-                      label: 'Total Contracts',
-                      value: '0',
-                      detail: 'Stream error',
-                      icon: Icons.layers_outlined,
-                      accentColor: Color(0xFF2563EB)),
-                  _ContractMetricData(
-                      label: 'Active',
-                      value: '0',
-                      detail: '—',
-                      icon: Icons.sync_alt_rounded,
-                      accentColor: Color(0xFF0EA5E9)),
-                  _ContractMetricData(
-                      label: 'Completed',
-                      value: '0',
-                      detail: '—',
-                      icon: Icons.verified_outlined,
-                      accentColor: Color(0xFF10B981)),
-                ];
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    _ContractMetricsRow(metrics: fallbackMetrics),
-                    SizedBox(height: 12),
-                    Text(
-                        'Unable to load contracts right now. Please try again later.',
-                        style:
-                            TextStyle(fontSize: 13, color: Color(0xFF6B7280))),
-                  ],
-                );
-              }
-
-              final contracts = snapshot.data ?? const <ContractModel>[];
-              final total = contracts.length;
-              final active = contracts
-                  .where((c) => (c.status.toLowerCase().contains('active') ||
-                      c.status.toLowerCase().contains('in progress')))
-                  .length;
-              final completed = contracts
-                  .where((c) => c.status.toLowerCase().contains('completed'))
-                  .length;
-
-              final metrics = [
-                _ContractMetricData(
-                    label: 'Total Contracts',
-                    value: '$total',
-                    detail: '—',
-                    icon: Icons.layers_outlined,
-                    accentColor: const Color(0xFF2563EB)),
-                _ContractMetricData(
-                    label: 'Active',
-                    value: '$active',
-                    detail: '—',
-                    icon: Icons.sync_alt_rounded,
-                    accentColor: const Color(0xFF0EA5E9)),
-                _ContractMetricData(
-                    label: 'Completed',
-                    value: '$completed',
-                    detail: '—',
-                    icon: Icons.verified_outlined,
-                    accentColor: const Color(0xFF10B981)),
-              ];
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _ContractMetricsRow(metrics: metrics),
-                  const SizedBox(height: 26),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isStacked = constraints.maxWidth < 1040;
-                      final double cardWidth = isStacked
-                          ? constraints.maxWidth
-                          : (constraints.maxWidth - 20) / 2;
-
-                      return Wrap(
-                        spacing: 20,
-                        runSpacing: 20,
-                        children: contracts
-                            .map(
-                              (c) => SizedBox(
-                                width: cardWidth,
-                                child: _ContractRecordCard(
-                                  record: _ContractRecord(
-                                    name: c.name,
-                                    code: c.discipline.isNotEmpty
-                                        ? c.discipline
-                                        : '—',
-                                    owner: c.createdByName,
-                                    value:
-                                        '\$${c.estimatedValue.toStringAsFixed(0)}',
-                                    status: c.status,
-                                    statusColor: c.status
-                                            .toLowerCase()
-                                            .contains('completed')
-                                        ? const Color(0xFF1E3A8A)
-                                        : const Color(0xFF047857),
-                                    effectiveDate: _formatMMMdY(c.startDate),
-                                    renewalDate: _formatMMMdY(c.endDate),
-                                    lastUpdated:
-                                        'Updated ${_relativeTime(c.updatedAt)}',
-                                    highlights: [
-                                      c.contractType.isNotEmpty
-                                          ? 'Type: ${c.contractType}'
-                                          : '—',
-                                      c.paymentType.isNotEmpty
-                                          ? 'Payment: ${c.paymentType}'
-                                          : '—',
-                                      c.scope.isNotEmpty
-                                          ? 'Scope: ${c.scope}'
-                                          : '—',
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      );
-                    },
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-String _formatMMMdY(DateTime date) {
-  // Simple US-style date like Jan 08, 2025
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec'
-  ];
-  final m = months[date.month - 1];
-  final day = date.day.toString().padLeft(2, '0');
-  return '$m $day, ${date.year}';
-}
-
-String _relativeTime(DateTime time) {
-  final now = DateTime.now();
-  final diff = now.difference(time);
-  if (diff.inSeconds < 60) return 'just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  if (diff.inDays < 7) return '${diff.inDays} d ago';
-  final weeks = (diff.inDays / 7).floor();
-  if (weeks < 5) return '$weeks wk ago';
-  final months = (diff.inDays / 30).floor();
-  if (months < 12) return '$months mo ago';
-  final years = (diff.inDays / 365).floor();
-  return '$years yr ago';
-}
-
->>>>>>> 1ee471ae (Merge codebases)
 class _ContractingNoteBanner extends StatelessWidget {
   const _ContractingNoteBanner();
 
@@ -4190,11 +3852,7 @@ class _ContractRecordCard extends StatelessWidget {
               TextButton.icon(
                 onPressed: () {},
                 style: TextButton.styleFrom(
-<<<<<<< HEAD
                   foregroundColor: const Color(0xFFFFC812),
-=======
-                  foregroundColor: const Color(0xFF2563EB),
->>>>>>> 1ee471ae (Merge codebases)
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -4409,11 +4067,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
       if (_documents.isEmpty &&
           _bidderInfo.isEmpty &&
           _overviewMilestones.isEmpty) {
-<<<<<<< HEAD
         _applyContractFallbacks();
-=======
-        await _populateDetailsFromAi();
->>>>>>> 1ee471ae (Merge codebases)
       } else {
         _applyContractFallbacks();
         if (!docExists && _primaryContract != null) {
@@ -4553,11 +4207,7 @@ class _ContractDetailsScreenState extends State<ContractDetailsScreen> {
             title: title,
             value: value,
             accentColor:
-<<<<<<< HEAD
                 emphasize ? const Color(0xFFEF4444) : const Color(0xFFFFC812),
-=======
-                emphasize ? const Color(0xFFEF4444) : const Color(0xFF2563EB),
->>>>>>> 1ee471ae (Merge codebases)
             emphasize: emphasize,
           );
         })
@@ -4860,14 +4510,10 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
       if (_timelineRows.isEmpty &&
           _contractors.isEmpty &&
           _executionSteps.isEmpty) {
-<<<<<<< HEAD
         if (_contracts.isNotEmpty) {
           _buildTimelineFromContracts();
           _applySummaryFromContracts();
         }
-=======
-        await _populateStatusFromAi();
->>>>>>> 1ee471ae (Merge codebases)
       } else if (_timelineRows.isEmpty && _contracts.isNotEmpty) {
         _buildTimelineFromContracts();
       }
@@ -4902,19 +4548,11 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
     final now = DateTime.now();
     final rows = contractsWithDates.map((contract) {
       final cells = months.map((_) {
-<<<<<<< HEAD
         if (now.isAfter(contract.endDate!)) {
           return const _StatusTimelineCellData(
               status: _TimelineStatusState.complete);
         }
         if (now.isBefore(contract.startDate!)) {
-=======
-        if (now.isAfter(contract.endDate)) {
-          return const _StatusTimelineCellData(
-              status: _TimelineStatusState.complete);
-        }
-        if (now.isBefore(contract.startDate)) {
->>>>>>> 1ee471ae (Merge codebases)
           return const _StatusTimelineCellData(
               status: _TimelineStatusState.notStarted);
         }
@@ -4934,11 +4572,7 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
   void _applySummaryFromContracts() {
     if (_contracts.isEmpty) return;
     final totalValue =
-<<<<<<< HEAD
         _contracts.fold<double>(0.0, (total, c) => total + c.estimatedValue);
-=======
-        _contracts.fold<double>(0.0, (sum, c) => sum + c.estimatedValue);
->>>>>>> 1ee471ae (Merge codebases)
     final averageValue = totalValue / _contracts.length;
     final completed = _contracts
         .where((c) => c.status.toLowerCase().contains('complete'))
@@ -5262,11 +4896,7 @@ class _ContractingStatusScreenState extends State<ContractingStatusScreen> {
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(14),
                                   borderSide: const BorderSide(
-<<<<<<< HEAD
                                       color: Color(0xFFFFC812), width: 1.2),
-=======
-                                      color: Color(0xFF2563EB), width: 1.2),
->>>>>>> 1ee471ae (Merge codebases)
                                 ),
                               ),
                               style: const TextStyle(
@@ -5446,7 +5076,6 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
       totalValue += contract.estimatedValue;
       rows.add(_SummaryTableRowData(
         contract: contract.name,
-<<<<<<< HEAD
         contractor: contract.contractorName.isNotEmpty
             ? contract.contractorName
             : (contract.discipline.isNotEmpty
@@ -5454,13 +5083,6 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
                 : (contract.createdByName.isNotEmpty
                     ? contract.createdByName
                     : 'TBD')),
-=======
-        contractor: contract.discipline.isNotEmpty
-            ? contract.discipline
-            : (contract.createdByName.isNotEmpty
-                ? contract.createdByName
-                : 'TBD'),
->>>>>>> 1ee471ae (Merge codebases)
         method: '${contract.contractType} / ${contract.paymentType}',
         estimatedValue: _formatCurrency(contract.estimatedValue),
         duration: hasDates ? '${duration < 0 ? 0 : duration} days' : 'TBD',
@@ -5486,7 +5108,6 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
       currentEstimate: _formatCurrency(totalValue),
       variance: 'TBD',
     );
-<<<<<<< HEAD
     final datedContracts = _contracts
         .where((c) => c.startDate != null && c.endDate != null)
         .toList();
@@ -5500,13 +5121,6 @@ class _ContractingSummaryScreenState extends State<ContractingSummaryScreen> {
           .map((c) => c.endDate!)
           .reduce((a, b) => a.isAfter(b) ? a : b);
     }
-=======
-    final earliest = _contracts
-        .map((c) => c.startDate)
-        .reduce((a, b) => a.isBefore(b) ? a : b);
-    final latest =
-        _contracts.map((c) => c.endDate).reduce((a, b) => a.isAfter(b) ? a : b);
->>>>>>> 1ee471ae (Merge codebases)
     _scheduleImpact = _ScheduleImpactData(
       summary:
           'Contract durations have been incorporated into the project schedule. The longest contract duration informs the critical path.',
@@ -6595,11 +6209,7 @@ class _SummaryHighlightBullet extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.only(top: 6),
           child: Icon(Icons.fiber_manual_record,
-<<<<<<< HEAD
               size: 8, color: Color(0xFFFFC812)),
-=======
-              size: 8, color: Color(0xFF2563EB)),
->>>>>>> 1ee471ae (Merge codebases)
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -7089,11 +6699,7 @@ class _ContractStatusRecentActivityCard extends StatelessWidget {
                     const Padding(
                       padding: EdgeInsets.only(top: 5),
                       child: Icon(Icons.fiber_manual_record,
-<<<<<<< HEAD
                           size: 8, color: Color(0xFFFFC812)),
-=======
-                          size: 8, color: Color(0xFF2563EB)),
->>>>>>> 1ee471ae (Merge codebases)
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -7774,11 +7380,7 @@ class _ContractExecutionSection extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 300),
                 child: DropdownButtonFormField<String>(
-<<<<<<< HEAD
                   value: selectedContract,
-=======
-                  initialValue: selectedContract,
->>>>>>> 1ee471ae (Merge codebases)
                   onChanged: (value) =>
                       onContractChanged(value ?? selectedContract),
                   items: availableContracts
@@ -7803,11 +7405,7 @@ class _ContractExecutionSection extends StatelessWidget {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: const BorderSide(
-<<<<<<< HEAD
                           color: Color(0xFFFFC812), width: 1.2),
-=======
-                          color: Color(0xFF2563EB), width: 1.2),
->>>>>>> 1ee471ae (Merge codebases)
                     ),
                   ),
                   style: const TextStyle(
@@ -7868,11 +7466,7 @@ class _ExecutionTimelineRow extends StatelessWidget {
                   height: 24,
                   decoration: BoxDecoration(
                     color: isFirst
-<<<<<<< HEAD
                         ? const Color(0xFFFFC812)
-=======
-                        ? const Color(0xFF2563EB)
->>>>>>> 1ee471ae (Merge codebases)
                         : const Color(0xFFE5E7EB),
                     shape: BoxShape.circle,
                   ),
@@ -7918,13 +7512,8 @@ class _ExecutionTimelineRow extends StatelessWidget {
                   ElevatedButton(
                     onPressed: () => PlanningProcurementScreen.open(context),
                     style: ElevatedButton.styleFrom(
-<<<<<<< HEAD
                       backgroundColor: _kFabYellow,
                       foregroundColor: _kFabOnYellow,
-=======
-                      backgroundColor: const Color(0xFF0987FF),
-                      foregroundColor: Colors.white,
->>>>>>> 1ee471ae (Merge codebases)
                       padding: const EdgeInsets.symmetric(
                           horizontal: 22, vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -8010,14 +7599,9 @@ class _StatusTimelineCellData {
   static _TimelineStatusState _statusFromText(String statusText) {
     final text = statusText.toLowerCase();
     if (text.contains('complete')) return _TimelineStatusState.complete;
-<<<<<<< HEAD
     if (text.contains('behind') || text.contains('risk')) {
       return _TimelineStatusState.behindSchedule;
     }
-=======
-    if (text.contains('behind') || text.contains('risk'))
-      return _TimelineStatusState.behindSchedule;
->>>>>>> 1ee471ae (Merge codebases)
     if (text.contains('progress')) return _TimelineStatusState.inProgress;
     return _TimelineStatusState.notStarted;
   }
@@ -8568,11 +8152,7 @@ class _ContractDetailsTabBar extends StatelessWidget {
                     height: 3,
                     decoration: BoxDecoration(
                       color: isSelected
-<<<<<<< HEAD
                           ? const Color(0xFFFFC812)
-=======
-                          ? const Color(0xFF2563EB)
->>>>>>> 1ee471ae (Merge codebases)
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(999),
                     ),
@@ -8876,11 +8456,7 @@ class _ContactSidebarCard extends StatelessWidget {
                   Text(
                     info?.email ?? 'Email pending',
                     style:
-<<<<<<< HEAD
                         const TextStyle(fontSize: 13, color: Color(0xFFFFC812)),
-=======
-                        const TextStyle(fontSize: 13, color: Color(0xFF2563EB)),
->>>>>>> 1ee471ae (Merge codebases)
                   ),
                 ],
               ),
@@ -9026,11 +8602,7 @@ class _UploadBidDocumentsCard extends StatelessWidget {
                     text: 'click to browse',
                     style: TextStyle(
                         fontSize: 13,
-<<<<<<< HEAD
                         color: Color(0xFFFFC812),
-=======
-                        color: Color(0xFF2563EB),
->>>>>>> 1ee471ae (Merge codebases)
                         fontWeight: FontWeight.w600)),
               ],
             ),
@@ -9135,14 +8707,7 @@ class _ContractDocumentData {
       title: (json['title'] ?? '').toString(),
       details: (json['details'] ?? '').toString(),
       accentColor: Color((json['accentColor'] ?? 0xFF2563EB) as int),
-<<<<<<< HEAD
       icon: _iconLookup[codePoint] ?? Icons.description_outlined,
-=======
-      icon: IconData(
-          (json['iconCodePoint'] ?? 0xe873) // Icons.description_outlined.codePoint
-              as int,
-          fontFamily: 'MaterialIcons'),
->>>>>>> 1ee471ae (Merge codebases)
     );
   }
 
@@ -9418,11 +8983,7 @@ class _TabButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
                 color:
-<<<<<<< HEAD
                     isSelected ? const Color(0xFFFFC812) : Colors.transparent,
-=======
-                    isSelected ? const Color(0xFF0987FF) : Colors.transparent,
->>>>>>> 1ee471ae (Merge codebases)
                 width: 1.4),
             boxShadow: isSelected
                 ? const [
