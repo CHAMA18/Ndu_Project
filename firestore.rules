@@ -66,16 +66,12 @@ service cloud.firestore {
       }
 
       function isProjectMember() {
-        let projectDoc = get(/databases/$(database)/documents/projects/$(projectId));
-        if (!projectDoc.exists) return false;
-        let projectData = projectDoc.data;
-        // Check ownership first — covers the vast majority of cases
-        if (request.auth.uid == projectData.ownerId) return true;
-        // Then check team membership — guard against missing/non-list field
-        let teamMembers = projectData.get('teamMembers', []);
-        if (teamMembers is list && request.auth.uid in teamMembers) return true;
-        // Finally check admin
-        return isAdmin();
+        return exists(/databases/$(database)/documents/projects/$(projectId))
+          && (
+            request.auth.uid == get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId
+            || request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.get('teamMembers', [])
+          )
+          || isAdmin();
       }
 
       allow read: if isAuthenticated();
