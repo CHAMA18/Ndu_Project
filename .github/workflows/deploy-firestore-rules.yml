@@ -1,0 +1,20 @@
+name: Deploy Firestore Rules
+
+on:
+  push:
+    branches: [ main, staging ]
+    paths:
+      - 'firestore.rules'
+
+jobs:
+  deploy-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Firebase
+        uses: w9jds/firebase-action@v12.9.0
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          projectId: ndu-d3f60
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NDU_D3F60 }}
+          args: deploy --only firestore:rules
