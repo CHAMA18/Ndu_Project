@@ -315,7 +315,16 @@ class DashboardMetricsService {
             }
           }
         } catch (e) {
-          debugPrint('[DashboardMetricsService] activities load error: $e');
+          // Silently skip permission-denied errors — these happen when
+          // Firestore rules restrict access to the activities subcollection.
+          // The dashboard still works; it just shows no activities for
+          // that project. Only log unexpected errors.
+          final errorStr = e.toString();
+          if (!errorStr.contains('permission-denied') &&
+              !errorStr.contains('PERMISSION_DENIED') &&
+              !errorStr.contains('Missing or insufficient permissions')) {
+            debugPrint('[DashboardMetricsService] activities load error: $e');
+          }
         }
 
         // Build status rollup from project data
