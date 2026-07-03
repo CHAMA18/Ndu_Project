@@ -7,6 +7,7 @@ library;
 
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
@@ -14,6 +15,72 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
+
+
+class SafeSection extends StatelessWidget {
+  SafeSection({super.key, required this.title, required this.builder});
+  final String title;
+  final WidgetBuilder builder;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget child;
+    try {
+      child = builder(context);
+    } catch (error, stack) {
+      debugPrint('[PortfolioDashboard] Section "$title" failed: $error');
+      debugPrint(stack.toString());
+      return _SectionErrorCard(
+        title: '$title unavailable',
+        message: 'This section encountered an error while rendering. Other parts are unaffected.',
+        details: error.toString(),
+      );
+    }
+    return child;
+  }
+}
+
+class _SectionErrorCard extends StatelessWidget {
+  const _SectionErrorCard({required this.title, required this.message, required this.details});
+  final String title;
+  final String message;
+  final String details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDA29B)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(color: Color(0xFFFEE4E2), shape: BoxShape.circle),
+            child: const Icon(Icons.error_outline, color: Color(0xFFD92D20), size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFB42318))),
+                const SizedBox(height: 4),
+                Text(message, style: const TextStyle(fontSize: 12.5, color: Color(0xFF667085), height: 1.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class PortfolioDashboardScreen extends StatefulWidget {
   final String? portfolioId;
@@ -140,8 +207,10 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                     ),
                   ),
                 ),
-                // Main content
-                FadeTransition(
+                // Main content — wrapped in SafeSection to prevent blank page
+                SafeSection(
+                  title: 'Portfolio Dashboard content',
+                  builder: (_) => FadeTransition(
                   opacity: _fadeAnimation,
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
@@ -157,6 +226,7 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                         const SizedBox(height: 72),
                       ],
                     ),
+                  ),
                   ),
                 ),
               ],

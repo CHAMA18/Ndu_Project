@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/screens/home_screen.dart';
@@ -37,6 +38,89 @@ import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// SafeSection — Build-time error boundary that prevents a single failing child
+// widget from blanking the entire page.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+class SafeSection extends StatelessWidget {
+  SafeSection({
+    super.key,
+    required this.title,
+    required this.builder,
+  });
+
+  final String title;
+  final WidgetBuilder builder;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget child;
+    try {
+      child = builder(context);
+    } catch (error, stack) {
+      debugPrint('[RiskIdentification] Section "$title" failed: $error');
+      debugPrint(stack.toString());
+      return _SectionErrorCard(
+        title: '$title unavailable',
+        message: 'This section encountered an error while rendering. Other parts of the page are unaffected.',
+        details: error.toString(),
+      );
+    }
+    return child;
+  }
+}
+
+class _SectionErrorCard extends StatelessWidget {
+  const _SectionErrorCard({required this.title, required this.message, required this.details});
+  final String title;
+  final String message;
+  final String details;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF3F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFDA29B)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(color: Color(0xFFFEE4E2), shape: BoxShape.circle),
+            child: const Icon(Icons.error_outline, color: Color(0xFFD92D20), size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFB42318))),
+                const SizedBox(height: 4),
+                Text(message, style: const TextStyle(fontSize: 12.5, color: Color(0xFF667085), height: 1.5)),
+                if (kDebugMode) ...[
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(6)),
+                    child: SelectableText(details, style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF475467)), maxLines: 4),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class RiskIdentificationScreen extends StatefulWidget {
   final String notes;
@@ -411,7 +495,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                       ),
                       Expanded(child: Column(children: [
                         BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                        Expanded(child: _buildMainContent()),
+                        Expanded(child: SafeSection(title: 'RiskIdentification content', builder: (_) => _buildMainContent())),
                       ])),
                     ],
                 ),
