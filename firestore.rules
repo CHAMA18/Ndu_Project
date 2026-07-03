@@ -13,7 +13,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated()
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
     }
 
     // ─── Users collection (own data only) ──────────────────────────────
@@ -58,27 +59,38 @@ service cloud.firestore {
     
     // ─── Projects collection ───────────────────────────────────────────
     match /projects/{projectId} {
+      function isProjectOwner() {
+        return isAuthenticated()
+          && exists(/databases/$(database)/documents/projects/$(projectId))
+          && request.auth.uid == get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId;
+      }
+
       function isProjectMember() {
-        let projectData = get(/databases/$(database)/documents/projects/$(projectId)).data;
-        return isAuthenticated() && (
-          request.auth.uid == projectData.ownerId ||
-          request.auth.uid in projectData.get('teamMembers', []) ||
-          isAdmin()
-        );
+        let projectDoc = get(/databases/$(database)/documents/projects/$(projectId));
+        if (!projectDoc.exists) return false;
+        let projectData = projectDoc.data;
+        // Check ownership first — covers the vast majority of cases
+        if (request.auth.uid == projectData.ownerId) return true;
+        // Then check team membership — guard against missing/non-list field
+        let teamMembers = projectData.get('teamMembers', []);
+        if (teamMembers is list && request.auth.uid in teamMembers) return true;
+        // Finally check admin
+        return isAdmin();
       }
 
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.auth.uid == request.resource.data.ownerId;
       allow update: if isAuthenticated() && (
         request.auth.uid == resource.data.ownerId ||
-        request.auth.uid in resource.data.get('teamMembers', []) ||
+        (resource.data.get('teamMembers', []) is list && request.auth.uid in resource.data.get('teamMembers', [])) ||
         isAdmin()
       );
       allow delete: if isAuthenticated() && (request.auth.uid == resource.data.ownerId || isAdmin());
       
-      // All project subcollections require project membership
+      // All project subcollections — owner has full access, members have read access
       match /{document=**} {
-        allow read, write: if isProjectMember();
+        allow read: if isProjectOwner() || isProjectMember();
+        allow write: if isProjectOwner() || isProjectMember();
       }
     }
     
