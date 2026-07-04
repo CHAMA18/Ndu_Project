@@ -166,7 +166,44 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
     }
-    
+
+    // ─── Collaboration invitations ─────────────────────────────────────
+    // Authenticated users can create invitations (the Invite Collaborator
+    // flow requires email OTP verification before the write happens).
+    // Users can read invitations they sent or that are addressed to them.
+    match /collaboration_invites/{inviteId} {
+      allow read: if isAuthenticated() && (
+        resource.data.invitedByUid == request.auth.uid ||
+        resource.data.email == request.auth.token.email
+      );
+      allow create: if isAuthenticated() &&
+        request.resource.data.invitedByUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.invitedByUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.invitedByUid == request.auth.uid ||
+        isAdmin()
+      );
+    }
+
+    // ─── RBAC audit events (append-only, admin-read) ───────────────────
+    // Any authenticated user can append audit events; only admins can read.
+    match /rbac_audit_events/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // Immutable audit trail
+    }
+
+    // ─── Two-factor OTP codes ──────────────────────────────────────────
+    // OTP documents are keyed by email and managed by Cloud Functions.
+    // Users can read their own OTP doc (to verify); writes are CF-only.
+    match /twoFactorCodes/{email} {
+      allow read: if isAuthenticated() && request.auth.token.email == email;
+      allow write: if false; // Managed by Cloud Functions only
+    }
+
     // ─── Default deny all other collections ────────────────────────────
     match /{document=**} {
       allow read, write: if false;
