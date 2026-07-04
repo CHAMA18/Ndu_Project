@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/openai/openai_config.dart';
 import 'package:ndu_project/models/user_role.dart';
@@ -4138,11 +4140,48 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    final project = ProjectDataInherited.maybeOf(context)?.projectData;
-    final expiresAt = _expiryDate(_selectedExpiry);
+    if (user == null || user.email == null || user.email!.isEmpty) {
+      _showSnack('You must be signed in to send invitations.');
+      return;
+    }
 
+    // ── Email verification flow ────────────────────────────────────────
+    // Before creating the invitation, verify the inviter's identity via
+    // a 6-digit OTP sent to their own email address. This mirrors the
+    // TwoFactorVerificationScreen pattern and prevents unauthorized
+    // invitation creation even if the inviter's session is hijacked.
     setState(() => _isSending = true);
     try {
+      // Step 1: Send OTP to the inviter's email
+      await TwoFactorAuthService.sendCode(email: user.email!);
+
+      if (!mounted) return;
+
+      // Step 2: Show the verification dialog and wait for the user to
+      // enter the 6-digit code. The dialog returns true if verification
+      // succeeded, false if the user cancelled or verification failed.
+      final verified = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => InviteVerificationDialog(
+          email: user.email!,
+          inviteeEmail: email,
+          inviteeName: _nameController.text.trim(),
+        ),
+      );
+
+      if (verified != true) {
+        // User cancelled or verification failed
+        if (mounted) {
+          _showSnack('Invitation cancelled — email not verified.');
+        }
+        return;
+      }
+
+      // Step 3: OTP verified — proceed to create the invitation
+      final project = ProjectDataInherited.maybeOf(context)?.projectData;
+      final expiresAt = _expiryDate(_selectedExpiry);
+
       final payload = {
         'email': email,
         'displayName': _nameController.text.trim(),
@@ -4156,8 +4195,8 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
         'status': 'pending',
         'requireMfa': _requireMfa,
         'notifyOnAccessChange': _notifyOnAccessChange,
-        'invitedByUid': user?.uid,
-        'invitedByEmail': user?.email,
+        'invitedByUid': user.uid,
+        'invitedByEmail': user.email,
         'createdAt': FieldValue.serverTimestamp(),
         'expiresAt': expiresAt == null ? null : Timestamp.fromDate(expiresAt),
       };
@@ -4172,15 +4211,15 @@ class _AccessCollaboratorsPanelState extends State<_AccessCollaboratorsPanel> {
         'role': _selectedRole.name,
         'scope': _selectedScope,
         'projectId': project?.projectId ?? '',
-        'actorUid': user?.uid,
-        'actorEmail': user?.email,
+        'actorUid': user.uid,
+        'actorEmail': user.email,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) return;
       _emailController.clear();
       _nameController.clear();
-      _showSnack('Invitation staged for $email.');
+      _showSnack('Invitation sent to $email.');
     } catch (e) {
       if (!mounted) return;
       _showSnack('Could not create invitation: $e');
@@ -5421,6 +5460,399 @@ class _PrefInfoRow extends StatelessWidget {
                 color: Colors.black54,
               )),
         ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// InviteVerificationDialog — Email OTP verification for the Invite Collaborator flow
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Mirrors the TwoFactorVerificationScreen structure:
+//   • 6-digit OTP input fields (auto-advance, backspace navigation)
+//   • Resend code with 60-second cooldown
+//   • Verify button (auto-submits when all 6 digits entered)
+//   • Error message display
+//   • Cancel button
+//
+// The OTP is sent to the inviter's email (not the invitee's) to confirm
+// the inviter is authorized to send invitations. Only after successful
+// verification does the invitation get created in Firestore.
+
+class InviteVerificationDialog extends StatefulWidget {
+  final String email;
+  final String inviteeEmail;
+  final String inviteeName;
+
+  const InviteVerificationDialog({
+    super.key,
+    required this.email,
+    required this.inviteeEmail,
+    required this.inviteeName,
+  });
+
+  @override
+  State<InviteVerificationDialog> createState() =>
+      _InviteVerificationDialogState();
+}
+
+class _InviteVerificationDialogState extends State<InviteVerificationDialog> {
+  final List<TextEditingController> _controllers =
+      List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+
+  bool _isLoading = false;
+  bool _isSending = false;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    // OTP was already sent by _sendInvite() before showing this dialog.
+    // Start the resend cooldown immediately.
+    _resendCooldown = 60;
+    _startCooldown();
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  String get _enteredCode => _controllers.map((c) => c.text).join();
+
+  // ── Resend OTP ──────────────────────────────────────────────────────
+  Future<void> _resendCode() async {
+    setState(() {
+      _isSending = true;
+      _errorMessage = null;
+    });
+    try {
+      await TwoFactorAuthService.sendCode(email: widget.email);
+      if (mounted) {
+        setState(() => _resendCooldown = 60);
+        _startCooldown();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Verification code sent to ${widget.email}'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Failed to resend code. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
+
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendCooldown <= 0) {
+        timer.cancel();
+      } else if (mounted) {
+        setState(() => _resendCooldown--);
+      }
+    });
+  }
+
+  // ── Verify OTP ──────────────────────────────────────────────────────
+  Future<void> _verifyCode() async {
+    final code = _enteredCode;
+    if (code.length != 6) {
+      setState(() => _errorMessage = 'Please enter the full 6-digit code.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final success = await TwoFactorAuthService.verifyCode(
+        code: code,
+        email: widget.email,
+      );
+      if (!mounted) return;
+
+      if (success) {
+        Navigator.of(context).pop(true);
+      } else {
+        setState(() => _errorMessage = 'Invalid code. Please try again.');
+        _clearCode();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Verification failed. Please try again.');
+        _clearCode();
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _clearCode() {
+    for (final c in _controllers) {
+      c.clear();
+    }
+    _focusNodes[0].requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const primaryText = Color(0xFF1F2933);
+    const secondaryText = Color(0xFF616E7C);
+    const accent = Color(0xFFFFC107);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ── Header ────────────────────────────────────────────
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.mark_email_read_outlined,
+                        color: Color(0xFF8A5800), size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Verify Your Email',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Confirm invitation to ${widget.inviteeName.isNotEmpty ? widget.inviteeName : widget.inviteeEmail}',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            color: secondaryText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // ── Description ───────────────────────────────────────
+              Text(
+                'Enter the 6-digit code sent to',
+                style: const TextStyle(fontSize: 13, color: secondaryText),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                widget.email,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ── OTP Input Fields ──────────────────────────────────
+              Center(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(6, (index) {
+                    return Container(
+                      width: 44,
+                      height: 52,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      child: KeyboardListener(
+                        focusNode: FocusNode(),
+                        onKeyEvent: (event) {
+                          if (event is KeyDownEvent &&
+                              event.logicalKey ==
+                                  LogicalKeyboardKey.backspace &&
+                              _controllers[index].text.isEmpty &&
+                              index > 0) {
+                            _controllers[index - 1].clear();
+                            _focusNodes[index - 1].requestFocus();
+                          }
+                        },
+                        child: TextFormField(
+                          controller: _controllers[index],
+                          focusNode: _focusNodes[index],
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          maxLength: 1,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: primaryText,
+                          ),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
+                          decoration: InputDecoration(
+                            counterText: '',
+                            filled: true,
+                            fillColor: const Color(0xFFF9FAFB),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD2D6DC),
+                                width: 1.5,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD2D6DC),
+                                width: 1.5,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              borderSide: const BorderSide(
+                                color: accent,
+                                width: 2,
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onChanged: (value) {
+                            if (value.isNotEmpty && index < 5) {
+                              _focusNodes[index + 1].requestFocus();
+                            }
+                            if (value.isNotEmpty && index == 5) {
+                              _focusNodes[index].unfocus();
+                              _verifyCode();
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Error Message ─────────────────────────────────────
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 4),
+                Center(
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              // ── Verify Button ─────────────────────────────────────
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _verifyCode,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.black),
+                          ),
+                        )
+                      : const Text('Verify & Send Invite',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // ── Resend & Cancel Row ───────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Resend code
+                  _resendCooldown > 0
+                      ? Text(
+                          'Resend code in ${_resendCooldown}s',
+                          style: const TextStyle(
+                            color: secondaryText,
+                            fontSize: 12.5,
+                          ),
+                        )
+                      : GestureDetector(
+                          onTap: _isSending ? null : _resendCode,
+                          child: Text(
+                            _isSending ? 'Sending...' : 'Resend Code',
+                            style: const TextStyle(
+                              color: accent,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                  // Cancel
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(false),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        color: secondaryText,
+                        fontSize: 12.5,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
