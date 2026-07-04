@@ -164,17 +164,17 @@ void main() async {
   // supplied at deploy time is picked up. On non-web this is a fast no-op.
   await EnvConfigLoader.load();
 
-  // Initialize OpenAI API key. Priority order:
+  // Initialize API key. Priority order:
   //   1. window.__NDU_ENV.OPENAI_API_KEY (deploy-time override)
   //   2. Per-user key loaded from Firestore (set via Settings screen)
-  //   3. Cloud Function proxy (SecureAPIConfig.baseUrl — server-side key)
+  //   3. Server-side proxy (no client key needed)
   ApiKeyManager.initializeApiKey();
   if (EnvConfigLoader.hasOpenAiKey) {
     ApiKeyManager.setApiKey(EnvConfigLoader.openaiApiKey!);
   } else if (kIsWeb) {
     debugPrint(
-      'NDU: no deploy-time OpenAI key in env-config.js — '
-      'using Cloud Function proxy at ${SecureAPIConfig.baseUrl}.',
+      'NDU: no deploy-time API key in env-config.js — '
+      'using server-side proxy.',
     );
   }
   // Warm common local stores in background to reduce first-navigation latency.
