@@ -13,7 +13,8 @@ class PageHintDialog {
     required String title,
     required String message,
   }) async {
-    final PageHintConfig resolvedHint = await HintContentService.getResolvedHint(
+    final PageHintConfig resolvedHint =
+        await HintContentService.getResolvedHint(
       pageId: pageId,
       fallbackTitle: title,
       fallbackMessage: message,
@@ -36,6 +37,7 @@ class PageHintDialog {
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.4),
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setLocal) {
@@ -53,12 +55,14 @@ class PageHintDialog {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Colors.blue, size: 22),
+                        const Icon(Icons.info_outline,
+                            color: Colors.blue, size: 22),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             resolvedHint.title,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700),
                           ),
                         ),
                       ],
@@ -66,7 +70,8 @@ class PageHintDialog {
                     const SizedBox(height: 12),
                     Text(
                       resolvedHint.message,
-                      style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5),
+                      style: const TextStyle(
+                          fontSize: 14, color: Colors.black87, height: 1.5),
                     ),
                     const SizedBox(height: 16),
                     Container(
@@ -81,7 +86,8 @@ class PageHintDialog {
                           const Expanded(
                             child: Text(
                               'Disable hints for pages I’ve viewed before.',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                           ),
                           Switch(

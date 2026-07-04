@@ -37,7 +37,6 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 
-
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SafeSection — Build-time error boundary that prevents a single failing child
 // widget from blanking the entire page.
@@ -62,7 +61,8 @@ class SafeSection extends StatelessWidget {
       debugPrint(stack.toString());
       return _SectionErrorCard(
         title: '$title unavailable',
-        message: 'This section encountered an error while rendering. Other parts of the page are unaffected.',
+        message:
+            'This section encountered an error while rendering. Other parts of the page are unaffected.',
         details: error.toString(),
       );
     }
@@ -71,7 +71,8 @@ class SafeSection extends StatelessWidget {
 }
 
 class _SectionErrorCard extends StatelessWidget {
-  const _SectionErrorCard({required this.title, required this.message, required this.details});
+  const _SectionErrorCard(
+      {required this.title, required this.message, required this.details});
   final String title;
   final String message;
   final String details;
@@ -91,23 +92,38 @@ class _SectionErrorCard extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(color: Color(0xFFFEE4E2), shape: BoxShape.circle),
-            child: const Icon(Icons.error_outline, color: Color(0xFFD92D20), size: 18),
+            decoration: const BoxDecoration(
+                color: Color(0xFFFEE4E2), shape: BoxShape.circle),
+            child: const Icon(Icons.error_outline,
+                color: Color(0xFFD92D20), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFB42318))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFB42318))),
                 const SizedBox(height: 4),
-                Text(message, style: const TextStyle(fontSize: 12.5, color: Color(0xFF667085), height: 1.5)),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Color(0xFF667085), height: 1.5)),
                 if (kDebugMode) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(6)),
-                    child: SelectableText(details, style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF475467)), maxLines: 4),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: SelectableText(details,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF475467)),
+                        maxLines: 4),
                   ),
                 ],
               ],
@@ -118,7 +134,6 @@ class _SectionErrorCard extends StatelessWidget {
     );
   }
 }
-
 
 class PotentialSolutionsScreen extends StatefulWidget {
   const PotentialSolutionsScreen({super.key});
@@ -150,7 +165,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final TextEditingController _notesController = RichTextEditingController();
   final ScrollController _reviewScrollController = ScrollController();
-  String _incomingBusinessCase = ''; // Fixed: was late final, could crash with LateInitializationError
+  String _incomingBusinessCase =
+      ''; // Fixed: was late final, could crash with LateInitializationError
   late final TextEditingController _projectNameController;
   final List<SolutionRow> _solutions = [];
   final OpenAiServiceSecure _openAiService = OpenAiServiceSecure();
@@ -243,7 +259,8 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           // Immediately apply fallback solutions so the page renders
           // instantly without waiting for the OpenAI API (which may be
           // slow or unavailable due to region restrictions).
-          _applyFallback('Add your solutions manually or click regenerate to try AI suggestions.');
+          _applyFallback(
+              'Add your solutions manually or click regenerate to try AI suggestions.');
         }
 
         if (mounted) setState(() {});
@@ -268,12 +285,12 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (!mounted) return;
       PageHintDialog.showIfNeeded(
-      context: context,
-      pageId: 'potential_solutions',
-      title: 'Notification',
-      message:
-          'Although KAZ AI-generated outputs can provide valuable insights, please review and refine them as needed to ensure they align with your project requirements.',
-    );
+        context: context,
+        pageId: 'potential_solutions',
+        title: 'Notification',
+        message:
+            'Although KAZ AI-generated outputs can provide valuable insights, please review and refine them as needed to ensure they align with your project requirements.',
+      );
     });
   }
 
@@ -517,43 +534,47 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
     if (isMobile) {
       return _buildMobileScaffold();
     }
+
     final sidebarWidth = AppBreakpoints.sidebarWidth(context);
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: null,
+      backgroundColor: const Color(0xFFF8F9FB),
       body: SafeArea(
         top: true,
         child: Stack(
           children: [
-            Column(
+            Row(
               children: [
-                // Sidebar full height on left; header + content on right
-                Row(
+                DraggableSidebar(
+                  openWidth: sidebarWidth,
+                  child: const InitiationLikeSidebar(
+                    activeItemLabel: 'Potential Solutions',
+                  ),
+                ),
+                Expanded(
+                  child: Column(
                     children: [
-                      DraggableSidebar(
-                        openWidth: sidebarWidth,
-                        child: const InitiationLikeSidebar(
-                            activeItemLabel: 'Potential Solutions'),
+                      BusinessCaseHeader(
+                        scaffoldKey: _scaffoldKey,
+                        onExportPdf: _exportPdf,
                       ),
                       Expanded(
-                        child: Column(
-                          children: [
-                            BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                            Expanded(child: SafeSection(title: 'PotentialSolutions content', builder: (_) => _buildMainContent())),
-                          ],
+                        child: SafeSection(
+                          title: 'Potential Solutions content',
+                          builder: (_) => _buildMainContent(),
                         ),
                       ),
                     ],
+                  ),
                 ),
               ],
             ),
             MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Potential Solutions',
-                      ),
-                    ),
-                    const KazAiChatBubble(),
+              sidebar: const InitiationLikeSidebar(
+                activeItemLabel: 'Potential Solutions',
+              ),
+            ),
+            const KazAiChatBubble(),
             const AdminEditToggle(),
           ],
         ),
@@ -1439,10 +1460,9 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── 1. Header ────────────────────────────────────────
                     const EditableContentText(
                       contentKey: 'potential_solutions_phase_title',
-                      fallback: 'Solution Phase',
+                      fallback: 'Potential Solutions',
                       category: 'business_case',
                       style: TextStyle(
                         fontSize: 28,
@@ -1451,64 +1471,104 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                       ),
                     ),
                     SizedBox(height: sectionGap),
-
-                    // ── 2. Notes section ────────────────────────────────
-                    const EditableContentText(
-                      contentKey: 'potential_solutions_notes_heading',
-                      fallback: 'Notes',
-                      category: 'business_case',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormattingToolbar(
-                      controller: _notesController,
-                      onBeforeUndo: () {
-                        _saveSolutions();
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    HoverableFieldControls(
-                      isAiGenerated: true,
-                      isLoading: false,
-                      canUndo: canUndoNotes,
-                      canRedo: canRedoNotes,
-                      onUndo: _undoNotesField,
-                      onRedo: _redoNotesField,
-                      onRegenerate: _regenerateNotesField,
-                      child: Container(
-                        width: double.infinity,
-                        constraints: const BoxConstraints(minHeight: 140),
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF0F4FF),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE4E7EC)),
-                        ),
-                        child: VoiceTextField(
-                          controller: _notesController,
-                          keyboardType: TextInputType.multiline,
-                          style: const TextStyle(
-                              fontSize: 14, color: Colors.black87),
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                            hintText: 'Input your notes here...',
-                            hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE4E7EC)),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x0D000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
                           ),
-                          minLines: 5,
-                          maxLines: null,
-                          onChanged: _recordNotesEdit,
-                        ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                            child: const Text(
+                              'Notes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: const Color(0xFFE4E7EC)),
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  TextFormattingToolbar(
+                                    controller: _notesController,
+                                    onBeforeUndo: () {
+                                      _saveSolutions();
+                                    },
+                                  ),
+                                  const SizedBox(height: 12),
+                                  HoverableFieldControls(
+                                    isAiGenerated: true,
+                                    isLoading: false,
+                                    canUndo: canUndoNotes,
+                                    canRedo: canRedoNotes,
+                                    onUndo: _undoNotesField,
+                                    onRedo: _redoNotesField,
+                                    onRegenerate: _regenerateNotesField,
+                                    child: Container(
+                                      width: double.infinity,
+                                      constraints:
+                                          const BoxConstraints(minHeight: 160),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: const Color(0xFFE4E7EC),
+                                        ),
+                                      ),
+                                      child: VoiceTextField(
+                                        controller: _notesController,
+                                        keyboardType: TextInputType.multiline,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                        decoration: const InputDecoration(
+                                          border: InputBorder.none,
+                                          isDense: true,
+                                          contentPadding: EdgeInsets.zero,
+                                          hintText: 'Input your notes here...',
+                                          hintStyle: TextStyle(
+                                            color: Color(0xFF9CA3AF),
+                                          ),
+                                        ),
+                                        minLines: 5,
+                                        maxLines: null,
+                                        onChanged: _recordNotesEdit,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     SizedBox(height: sectionGap),
-
-                    // ── 3. Potential Solutions header row ───────────────
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
@@ -1523,7 +1583,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                             color: Colors.black,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: EditableContentText(
                             contentKey: 'potential_solutions_description',
@@ -1539,32 +1599,25 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 12),
                         _buildRegenerateButton(),
                       ],
                     ),
                     SizedBox(height: fieldGap),
-
-                    // ── 4. Solutions table ──────────────────────────────
                     _buildSolutionsSection(),
-
-                    // ── 5. Add Solution button (only if fewer than 3) ──
                     if (_solutions.length < 3 && !_isLoadingSolutions) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
                       Align(
                         alignment: Alignment.centerRight,
                         child: OutlinedButton.icon(
                           onPressed:
                               _isLoadingSolutions ? null : _addManualSolution,
                           icon: const Icon(Icons.add),
-                          label:
-                              Text('Add Solution (${_solutions.length}/3)'),
+                          label: Text('Add Solution (${_solutions.length}/3)'),
                         ),
                       ),
                     ],
-                    const SizedBox(height: 20),
-
-                    // ── 6. Navigation Buttons ───────────────────────────
+                    const SizedBox(height: 24),
                     BusinessCaseNavigationButtons(
                       currentScreen: 'Potential Solutions',
                       padding: const EdgeInsets.symmetric(
@@ -1587,36 +1640,39 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
       );
     } catch (e) {
       debugPrint('PotentialSolutions _buildMainContent error: $e');
-      // Fallback: render a minimal but functional content area so the
-      // screen never appears blank/grey.
       return SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Solution Phase',
-                style: TextStyle(
-                    fontSize: 28, fontWeight: FontWeight.bold)),
+            const Text(
+              'Potential Solutions',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             const Text(
-                'List and describe up to 3 high-level solutions to achieve the project\'s needs.',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
+              'List and describe up to 3 high-level solutions to achieve the project\'s needs.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
             const SizedBox(height: 24),
             if (_isLoadingSolutions)
               const Center(child: CircularProgressIndicator())
             else if (_solutions.isEmpty)
-              const Text('No solutions yet. Add one manually or try regenerating.')
+              const Text(
+                  'No solutions yet. Add one manually or try regenerating.')
             else
-              ..._solutions.map((s) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: TextField(
-                  controller: s.titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Solution Title',
-                    border: OutlineInputBorder(),
+              ..._solutions.map(
+                (s) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: TextField(
+                    controller: s.titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Solution Title',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
                 ),
-              )),
+              ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _addManualSolution,
@@ -1702,8 +1758,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
           // Header row — light gray background with centered column titles.
           Container(
             color: const Color(0xFFF5F7FB),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(
               children: [
                 // Spacer matching the number badge column.
@@ -1736,9 +1791,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                     ),
                   ),
                 ),
-                SizedBox(
-                    width: showDeleteColumn ? 48 : 0,
-                    height: 20),
+                SizedBox(width: showDeleteColumn ? 48 : 0, height: 20),
               ],
             ),
           ),
@@ -1932,8 +1985,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
                 tooltip: 'Delete solution',
                 onPressed: () => _confirmDeleteSolution(index),
                 padding: EdgeInsets.zero,
-                constraints:
-                    const BoxConstraints(minWidth: 40, minHeight: 40),
+                constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                 icon: const Icon(
                   Icons.delete_outline,
                   color: Color(0xFFEF4444),
@@ -1969,8 +2021,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFFE4E7EC)),
         ),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         child: VoiceTextField(
           controller: solution.titleController,
           style: const TextStyle(fontSize: 14, color: Colors.black87),
@@ -2012,8 +2063,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: const Color(0xFFE4E7EC)),
         ),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,

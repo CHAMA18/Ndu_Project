@@ -35,10 +35,8 @@ import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
-import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
-
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SafeSection — Build-time error boundary that prevents a single failing child
@@ -64,7 +62,8 @@ class SafeSection extends StatelessWidget {
       debugPrint(stack.toString());
       return _SectionErrorCard(
         title: '$title unavailable',
-        message: 'This section encountered an error while rendering. Other parts of the page are unaffected.',
+        message:
+            'This section encountered an error while rendering. Other parts of the page are unaffected.',
         details: error.toString(),
       );
     }
@@ -73,7 +72,8 @@ class SafeSection extends StatelessWidget {
 }
 
 class _SectionErrorCard extends StatelessWidget {
-  const _SectionErrorCard({required this.title, required this.message, required this.details});
+  const _SectionErrorCard(
+      {required this.title, required this.message, required this.details});
   final String title;
   final String message;
   final String details;
@@ -93,23 +93,38 @@ class _SectionErrorCard extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(color: Color(0xFFFEE4E2), shape: BoxShape.circle),
-            child: const Icon(Icons.error_outline, color: Color(0xFFD92D20), size: 18),
+            decoration: const BoxDecoration(
+                color: Color(0xFFFEE4E2), shape: BoxShape.circle),
+            child: const Icon(Icons.error_outline,
+                color: Color(0xFFD92D20), size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFB42318))),
+                Text(title,
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFFB42318))),
                 const SizedBox(height: 4),
-                Text(message, style: const TextStyle(fontSize: 12.5, color: Color(0xFF667085), height: 1.5)),
+                Text(message,
+                    style: const TextStyle(
+                        fontSize: 12.5, color: Color(0xFF667085), height: 1.5)),
                 if (kDebugMode) ...[
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: BorderRadius.circular(6)),
-                    child: SelectableText(details, style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF475467)), maxLines: 4),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFFF9FAFB),
+                        borderRadius: BorderRadius.circular(6)),
+                    child: SelectableText(details,
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontFamily: 'monospace',
+                            color: Color(0xFF475467)),
+                        maxLines: 4),
                   ),
                 ],
               ],
@@ -120,7 +135,6 @@ class _SectionErrorCard extends StatelessWidget {
     );
   }
 }
-
 
 class RiskIdentificationScreen extends StatefulWidget {
   final String notes;
@@ -150,7 +164,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       _riskControllers; // [solutionIndex][riskIndex]
   final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
   bool _isGenerating = false;
-  bool _isBootstrapping = false;
   String? _error;
   bool _initiationExpanded = true;
   bool _businessCaseExpanded = true;
@@ -184,10 +197,10 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
           : _solutions[i].title;
       final displayTitle = title.isEmpty ? 'Solution ${i + 1}' : title;
       for (int r = 0; r < 3; r++) {
-        final riskText = (i < _riskControllers.length &&
-                r < _riskControllers[i].length)
-            ? _riskControllers[i][r].text.trim()
-            : '';
+        final riskText =
+            (i < _riskControllers.length && r < _riskControllers[i].length)
+                ? _riskControllers[i][r].text.trim()
+                : '';
         if (riskText.isNotEmpty) {
           riskRows.add([displayTitle, 'Risk ${r + 1}', riskText]);
         }
@@ -237,20 +250,21 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       try {
-      // Load saved risks from provider if available
-      final projectData = ProjectDataHelper.getData(context);
-      if (projectData.solutionRisks.isNotEmpty) {
-        _loadSavedRisks(projectData.solutionRisks);
-      } else if (_solutions.isEmpty && widget.businessCase.trim().isNotEmpty) {
-        // Skip AI bootstrap — just show empty state so page loads instantly.
-        // Users can click "Generate risks" to try AI suggestions.
-        if (mounted) setState(() {});
-      } else if (_solutions.isNotEmpty) {
-        // Skip AI generation — just show the risk table with empty fields
-        // so the page loads instantly. Users can click "Generate risks"
-        // to try AI suggestions.
-        if (mounted) setState(() {});
-      }
+        // Load saved risks from provider if available
+        final projectData = ProjectDataHelper.getData(context);
+        if (projectData.solutionRisks.isNotEmpty) {
+          _loadSavedRisks(projectData.solutionRisks);
+        } else if (_solutions.isEmpty &&
+            widget.businessCase.trim().isNotEmpty) {
+          // Skip AI bootstrap — just show empty state so page loads instantly.
+          // Users can click "Generate risks" to try AI suggestions.
+          if (mounted) setState(() {});
+        } else if (_solutions.isNotEmpty) {
+          // Skip AI generation — just show the risk table with empty fields
+          // so the page loads instantly. Users can click "Generate risks"
+          // to try AI suggestions.
+          if (mounted) setState(() {});
+        }
       } catch (e) {
         debugPrint('RiskIdentification initState error: $e');
       }
@@ -259,12 +273,12 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       Future.delayed(const Duration(milliseconds: 500), () {
         if (!mounted) return;
         PageHintDialog.showIfNeeded(
-        context: context,
-        pageId: 'risk_identification',
-        title: 'Risk Identification',
-        message:
-            'Identify up to 3 delivery risks per potential solution. Use "Generate risks" for AI suggestions tailored to each solution. Risks auto-save as you edit.',
-      );
+          context: context,
+          pageId: 'risk_identification',
+          title: 'Risk Identification',
+          message:
+              'Identify up to 3 delivery risks per potential solution. Use "Generate risks" for AI suggestions tailored to each solution. Risks auto-save as you edit.',
+        );
       });
     });
   }
@@ -352,43 +366,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
     });
   }
 
-  Future<void> _bootstrapFromBusinessCase() async {
-    if (_isBootstrapping) return;
-    setState(() {
-      _isBootstrapping = true;
-      _error = null;
-    });
-    try {
-      final generated = await _openAi.generateSolutionsFromBusinessCase(
-        widget.businessCase,
-        contextNotes: ProjectDataHelper.buildProjectContextScan(
-          ProjectDataHelper.getData(context),
-          sectionLabel: 'Risk Identification Bootstrap',
-        ),
-      );
-      if (!mounted) return;
-      setState(() {
-        _solutions = List<AiSolutionItem>.from(generated);
-        _disposeRiskControllers();
-        _riskControllers = List.generate(_solutions.length,
-            (_) => List.generate(3, (_) => _createRiskController()));
-      });
-      await _generateRisks();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = (e.toString().contains('Failed to fetch') ||
-              e.toString().contains('ClientException') ||
-              e.toString().contains('XMLHttpRequest') ||
-              e.toString().contains('Connection refused'))
-          ? 'AI assist is being set up. Please try again later or enter content manually.'
-          : e.toString();
-      });
-    } finally {
-      if (mounted) setState(() => _isBootstrapping = false);
-    }
-  }
-
   void _addNewRisk() {
     // Only allow admins (on admin host) to add risks.
     if (!_canUseAdminControls) return;
@@ -471,47 +448,98 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = AppBreakpoints.isMobile(context);
-    if (isMobile) {
-      return _buildMobileScaffold();
-    }
-    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: Colors.white,
-      drawer: null,
-      body: SafeArea(
-        top: true,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Row(
-                    children: [
-                      DraggableSidebar(
-                        openWidth: sidebarWidth,
-                        child: const InitiationLikeSidebar(
-                            activeItemLabel: 'Risk Identification'),
-                      ),
-                      Expanded(child: Column(children: [
-                        BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
-                        Expanded(child: SafeSection(title: 'RiskIdentification content', builder: (_) => _buildMainContent())),
-                      ])),
-                    ],
-                ),
-              ],
-            ),
-            MobileSidebarHamburger(
-                      sidebar: const InitiationLikeSidebar(
-                        activeItemLabel: 'Risk Identification',
-                      ),
+    try {
+      final isMobile = AppBreakpoints.isMobile(context);
+      if (isMobile) {
+        return _buildMobileScaffold();
+      }
+      final sidebarWidth = AppBreakpoints.sidebarWidth(context);
+      return Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: Colors.white,
+        drawer: null,
+        body: SafeArea(
+          top: true,
+          child: Stack(
+            children: [
+              Positioned.fill(child: Container(color: Colors.white)),
+              Column(
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        DraggableSidebar(
+                          openWidth: sidebarWidth,
+                          child: const InitiationLikeSidebar(
+                              activeItemLabel: 'Risk Identification'),
+                        ),
+                        Expanded(
+                          child: Container(
+                            color: Colors.white,
+                            child: Column(
+                              children: [
+                                BusinessCaseHeader(
+                                  scaffoldKey: _scaffoldKey,
+                                  onExportPdf: _exportPdf,
+                                ),
+                                Expanded(
+                                  child: SafeSection(
+                                    title: 'RiskIdentification content',
+                                    builder: (_) => _buildMainContent(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const KazAiChatBubble(),
-            const AdminEditToggle(),
-          ],
+                  ),
+                ],
+              ),
+              MobileSidebarHamburger(
+                sidebar: const InitiationLikeSidebar(
+                  activeItemLabel: 'Risk Identification',
+                ),
+              ),
+              const KazAiChatBubble(),
+              const AdminEditToggle(),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } catch (e, stack) {
+      debugPrint('RiskIdentification build error: $e');
+      debugPrint(stack.toString());
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 36, color: Colors.amber),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Risk Identification is loading',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'The desktop view hit a rendering issue. Please refresh and try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildMobileScaffold() {
@@ -1272,315 +1300,313 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
 
   Widget _buildMainContent() {
     try {
-    final isMobile = AppBreakpoints.isMobile(context);
-    return ScrollIndicatorOverlay(
-      controller: _reviewScrollController,
-      child: SingleChildScrollView(
-        controller: _reviewScrollController,
-        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          // Notes label + input
-          const EditableContentText(
-            contentKey: 'risk_identification_notes_heading',
-            fallback: 'Notes',
-            category: 'business_case',
-            style: TextStyle(
-                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
-          ),
-          const SizedBox(height: 8),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.withOpacity(0.3))),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextFormattingToolbar(controller: _notesController),
-                const SizedBox(height: 8),
-                VoiceTextField(
-                  controller: _notesController,
-                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  decoration: InputDecoration(
-                      hintText: 'Input your notes here...',
-                      hintStyle: TextStyle(color: Colors.grey[400]),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero),
-                  minLines: 1,
-                  maxLines: null,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Title
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const EditableContentText(
-                        contentKey: 'risk_identification_heading',
-                        fallback: 'Risk Identification ',
-                        category: 'business_case',
-                        style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black)),
-                    EditableContentText(
-                        contentKey: 'risk_identification_description',
-                        fallback:
-                            '(Identify up to 3 risks for each potential solution here)',
-                        category: 'business_case',
-                        style:
-                            TextStyle(fontSize: 14, color: Colors.grey[600])),
-                  ],
-                ),
-              ),
-              // Page-level Regenerate All button
-              PageRegenerateAllButton(
-                onRegenerateAll: () async {
-                  final confirmed =
-                      await showRegenerateAllConfirmation(context);
-                  if (confirmed && mounted) {
-                    await _regenerateAllRisks();
-                  }
-                },
-                isLoading: _isGenerating,
-                tooltip: 'Regenerate all risks',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          if (_error != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.red.withOpacity(0.3))),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.cloud_off_outlined, color: Colors.red, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                      child: Text(_error!,
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis)),
-                ]),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                      onPressed: _isGenerating ? null : _generateRisks,
-                      child: const Text('Retry')),
-                ),
-              ]),
-            ),
-
-          if (!isMobile) ...[
-            // Table header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFF5F7FB),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                  border: Border.all(color: const Color(0xFFE4E7EC))),
-              child: const Row(children: [
-                Expanded(
-                    flex: 2,
-                    child: Center(
-                        child: EditableContentText(
-                            contentKey: 'risk_table_header_solution',
-                            fallback: 'Potential Solution',
-                            category: 'business_case',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
-                SizedBox(width: 8),
-                Expanded(
-                    flex: 3,
-                    child: Center(
-                        child: EditableContentText(
-                            contentKey: 'risk_table_header_risk1',
-                            fallback: 'Risk 1',
-                            category: 'business_case',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
-                SizedBox(width: 8),
-                Expanded(
-                    flex: 3,
-                    child: Center(
-                        child: EditableContentText(
-                            contentKey: 'risk_table_header_risk2',
-                            fallback: 'Risk 2',
-                            category: 'business_case',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
-                SizedBox(width: 8),
-                Expanded(
-                    flex: 3,
-                    child: Center(
-                        child: EditableContentText(
-                            contentKey: 'risk_table_header_risk3',
-                            fallback: 'Risk 3',
-                            category: 'business_case',
-                            style: TextStyle(
-                                fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475467))))),
-              ]),
-            ),
-            const SizedBox(height: 8),
-            if (_solutions.isEmpty)
-              // Empty state — no solutions yet
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
-                    border: Border.all(color: const Color(0xFFE4E7EC))),
-                child: Column(
-                  children: [
-                    Icon(Icons.lightbulb_outline, size: 40, color: Colors.grey[400]),
-                    const SizedBox(height: 12),
-                    Text('No potential solutions yet',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700])),
-                    const SizedBox(height: 6),
-                    Text(
-                        'Define potential solutions on the Potential Solutions page first, then return here to identify risks for each solution.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[500], height: 1.5)),
-                  ],
-                ),
-              )
-            else
-            Container(
-              decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
-                  border: Border.all(color: const Color(0xFFE4E7EC))),
+      final isMobile = AppBreakpoints.isMobile(context);
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          return SingleChildScrollView(
+            controller: _reviewScrollController,
+            padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
               child: Column(
-                  children: List.generate(
-                      _isAdmin
-                          ? _solutions.length
-                          : (_solutions.length > 3 ? 3 : _solutions.length),
-                      (i) => _riskRow(i))),
-            ),
-          ] else ...[
-            // Mobile stacked rows - limit to 3 for non-admins
-            if (_solutions.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-                margin: const EdgeInsets.only(top: 8),
-                decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE4E7EC))),
-                child: Column(
-                  children: [
-                    Icon(Icons.lightbulb_outline, size: 36, color: Colors.grey[400]),
-                    const SizedBox(height: 10),
-                    Text('No potential solutions yet',
-                        style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey[700])),
-                    const SizedBox(height: 6),
-                    Text(
-                        'Define potential solutions first, then return here to identify risks.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500], height: 1.5)),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const EditableContentText(
+                    contentKey: 'risk_identification_notes_heading',
+                    fallback: 'Notes',
+                    category: 'business_case',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.withOpacity(0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormattingToolbar(controller: _notesController),
+                        const SizedBox(height: 8),
+                        VoiceTextField(
+                          controller: _notesController,
+                          style:
+                              TextStyle(fontSize: 14, color: Colors.grey[600]),
+                          decoration: InputDecoration(
+                            hintText: 'Input your notes here...',
+                            hintStyle: TextStyle(color: Colors.grey[400]),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          minLines: 1,
+                          maxLines: null,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const EditableContentText(
+                              contentKey: 'risk_identification_heading',
+                              fallback: 'Risk Identification ',
+                              category: 'business_case',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black,
+                              ),
+                            ),
+                            EditableContentText(
+                              contentKey: 'risk_identification_description',
+                              fallback:
+                                  '(Identify up to 3 risks for each potential solution here)',
+                              category: 'business_case',
+                              style: TextStyle(
+                                  fontSize: 14, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      PageRegenerateAllButton(
+                        onRegenerateAll: () async {
+                          final confirmed =
+                              await showRegenerateAllConfirmation(context);
+                          if (confirmed && mounted) {
+                            await _regenerateAllRisks();
+                          }
+                        },
+                        isLoading: _isGenerating,
+                        tooltip: 'Regenerate all risks',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  if (_error != null)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.cloud_off_outlined,
+                                  color: Colors.red, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _error!,
+                                  style: const TextStyle(
+                                      color: Colors.red, fontSize: 12),
+                                  maxLines: 5,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: _isGenerating ? null : _generateRisks,
+                              child: const Text('Retry'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  if (!isMobile) ...[
+                    if (_solutions.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 40),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE4E7EC)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.lightbulb_outline,
+                                size: 40, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No potential solutions yet',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Define potential solutions on the Potential Solutions page first, then return here to identify risks for each solution.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[500],
+                                  height: 1.5),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Column(
+                        children: List.generate(
+                          _isAdmin
+                              ? _solutions.length
+                              : (_solutions.length > 3 ? 3 : _solutions.length),
+                          (i) => _riskRow(i),
+                        ),
+                      ),
+                  ] else ...[
+                    if (_solutions.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 32),
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE4E7EC)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(Icons.lightbulb_outline,
+                                size: 36, color: Colors.grey[400]),
+                            const SizedBox(height: 10),
+                            Text(
+                              'No potential solutions yet',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Define potential solutions first, then return here to identify risks.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
+                                  height: 1.5),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Column(
+                        children: List.generate(
+                          _isAdmin
+                              ? _solutions.length
+                              : (_solutions.length > 3 ? 3 : _solutions.length),
+                          (i) => _riskRow(i),
+                        ),
+                      ),
                   ],
-                ),
-              )
-            else
-            Column(
-                children: List.generate(
-                    _isAdmin
-                        ? _solutions.length
-                        : (_solutions.length > 3 ? 3 : _solutions.length),
-                    (i) => _riskRow(i))),
-          ],
-          const SizedBox(height: 24),
-
-          // Auto-save status indicator
-          _buildAutoSaveIndicator(),
-          const SizedBox(height: 16),
-
-          // Info + Add Risk (admin-host only)
-          if (_canUseAdminControls)
-            Row(children: [
-              Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                      color: Color(0xFFB3D9FF), shape: BoxShape.circle),
-                  child: const Icon(Icons.info_outline, color: Colors.white)),
-              const SizedBox(width: 24),
-              ElevatedButton.icon(
-                onPressed: _addNewRisk,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Risk'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFD700),
-                  foregroundColor: Colors.black,
-                  elevation: 0,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
+                  const SizedBox(height: 24),
+                  _buildAutoSaveIndicator(),
+                  const SizedBox(height: 16),
+                  if (_canUseAdminControls)
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFB3D9FF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.info_outline,
+                              color: Colors.white),
+                        ),
+                        const SizedBox(width: 24),
+                        ElevatedButton.icon(
+                          onPressed: _addNewRisk,
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Risk'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFFD700),
+                            foregroundColor: Colors.black,
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  const SizedBox(height: 24),
+                  BusinessCaseNavigationButtons(
+                    currentScreen: 'Risk Identification',
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+                    onNext: _handleNextPressed,
+                    isNextEnabled: _reviewConfirmed,
+                    showReviewGate: true,
+                    reviewConfirmed: _reviewConfirmed,
+                    onReviewChanged: (value) {
+                      setState(() => _reviewConfirmed = value);
+                    },
+                    reviewScrollController: _reviewScrollController,
+                  ),
+                ],
               ),
-            ]),
-          const SizedBox(height: 24),
-
-          // Navigation Buttons
-          BusinessCaseNavigationButtons(
-            currentScreen: 'Risk Identification',
-            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
-            onNext: _handleNextPressed,
-            isNextEnabled: _reviewConfirmed,
-            showReviewGate: true,
-            reviewConfirmed: _reviewConfirmed,
-            onReviewChanged: (value) {
-              setState(() => _reviewConfirmed = value);
-            },
-            reviewScrollController: _reviewScrollController,
-          ),
-        ]),
-      ),
-    );
+            ),
+          );
+        },
+      );
     } catch (e) {
       debugPrint('RiskIdentification _buildMainContent error: $e');
-      // Fallback: render a minimal but functional content area so the
-      // screen never appears blank/grey.
       return SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Risk Identification',
-                style: TextStyle(
-                    fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black)),
+            const Text(
+              'Risk Identification',
+              style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black),
+            ),
             const SizedBox(height: 8),
             const Text(
-                'Identify up to 3 delivery risks per potential solution.',
-                style: TextStyle(fontSize: 13, color: Colors.grey)),
+              'Identify up to 3 delivery risks per potential solution.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
+            ),
             const SizedBox(height: 24),
-            const Text('Notes',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black)),
+            const Text(
+              'Notes',
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black),
+            ),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
@@ -1609,18 +1635,26 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 40),
                 child: Column(
                   children: [
-                    Icon(Icons.lightbulb_outline, size: 40, color: Colors.grey.shade400),
+                    Icon(Icons.lightbulb_outline,
+                        size: 40, color: Colors.grey.shade400),
                     const SizedBox(height: 12),
-                    Text('No potential solutions yet',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700)),
+                    Text(
+                      'No potential solutions yet',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
                     const SizedBox(height: 6),
                     Text(
-                        'Define potential solutions on the Potential Solutions page first, then return here to identify risks.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13, color: Colors.grey.shade500, height: 1.5)),
+                      'Define potential solutions on the Potential Solutions page first, then return here to identify risks.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade500,
+                          height: 1.5),
+                    ),
                   ],
                 ),
               )
@@ -1633,12 +1667,16 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Solution ${i + 1}: ${s.title.isEmpty ? "Untitled" : s.title}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text(
+                        'Solution ${i + 1}: ${s.title.isEmpty ? 'Untitled' : s.title}',
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
                       const SizedBox(height: 8),
                       VoiceTextField(
                         controller: TextEditingController(text: ''),
-                        style: const TextStyle(fontSize: 13, color: Colors.black54),
+                        style: const TextStyle(
+                            fontSize: 13, color: Colors.black54),
                         decoration: const InputDecoration(
                           labelText: 'Risk description',
                           border: OutlineInputBorder(),
@@ -1659,107 +1697,149 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   Widget _riskRow(int index) {
     final solution = _solutions[index];
     final isMobile = AppBreakpoints.isMobile(context);
-    final isStriped = index.isOdd;
     // Safety: ensure risk controllers exist for this row
-    final hasControllers = index < _riskControllers.length &&
-        _riskControllers[index].length >= 3;
-    final risk1Controller = hasControllers ? _riskControllers[index][0] : TextEditingController();
-    final risk2Controller = hasControllers ? _riskControllers[index][1] : TextEditingController();
-    final risk3Controller = hasControllers ? _riskControllers[index][2] : TextEditingController();
+    final hasControllers =
+        index < _riskControllers.length && _riskControllers[index].length >= 3;
+    final risk1Controller =
+        hasControllers ? _riskControllers[index][0] : TextEditingController();
+    final risk2Controller =
+        hasControllers ? _riskControllers[index][1] : TextEditingController();
+    final risk3Controller =
+        hasControllers ? _riskControllers[index][2] : TextEditingController();
+
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            _numberBadge(index + 1),
+            const SizedBox(width: 8),
+            Expanded(
+                child: Text(
+                    solution.title.isEmpty
+                        ? 'Potential Solution'
+                        : solution.title,
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600))),
+          ]),
+          if (solution.description.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 36),
+              child: Text(solution.description,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _labeled('Risk 1',
+              _riskTextAreaWithAI(risk1Controller, index, 0, solution.title)),
+          const SizedBox(height: 8),
+          _labeled('Risk 2',
+              _riskTextAreaWithAI(risk2Controller, index, 1, solution.title)),
+          const SizedBox(height: 8),
+          _labeled('Risk 3',
+              _riskTextAreaWithAI(risk3Controller, index, 2, solution.title)),
+        ]),
+      );
+    }
+
+    // Desktop: Card-based layout with solution info on top, risks below
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-          color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
-          border:
-              Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
-      child: isMobile
-          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                _numberBadge(index + 1),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(
-                        solution.title.isEmpty
-                            ? 'Potential Solution'
-                            : solution.title,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600))),
-              ]),
-              if (solution.description.isNotEmpty) ...[
-                Text(solution.description,
-                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
-              ],
-              _labeled(
-                  'Risk 1',
-                  _riskTextAreaWithAI(
-                      risk1Controller, index, 0, solution.title)),
-              _labeled(
-                  'Risk 2',
-                  _riskTextAreaWithAI(
-                      risk2Controller, index, 1, solution.title)),
-              _labeled(
-                  'Risk 3',
-                  _riskTextAreaWithAI(
-                      risk3Controller, index, 2, solution.title)),
-            ])
-          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              // Solution title cell
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Solution header with badge and title
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _numberBadge(index + 1),
+              const SizedBox(width: 12),
               Expanded(
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.topLeft,
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _numberBadge(index + 1),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                  child: Text(
-                                      solution.title.isEmpty
-                                          ? 'Potential Solution'
-                                          : solution.title,
-                                      textAlign: TextAlign.left,
-                                      style: const TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFF1F2937),
-                                          fontWeight: FontWeight.w600))),
-                            ]),
-                        if (solution.description.isNotEmpty) ...[
-                          const SizedBox(height: 6),
-                          Text(solution.description,
-                              textAlign: TextAlign.left,
-                              style: const TextStyle(
-                                  fontSize: 12, color: Color(0xFF6B7280)),
-                              maxLines: 5,
-                              softWrap: true,
-                              overflow: TextOverflow.ellipsis),
-                        ]
-                      ]),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      solution.title.isEmpty
+                          ? 'Potential Solution'
+                          : solution.title,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    if (solution.description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        solution.description,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 8),
-              // Risk 1
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Risk fields in a row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
               Expanded(
-                  flex: 3,
-                  child: _riskTextAreaWithAI(
-                      risk1Controller, index, 0, solution.title)),
-              const SizedBox(width: 8),
-              // Risk 2
+                child: _riskFieldWithLabel(
+                  'Risk 1',
+                  _riskTextAreaWithAI(
+                    risk1Controller,
+                    index,
+                    0,
+                    solution.title,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                  flex: 3,
-                  child: _riskTextAreaWithAI(
-                      risk2Controller, index, 1, solution.title)),
-              const SizedBox(width: 8),
-              // Risk 3
+                child: _riskFieldWithLabel(
+                  'Risk 2',
+                  _riskTextAreaWithAI(
+                    risk2Controller,
+                    index,
+                    1,
+                    solution.title,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
-                  flex: 3,
-                  child: _riskTextAreaWithAI(
-                      risk3Controller, index, 2, solution.title)),
-            ]),
+                child: _riskFieldWithLabel(
+                  'Risk 3',
+                  _riskTextAreaWithAI(
+                    risk3Controller,
+                    index,
+                    2,
+                    solution.title,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -1770,6 +1850,25 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
       const SizedBox(height: 6),
       child,
     ]);
+  }
+
+  Widget _riskFieldWithLabel(String label, Widget child) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF6B7280),
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 6),
+        child,
+      ],
+    );
   }
 
   /// Risk text area with hint text and KAZ AI suggestion button
@@ -2154,15 +2253,22 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
   }
 
   Widget _numberBadge(int number) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(color: primary, shape: BoxShape.circle),
+      width: 28,
+      height: 28,
+      decoration: const BoxDecoration(
+        color: Color(0xFFFBBC24),
+        shape: BoxShape.circle,
+      ),
       alignment: Alignment.center,
-      child: Text('$number',
-          style: const TextStyle(
-              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+      child: Text(
+        '$number',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
     );
   }
 
