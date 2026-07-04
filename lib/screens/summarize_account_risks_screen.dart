@@ -36,7 +36,6 @@ class SummarizeAccountRisksScreen extends StatefulWidget {
 
 class _SummarizeAccountRisksScreenState
     extends State<SummarizeAccountRisksScreen> {
-  List<LaunchFinancialMetric> _metrics = [];
   List<LaunchHighlightItem> _highlights = [];
   List<LaunchFollowUpItem> _topRisks = [];
   List<LaunchFollowUpItem> _next90Days = [];
@@ -112,8 +111,6 @@ class _SummarizeAccountRisksScreenState
               ],
             ),
             const SizedBox(height: 12),
-            _buildMetricsRow(),
-            const SizedBox(height: 20),
             _buildExecutiveSummaryPanel(),
             const SizedBox(height: 16),
             _buildHighlightsPanel(),
@@ -136,64 +133,6 @@ class _SummarizeAccountRisksScreenState
   }
 
 
-
-  Widget _buildMetricsRow() {
-    return ExecutionMetricsGrid(
-      metrics: _metrics.isEmpty
-          ? [
-              ExecutionMetricData(
-                  label: 'Add metrics below',
-                  value: '—',
-                  icon: Icons.add_chart,
-                  emphasisColor: const Color(0xFF9CA3AF)),
-            ]
-          : _metrics
-              .take(4)
-              .map((m) => ExecutionMetricData(
-                    label: m.label,
-                    value: m.value.isEmpty ? '—' : m.value,
-                    icon: _iconForLabel(m.label),
-                    emphasisColor: _colorForLabel(m.label),
-                    helper: m.notes.isNotEmpty ? m.notes : null,
-                  ))
-              .toList(),
-    );
-  }
-
-  IconData _iconForLabel(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('budget') || l.contains('cost')) {
-      return Icons.attach_money_outlined;
-    }
-    if (l.contains('scope')) {
-      return Icons.check_circle_outline;
-    }
-    if (l.contains('timeline') || l.contains('schedule')) {
-      return Icons.schedule_outlined;
-    }
-    if (l.contains('risk')) {
-      return Icons.warning_amber_outlined;
-    }
-    if (l.contains('team')) return Icons.people_outline;
-    return Icons.insights_outlined;
-  }
-
-  Color _colorForLabel(String label) {
-    final l = label.toLowerCase();
-    if (l.contains('budget') || l.contains('cost')) {
-      return const Color(0xFF10B981);
-    }
-    if (l.contains('scope')) {
-      return const Color(0xFF2563EB);
-    }
-    if (l.contains('timeline') || l.contains('schedule')) {
-      return const Color(0xFFF59E0B);
-    }
-    if (l.contains('risk')) {
-      return const Color(0xFFEF4444);
-    }
-    return const Color(0xFF8B5CF6);
-  }
 
   Widget _buildExecutiveSummaryPanel() {
     return ExecutionPanelShell(
@@ -501,7 +440,6 @@ class _SummarizeAccountRisksScreenState
           await LaunchPhaseService.loadProjectSummary(projectId: _projectId!);
       if (!mounted) return;
       setState(() {
-        _metrics = r.metrics;
         _highlights = r.highlights;
         _topRisks = r.topRisks;
         _next90Days = r.next90Days;
@@ -509,14 +447,12 @@ class _SummarizeAccountRisksScreenState
         _isLoading = false;
         _hasLoaded = true;
       });
-      if (_metrics.isEmpty &&
-          _highlights.isEmpty &&
+      if (_highlights.isEmpty &&
           _topRisks.isEmpty &&
           _next90Days.isEmpty) {
         await _autoPopulateFromPriorPhases();
       }
-      if (_metrics.isEmpty &&
-          _highlights.isEmpty &&
+      if (_highlights.isEmpty &&
           _topRisks.isEmpty &&
           _next90Days.isEmpty) {
         await _populateFromAi();
@@ -533,7 +469,7 @@ class _SummarizeAccountRisksScreenState
     try {
       await LaunchPhaseService.saveProjectSummary(
           projectId: _projectId!,
-          metrics: _metrics,
+          metrics: const [],
           highlights: _highlights,
           topRisks: _topRisks,
           next90Days: _next90Days,
@@ -550,59 +486,6 @@ class _SummarizeAccountRisksScreenState
       if (!mounted) return;
 
       // Pre-fill metrics from CrossPhaseData helpers
-      final metricExisting = _metrics.map((m) => m.label).toSet();
-      final newMetrics = <LaunchFinancialMetric>[];
-
-      if (cp.totalPlannedBudget > 0 && !metricExisting.contains('Total Budget')) {
-        newMetrics.add(LaunchFinancialMetric(
-          label: 'Total Budget',
-          value: '\$${cp.totalPlannedBudget.toStringAsFixed(0)}',
-          notes: 'Planned',
-        ));
-      }
-      if (cp.totalActualBudget > 0 && !metricExisting.contains('Actual Spend')) {
-        newMetrics.add(LaunchFinancialMetric(
-          label: 'Actual Spend',
-          value: '\$${cp.totalActualBudget.toStringAsFixed(0)}',
-          notes: 'Actual',
-        ));
-      }
-      if ((cp.totalPlannedBudget > 0 || cp.totalActualBudget > 0) &&
-          !metricExisting.contains('Budget Variance')) {
-        newMetrics.add(LaunchFinancialMetric(
-          label: 'Budget Variance',
-          value: '\$${cp.budgetVariance.toStringAsFixed(0)}',
-          notes: cp.budgetVariance >= 0 ? 'Under budget' : 'Over budget',
-        ));
-      }
-      if (cp.totalContractValue > 0 && !metricExisting.contains('Total Contract Value')) {
-        newMetrics.add(LaunchFinancialMetric(
-          label: 'Total Contract Value',
-          value: '\$${cp.totalContractValue.toStringAsFixed(0)}',
-        ));
-      }
-      if (!metricExisting.contains('Scope Completion')) {
-        final total = cp.totalScopeCount;
-        final done = cp.totalCompletedScope;
-        if (total > 0) {
-          newMetrics.add(LaunchFinancialMetric(
-            label: 'Scope Completion',
-            value: '$done / $total',
-            notes: '${(done / total * 100).round()}%',
-          ));
-        }
-      }
-      if (cp.openRiskItems.isNotEmpty && !metricExisting.contains('Active Risks')) {
-        newMetrics.add(LaunchFinancialMetric(
-          label: 'Active Risks',
-          value: '${cp.openRiskItems.length}',
-          notes: 'Requires monitoring',
-        ));
-      }
-      if (newMetrics.isNotEmpty) {
-        setState(() => _metrics.addAll(newMetrics));
-      }
-
       // Pre-fill highlights from completed deliverables and scope
       final highlightExisting = _highlights.map((h) => h.title).toSet();
       final newHighlights = <LaunchHighlightItem>[];
@@ -684,7 +567,7 @@ class _SummarizeAccountRisksScreenState
         setState(() => _next90Days.addAll(newNext90));
       }
 
-      if (newMetrics.isNotEmpty || newHighlights.isNotEmpty || newRisks.isNotEmpty || newNext90.isNotEmpty) {
+      if (newHighlights.isNotEmpty || newRisks.isNotEmpty || newNext90.isNotEmpty) {
         await _persistData();
       }
     } catch (e) {
@@ -702,8 +585,6 @@ class _SummarizeAccountRisksScreenState
         context: context,
         sectionLabel: 'Project Summary',
         sections: const {
-          'metrics':
-              'Executive metrics with "label", "value", "notes"',
           'highlights': 'Key achievements with "title", "details"',
           'risks': 'Top risks with "title", "details", "owner", "status"',
           'next_90_days': 'Immediate follow-up priorities with "title", "details", "owner", "status"',
@@ -727,8 +608,7 @@ class _SummarizeAccountRisksScreenState
 
     final generated = result?.entries ?? {};
 
-    final hasData = _metrics.isNotEmpty ||
-        _highlights.isNotEmpty ||
+    final hasData = _highlights.isNotEmpty ||
         _topRisks.isNotEmpty ||
         _next90Days.isNotEmpty;
     if (hasData) {
@@ -736,13 +616,6 @@ class _SummarizeAccountRisksScreenState
       return;
     }
     setState(() {
-      _metrics = (generated['metrics'] ?? [])
-          .map((m) => LaunchFinancialMetric(
-              label: _s(m['title']),
-              value: _s(m['details']),
-              notes: _s(m['status'])))
-          .where((i) => i.label.isNotEmpty)
-          .toList();
       _highlights = (generated['highlights'] ?? [])
           .map((m) => LaunchHighlightItem(
               title: _s(m['title']), details: _s(m['details'])))
@@ -788,22 +661,6 @@ class _SummarizeAccountRisksScreenState
             pw.SizedBox(height: 4),
             pw.Text('$projectName — Generated ${now.toLocal().toIso8601String()}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
             pw.SizedBox(height: 16),
-
-            // Metrics
-            _pdfSectionTitle('Executive Metrics'),
-            pw.SizedBox(height: 6),
-            if (_metrics.isEmpty)
-              _pdfCell('No metrics recorded.')
-            else
-              pw.Table.fromTextArray(
-                headers: ['Label', 'Value', 'Notes'],
-                data: _metrics.map((m) => [m.label, m.value, m.notes]).toList(),
-                headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
-                cellStyle: const pw.TextStyle(fontSize: 9),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-                cellPadding: const pw.EdgeInsets.all(6),
-              ),
-            pw.SizedBox(height: 14),
 
             // Highlights
             _pdfSectionTitle('Highlights & Wins'),
@@ -869,10 +726,6 @@ class _SummarizeAccountRisksScreenState
 
   pw.Widget _pdfSectionTitle(String title) {
     return pw.Text(title, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold));
-  }
-
-  pw.Widget _pdfHeaderCell(String text) {
-    return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)));
   }
 
   pw.Widget _pdfCell(String text) {

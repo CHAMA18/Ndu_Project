@@ -4,12 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/access_policy.dart';
 import 'package:ndu_project/screens/create_account_screen.dart';
+import 'package:ndu_project/screens/two_factor_verification_screen.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/elevated_auth_container.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ndu_project/routing/app_router.dart';
-import 'package:ndu_project/services/subscription_service.dart'; // Added
+import 'package:ndu_project/services/subscription_service.dart';
 
 import 'package:ndu_project/services/security_services.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -90,6 +91,28 @@ class _SignInScreenState extends State<SignInScreen> {
       final refreshed = FirebaseAuth.instance.currentUser;
       if (refreshed != null &&
           (refreshed.emailVerified || _isGoogleProvider(refreshed))) {
+        // ── 2FA check ─────────────────────────────────────────────
+        // Sign out first so the user can't access protected routes
+        // without completing 2FA. They'll re-authenticate after verification.
+        final twoFactorEnabled = await TwoFactorAuthService.isEnabled();
+        if (!mounted) return;
+        if (twoFactorEnabled && !_isGoogleProvider(refreshed)) {
+          final userEmail = refreshed.email ?? _emailController.text.trim();
+          // Sign out so session is not active during 2FA
+          await FirebaseAuthService.signOut();
+          if (!mounted) return;
+          // Navigate to 2FA verification screen with credentials stored
+          // so the app can re-authenticate after successful verification
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => TwoFactorVerificationScreen(
+                email: userEmail,
+                password: _passwordController.text,
+              ),
+            ),
+          );
+          return;
+        }
         _navigateAfterSignIn();
       } else {
         await _showVerifyEmailDialog(
@@ -153,7 +176,6 @@ class _SignInScreenState extends State<SignInScreen> {
           }
         } catch (e) {
           debugPrint('Error checking subscription on sign in: $e');
-          // Fallback to pricing if check fails
           target = '/${AppRoutes.pricing}';
         }
       }
@@ -315,7 +337,7 @@ class _SignInScreenState extends State<SignInScreen> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: secondaryText.withOpacity(0.9),
+                            color: secondaryText.withValues(alpha: 0.9),
                           ),
                         ),
                         const SizedBox(height: 18),

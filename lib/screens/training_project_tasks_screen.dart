@@ -3,11 +3,61 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
+import 'package:ndu_project/widgets/launch_modal.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
-import 'package:ndu_project/widgets/voice_text_field.dart';
+class _LessonItem {
+  String id;
+  String lesson;
+  String type;
+  String category;
+  String phase;
+  String impact;
+  String status;
+  String submittedBy;
+  String date;
 
-class TrainingProjectTasksScreen extends StatelessWidget {
+  _LessonItem({
+    required this.id,
+    required this.lesson,
+    required this.type,
+    required this.category,
+    required this.phase,
+    required this.impact,
+    required this.status,
+    required this.submittedBy,
+    required this.date,
+  });
+}
+
+class TrainingProjectTasksScreen extends StatefulWidget {
   const TrainingProjectTasksScreen({super.key});
+
+  @override
+  State<TrainingProjectTasksScreen> createState() => _TrainingProjectTasksScreenState();
+}
+
+class _TrainingProjectTasksScreenState extends State<TrainingProjectTasksScreen> {
+  final List<_LessonItem> _lessons = [
+    _LessonItem(id: 'T-001', lesson: 'Early stakeholder engagement improved', type: 'Success', category: 'Process', phase: 'Planning', impact: 'High', status: 'Implemented', submittedBy: 'Emily Johnson', date: '2025-02-15'),
+    _LessonItem(id: 'T-002', lesson: 'Technical debt underestimated in legacy modules', type: 'Issue', category: 'Technical', phase: 'Execution', impact: 'High', status: 'Open', submittedBy: 'James Lee', date: '2025-03-10'),
+    _LessonItem(id: 'T-003', lesson: 'Parallel testing reduced regression cycles', type: 'Success', category: 'Process', phase: 'Testing', impact: 'Medium', status: 'Implemented', submittedBy: 'Sara Khan', date: '2025-04-01'),
+    _LessonItem(id: 'T-004', lesson: 'Vendor SLA monitoring needs automation', type: 'Issue', category: 'Vendor', phase: 'Operations', impact: 'Medium', status: 'Open', submittedBy: 'Omar Diaz', date: '2025-04-18'),
+  ];
+
+  String _searchQuery = '';
+
+  List<_LessonItem> get _filtered {
+    if (_searchQuery.isEmpty) return _lessons;
+    final q = _searchQuery.toLowerCase();
+    return _lessons.where((l) =>
+      l.lesson.toLowerCase().contains(q) ||
+      l.type.toLowerCase().contains(q) ||
+      l.category.toLowerCase().contains(q) ||
+      l.submittedBy.toLowerCase().contains(q)
+    ).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +132,7 @@ class TrainingProjectTasksScreen extends StatelessWidget {
   }
 
   Widget _main() {
+    final filtered = _filtered;
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
@@ -100,132 +151,170 @@ class TrainingProjectTasksScreen extends StatelessWidget {
             _profileChip(),
           ]),
           const SizedBox(height: 8),
-          // Search and actions
-          Row(children: [
-            // Search
-            Expanded(
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.withOpacity(0.25)),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(children: [
-                  Icon(Icons.search, color: Colors.grey[600]),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: VoiceTextField(
-                      decoration: const InputDecoration.collapsed(
-                          hintText: 'Search...'),
-                    ),
-                  ),
-                ]),
-              ),
-            ),
-            const SizedBox(width: 12),
-            OutlinedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.filter_alt_outlined),
-              label: const Text('Filter'),
-              style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                foregroundColor: Colors.black,
-                side: BorderSide(color: Colors.grey.withOpacity(0.3)),
-                backgroundColor: Colors.white,
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.add),
-              label: const Text('Add Lesson'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFD700),
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ]),
-          const SizedBox(height: 14),
-          // Table
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.withOpacity(0.25)),
-            ),
-            child: DataTable(
-              columnSpacing: 20,
-              headingTextStyle: const TextStyle(
-                  fontWeight: FontWeight.w700, color: Colors.black87),
-              columns: const [
-                DataColumn(label: Text('#')),
-                DataColumn(label: Text('ID')),
-                DataColumn(label: Text('LESSON')),
-                DataColumn(label: Text('TYPE')),
-                DataColumn(label: Text('CATEGORY')),
-                DataColumn(label: Text('PHASE')),
-                DataColumn(label: Text('IMPACT')),
-                DataColumn(label: Text('STATUS')),
-                DataColumn(label: Text('SUBMITTED BY')),
-                DataColumn(label: Text('DATE')),
-                DataColumn(label: Text('ACTIONS')),
-              ],
-              rows: List.generate(4, (i) => _row(i)),
-            ),
+          LaunchDataTable(
+            title: 'Project Lessons Learned',
+            subtitle: 'Track lessons, insights, and outcomes across project phases',
+            columns: const [
+              LaunchColumn(label: 'ID', width: 80),
+              LaunchColumn(label: 'Lesson', flexible: true, hint: 'Lesson description'),
+              LaunchColumn(label: 'Type', width: 110, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Success', 'Issue', 'Risk', 'Improvement']),
+              LaunchColumn(label: 'Category', width: 120, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Process', 'Technical', 'Vendor', 'People', 'Schedule', 'Quality']),
+              LaunchColumn(label: 'Phase', width: 110, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Planning', 'Execution', 'Testing', 'Operations', 'Closure']),
+              LaunchColumn(label: 'Impact', width: 100, fieldType: LaunchFieldType.dropdown, dropdownItems: ['High', 'Medium', 'Low']),
+              LaunchColumn(label: 'Status', width: 130, fieldType: LaunchFieldType.dropdown, dropdownItems: ['Implemented', 'Open', 'In Review', 'Deferred']),
+              LaunchColumn(label: 'Submitted By', width: 140),
+              LaunchColumn(label: 'Date', width: 120, fieldType: LaunchFieldType.date),
+            ],
+            rowCount: filtered.length,
+            addLabel: 'Add Lesson',
+            csvColumns: const [
+              CsvColumnSpec(key: 'id', label: 'ID', sampleValue: 'T-005'),
+              CsvColumnSpec(key: 'lesson', label: 'Lesson', sampleValue: 'Early engagement improved'),
+              CsvColumnSpec(key: 'type', label: 'Type', sampleValue: 'Success', allowedValues: ['Success', 'Issue', 'Risk', 'Improvement']),
+              CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Process'),
+              CsvColumnSpec(key: 'phase', label: 'Phase', sampleValue: 'Planning'),
+              CsvColumnSpec(key: 'impact', label: 'Impact', sampleValue: 'High', allowedValues: ['High', 'Medium', 'Low']),
+              CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Open', allowedValues: ['Implemented', 'Open', 'In Review', 'Deferred']),
+              CsvColumnSpec(key: 'submittedBy', label: 'Submitted By', sampleValue: 'Team Member'),
+              CsvColumnSpec(key: 'date', label: 'Date', sampleValue: '2025-05-01'),
+            ],
+            onAddValues: (values) {
+              setState(() {
+                final nextId = 'T-${(_lessons.length + 1).toString().padLeft(3, '0')}';
+                _lessons.add(_LessonItem(
+                  id: nextId,
+                  lesson: values['Lesson'] ?? '',
+                  type: values['Type'] ?? 'Success',
+                  category: values['Category'] ?? 'Process',
+                  phase: values['Phase'] ?? 'Planning',
+                  impact: values['Impact'] ?? 'Medium',
+                  status: values['Status'] ?? 'Open',
+                  submittedBy: values['Submitted By'] ?? '',
+                  date: values['Date'] ?? '',
+                ));
+              });
+            },
+            onCsvImport: (rows) async {
+              setState(() {
+                for (final row in rows) {
+                  final nextId = row['id']?.isNotEmpty == true
+                      ? row['id']!
+                      : 'T-${(_lessons.length + 1).toString().padLeft(3, '0')}';
+                  _lessons.add(_LessonItem(
+                    id: nextId,
+                    lesson: row['lesson'] ?? '',
+                    type: row['type'] ?? 'Success',
+                    category: row['category'] ?? 'Process',
+                    phase: row['phase'] ?? 'Planning',
+                    impact: row['impact'] ?? 'Medium',
+                    status: row['status'] ?? 'Open',
+                    submittedBy: row['submittedBy'] ?? '',
+                    date: row['date'] ?? '',
+                  ));
+                }
+              });
+            },
+            onSearch: (query) {
+              setState(() => _searchQuery = query);
+            },
+            onFilter: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Filter options coming soon.')),
+              );
+            },
+            cellBuilder: (context, rowIdx) {
+              final item = filtered[rowIdx];
+              return LaunchDataRow(
+                onEdit: () => _showEditDialog(context, item),
+                onDelete: () async {
+                  final confirmed = await launchConfirmDelete(context, itemName: item.lesson);
+                  if (confirmed) {
+                    setState(() => _lessons.removeWhere((l) => l.id == item.id));
+                  }
+                },
+                cells: [
+                  LaunchEditableCell(value: item.id, onChanged: (v) => item.id = v, width: 80),
+                  LaunchEditableCell(value: item.lesson, onChanged: (v) => item.lesson = v, expand: true),
+                  LaunchStatusDropdown(value: item.type, items: const ['Success', 'Issue', 'Risk', 'Improvement'], onChanged: (v) => setState(() => item.type = v ?? item.type), width: 110),
+                  LaunchStatusDropdown(value: item.category, items: const ['Process', 'Technical', 'Vendor', 'People', 'Schedule', 'Quality'], onChanged: (v) => setState(() => item.category = v ?? item.category), width: 120),
+                  LaunchStatusDropdown(value: item.phase, items: const ['Planning', 'Execution', 'Testing', 'Operations', 'Closure'], onChanged: (v) => setState(() => item.phase = v ?? item.phase), width: 110),
+                  LaunchStatusDropdown(value: item.impact, items: const ['High', 'Medium', 'Low'], onChanged: (v) => setState(() => item.impact = v ?? item.impact), width: 100),
+                  LaunchStatusDropdown(value: item.status, items: const ['Implemented', 'Open', 'In Review', 'Deferred'], onChanged: (v) => setState(() => item.status = v ?? item.status), width: 130),
+                  LaunchEditableCell(value: item.submittedBy, onChanged: (v) => item.submittedBy = v, width: 140),
+                  LaunchDateCell(value: item.date, onChanged: (v) => item.date = v, width: 120),
+                ],
+              );
+            },
           ),
         ]),
       ),
     );
   }
 
-  DataRow _row(int index) {
-    final strong = index == 0;
-    final textStyleMuted = TextStyle(color: Colors.grey[400]);
-    final baseStyle =
-        strong ? const TextStyle(color: Colors.black) : textStyleMuted;
-    return DataRow(cells: [
-      DataCell(Text('${index + 1}', style: baseStyle)),
-      DataCell(Text(strong ? 'T-001' : 'T-001', style: baseStyle)),
-      DataCell(Text('Early stakeholder engagement improved', style: baseStyle)),
-      DataCell(_chip(
-          text: 'Success',
-          bg: const Color(0xFFE6F4EA),
-          fg: const Color(0xFF2E7D32))),
-      DataCell(_chip(
-          text: 'Process',
-          bg: const Color(0xFFE6F4EA),
-          fg: const Color(0xFF2E7D32))),
-      DataCell(Text('Planning', style: baseStyle)),
-      DataCell(_chip(
-          text: 'High',
-          bg: const Color(0xFFFFEBEE),
-          fg: const Color(0xFFC62828))),
-      DataCell(_chip(
-          text: 'Implemented',
-          bg: const Color(0xFFFFEBEE),
-          fg: const Color(0xFFC62828))),
-      DataCell(Text('Emily Johnson', style: baseStyle)),
-      DataCell(Text('2025-02-15', style: baseStyle)),
-      const DataCell(Icon(Icons.edit_outlined, size: 20)),
-    ]);
-  }
+  void _showEditDialog(BuildContext context, _LessonItem item) {
+    final lessonCtrl = TextEditingController(text: item.lesson);
+    final submittedByCtrl = TextEditingController(text: item.submittedBy);
+    var type = item.type;
+    var category = item.category;
+    var phase = item.phase;
+    var impact = item.impact;
+    var status = item.status;
 
-  Widget _chip({required String text, required Color bg, required Color fg}) {
-    return Container(
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(30)),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Text(text,
-          style:
-              TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 12)),
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => LaunchModalShell(
+          icon: Icons.edit_rounded,
+          accent: const Color(0xFF0EA5E9),
+          title: 'Edit Lesson',
+          subtitle: 'Update the lesson details.',
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LaunchModalTextField(label: 'Lesson *', controller: lessonCtrl, hint: 'Describe the lesson'),
+              const SizedBox(height: 12),
+              LaunchModalTextField(label: 'Submitted By *', controller: submittedByCtrl, hint: 'Team member name'),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: LaunchModalDropdown(label: 'Type', value: type, items: const ['Success', 'Issue', 'Risk', 'Improvement'], onChanged: (v) => setDialogState(() => type = v ?? type))),
+                const SizedBox(width: 12),
+                Expanded(child: LaunchModalDropdown(label: 'Category', value: category, items: const ['Process', 'Technical', 'Vendor', 'People', 'Schedule', 'Quality'], onChanged: (v) => setDialogState(() => category = v ?? category))),
+              ]),
+              const SizedBox(height: 12),
+              Row(children: [
+                Expanded(child: LaunchModalDropdown(label: 'Phase', value: phase, items: const ['Planning', 'Execution', 'Testing', 'Operations', 'Closure'], onChanged: (v) => setDialogState(() => phase = v ?? phase))),
+                const SizedBox(width: 12),
+                Expanded(child: LaunchModalDropdown(label: 'Impact', value: impact, items: const ['High', 'Medium', 'Low'], onChanged: (v) => setDialogState(() => impact = v ?? impact))),
+              ]),
+              const SizedBox(height: 12),
+              LaunchModalDropdown(label: 'Status', value: status, items: const ['Implemented', 'Open', 'In Review', 'Deferred'], onChanged: (v) => setDialogState(() => status = v ?? status)),
+            ],
+          ),
+          actions: [
+            LaunchModalCancelButton(label: 'Cancel', onPressed: () => Navigator.pop(ctx)),
+            LaunchModalPrimaryButton(
+              label: 'Update',
+              icon: Icons.check_rounded,
+              onPressed: () {
+                setState(() {
+                  item.lesson = lessonCtrl.text;
+                  item.submittedBy = submittedByCtrl.text;
+                  item.type = type;
+                  item.category = category;
+                  item.phase = phase;
+                  item.impact = impact;
+                  item.status = status;
+                });
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Lesson updated successfully.')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 

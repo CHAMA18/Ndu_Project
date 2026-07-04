@@ -21,6 +21,7 @@ import 'package:ndu_project/utils/web_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/services/hint_service.dart';
 import 'package:ndu_project/services/auth_nav.dart';
+import 'package:ndu_project/services/security_services.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
@@ -95,6 +96,8 @@ class _SettingsScreenState extends State<SettingsScreen>
   String _fontSize = 'medium'; // 'small', 'medium', 'large'
   bool _compactMode = false;
   bool _reduceAnimations = false;
+  bool _twoFactorEnabled = false;
+  bool _twoFactorLoading = true;
 
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -113,6 +116,13 @@ class _SettingsScreenState extends State<SettingsScreen>
       _compactMode = prefs.getBool(_prefCompactMode) ?? false;
       _reduceAnimations = prefs.getBool(_prefReduceAnimations) ?? false;
     });
+    // Load 2FA status
+    try {
+      final enabled = await TwoFactorAuthService.isEnabled();
+      if (mounted) setState(() { _twoFactorEnabled = enabled; _twoFactorLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() => _twoFactorLoading = false);
+    }
   }
 
   Future<void> _setPref(String key, dynamic value) async {
@@ -613,6 +623,80 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
               const SizedBox(height: 20),
 
+              // ── Security ──
+              sectionCard(
+                title: 'Security',
+                icon: Icons.shield_outlined,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: _twoFactorEnabled
+                                ? Colors.green.withOpacity(0.18)
+                                : Colors.grey.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            _twoFactorEnabled ? Icons.check : Icons.lock_open,
+                            size: 14,
+                            color: _twoFactorEnabled ? Colors.green : Colors.black54,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Two-Factor Authentication (2FA)',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                              const SizedBox(height: 2),
+                              Text(
+                                _twoFactorEnabled
+                                    ? 'Your account is protected with email verification'
+                                    : 'Add an extra layer of security to your account',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_twoFactorLoading)
+                          const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          Switch(
+                            value: _twoFactorEnabled,
+                            onChanged: _handleTwoFactorToggle,
+                            activeColor: accent,
+                            trackColor: WidgetStateProperty.resolveWith((states) =>
+                                states.contains(WidgetState.selected) ? accent.withOpacity(0.4) : null),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (_twoFactorEnabled) ...[
+                    const Divider(height: 1),
+                    _PrefActionTile(
+                      icon: Icons.mark_email_read,
+                      label: 'Send test code',
+                      subtitle: 'Verify your 2FA email is working',
+                      onTap: _sendTestTwoFactorCode,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 20),
+
               // ── About ──
               sectionCard(
                 title: 'About',
@@ -743,7 +827,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Widget _integrationsPanel() {
     final bool isEnvManaged =
-        const String.fromEnvironment('CLAUDE_PROXY_API_KEY').trim().isNotEmpty;
+        const String.fromEnvironment('OPENAI_PROXY_API_KEY').trim().isNotEmpty;
     final bool isConfigured = OpenAiConfig.isConfigured;
 
     return ListView(
@@ -1827,6 +1911,107 @@ class _SettingsScreenState extends State<SettingsScreen>
     );
     if (result == true && mounted) {
       setState(() {});
+    }
+  }
+
+  // ── 2FA Toggle ──
+  Future<void> _handleTwoFactorToggle(bool enabled) async {
+    if (enabled) {
+      // Show confirmation dialog before enabling
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Enable Two-Factor Authentication'),
+          content: const Text(
+            'A verification code will be sent to your email each time you sign in. '
+            'You\'ll need to enter this code to complete sign-in.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFFFFC107), foregroundColor: Colors.black),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Enable'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      try {
+        await TwoFactorAuthService.enable();
+        if (mounted) {
+          setState(() => _twoFactorEnabled = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Two-factor authentication enabled'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to enable 2FA: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } else {
+      // Show confirmation dialog before disabling
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Disable Two-Factor Authentication'),
+          content: const Text(
+            'Your account will no longer require a verification code at sign-in. '
+            'This reduces the security of your account.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Disable'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+
+      try {
+        await TwoFactorAuthService.disable();
+        if (mounted) {
+          setState(() => _twoFactorEnabled = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Two-factor authentication disabled'), backgroundColor: Colors.orange),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to disable 2FA: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _sendTestTwoFactorCode() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.email == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No email found for current user'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+    try {
+      await TwoFactorAuthService.sendCode(email: user.email!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Test code sent to ${user.email}'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to send code: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

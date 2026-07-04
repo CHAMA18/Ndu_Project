@@ -18,7 +18,6 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 import 'package:ndu_project/utils/csv_import_helper.dart';
-import 'package:ndu_project/widgets/voice_text_field.dart';
 class DeliverProjectClosureScreen extends StatefulWidget {
   const DeliverProjectClosureScreen({super.key});
 
@@ -103,8 +102,6 @@ class _DeliverProjectClosureScreenState
               ],
             ),
             const SizedBox(height: 12),
-            _buildMetricsRow(),
-            const SizedBox(height: 20),
             _buildScopeAcceptancePanel(),
             const SizedBox(height: 16),
             _buildMilestonesPanel(),
@@ -128,50 +125,14 @@ class _DeliverProjectClosureScreenState
 
 
 
-  Widget _buildMetricsRow() {
-    final accepted = _scopeItems.where((s) => s.status == 'Accepted').length;
-    final total = _scopeItems.length;
-    final milestonesDone =
-        _milestones.where((m) => m.status == 'Complete').length;
-    final milestonesTotal = _milestones.length;
-    final openOutstanding =
-        _outstandingItems.where((o) => o.status != 'Complete').length;
-
-    return ExecutionMetricsGrid(
-      metrics: [
-        ExecutionMetricData(
-          label: 'Scope Accepted',
-          value: total == 0 ? '—' : '$accepted / $total',
-          icon: Icons.check_circle_outline,
-          emphasisColor: const Color(0xFF10B981),
-          helper: total == 0
-              ? 'No scope items yet'
-              : '${((accepted / total) * 100).round()}%',
-        ),
-        ExecutionMetricData(
-          label: 'Milestones Done',
-          value: '$milestonesDone / $milestonesTotal',
-          icon: Icons.flag_outlined,
-          emphasisColor: const Color(0xFF2563EB),
-        ),
-        ExecutionMetricData(
-          label: 'Open Items',
-          value: '$openOutstanding',
-          icon: Icons.pending_outlined,
-          emphasisColor: openOutstanding > 0
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFF10B981),
-        ),
-        ExecutionMetricData(
-          label: 'Post-Delivery Risks',
-          value: '${_riskFollowUps.length}',
-          icon: Icons.warning_amber_outlined,
-          emphasisColor: _riskFollowUps.any((r) => r.status == 'Open')
-              ? const Color(0xFFEF4444)
-              : const Color(0xFF10B981),
-        ),
-      ],
-    );
+  List<String> _teamMemberNames() {
+    final data = ProjectDataHelper.getData(context);
+    final names = data.teamMembers
+        .map((m) => m.name.trim())
+        .where((n) => n.isNotEmpty)
+        .toList();
+    if (names.isEmpty) return const ['Unassigned'];
+    return names;
   }
 
   Widget _buildScopeAcceptancePanel() {
@@ -179,14 +140,19 @@ class _DeliverProjectClosureScreenState
       title: 'Scope Acceptance',
       subtitle:
           'Track acceptance status for each deliverable. Items are editable inline.',
-      columns: const [
-        LaunchColumn(label: 'Deliverable', flexible: true),
-        LaunchColumn(label: 'Criteria', flexible: true),
-        LaunchColumn(label: 'Status', width: 120),
-        LaunchColumn(label: 'Date', width: 130),
+      columns: [
+        const LaunchColumn(label: 'Deliverable', flexible: true),
+        const LaunchColumn(label: 'Criteria', flexible: true),
+        LaunchColumn(
+          label: 'Status',
+          width: 120,
+          fieldType: LaunchFieldType.dropdown,
+          dropdownItems: const ['Pending', 'Accepted', 'Partial', 'Rejected'],
+        ),
+        const LaunchColumn(label: 'Date', width: 130, fieldType: LaunchFieldType.date),
       ],
       rowCount: _scopeItems.length,
-      onAdd: () => _addScopeItem(),
+      onAddValues: _addScopeItem,
       csvColumns: const [
         CsvColumnSpec(key: 'deliverable', label: 'Deliverable', sampleValue: 'User Portal'),
         CsvColumnSpec(key: 'criteria', label: 'Criteria', sampleValue: 'All acceptance tests pass'),
@@ -262,14 +228,19 @@ class _DeliverProjectClosureScreenState
     return LaunchDataTable(
       title: 'Delivery Milestones',
       subtitle: 'Track planned vs actual completion for key milestones.',
-      columns: const [
-        LaunchColumn(label: 'Milestone', flexible: true),
-        LaunchColumn(label: 'Planned', width: 120),
-        LaunchColumn(label: 'Actual', width: 120),
-        LaunchColumn(label: 'Status', width: 120),
+      columns: [
+        const LaunchColumn(label: 'Milestone', flexible: true),
+        const LaunchColumn(label: 'Planned', width: 120, fieldType: LaunchFieldType.date),
+        const LaunchColumn(label: 'Actual', width: 120, fieldType: LaunchFieldType.date),
+        LaunchColumn(
+          label: 'Status',
+          width: 120,
+          fieldType: LaunchFieldType.dropdown,
+          dropdownItems: const ['Pending', 'In Progress', 'Complete', 'Delayed'],
+        ),
       ],
       rowCount: _milestones.length,
-      onAdd: () => _addMilestone(),
+      onAddValues: _addMilestone,
       csvColumns: const [
         CsvColumnSpec(key: 'milestone', label: 'Milestone', sampleValue: 'Go-live'),
         CsvColumnSpec(key: 'planned', label: 'Planned', sampleValue: '2025-01-15'),
@@ -338,17 +309,28 @@ class _DeliverProjectClosureScreenState
   }
 
   Widget _buildOutstandingPanel() {
+    final ownerNames = _teamMemberNames();
     return LaunchDataTable(
       title: 'Outstanding Items',
       subtitle: 'Items still pending closure before or shortly after handover.',
-      columns: const [
-        LaunchColumn(label: 'Title', flexible: true),
-        LaunchColumn(label: 'Details', flexible: true),
-        LaunchColumn(label: 'Owner', width: 120),
-        LaunchColumn(label: 'Status', width: 120),
+      columns: [
+        const LaunchColumn(label: 'Title', flexible: true),
+        const LaunchColumn(label: 'Details', flexible: true),
+        LaunchColumn(
+          label: 'Owner',
+          width: 120,
+          fieldType: LaunchFieldType.dropdown,
+          dropdownItems: ownerNames,
+        ),
+        LaunchColumn(
+          label: 'Status',
+          width: 120,
+          fieldType: LaunchFieldType.dropdown,
+          dropdownItems: const ['Open', 'In Progress', 'Complete', 'Deferred'],
+        ),
       ],
       rowCount: _outstandingItems.length,
-      onAdd: () => _addFollowUp(_outstandingItems),
+      onAddValues: (v) => _addFollowUp(_outstandingItems, v),
       csvColumns: const [
         CsvColumnSpec(key: 'title', label: 'Title', sampleValue: 'Pending bug fix'),
         CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'Critical UI bug in production'),
@@ -419,17 +401,28 @@ class _DeliverProjectClosureScreenState
   }
 
   Widget _buildRiskFollowUpsPanel() {
+    final ownerNames = _teamMemberNames();
     return LaunchDataTable(
       title: 'Post-Delivery Risks',
       subtitle: 'Risks and gaps to monitor after project delivery.',
-      columns: const [
-        LaunchColumn(label: 'Title', flexible: true),
-        LaunchColumn(label: 'Details', flexible: true),
-        LaunchColumn(label: 'Owner', width: 120),
-        LaunchColumn(label: 'Status', width: 120),
+      columns: [
+        const LaunchColumn(label: 'Title', flexible: true),
+        const LaunchColumn(label: 'Details', flexible: true),
+        LaunchColumn(
+          label: 'Owner',
+          width: 120,
+          fieldType: LaunchFieldType.dropdown,
+          dropdownItems: ownerNames,
+        ),
+        LaunchColumn(
+          label: 'Status',
+          width: 120,
+          fieldType: LaunchFieldType.dropdown,
+          dropdownItems: const ['Open', 'In Progress', 'Complete', 'Deferred'],
+        ),
       ],
       rowCount: _riskFollowUps.length,
-      onAdd: () => _addFollowUp(_riskFollowUps),
+      onAddValues: (v) => _addFollowUp(_riskFollowUps, v),
       csvColumns: const [
         CsvColumnSpec(key: 'title', label: 'Title', sampleValue: 'Performance degradation'),
         CsvColumnSpec(key: 'details', label: 'Details', sampleValue: 'API latency above threshold'),
@@ -499,23 +492,38 @@ class _DeliverProjectClosureScreenState
     );
   }
 
-  void _addScopeItem() {
+  void _addScopeItem(Map<String, String> values) {
     setState(() {
-      _scopeItems.add(LaunchScopeItem());
+      _scopeItems.add(LaunchScopeItem(
+        deliverable: values['Deliverable'] ?? '',
+        acceptanceCriteria: values['Criteria'] ?? '',
+        status: values['Status'] ?? 'Pending',
+        acceptanceDate: values['Date'] ?? '',
+      ));
     });
     _scheduleSave();
   }
 
-  void _addMilestone() {
+  void _addMilestone(Map<String, String> values) {
     setState(() {
-      _milestones.add(LaunchMilestone());
+      _milestones.add(LaunchMilestone(
+        title: values['Milestone'] ?? '',
+        plannedDate: values['Planned'] ?? '',
+        actualDate: values['Actual'] ?? '',
+        status: values['Status'] ?? 'Pending',
+      ));
     });
     _scheduleSave();
   }
 
-  void _addFollowUp(List<LaunchFollowUpItem> list) {
+  void _addFollowUp(List<LaunchFollowUpItem> list, Map<String, String> values) {
     setState(() {
-      list.add(LaunchFollowUpItem());
+      list.add(LaunchFollowUpItem(
+        title: values['Title'] ?? '',
+        details: values['Details'] ?? '',
+        owner: values['Owner'] ?? '',
+        status: values['Status'] ?? 'Open',
+      ));
     });
     _scheduleSave();
   }
@@ -604,12 +612,24 @@ class _DeliverProjectClosureScreenState
           _outstandingItems.isEmpty &&
           _riskFollowUps.isEmpty;
       if (stillEmpty) await _populateFromAi();
+
+      final allStillEmpty = _scopeItems.isEmpty &&
+          _milestones.isEmpty &&
+          _outstandingItems.isEmpty &&
+          _riskFollowUps.isEmpty;
+      if (allStillEmpty) _populateWithSeedData();
     } catch (e) {
       debugPrint('Deliver project load error: $e');
       if (mounted) setState(() => _isLoading = false);
     }
 
     _suspendSave = false;
+
+    // Persist seed data after suspend is lifted
+    if (_scopeItems.isNotEmpty || _milestones.isNotEmpty ||
+        _outstandingItems.isNotEmpty || _riskFollowUps.isNotEmpty) {
+      _persistData();
+    }
   }
 
   Future<void> _persistData() async {
@@ -686,6 +706,124 @@ class _DeliverProjectClosureScreenState
     }
   }
 
+  void _populateWithSeedData() {
+    final now = DateTime.now();
+    final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final nextWeek = now.add(const Duration(days: 7));
+    final nextWeekStr = '${nextWeek.year}-${nextWeek.month.toString().padLeft(2, '0')}-${nextWeek.day.toString().padLeft(2, '0')}';
+    final twoWeeks = now.add(const Duration(days: 14));
+    final twoWeeksStr = '${twoWeeks.year}-${twoWeeks.month.toString().padLeft(2, '0')}-${twoWeeks.day.toString().padLeft(2, '0')}';
+
+    setState(() {
+      _scopeItems = [
+        LaunchScopeItem(
+          deliverable: 'User Portal — Final Build',
+          acceptanceCriteria: 'All user acceptance tests pass; no critical bugs',
+          status: 'Pending',
+          acceptanceDate: nextWeekStr,
+        ),
+        LaunchScopeItem(
+          deliverable: 'Admin Dashboard',
+          acceptanceCriteria: 'Admin role CRUD operations verified end-to-end',
+          status: 'Pending',
+          acceptanceDate: nextWeekStr,
+        ),
+        LaunchScopeItem(
+          deliverable: 'API Documentation',
+          acceptanceCriteria: 'All endpoints documented with examples and error codes',
+          status: 'Accepted',
+          acceptanceDate: today,
+        ),
+        LaunchScopeItem(
+          deliverable: 'Deployment Scripts & CI/CD',
+          acceptanceCriteria: 'Automated deploy to staging succeeds; rollback tested',
+          status: 'Pending',
+          acceptanceDate: twoWeeksStr,
+        ),
+        LaunchScopeItem(
+          deliverable: 'Data Migration Package',
+          acceptanceCriteria: 'Production data migrated with zero data loss verified',
+          status: 'Partial',
+          acceptanceDate: twoWeeksStr,
+        ),
+      ];
+
+      _milestones = [
+        LaunchMilestone(
+          title: 'Final UAT Sign-Off',
+          plannedDate: nextWeekStr,
+          status: 'In Progress',
+        ),
+        LaunchMilestone(
+          title: 'Production Deployment',
+          plannedDate: twoWeeksStr,
+          status: 'Pending',
+        ),
+        LaunchMilestone(
+          title: 'Handover to Operations',
+          plannedDate: twoWeeksStr,
+          status: 'Pending',
+        ),
+        LaunchMilestone(
+          title: 'Post-Launch Review',
+          plannedDate: () {
+            final d = twoWeeks.add(const Duration(days: 7));
+            return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+          }(),
+          status: 'Pending',
+        ),
+      ];
+
+      _outstandingItems = [
+        LaunchFollowUpItem(
+          title: 'Performance load testing results',
+          details: 'Complete load test for 500 concurrent users and document results',
+          owner: 'Tech Lead',
+          status: 'In Progress',
+        ),
+        LaunchFollowUpItem(
+          title: 'Security audit remediation',
+          details: 'Address 3 medium-severity findings from the penetration test',
+          owner: 'Security Analyst',
+          status: 'Open',
+        ),
+        LaunchFollowUpItem(
+          title: 'End-user training materials',
+          details: 'Finalize user guide and record walkthrough video',
+          owner: 'Business Analyst',
+          status: 'Open',
+        ),
+        LaunchFollowUpItem(
+          title: 'License key provisioning',
+          details: 'Procure production licenses for all third-party integrations',
+          owner: 'Procurement Lead',
+          status: 'Open',
+        ),
+      ];
+
+      _riskFollowUps = [
+        LaunchFollowUpItem(
+          title: 'Third-party API rate limits',
+          details: 'Monitor usage against vendor API quotas during initial launch period',
+          owner: 'Integration Lead',
+          status: 'Open',
+        ),
+        LaunchFollowUpItem(
+          title: 'Data rollback readiness',
+          details: 'Ensure database snapshots are taken before go-live for rollback capability',
+          owner: 'DBA',
+          status: 'Open',
+        ),
+        LaunchFollowUpItem(
+          title: 'Stakeholder availability',
+          details: 'Confirm key stakeholders are available for go-live support window',
+          owner: 'Project Manager',
+          status: 'In Progress',
+        ),
+      ];
+    });
+  }
+
   String _normalizeSprintStatus(dynamic status) {
     final s = (status ?? '').toString().toLowerCase();
     if (s == 'completed' || s == 'done') return 'Complete';
@@ -754,7 +892,7 @@ class _DeliverProjectClosureScreenState
     setState(() => _isExporting = true);
     try {
       final projectData = ProjectDataHelper.getData(context);
-      final projectName = projectData.projectName ?? 'Project';
+      final projectName = projectData.projectName.isEmpty ? 'Project' : projectData.projectName;
       final now = DateTime.now();
       final stamp =
           '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';

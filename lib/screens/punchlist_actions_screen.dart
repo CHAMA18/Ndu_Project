@@ -961,12 +961,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
+                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151), letterSpacing: 0.4,
                     ),
                     dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
                     columnSpacing: 8,
@@ -1127,12 +1127,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
+                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151), letterSpacing: 0.4,
                     ),
                     dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
                     columnSpacing: 8,
@@ -1301,12 +1301,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
+                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151), letterSpacing: 0.4,
                     ),
                     dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
                     columnSpacing: 8,
@@ -1512,12 +1512,12 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minWidth: constraints.maxWidth),
                   child: DataTable(
-                    headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
+                    headingRowColor: WidgetStateProperty.all(const Color(0xFFF8FAFC)),
                     headingRowHeight: 30,
                     dataRowMinHeight: 22,
                     dataRowMaxHeight: 28,
                     headingTextStyle: const TextStyle(
-                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
+                      fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF374151), letterSpacing: 0.4,
                     ),
                     dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
                     columnSpacing: 8,

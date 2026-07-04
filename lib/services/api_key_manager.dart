@@ -8,7 +8,8 @@ import 'package:ndu_project/services/api_config_secure.dart';
 class ApiKeyManager {
   static bool _isInitialized = false;
   static const String _usersCollection = 'users';
-  static const String _keyField = 'claudeApiKey';
+  static const String _keyField = 'openaiApiKey';
+  static const String _legacyKeyField = 'claudeApiKey'; // backward compat
   
   /// Initialize the API key securely
   /// Call this method once when your app starts
@@ -37,11 +38,26 @@ class ApiKeyManager {
   }
 
   /// Loads a previously saved key for the currently signed-in user (if any).
-  /// Does nothing if an environment key is already active or if we have a hardcoded default key.
+  /// Reads from 'openaiApiKey' first, falls back to legacy 'claudeApiKey' field.
   static Future<void> ensureLoadedForSignedInUser() async {
-    // No-op by default. Projects can extend to load keys per user if desired.
-    debugPrint('ApiKeyManager.ensureLoadedForSignedInUser: no-op in this build.');
-    return;
+    if (SecureAPIConfig.hasApiKey) return; // env key already active
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final doc = await FirebaseFirestore.instance
+          .collection(_usersCollection)
+          .doc(user.uid)
+          .get();
+      if (!doc.exists) return;
+      final data = doc.data();
+      final key = data?[_keyField] as String? ?? data?[_legacyKeyField] as String?;
+      if (key != null && key.trim().isNotEmpty) {
+        setApiKey(key.trim());
+        debugPrint('ApiKeyManager: loaded API key from Firestore for user ${user.uid.substring(0, 6)}…');
+      }
+    } catch (e) {
+      debugPrint('ApiKeyManager.ensureLoadedForSignedInUser error: $e');
+    }
   }
 
   /// Persists the provided key under users/{uid}. Creates the document if missing.
@@ -74,6 +90,7 @@ class ApiKeyManager {
       await users.doc(user.uid).set(
         {
           _keyField: FieldValue.delete(),
+          _legacyKeyField: FieldValue.delete(),
           'updatedAt': FieldValue.serverTimestamp(),
         },
         SetOptions(merge: true),

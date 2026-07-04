@@ -4,13 +4,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:ndu_project/services/api_config_secure.dart';
-import 'package:ndu_project/firebase_options.dart';
 // Use relative import to ensure the library is part of this compilation unit
 import 'package:ndu_project/utils/diagram_model.dart';
 
 // Dreamflow env bindings (must exist with these exact names)
 // Do not rename: Dreamflow injects values via --dart-define at build time
-const String apiKey = String.fromEnvironment('CLAUDE_PROXY_API_KEY');
+const String apiKey = String.fromEnvironment('OPENAI_PROXY_API_KEY');
 const String endpoint = String.fromEnvironment('OPENAI_PROXY_ENDPOINT');
 
 /// Central configuration for OpenAI API access.
@@ -97,7 +96,7 @@ class OpenAiConfig {
 
     // Remove legacy-specific fields (no-op for OpenAI, but cleans up any
     // leftover fields from older request formats)
-    result.remove('anthropic_version');
+    // No legacy anthropic_version to remove (OpenAI-only project)
 
     // Convert max_completion_tokens to max_tokens (OpenAI Chat Completions
     // uses max_tokens, not max_completion_tokens which is Responses API only)

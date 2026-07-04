@@ -15,26 +15,15 @@ class SecureAPIConfig {
 
   // OpenAI API base URL.
   //
-  // In production we use the Firebase Cloud Function proxy
-  // (claudeProxy/openaiProxy) so the OpenAI API key stays server-side and
-  // is never exposed to the client. The proxy forwards OpenAI-format
-  // requests directly to api.openai.com with the server-side key.
-  //
-  // If a client-side key IS provided (via env-config.js or Settings), the
-  // app can also call OpenAI directly — but the proxy is the recommended
-  // production path because it keeps the key secret.
+  // In production we use the Firebase Cloud Function proxy (openaiProxy)
+  // so the OpenAI API key stays server-side and is never exposed to the
+  // client. The proxy forwards OpenAI-format requests directly to
+  // api.openai.com with the server-side key.
   //
   // The Cloud Function is deployed at:
-  //   https://us-central1-ndu-d3f60.cloudfunctions.net/claudeProxy
-  //
-  // The app appends '/chat/completions' to this base URL, so the final
-  // endpoint becomes:
-  //   https://us-central1-ndu-d3f60.cloudfunctions.net/claudeProxy/chat/completions
-  //
-  // The Cloud Function's route handler ignores the path and processes all
-  // POST requests through the OpenAI proxy logic.
+  //   https://us-central1-ndu-d3f60.cloudfunctions.net/openaiProxy
   static const String baseUrl =
-      'https://us-central1-ndu-d3f60.cloudfunctions.net/claudeProxy';
+      'https://us-central1-ndu-d3f60.cloudfunctions.net/openaiProxy';
 
   // Default model — GPT-4o is OpenAI's smartest model with the best
   // reasoning capabilities. It balances cost and performance excellently:

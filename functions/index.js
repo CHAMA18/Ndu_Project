@@ -1,5 +1,6 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const { Resend } = require('resend');
 
 // Initialize admin only if not already initialized
 if (!admin.apps.length) {
@@ -7,6 +8,33 @@ if (!admin.apps.length) {
 }
 
 const db = admin.firestore();
+
+// ── Resend email sender ────────────────────────────────────────────────────
+// API key stored as Firebase secret: firebase functions:secrets:set RESEND_API_KEY
+// Domain: nduproject.tech (verified in Resend dashboard)
+const RESEND_FROM_EMAIL = 'NDU Project <noreply@nduproject.tech>';
+function getResendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('RESEND_API_KEY not configured. Set it via: firebase functions:secrets:set RESEND_API_KEY');
+    throw new functions.https.HttpsError('failed-precondition', 'Email service not configured.');
+  }
+  return new Resend(apiKey);
+}
+
+// ── 2FA OTP helpers ────────────────────────────────────────────────────────
+const OTP_LENGTH = 6;
+const OTP_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const OTP_COLLECTION = 'twoFactorCodes';
+const MAX_OTP_ATTEMPTS = 5;
+
+function generateOtp() {
+  let otp = '';
+  for (let i = 0; i < OTP_LENGTH; i++) {
+    otp += Math.floor(Math.random() * 10).toString();
+  }
+  return otp;
+}
 
 
 // Lazy-load config to avoid deployment timeouts
@@ -90,77 +118,7 @@ function setCorsHeaders(req, res) {
   res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
-/**
- * Transform an OpenAI-style request body into Anthropic Claude Messages API format.
- *
- * Key transformations:
- *  - Extract `system` messages from the messages array and move to top-level `system` param
- *  - Replace `max_completion_tokens` / `max_output_tokens` with `max_tokens`
- *  - Remove `response_format` (not supported by Claude)
- *  - Remove `workflow_id` / `workflowId` (OpenAI-specific)
- *  - Remove `reasoning` (OpenAI o-series specific)
- *  - Remove `endpoint` (internal routing param)
- *  - Ensure `max_tokens` is present (required by Claude, default 1200)
- */
-function transformToClaudeFormat(payload) {
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { model: 'claude-sonnet-4-20250514', max_tokens: 1200, messages: [{ role: 'user', content: String(payload || '') }] };
-  }
-
-  // Extract the raw messages array
-  const rawMessages = Array.isArray(payload.messages) ? payload.messages : [];
-
-  // Separate system messages from conversation messages
-  const systemParts = [];
-  const conversationMessages = [];
-
-  for (const msg of rawMessages) {
-    if (msg.role === 'system') {
-      // System messages become a top-level `system` parameter in Claude
-      const text = typeof msg.content === 'string'
-        ? msg.content
-        : Array.isArray(msg.content)
-          ? msg.content
-              .filter((b) => b.type === 'text' || typeof b === 'string')
-              .map((b) => (typeof b === 'string' ? b : b.text || ''))
-              .join('\n')
-          : String(msg.content || '');
-      if (text.trim()) systemParts.push(text.trim());
-    } else {
-      conversationMessages.push(msg);
-    }
-  }
-
-  // Determine max_tokens
-  const maxTokens =
-    payload.max_tokens ||
-    payload.max_completion_tokens ||
-    payload.max_output_tokens ||
-    1200;
-
-  // Build the Claude request body
-  const claudeBody = {
-    model: payload.model || 'claude-sonnet-4-20250514',
-    max_tokens: maxTokens,
-    messages: conversationMessages.length > 0
-      ? conversationMessages
-      : [{ role: 'user', content: 'Hello' }],
-  };
-
-  // Add top-level system parameter if we extracted any system messages
-  if (systemParts.length > 0) {
-    claudeBody.system = systemParts.join('\n\n');
-  }
-
-  // Pass through supported optional parameters
-  if (payload.temperature !== undefined) claudeBody.temperature = payload.temperature;
-  if (payload.top_p !== undefined) claudeBody.top_p = payload.top_p;
-  if (payload.top_k !== undefined) claudeBody.top_k = payload.top_k;
-  if (payload.stop_sequences !== undefined) claudeBody.stop_sequences = payload.stop_sequences;
-  if (payload.stream !== undefined) claudeBody.stream = payload.stream;
-
-  return claudeBody;
-}
+// (transformToClaudeFormat removed — project uses OpenAI, not Claude/Anthropic)
 
 function getRequestOrigin(req) {
   return req.headers.origin || APP_BASE_URL;
@@ -296,36 +254,28 @@ async function validateCouponForTier(couponCode, tier, originalPriceCents) {
  * - Request validation and sanitization
  */
 
-exports.claudeProxy = functions
+exports.openaiProxy = functions
   .runWith({
-    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
+    secrets: ['OPENAI_API_KEY'],
     timeoutSeconds: 60,
     memory: '256MB'
   })
   .https.onRequest(async (req, res) => {
-    // Use the centralized CORS helper function
     setCorsHeaders(req, res);
     
-    // Handle preflight requests
     if (req.method === 'OPTIONS') {
       res.status(204).send('');
       return;
     }
     
-    // Only allow POST requests
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method not allowed. Use POST.' });
       return;
     }
     
     try {
-      // Get OpenAI API key from Firebase secrets (preferred), fall back to
-      // ANTHROPIC_API_KEY for backward compat, then to client-provided key
-      // from the Authorization header (for deployments where the secret
-      // isn't set yet).
-      let apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+      let apiKey = process.env.OPENAI_API_KEY;
       if (!apiKey) {
-        // Try to get the key from the client's Authorization header
         const authHeader = req.headers.authorization;
         if (authHeader && authHeader.startsWith('Bearer ')) {
           apiKey = authHeader.split('Bearer ')[1];
@@ -382,20 +332,7 @@ exports.claudeProxy = functions
     }
   });
 
-/**
- * Backward-compatible alias for claudeProxy.
- * Existing clients still calling openaiProxy will be redirected to claudeProxy.
- */
-exports.openaiProxy = functions
-  .runWith({
-    secrets: ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
-    timeoutSeconds: 60,
-    memory: '256MB'
-  })
-  .https.onRequest(async (req, res) => {
-    // Reuse the same handler as claudeProxy
-    return exports.claudeProxy(req, res);
-  });
+// openaiProxy is the canonical export (see above)
 
 // ============================================================================
 // STRIPE PAYMENT FUNCTIONS
@@ -1625,166 +1562,280 @@ exports.cancelSubscription = functions
   });
 
 // ============================================================================
-// TEAM INVITATION EMAIL
+// TWO-FACTOR AUTHENTICATION (Email OTP via Resend)
 // ============================================================================
 
 /**
- * Send Team Invitation Email
- * 
- * Sends an invitation email to a team member using SMTP credentials stored
- * as Firebase secrets. The email contains a secure link to the sign-in page.
- * 
- * Setup Instructions:
- * 1. Set SMTP secrets in Firebase:
- *    firebase functions:secrets:set SMTP_HOST
- *    firebase functions:secrets:set SMTP_PORT
- *    firebase functions:secrets:set SMTP_USER
- *    firebase functions:secrets:set SMTP_PASSWORD
- *    firebase functions:secrets:set SMTP_FROM_NAME
- *    firebase functions:secrets:set SMTP_FROM_EMAIL
- * 
- * 2. Deploy this function:
- *    firebase deploy --only functions:sendTeamInvitation
- * 
- * 3. The Flutter app calls this via HTTPS Callable:
- *    FirebaseFunctions.instance.httpsCallable('sendTeamInvitation')
- * 
- * Security:
- * - SMTP credentials stored as Firebase secrets (never in code)
- * - Requires Firebase Auth token (only authenticated users can invite)
- * - Email validation on server side
- * - Invitation record stored in Firestore for tracking
+ * Send a 2FA one-time passcode to the user's email via Resend.
+ *
+ * Setup:
+ *   firebase functions:secrets:set RESEND_API_KEY
+ *
+ * The function:
+ *  1. Generates a 6-digit OTP and stores it in Firestore (collection: twoFactorCodes)
+ *  2. Sends the OTP as a branded HTML email from noreply@nduproject.tech via Resend
+ *  3. Records a security audit log entry
+ *
+ * Called from Flutter:
+ *   FirebaseFunctions.instance.httpsCallable('sendTwoFactorCode')
  */
-exports.sendTeamInvitation = functions
+exports.sendTwoFactorCode = functions
   .runWith({
-    secrets: ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM_EMAIL'],
+    secrets: ['RESEND_API_KEY'],
     timeoutSeconds: 30,
     memory: '256MB'
   })
   .https.onCall(async (data, context) => {
-    // Verify authentication
+    const { email } = data;
+    console.log(`[sendTwoFactorCode] Request for email: ${email}`);
+
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      console.error(`[sendTwoFactorCode] Invalid email: ${email}`);
+      throw new functions.https.HttpsError('invalid-argument', 'A valid email is required.');
+    }
+
+    const emailLower = email.toLowerCase().trim();
+    await checkRateLimit(emailLower, 'sendTwoFactorCode', 5);
+
+    const resend = getResendClient();
+    const otp = generateOtp();
+    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
+
+    console.log(`[sendTwoFactorCode] OTP generated (len=${otp.length}) for ${emailLower}, expires at ${expiresAt.toISOString()}`);
+
+    // Store OTP in Firestore — keyed by email for unauthenticated access
+    const docRef = db.collection(OTP_COLLECTION).doc(emailLower);
+    await docRef.set({
+      code: otp,
+      email: emailLower,
+      attempts: 0,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt,
+      used: false,
+    });
+    console.log(`[sendTwoFactorCode] OTP stored in Firestore for ${emailLower}`);
+
+    // Build branded HTML email
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:40px 0;">
+    <tr><td align="center">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr><td style="background:#051424;padding:28px 36px;text-align:center;">
+          <div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:1px;">NDU <span style="color:#f8bd2a;">PROJECT</span></div>
+          <div style="font-size:10px;color:#909096;letter-spacing:3px;margin-top:4px;">NAVIGATE. DELIVER. UPGRADE.</div>
+        </td></tr>
+        <tr><td style="padding:36px 40px;text-align:center;">
+          <h1 style="font-size:20px;font-weight:700;color:#1a1d1f;margin:0 0 12px;">Your Verification Code</h1>
+          <p style="font-size:14px;color:#6b7280;margin:0 0 28px;">Use the code below to complete sign-in. It expires in 10 minutes.</p>
+          <div style="background:#f0f4ff;border-radius:12px;padding:20px 0;margin:0 0 28px;">
+            <span style="font-size:36px;font-weight:800;color:#1a1d1f;letter-spacing:8px;">${otp}</span>
+          </div>
+          <p style="font-size:12px;color:#9ca3af;margin:0 0 24px;">If you did not request this code, you can safely ignore this email.</p>
+          <div style="border-top:1px solid #e4e7ec;padding-top:20px;">
+            <p style="font-size:11px;color:#9ca3af;margin:0;">&copy; 2026 NDU Project. All rights reserved.</p>
+          </div>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+    // Send via Resend
+    const { data: emailResult, error } = await resend.emails.send({
+      from: RESEND_FROM_EMAIL,
+      to: email,
+      subject: 'Your NDU Project Verification Code',
+      html: htmlBody,
+    });
+
+    if (error) {
+      console.error('Resend sendTwoFactorCode error:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to send verification email.');
+    }
+
+    await logSecurityEvent('2fa_code_sent', emailLower, { email, messageId: emailResult?.id });
+
+    console.log(`2FA code sent to ${email}`);
+    return { success: true, message: 'Verification code sent.' };
+  });
+
+/**
+ * Verify a 2FA one-time passcode.
+ *
+ * Returns { success: true } if the code is valid.
+ * Returns { success: false, message: '...' } on failure.
+ * After MAX_OTP_ATTEMPTS failures the OTP document is deleted.
+ */
+exports.verifyTwoFactorCode = functions
+  .runWith({
+    timeoutSeconds: 15,
+    memory: '128MB'
+  })
+  .https.onCall(async (data, context) => {
+    const { code, email } = data;
+    console.log(`[verifyTwoFactorCode] Received request for email: ${email}`);
+
+    if (!code || typeof code !== 'string' || code.length !== OTP_LENGTH) {
+      console.error(`[verifyTwoFactorCode] Invalid code format: type=${typeof code}, len=${code?.length}`);
+      throw new functions.https.HttpsError('invalid-argument', 'A 6-digit code is required.');
+    }
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      console.error(`[verifyTwoFactorCode] Invalid email: ${email}`);
+      throw new functions.https.HttpsError('invalid-argument', 'Email is required.');
+    }
+
+    const emailLower = email.toLowerCase().trim();
+    const docRef = db.collection(OTP_COLLECTION).doc(emailLower);
+    const doc = await docRef.get();
+
+    console.log(`[verifyTwoFactorCode] Document exists: ${doc.exists}`);
+
+    if (!doc.exists) {
+      console.log(`[verifyTwoFactorCode] No OTP document found for ${emailLower}`);
+      return { success: false, message: 'No verification code found. Please request a new one.' };
+    }
+
+    const record = doc.data();
+    console.log(`[verifyTwoFactorCode] Stored code length: ${record.code?.length}, attempts: ${record.attempts}, used: ${record.used}`);
+
+    // Check expiry
+    if (record.expiresAt && record.expiresAt.toDate() < new Date()) {
+      console.log(`[verifyTwoFactorCode] Code expired at ${record.expiresAt.toDate().toISOString()}`);
+      await docRef.delete();
+      return { success: false, message: 'Code expired. Please request a new one.' };
+    }
+
+    // Check if already used
+    if (record.used) {
+      console.log(`[verifyTwoFactorCode] Code already used`);
+      await docRef.delete();
+      return { success: false, message: 'Code already used. Please request a new one.' };
+    }
+
+    // Check attempts
+    if (record.attempts >= MAX_OTP_ATTEMPTS) {
+      console.log(`[verifyTwoFactorCode] Too many attempts: ${record.attempts}`);
+      await docRef.delete();
+      return { success: false, message: 'Too many failed attempts. Please request a new code.' };
+    }
+
+    // Increment attempts
+    await docRef.update({ attempts: admin.firestore.FieldValue.increment(1) });
+
+    // Verify
+    if (record.code !== code) {
+      const newAttempts = (record.attempts || 0) + 1;
+      const remaining = MAX_OTP_ATTEMPTS - newAttempts;
+      console.log(`[verifyTwoFactorCode] Code mismatch. remaining=${remaining}`);
+      if (remaining <= 0) {
+        await docRef.delete();
+      }
+      await logSecurityEvent('2fa_code_failed', emailLower, { email: record.email }).catch(() => {});
+      return { success: false, message: remaining > 0
+        ? `Invalid code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`
+        : 'Too many failed attempts. Please request a new code.' };
+    }
+
+    console.log(`[verifyTwoFactorCode] Code verified successfully for ${record.email}`);
+    await docRef.update({ used: true });
+    await logSecurityEvent('2fa_code_verified', emailLower, { email: record.email }).catch(() => {});
+
+    return { success: true, message: 'Code verified.' };
+  });
+
+// ============================================================================
+// TEAM INVITATION EMAIL (via Resend)
+// ============================================================================
+
+/**
+ * Send Team Invitation Email via Resend from noreply@nduproject.tech.
+ *
+ * Setup:
+ *   firebase functions:secrets:set RESEND_API_KEY
+ *
+ * Called from Flutter:
+ *   FirebaseFunctions.instance.httpsCallable('sendTeamInvitation')
+ */
+exports.sendTeamInvitation = functions
+  .runWith({
+    secrets: ['RESEND_API_KEY'],
+    timeoutSeconds: 30,
+    memory: '256MB'
+  })
+  .https.onCall(async (data, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'You must be signed in to send invitations.');
     }
 
     const { email, inviterName, projectName, inviteLink } = data;
 
-    // Validate email
     if (!email || typeof email !== 'string' || !email.includes('@')) {
       throw new functions.https.HttpsError('invalid-argument', 'A valid email address is required.');
     }
 
-    // Check SMTP configuration
-    const smtpHost = process.env.SMTP_HOST;
-    const smtpUser = process.env.SMTP_USER;
-    const smtpPassword = process.env.SMTP_PASSWORD;
-    const smtpFromEmail = process.env.SMTP_FROM_EMAIL || 'noreply@nduproject.tech';
-
-    if (!smtpHost || !smtpUser || !smtpPassword) {
-      console.error('SMTP secrets not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASSWORD via firebase functions:secrets:set');
-      throw new functions.https.HttpsError('failed-precondition', 'Email service not configured. Please contact support.');
-    }
-
-    const smtpPort = parseInt(process.env.SMTP_PORT || '465', 10);
     const inviter = inviterName || context.auth.token.name || context.auth.token.email || 'A team member';
     const project = projectName || 'NDU Project';
     const signInLink = inviteLink || 'https://staging.nduproject.com/#/sign-in';
 
-    try {
-      // Dynamically import nodemailer (avoid load issues if not installed)
-      const nodemailer = require('nodemailer');
+    // Rate limit
+    await checkRateLimit(context.auth.uid, 'invitation', 20);
 
-      // Create SMTP transporter
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPassword,
-        },
-      });
+    const resend = getResendClient();
 
-      // Build HTML email
-      const htmlBody = `
+    const htmlBody = `
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f5f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f5f7;padding:40px 0;">
-    <tr>
-      <td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-          <!-- Header -->
-          <tr>
-            <td style="background:#051424;padding:32px 40px;text-align:center;">
-              <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:1px;">
-                NDU <span style="color:#f8bd2a;">PROJECT</span>
-              </div>
-              <div style="font-size:11px;color:#909096;letter-spacing:3px;margin-top:4px;">
-                NAVIGATE. DELIVER. UPGRADE.
-              </div>
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+        <tr><td style="background:#051424;padding:32px 40px;text-align:center;">
+          <div style="font-size:24px;font-weight:800;color:#fff;letter-spacing:1px;">NDU <span style="color:#f8bd2a;">PROJECT</span></div>
+          <div style="font-size:11px;color:#909096;letter-spacing:3px;margin-top:4px;">NAVIGATE. DELIVER. UPGRADE.</div>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h1 style="font-size:22px;font-weight:700;color:#1a1d1f;margin:0 0 16px;">You're invited to join ${project}</h1>
+          <p style="font-size:15px;color:#495057;line-height:1.6;margin:0 0 24px;"><strong>${inviter}</strong> has invited you to collaborate on <strong>${project}</strong> using NDU Project — the project delivery operating system.</p>
+          <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 32px;">Click the button below to accept the invitation and sign in. If you don't have an account yet, you'll be able to create one.</p>
+          <table cellpadding="0" cellspacing="0" style="margin:0 auto 32px;"><tr>
+            <td style="background:#ffc107;border-radius:12px;">
+              <a href="${signInLink}" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:700;color:#1a1d1f;text-decoration:none;">Accept Invitation &rarr;</a>
             </td>
-          </tr>
-          <!-- Body -->
-          <tr>
-            <td style="padding:40px;">
-              <h1 style="font-size:22px;font-weight:700;color:#1a1d1f;margin:0 0 16px;">
-                You're invited to join ${project}
-              </h1>
-              <p style="font-size:15px;color:#495057;line-height:1.6;margin:0 0 24px;">
-                <strong>${inviter}</strong> has invited you to collaborate on <strong>${project}</strong> using NDU Project — the project delivery operating system.
-              </p>
-              <p style="font-size:14px;color:#6b7280;line-height:1.6;margin:0 0 32px;">
-                Click the button below to accept the invitation and sign in. If you don't have an account yet, you'll be able to create one.
-              </p>
-              <!-- CTA Button -->
-              <table cellpadding="0" cellspacing="0" style="margin:0 auto 32px;">
-                <tr>
-                  <td style="background:#ffc107;border-radius:12px;">
-                    <a href="${signInLink}" style="display:inline-block;padding:14px 36px;font-size:15px;font-weight:700;color:#1a1d1f;text-decoration:none;">
-                      Accept Invitation &rarr;
-                    </a>
-                  </td>
-                </tr>
-              </table>
-              <p style="font-size:13px;color:#9ca3af;line-height:1.5;margin:0 0 8px;">
-                Or copy this link into your browser:
-              </p>
-              <p style="font-size:13px;color:#6366f1;word-break:break-all;margin:0 0 32px;">
-                ${signInLink}
-              </p>
-              <div style="border-top:1px solid #e4e7ec;padding-top:24px;">
-                <p style="font-size:12px;color:#9ca3af;margin:0;">
-                  This invitation was sent by ${inviter} via NDU Project. If you weren't expecting this invitation, you can safely ignore this email.
-                </p>
-              </div>
-            </td>
-          </tr>
-        </table>
-        <p style="font-size:11px;color:#9ca3af;margin:24px 0 0;">
-          &copy; 2026 NDU Project. All rights reserved.
-        </p>
-      </td>
-    </tr>
+          </tr></table>
+          <p style="font-size:13px;color:#9ca3af;line-height:1.5;margin:0 0 8px;">Or copy this link into your browser:</p>
+          <p style="font-size:13px;color:#6366f1;word-break:break-all;margin:0 0 32px;">${signInLink}</p>
+          <div style="border-top:1px solid #e4e7ec;padding-top:24px;">
+            <p style="font-size:12px;color:#9ca3af;margin:0;">This invitation was sent by ${inviter} via NDU Project. If you weren't expecting this, you can safely ignore this email.</p>
+          </div>
+        </td></tr>
+      </table>
+      <p style="font-size:11px;color:#9ca3af;margin:24px 0 0;">&copy; 2026 NDU Project. All rights reserved.</p>
+    </td></tr>
   </table>
 </body>
-</html>
-      `;
+</html>`;
 
-      // Send email
-      const info = await transporter.sendMail({
-        from: `"NDU Project" <${smtpFromEmail}>`,
+    try {
+      const { data: emailResult, error } = await resend.emails.send({
+        from: RESEND_FROM_EMAIL,
         to: email,
         subject: `You're invited to join ${project} on NDU Project`,
         html: htmlBody,
         text: `${inviter} has invited you to join ${project} on NDU Project. Visit ${signInLink} to accept the invitation.`,
       });
 
-      console.log(`Invitation email sent to ${email}: ${info.messageId}`);
+      if (error) {
+        console.error('Resend invitation error:', error);
+        throw new functions.https.HttpsError('internal', `Failed to send invitation email: ${error.message}`);
+      }
+
+      console.log(`Invitation email sent to ${email}: ${emailResult?.id}`);
 
       // Store invitation record in Firestore for tracking
       const inviteRef = db.collection('teamInvitations').doc();
@@ -1796,20 +1847,19 @@ exports.sendTeamInvitation = functions
         projectName: project,
         signInLink: signInLink,
         status: 'sent',
-        messageId: info.messageId,
+        messageId: emailResult?.id || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
 
-      return {
-        success: true,
-        message: `Invitation sent to ${email}`,
-        messageId: info.messageId,
-      };
+      await logSecurityEvent('team_invitation_sent', context.auth.uid, { inviteeEmail: email });
+
+      return { success: true, message: `Invitation sent to ${email}`, messageId: emailResult?.id };
 
     } catch (error) {
-      console.error('Team invitation email error:', error);
-      throw new functions.https.HttpsError('internal', `Failed to send invitation email: ${error.message}`);
+      console.error('Team invitation error:', error);
+      if (error instanceof functions.https.HttpsError) throw error;
+      throw new functions.https.HttpsError('internal', `Failed to send invitation: ${error.message}`);
     }
   });
 

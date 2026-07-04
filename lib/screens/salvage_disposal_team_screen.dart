@@ -1284,9 +1284,46 @@ void _applyDefaults() {
                   ],
                 ),
               ),
-              _buildActionButton(Icons.filter_list, 'Filter', onTap: () {}),
+              ElevatedButton(
+                onPressed: () => _showAddInventoryDialog(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'Add Item',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(width: 8),
-              _buildActionButton(Icons.upload_file, 'Upload CSV', onTap: () {}),
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.upload_file_outlined, size: 16),
+                label: const Text('Import CSV'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFF93C5FD)),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -1564,7 +1601,6 @@ void _applyDefaults() {
     );
   }
 
-  // ignore: unused_element
   void _showAddInventoryDialog(BuildContext context) {
     final projectId = _getProjectId();
     if (projectId == null) {
@@ -2620,10 +2656,46 @@ Execution snapshot:
                   ],
                 ),
               ),
-              _buildActionButton(Icons.person_add_alt_1, 'Assign Role',
-                  onTap: () {
-                _showAddTeamMemberDialog(context);
-              }),
+              ElevatedButton(
+                onPressed: () => _showAddTeamMemberDialog(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add, size: 18),
+                    SizedBox(width: 6),
+                    Text(
+                      'Add Member',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.upload_file_outlined, size: 16),
+                label: const Text('Import CSV'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  foregroundColor: const Color(0xFF2563EB),
+                  side: const BorderSide(color: Color(0xFF93C5FD)),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 20),

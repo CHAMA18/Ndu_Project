@@ -19,6 +19,7 @@ import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -567,54 +568,152 @@ class AnomalyDetector {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// #10: TWO-FACTOR AUTHENTICATION (2FA) — TOTP-based
+// #10: TWO-FACTOR AUTHENTICATION (2FA) — Email OTP via Resend Cloud Functions
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// Note: Full TOTP 2FA requires the `otp` package and a UI for QR code
-// scanning. This is a stub that can be expanded when the package is added.
-// The infrastructure (SecureStorage for the secret, verification logic)
-// is implemented here.
+// Sends a 6-digit OTP to the user's email via the Cloud Functions:
+//   • sendTwoFactorCode  — generates & emails the OTP (Resend from noreply@nduproject.tech)
+//   • verifyTwoFactorCode — validates the OTP against Firestore
+//
+// The OTP is stored in Firestore (collection: twoFactorCodes) with a 10-minute TTL.
+// Rate limiting is enforced server-side (5 requests per user per hour).
 
 class TwoFactorAuthService {
   TwoFactorAuthService._();
 
-  /// Check if 2FA is enabled for the current user
+  /// Cloud Function URLs (region us-central1, project ndu-d3f60)
+  static const String _sendCodeUrl =
+      'https://us-central1-ndu-d3f60.cloudfunctions.net/sendTwoFactorCode';
+  static const String _verifyCodeUrl =
+      'https://us-central1-ndu-d3f60.cloudfunctions.net/verifyTwoFactorCode';
+
+  // ── Check if 2FA is enabled for the current user ───────────────────────
+  /// We consider 2FA enabled when the user has a `twoFactorEnabled: true`
+  /// flag in their Firestore user profile document.
   static Future<bool> isEnabled() async {
-    final secret = await SecureStorage.getTwoFactorSecret();
-    return secret != null && secret.isNotEmpty;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      return doc.data()?['twoFactorEnabled'] == true;
+    } catch (e) {
+      debugPrint('[TwoFactorAuthService] isEnabled error: $e');
+      return false;
+    }
   }
 
-  /// Enable 2FA with a TOTP secret
-  static Future<void> enable(String secret) async {
-    await SecureStorage.setTwoFactorSecret(secret);
+  // ── Enable / Disable 2FA ──────────────────────────────────────────────
+  static Future<void> enable() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'twoFactorEnabled': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
     await SecurityAuditLogger.log(action: '2fa_enabled');
   }
 
-  /// Disable 2FA
   static Future<void> disable() async {
-    await SecureStorage.clearTwoFactorSecret();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'twoFactorEnabled': false,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
     await SecurityAuditLogger.log(action: '2fa_disabled');
   }
 
-  /// Verify a TOTP code (requires `otp` package — stub for now)
-  static Future<bool> verifyCode(String code) async {
-    // TODO: Implement when `otp` package is added to pubspec.yaml
-    // For now, return true — 2FA is optional and not enforced
-    return true;
+  // ── Send OTP ──────────────────────────────────────────────────────────
+  /// Sends a 6-digit verification code to [email] via Resend.
+  /// Returns a success message or throws on failure.
+  static Future<String> sendCode({required String email}) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      String? idToken;
+      try {
+        idToken = await user?.getIdToken();
+      } catch (_) {
+        // User may be signed out during 2FA flow — sendCode works without auth
+      }
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      if (idToken != null) {
+        headers['Authorization'] = 'Bearer $idToken';
+      }
+
+      final response = await http.post(
+        Uri.parse(_sendCodeUrl),
+        headers: headers,
+        body: jsonEncode({
+          'data': {'email': email},
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final result = data['result'] as Map<String, dynamic>? ?? data;
+        if (result['success'] == true) {
+          debugPrint('[TwoFactorAuthService] Code sent to $email');
+          return result['message'] as String? ?? 'Code sent.';
+        }
+        throw Exception(result['message'] as String? ?? 'Failed to send code.');
+      }
+
+      // Parse Cloud Functions error format
+      final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = errorData['error'] as Map<String, dynamic>?;
+      throw Exception(error?['message'] as String? ?? 'Failed to send code.');
+    } catch (e) {
+      debugPrint('[TwoFactorAuthService] sendCode error: $e');
+      rethrow;
+    }
   }
 
-  /// Generate a new TOTP secret
-  static String generateSecret() {
-    // Generate a random 32-character base32 secret
-    final random = DateTime.now().microsecondsSinceEpoch;
-    final chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    final buffer = StringBuffer();
-    var seed = random;
-    for (int i = 0; i < 32; i++) {
-      seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
-      buffer.write(chars[seed % chars.length]);
+  // ── Verify OTP ────────────────────────────────────────────────────────
+  /// Verifies the 6-digit [code] entered by the user.
+  /// Returns true if valid, false otherwise.
+  static Future<bool> verifyCode({required String code, required String email}) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      String? idToken;
+      try {
+        idToken = await user?.getIdToken();
+      } catch (_) {}
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+      };
+      if (idToken != null) {
+        headers['Authorization'] = 'Bearer $idToken';
+      }
+
+      final response = await http.post(
+        Uri.parse(_verifyCodeUrl),
+        headers: headers,
+        body: jsonEncode({
+          'data': {'code': code, 'email': email},
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final result = data['result'] as Map<String, dynamic>? ?? data;
+        return result['success'] == true;
+      }
+
+      final errorData = jsonDecode(response.body) as Map<String, dynamic>;
+      final error = errorData['error'] as Map<String, dynamic>?;
+      debugPrint('[TwoFactorAuthService] verifyCode HTTP error: ${error?['message']}');
+      return false;
+    } catch (e) {
+      debugPrint('[TwoFactorAuthService] verifyCode error: $e');
+      return false;
     }
-    return buffer.toString();
   }
 }
 

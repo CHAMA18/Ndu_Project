@@ -37,6 +37,7 @@ import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/cost_by_wbs_tab.dart';
 
 class CostEstimateModuleScreen extends StatefulWidget {
   const CostEstimateModuleScreen({super.key});
@@ -55,7 +56,7 @@ class CostEstimateModuleScreen extends StatefulWidget {
 class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController = TabController(
-    length: 9,
+    length: 10,
     vsync: this,
   );
 
@@ -146,6 +147,7 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
                     SectionTab(icon: Icons.check_circle_outline, label: 'Review'),
                     SectionTab(icon: Icons.lock_outline, label: 'Baseline'),
                     SectionTab(icon: Icons.trending_up, label: 'Variance'),
+                    SectionTab(icon: Icons.account_tree_outlined, label: 'Cost by WBS'),
                   ],
                   controller: _tabController,
                   onChanged: (index) => setState(() {}),
@@ -188,6 +190,7 @@ class _CostEstimateModuleScreenState extends State<CostEstimateModuleScreen>
                     ReviewScreen(),
                     BaselineScreen(),
                     VarianceScreen(),
+                    const CostByWBSTab(),
                   ],
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
@@ -78,7 +79,7 @@ class LaunchColumn {
             width != null || flexible, 'Either width or flexible must be set');
 }
 
-class LaunchDataTable extends StatelessWidget {
+class LaunchDataTable extends StatefulWidget {
   LaunchDataTable({
     super.key,
     required this.title,
@@ -94,6 +95,8 @@ class LaunchDataTable extends StatelessWidget {
     this.emptyMessage = 'No entries yet. Add details to get started.',
     this.csvColumns,
     this.onCsvImport,
+    this.onSearch,
+    this.onFilter,
   }) : _columns = columns
             .map((c) => c is LaunchColumn
                 ? c
@@ -111,6 +114,8 @@ class LaunchDataTable extends StatelessWidget {
   final String? importLabel;
   final VoidCallback? onImport;
   final String emptyMessage;
+  final ValueChanged<String>? onSearch;
+  final VoidCallback? onFilter;
 
   /// CSV import column specifications — enables the "Import CSV" button.
   final List<CsvColumnSpec>? csvColumns;
@@ -118,7 +123,26 @@ class LaunchDataTable extends StatelessWidget {
   /// Callback when CSV rows are imported. Supports synchronous and async saves.
   final FutureOr<void> Function(List<Map<String, String>>)? onCsvImport;
 
-  List<LaunchColumn> get columns => _columns;
+
+
+  @override
+  State<LaunchDataTable> createState() => _LaunchDataTableState();
+}
+
+class _LaunchDataTableState extends State<LaunchDataTable> {
+  final TextEditingController _searchController = TextEditingController();
+
+  bool get _hasActions =>
+      widget.onAdd != null ||
+      widget.onAddValues != null ||
+      widget.onImport != null ||
+      widget.csvColumns != null;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -140,43 +164,141 @@ class LaunchDataTable extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildCardHeader(context),
-          if (rowCount == 0) _buildEmpty() else _buildRows(context),
+          if (widget.onSearch != null || _hasActions) _buildActionBar(context),
+          if (widget.rowCount == 0) _buildEmpty() else _buildRows(context),
+        ],
+      ),
+    );
+  }  Widget _buildCardHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827),
+            ),
+          ),
+          if (widget.subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              widget.subtitle!,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildCardHeader(BuildContext context) {
+  Widget _buildActionBar(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF111827),
-                  ),
+          if (widget.onSearch != null)
+            Expanded(
+              child: Container(
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
+                child: Row(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(left: 12),
+                      child: Icon(Icons.search, size: 20, color: Color(0xFF9CA3AF)),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (value) {
+                          widget.onSearch?.call(value);
+                        },
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF111827),
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'Search...',
+                          hintStyle: TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF9CA3AF),
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child: Icon(Icons.mic, size: 20, color: Color(0xFFF59E0B)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (widget.onSearch != null) const SizedBox(width: 12),
+          if (widget.onFilter != null) ...[
+            OutlinedButton(
+              onPressed: widget.onFilter,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                side: const BorderSide(color: Color(0xFFE5E7EB)),
+              ),
+              child: const Text(
+                'Filter',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF374151),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
+          if (widget.onAdd != null || widget.onAddValues != null) ...[
+            ElevatedButton(
+              onPressed: () => _showAddDialog(context),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                backgroundColor: const Color(0xFFF59E0B),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                elevation: 0,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.add, size: 18),
+                  const SizedBox(width: 6),
                   Text(
-                    subtitle!,
+                    widget.addLabel,
                     style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B7280),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
-          if (csvColumns != null && onCsvImport != null) ...[
+            const SizedBox(width: 8),
+          ],
+          if (widget.csvColumns != null && widget.onCsvImport != null) ...[
             OutlinedButton.icon(
               onPressed: () => _showCsvImportDialog(context),
               icon: const Icon(Icons.upload_file_outlined, size: 16),
@@ -192,11 +314,11 @@ class LaunchDataTable extends StatelessWidget {
             ),
             const SizedBox(width: 8),
           ],
-          if (onImport != null && importLabel != null) ...[
+          if (widget.onImport != null && widget.importLabel != null) ...[
             OutlinedButton.icon(
-              onPressed: onImport,
+              onPressed: widget.onImport,
               icon: const Icon(Icons.download_outlined, size: 16),
-              label: Text(importLabel!),
+              label: Text(widget.importLabel!),
               style: OutlinedButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -206,58 +328,36 @@ class LaunchDataTable extends StatelessWidget {
                 side: const BorderSide(color: Color(0xFFD1D5DB)),
               ),
             ),
-            const SizedBox(width: 8),
           ],
-          if (onAdd != null || onAddValues != null)
-            OutlinedButton.icon(
-              onPressed: () => _showAddDialog(context),
-              icon: const Icon(Icons.add, size: 16, color: Color(0xFF6B7280)),
-              label: Text(
-                addLabel,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
-                  color: Color(0xFF374151),
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                side: const BorderSide(color: Color(0xFFD1D5DB)),
-                backgroundColor: Colors.white,
-              ),
-            ),
         ],
       ),
     );
   }
 
   Future<void> _showCsvImportDialog(BuildContext context) async {
-    if (csvColumns == null || onCsvImport == null) return;
+    if (widget.csvColumns == null || widget.onCsvImport == null) return;
     final result = await showCsvImportDialog(
       context,
-      tableTitle: title,
-      columns: csvColumns!,
+      tableTitle: widget.title,
+      columns: widget.csvColumns!,
     );
     if (result != null && result.isNotEmpty) {
-      await onCsvImport!(result);
+      await widget.onCsvImport!(result);
     }
   }
 
   Future<void> _showAddDialog(BuildContext context) async {
-    if (onAddValues != null) {
+    if (widget.onAddValues != null) {
       final result = await showDialog<Map<String, String>>(
         context: context,
         builder: (ctx) => _AddItemDialog(
-          title: title,
-          columns: _columns,
+          title: widget.title,
+          columns: widget._columns,
         ),
       );
-      if (result != null) onAddValues!(result);
+      if (result != null) widget.onAddValues!(result);
     } else {
-      onAdd?.call();
+      widget.onAdd?.call();
     }
   }
 
@@ -270,7 +370,7 @@ class LaunchDataTable extends StatelessWidget {
             const Icon(Icons.info_outline, color: Color(0xFF9CA3AF), size: 32),
             const SizedBox(height: 12),
             Text(
-              emptyMessage,
+              widget.emptyMessage,
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -286,7 +386,7 @@ class LaunchDataTable extends StatelessWidget {
   Widget _buildRows(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final rows = List.generate(rowCount, (i) => cellBuilder(context, i));
+        final rows = List.generate(widget.rowCount, (i) => widget.cellBuilder(context, i));
         final effectiveColumns = _resolveColumns(rows);
         final hasRowActions = rows.any(
           (row) =>
@@ -324,8 +424,8 @@ class LaunchDataTable extends StatelessWidget {
   }
 
   List<LaunchColumn> _resolveColumns(List<Widget> rows) {
-    return List.generate(columns.length, (index) {
-      final column = columns[index];
+    return List.generate(widget._columns.length, (index) {
+      final column = widget._columns[index];
       if (!column.flexible) return column;
 
       final widths = rows
@@ -373,24 +473,26 @@ class LaunchDataTable extends StatelessWidget {
       width: tableWidth,
       padding: const EdgeInsets.symmetric(
         horizontal: _tableHorizontalPadding,
-        vertical: 12,
+        vertical: 14,
       ),
       decoration: const BoxDecoration(
-        color: Color(0xFF1E293B),
+        color: Color(0xFFF8FAFC),
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
+        ),
       ),
       child: Row(
         children: [
           ..._buildColumnSlots(
             columns,
             (col, _) => Text(
-              col.label.toUpperCase(),
+              col.label,
               textAlign: TextAlign.left,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFFFFFFFF),
-                letterSpacing: 0.5,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF374151),
               ),
             ),
           ),
@@ -398,13 +500,12 @@ class LaunchDataTable extends StatelessWidget {
             SizedBox(
               width: _actionColumnWidth,
               child: const Text(
-                'ACTIONS',
+                'Actions',
                 textAlign: TextAlign.right,
                 style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFFFFFFFF),
-                  letterSpacing: 0.5,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
                 ),
               ),
             ),
@@ -568,7 +669,6 @@ class _CellSlot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tableLayout = _TableLayoutInherited.of(context);
     // Use a constrained height with padding so dropdowns and status pills
     // never clip vertically, but still keep rows compact.
     return ConstrainedBox(
@@ -1055,6 +1155,8 @@ Future<bool> launchConfirmDelete(BuildContext context,
   return result ?? false;
 }
 
+/// World-class Add Item dialog with staggered field entrance animations,
+/// inline validation, success feedback, and keyboard shortcuts.
 class _AddItemDialog extends StatefulWidget {
   final String title;
   final List<LaunchColumn> columns;
@@ -1068,16 +1170,35 @@ class _AddItemDialog extends StatefulWidget {
   State<_AddItemDialog> createState() => _AddItemDialogState();
 }
 
-class _AddItemDialogState extends State<_AddItemDialog> {
+class _AddItemDialogState extends State<_AddItemDialog>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _controllers = <String, TextEditingController>{};
   final _dateValues = <String, String>{};
   final _dropdownValues = <String, String?>{};
+  final _errors = <String, String?>{};
+  final _focusNodes = <String, FocusNode>{};
+
+  late final AnimationController _animController;
+  late final Animation<double> _fadeIn;
+  late bool _submitted;
+  bool _showSuccess = false;
 
   @override
   void initState() {
     super.initState();
+    _submitted = false;
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _fadeIn = CurvedAnimation(
+      parent: _animController,
+      curve: Curves.easeOut,
+    );
+    _animController.forward();
     for (final col in widget.columns) {
+      _focusNodes[col.label] = FocusNode();
       switch (col.fieldType) {
         case LaunchFieldType.text:
           _controllers[col.label] = TextEditingController();
@@ -1094,65 +1215,156 @@ class _AddItemDialogState extends State<_AddItemDialog> {
 
   @override
   void dispose() {
+    _animController.dispose();
     for (final c in _controllers.values) {
       c.dispose();
+    }
+    for (final f in _focusNodes.values) {
+      f.dispose();
     }
     super.dispose();
   }
 
+  void _validate() {
+    _errors.clear();
+    for (final col in widget.columns) {
+      if (col.fieldType == LaunchFieldType.text) {
+        final text = _controllers[col.label]?.text.trim() ?? '';
+        if (text.isEmpty) {
+          _errors[col.label] = '${col.label} is required';
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return LaunchModalShell(
-      icon: Icons.add_rounded,
-      title: 'Add to ${widget.title}',
-      subtitle: 'Fill in the fields below to add a new entry to this table.',
-      body: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (int i = 0; i < widget.columns.length; i++) ...[
-              if (i > 0) const SizedBox(height: 12),
-              _buildField(widget.columns[i]),
-            ],
-          ],
+    final theme = Theme.of(context);
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.enter): () {
+          if (!_showSuccess) _submit();
+        },
+        const SingleActivator(LogicalKeyboardKey.escape): () {
+          Navigator.of(context).maybePop();
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: LaunchModalShell(
+          icon: Icons.add_rounded,
+          title: 'Add to ${widget.title}',
+          subtitle: 'Fill in the fields below to add a new entry to this table.',
+          body: AnimatedBuilder(
+            animation: _fadeIn,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _fadeIn.value,
+                child: _showSuccess ? _buildSuccessState(theme) : child,
+              );
+            },
+            child: Form(
+              key: _formKey,
+              autovalidateMode: _submitted
+                  ? AutovalidateMode.always
+                  : AutovalidateMode.disabled,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: _buildAnimatedFields(),
+              ),
+            ),
+          ),
+          actions: _showSuccess
+              ? []
+              : [
+                  LaunchModalCancelButton(
+                    label: 'Cancel',
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                  _buildSubmitButton(),
+                ],
         ),
       ),
-      actions: [
-        LaunchModalCancelButton(
-          label: 'Cancel',
-          onPressed: () => Navigator.pop(context),
-        ),
-        LaunchModalPrimaryButton(
-          label: 'Add Item',
-          icon: Icons.check_rounded,
-          onPressed: _submit,
-        ),
-      ],
     );
   }
 
-  Widget _buildField(LaunchColumn col) {
+  List<Widget> _buildAnimatedFields() {
+    final widgets = <Widget>[];
+    for (int i = 0; i < widget.columns.length; i++) {
+      final col = widget.columns[i];
+      final delay = i * 50;
+      widgets.add(
+        AnimatedBuilder(
+          animation: _fadeIn,
+          builder: (context, child) {
+            final progress = (_fadeIn.value * 1000 - delay).clamp(0.0, 1.0) / 1.0;
+            final slide = Curves.easeOut.transform(progress.clamp(0.0, 1.0));
+            return Opacity(
+              opacity: progress.clamp(0.0, 1.0),
+              child: Transform.translate(
+                offset: Offset(0, 12 * (1 - slide)),
+                child: child,
+              ),
+            );
+          },
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (i > 0) const SizedBox(height: 14),
+              _buildField(col, i),
+            ],
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  Widget _buildField(LaunchColumn col, int index) {
+    final error = _errors[col.label];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        LaunchModalLabel(col.label),
+        Row(
+          children: [
+            LaunchModalLabel(col.label),
+            if (col.fieldType == LaunchFieldType.text) ...[
+              const SizedBox(width: 4),
+              const Text('*',
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFEF4444))),
+            ],
+          ],
+        ),
         const SizedBox(height: 4),
-        _buildInput(col),
+        _buildInput(col, index),
+        if (error != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            error,
+            style: const TextStyle(
+              fontSize: 11,
+              color: Color(0xFFEF4444),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildInput(LaunchColumn col) {
+  Widget _buildInput(LaunchColumn col, int index) {
     switch (col.fieldType) {
       case LaunchFieldType.text:
         return VoiceTextField(
           controller: _controllers[col.label],
+          focusNode: _focusNodes[col.label],
           enableDocxImport: false,
           style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
-          decoration: _addFieldDecoration(hint: col.hint),
+          decoration: _modalInputDecoration(hint: col.hint, error: _errors[col.label]),
         );
       case LaunchFieldType.date:
         return _buildDateField(col);
@@ -1217,35 +1429,114 @@ class _AddItemDialogState extends State<_AddItemDialog> {
   Widget _buildDropdownField(LaunchColumn col) {
     final items = col.dropdownItems ?? [];
     final current = _dropdownValues[col.label];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE4E7EC), width: 1),
+    return DropdownButtonFormField<String>(
+      initialValue: current,
+      isExpanded: true,
+      icon: const Icon(Icons.keyboard_arrow_down_rounded,
+          color: Color(0xFF6B7280), size: 20),
+      style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
+      decoration: InputDecoration(
+        hintText: col.hint ?? 'Select ${col.label.toLowerCase()}',
+        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC), width: 1),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFE4E7EC), width: 1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Color(0xFFFFC107), width: 1.6),
+        ),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: current,
-          isExpanded: true,
-          hint: Text(col.hint ?? 'Select ${col.label.toLowerCase()}',
-              style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF))),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded,
-              size: 20, color: Color(0xFF6B7280)),
-          style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
-          items: items
-              .map((s) => DropdownMenuItem(
-                    value: s,
-                    child: Text(s, overflow: TextOverflow.ellipsis),
-                  ))
-              .toList(),
-          onChanged: (v) => setState(() => _dropdownValues[col.label] = v),
+      items: items
+          .map((s) => DropdownMenuItem(
+                value: s,
+                child: Text(s, overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
+      onChanged: (v) => setState(() => _dropdownValues[col.label] = v),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      child: ElevatedButton.icon(
+        onPressed: _showSuccess ? null : _submit,
+        icon: _showSuccess
+            ? const Icon(Icons.check_circle_rounded, size: 16)
+            : const Icon(Icons.check_rounded, size: 16),
+        label: Text(_showSuccess ? 'Added!' : 'Add Item'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _showSuccess
+              ? const Color(0xFF10B981)
+              : const Color(0xFFFFC107),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSuccessState(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: Color(0xFFECFDF5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF10B981),
+                size: 28,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Item Added Successfully',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'The new entry has been added to the table.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
   void _submit() {
+    setState(() {
+      _submitted = true;
+      _validate();
+    });
+    if (_errors.isNotEmpty) return;
     final values = <String, String>{};
     for (final col in widget.columns) {
       switch (col.fieldType) {
@@ -1257,11 +1548,14 @@ class _AddItemDialogState extends State<_AddItemDialog> {
           values[col.label] = _dropdownValues[col.label] ?? '';
       }
     }
-    Navigator.pop(context, values);
+    setState(() => _showSuccess = true);
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (mounted) Navigator.pop(context, values);
+    });
   }
 }
 
-InputDecoration _addFieldDecoration({String? hint}) {
+InputDecoration _modalInputDecoration({String? hint, String? error}) {
   return InputDecoration(
     hintText: hint,
     hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
@@ -1280,6 +1574,14 @@ InputDecoration _addFieldDecoration({String? hint}) {
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
       borderSide: const BorderSide(color: Color(0xFFFFC107), width: 1.6),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1.6),
     ),
   );
 }
