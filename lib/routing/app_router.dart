@@ -204,7 +204,7 @@ class AppRoutes {
   static const scheduleManagementBoard = 'schedule-management';
   static const projectControls = 'project-controls';
   static const changeManagementModule = 'change-management-module';
-  static const landingPage = 'landing';
+  static const landingPage = 'landing-page';
   static const careersPage = 'careers';
 
   // Team cluster
@@ -311,8 +311,8 @@ class AppRouter {
         '/', '/${AppRoutes.signIn}', '/${AppRoutes.createAccount}',
         '/${AppRoutes.splash}', '/${AppRoutes.onboarding}',
         '/${AppRoutes.profileOnboarding}',
-        '/${AppRoutes.mobilePricing}', '/${AppRoutes.privacyPolicy}',
-        '/${AppRoutes.termsConditions}',
+        '/${AppRoutes.mobilePricing}', '/${AppRoutes.pricing}',
+        '/${AppRoutes.privacyPolicy}', '/${AppRoutes.termsConditions}',
       ];
       final isPublicRoute = publicRoutes.contains(state.matchedLocation);
       if (user == null && !isPublicRoute) {
@@ -410,36 +410,6 @@ class AppRouter {
         name: AppRoutes.adminSubscriptionLookup,
         path: '/${AppRoutes.adminSubscriptionLookup}',
         pageBuilder: (context, state) => shimmerTransitionPage(state: state, child: const AdminAuthWrapper(child: AdminSubscriptionLookupScreen())),
-      ),
-      GoRoute(
-        name: AppRoutes.adminPortal,
-        path: '/${AppRoutes.adminPortal}',
-        builder: (context, state) => const AdminAuthWrapper(),
-      ),
-      GoRoute(
-        name: AppRoutes.adminHome,
-        path: '/${AppRoutes.adminHome}',
-        builder: (context, state) => const AdminAuthWrapper(child: AdminHomeScreen()),
-      ),
-      GoRoute(
-        name: AppRoutes.adminProjects,
-        path: '/${AppRoutes.adminProjects}',
-        builder: (context, state) => const AdminAuthWrapper(child: AdminProjectsScreen()),
-      ),
-      GoRoute(
-        name: AppRoutes.adminUsers,
-        path: '/${AppRoutes.adminUsers}',
-        builder: (context, state) => const AdminAuthWrapper(child: AdminUsersScreen()),
-      ),
-      GoRoute(
-        name: AppRoutes.adminCoupons,
-        path: '/${AppRoutes.adminCoupons}',
-        builder: (context, state) => const AdminAuthWrapper(child: AdminCouponsScreen()),
-      ),
-      GoRoute(
-        name: AppRoutes.adminSubscriptionLookup,
-        path: '/${AppRoutes.adminSubscriptionLookup}',
-        builder: (context, state) => const AdminAuthWrapper(child: AdminSubscriptionLookupScreen()),
       ),
       GoRoute(
         name: AppRoutes.signIn,

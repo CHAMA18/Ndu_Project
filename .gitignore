@@ -44,5 +44,9 @@ lints*.txt
 # Last-build ID (build artifact)
 .last_build_id
 
+# Runtime config with local API keys — DO NOT COMMIT
+env-config.js
+web/env-config.js
+
 # Misc generated
 *.pyc

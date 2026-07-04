@@ -115,8 +115,22 @@ void main() async {
   // app continue while initialization is still pending can crash Flutter web
   // with a FirebaseException/JavaScriptObject interop type error.
   try {
+    // Firebase.initializeApp() can hang indefinitely in some browser
+    // environments (e.g. when Firebase CDN is slow, IndexedDB is locked,
+    // or during hot restart with a stale connection). Run it with a hard
+    // timeout so app startup is never blocked by a stuck Firebase init.
+    // On hot restart, Firebase.initializeApp() can hang indefinitely because
+    // the Firebase SDK maintains a stale connection to IndexedDB/Firestore.
+    // Throwing a TimeoutException (caught by the outer try/catch) lets
+    // startup proceed without Firebase — the app degrades gracefully by
+    // showing an error screen rather than sitting on an infinite spinner.
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(
+      const Duration(seconds: 10),
+      onTimeout: () => throw TimeoutException(
+        'Firebase.initializeApp() timed out after 10s',
+      ),
     );
 
     // Configure Firestore to prevent INTERNAL ASSERTION FAILED errors on web.

@@ -54,10 +54,14 @@ class _AdminEditToggleState extends State<AdminEditToggle> {
           left: position.dx,
           bottom: position.dy,
           child: GestureDetector(
-            onPanUpdate: (details) {
-              // Calculate new position
-              double newX = position.dx + details.delta.dx;
-              double newY = position.dy - details.delta.dy;
+            onPanUpdate: (details) =>
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              // Use latest live position (not closure-captured value) to avoid
+              // stale position bugs when multiple events arrive in the same frame.
+              final currentPos = _dragPosition ?? data.position;
+              double newX = currentPos.dx + details.delta.dx;
+              double newY = currentPos.dy - details.delta.dy;
 
               // Constrain to screen bounds (with padding)
               const padding = 16.0;
@@ -66,8 +70,10 @@ class _AdminEditToggleState extends State<AdminEditToggle> {
 
               // Update local state during drag (no provider rebuild)
               setState(() => _dragPosition = Offset(newX, newY));
-            },
-            onPanEnd: (_) {
+            }),
+            onPanEnd: (_) =>
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
               // Save final position to provider
               if (_dragPosition != null) {
                 context
@@ -75,7 +81,7 @@ class _AdminEditToggleState extends State<AdminEditToggle> {
                     .updateEditButtonPosition(_dragPosition!);
                 setState(() => _dragPosition = null);
               }
-            },
+            }),
             child: FloatingActionButton.extended(
               onPressed: () =>
                   context.read<AppContentProvider>().toggleEditMode(),

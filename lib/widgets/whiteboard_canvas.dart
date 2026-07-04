@@ -82,9 +82,18 @@ class _WhiteboardCanvasState extends State<WhiteboardCanvas> {
           children: [
             Positioned.fill(
               child: GestureDetector(
-                onPanStart: (details) => _startStroke(details.localPosition),
-                onPanUpdate: (details) => _extendStroke(details.localPosition),
-                onPanEnd: (_) => _endStroke(),
+                onPanStart: (details) =>
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _startStroke(details.localPosition);
+                }),
+                onPanUpdate: (details) =>
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _extendStroke(details.localPosition);
+                }),
+                onPanEnd: (_) =>
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _endStroke();
+                }),
                 child: CustomPaint(
                   painter: _WhiteboardPainter(strokes: _strokes),
                 ),

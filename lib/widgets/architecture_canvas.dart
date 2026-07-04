@@ -497,11 +497,13 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                                     _selectedForConnection == n.id,
                                 isSelected: _selectedNodeId == n.id,
                                 isHovered: _hoveredNodeId == n.id,
-                                onDrag: (delta) {
+                                onDrag: (delta) =>
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (!mounted) return;
                                   n.position += delta;
                                   widget
                                       .onNodesChanged(List.of(widget.nodes));
-                                },
+                                }),
                                 onTap: () {
                                   if (_connectMode) {
                                     setState(() {
@@ -527,10 +529,11 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
                                   _selectNode(n.id);
                                 },
                                 onDoubleTap: () => _openNodeEditor(n),
-                                onHover: (hovering) {
+                                onHover: (hovering) => Future.microtask(() {
+                                  if (!mounted) return;
                                   setState(() => _hoveredNodeId =
                                       hovering ? n.id : null);
-                                },
+                                }),
                                 onDelete: () {
                                   final newNodes = widget.nodes
                                       .where((e) => e.id != n.id)

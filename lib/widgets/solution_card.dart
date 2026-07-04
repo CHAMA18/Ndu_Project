@@ -73,11 +73,15 @@ class _SolutionCardState extends State<SolutionCard> with SingleTickerProviderSt
 
     return MouseRegion(
       onEnter: (_) {
-        setState(() => _isHovering = true);
+        Future.microtask(() {
+          if (mounted) setState(() => _isHovering = true);
+        });
         _animationController.forward();
       },
       onExit: (_) {
-        setState(() => _isHovering = false);
+        Future.microtask(() {
+          if (mounted) setState(() => _isHovering = false);
+        });
         _animationController.reverse();
       },
       child: ScaleTransition(

@@ -1627,8 +1627,12 @@ class _GhostIconButtonState extends State<_GhostIconButton> {
       ),
     );
     return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _hover = true);
+        }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: widget.tooltip == null
           ? btn
           : Tooltip(message: widget.tooltip!, child: btn),
@@ -1660,8 +1664,12 @@ class _GhostButtonState extends State<_GhostButton> {
       cursor: widget.onTap == null
           ? SystemMouseCursors.forbidden
           : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _hover = true);
+        }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
@@ -1723,8 +1731,12 @@ class _PrimaryButtonState extends State<_PrimaryButton> {
       cursor: widget.onTap == null
           ? SystemMouseCursors.forbidden
           : SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _hover = true);
+        }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: GestureDetector(
         onTapDown: (_) => setState(() => _press = true),
         onTapUp: (_) => setState(() => _press = false),
@@ -1832,8 +1844,12 @@ class _OptionChipState extends State<_OptionChip> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _hover = true);
+        }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
@@ -1904,8 +1920,12 @@ class _BigChoiceTileState extends State<_BigChoiceTile> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _hover = true);
+        }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(
@@ -2001,8 +2021,12 @@ class _ToolChipState extends State<_ToolChip> {
   Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _hover = true);
+        }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedContainer(

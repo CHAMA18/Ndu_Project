@@ -2017,8 +2017,12 @@ class _GapEntryRowState extends State<_GapEntryRow> {
     final prioColor = _priorityColor(e.stage);
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => Future.microtask(() {
+        if (mounted) setState(() => _isHovering = true);
+      }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _isHovering = false);
+      }),
       child: Column(
         children: [
           Container(
@@ -2322,8 +2326,12 @@ class _RootCauseRowState extends State<_RootCauseRow> {
     final statusColor = _statusColor(item.status);
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => Future.microtask(() {
+        if (mounted) setState(() => _isHovering = true);
+      }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _isHovering = false);
+      }),
       child: Column(
         children: [
           Container(

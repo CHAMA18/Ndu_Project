@@ -579,12 +579,16 @@ class _ScheduleGanttEnhancedState extends State<ScheduleGanttEnhanced> {
                   top: 4,
                   child: MouseRegion(
                     onEnter: (_) {
-                      setState(() => _hoveredId = item.id);
+                      Future.microtask(() {
+                        if (mounted) setState(() => _hoveredId = item.id);
+                      });
                       widget.onActivityHover
                           ?.call(_findActivity(item.id));
                     },
                     onExit: (_) {
-                      setState(() => _hoveredId = null);
+                      Future.microtask(() {
+                        if (mounted) setState(() => _hoveredId = null);
+                      });
                       widget.onActivityHover?.call(null);
                     },
                     child: GestureDetector(

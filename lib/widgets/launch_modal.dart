@@ -214,8 +214,12 @@ class _CloseButtonState extends State<_CloseButton> {
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
+      onEnter: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = true);
+      }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hover = false);
+      }),
       child: InkWell(
         onTap: widget.onPressed,
         borderRadius: BorderRadius.circular(8),

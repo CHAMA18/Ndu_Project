@@ -462,8 +462,12 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
     final columns = tableLayout?.columns;
     final hasActions = widget.onDelete != null || widget.onEdit != null;
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovering = true),
-      onExit: (_) => setState(() => _hovering = false),
+      onEnter: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hovering = true);
+      }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _hovering = false);
+      }),
       child: Column(
         children: [
           Container(
@@ -764,8 +768,12 @@ class _LaunchDateCellState extends State<LaunchDateCell> {
       width: widget.width,
       height: 40,
       child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovering = true),
-        onExit: (_) => setState(() => _isHovering = false),
+        onEnter: (_) => Future.microtask(() {
+          if (mounted) setState(() => _isHovering = true);
+        }),
+        onExit: (_) => Future.microtask(() {
+          if (mounted) setState(() => _isHovering = false);
+        }),
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: () => _pickDate(context),

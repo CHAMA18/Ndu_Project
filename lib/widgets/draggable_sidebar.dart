@@ -131,10 +131,16 @@ class _DraggableSidebarState extends State<DraggableSidebar> {
         GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: _toggleSidebar,
-          onHorizontalDragStart: (_) => setState(() => _dragging = true),
+          onHorizontalDragStart: (_) => WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _dragging = true);
+          }),
           onHorizontalDragUpdate: (details) =>
-              _handleDragUpdate(details.primaryDelta ?? 0),
-          onHorizontalDragEnd: (_) => _handleDragEnd(),
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _handleDragUpdate(details.primaryDelta ?? 0);
+          }),
+          onHorizontalDragEnd: (_) => WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _handleDragEnd();
+          }),
           child: MouseRegion(
             cursor: SystemMouseCursors.resizeColumn,
             child: Tooltip(

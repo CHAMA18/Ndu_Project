@@ -2457,8 +2457,12 @@ class _ApprovalGateRowState extends State<_ApprovalGateRow> {
     final deptColor = _deptColor(c.department);
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _isHovering = true),
-      onExit: (_) => setState(() => _isHovering = false),
+      onEnter: (_) => Future.microtask(() {
+        if (mounted) setState(() => _isHovering = true);
+      }),
+      onExit: (_) => Future.microtask(() {
+        if (mounted) setState(() => _isHovering = false);
+      }),
       child: Column(
         children: [
           Container(
