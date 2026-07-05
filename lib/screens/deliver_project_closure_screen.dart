@@ -18,6 +18,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 import 'package:ndu_project/utils/csv_import_helper.dart';
 class DeliverProjectClosureScreen extends StatefulWidget {
@@ -151,12 +152,10 @@ class _DeliverProjectClosureScreenState
         }
         _scheduleSave();
       },
-      importLabel: 'Import Scope',
-      onImport: _importScope,
       emptyMessage:
           'No scope items yet. Add deliverables to track their acceptance status.',
       cellBuilder: (ctx, i) => LaunchDataRow(
-        onEdit: () => _scheduleSave(),
+        onEdit: () => _editScopeItem(i),
         onDelete: () => _confirmDeleteScope(i),
         onKazAi: () => _regenerateScopeRow(i),
         showDivider: i < _scopeItems.length - 1,
@@ -482,6 +481,35 @@ class _DeliverProjectClosureScreenState
       ));
     });
     _scheduleSave();
+  }
+
+  /// Opens an edit modal for a Scope Acceptance row.
+  /// Pre-fills the dialog with existing values and updates the row on save.
+  Future<void> _editScopeItem(int index) async {
+    if (index < 0 || index >= _scopeItems.length) return;
+    final item = _scopeItems[index];
+
+    final result = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (context) => _ScopeEditDialog(
+        deliverable: item.deliverable,
+        criteria: item.acceptanceCriteria,
+        status: item.status,
+        date: item.acceptanceDate,
+      ),
+    );
+
+    if (result != null && mounted) {
+      setState(() {
+        _scopeItems[index] = item.copyWith(
+          deliverable: result['Deliverable'] ?? item.deliverable,
+          acceptanceCriteria: result['Criteria'] ?? item.acceptanceCriteria,
+          status: result['Status'] ?? item.status,
+          acceptanceDate: result['Date'] ?? item.acceptanceDate,
+        );
+      });
+      _scheduleSave();
+    }
   }
 
   void _addMilestone(Map<String, String> values) {
@@ -1123,5 +1151,319 @@ class _DeliverProjectClosureScreenState
   String _normalizeStatus(dynamic value, String fallback) {
     final s = (value ?? '').toString().trim();
     return s.isEmpty ? fallback : s;
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// _ScopeEditDialog — modal for editing a Scope Acceptance row
+// ═══════════════════════════════════════════════════════════════════════════
+// Pre-fills the dialog with existing values and returns a Map with the
+// updated values when the user clicks "Save Changes". Includes KAZ AI
+// buttons on text fields for AI-powered content generation.
+
+class _ScopeEditDialog extends StatefulWidget {
+  final String deliverable;
+  final String criteria;
+  final String status;
+  final String date;
+
+  const _ScopeEditDialog({
+    required this.deliverable,
+    required this.criteria,
+    required this.status,
+    required this.date,
+  });
+
+  @override
+  State<_ScopeEditDialog> createState() => _ScopeEditDialogState();
+}
+
+class _ScopeEditDialogState extends State<_ScopeEditDialog> {
+  late final TextEditingController _deliverableCtrl;
+  late final TextEditingController _criteriaCtrl;
+  late final TextEditingController _dateCtrl;
+  late String _status;
+  final _formKey = GlobalKey<FormState>();
+  final _kazAiLoading = <String, bool>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _deliverableCtrl = TextEditingController(text: widget.deliverable);
+    _criteriaCtrl = TextEditingController(text: widget.criteria);
+    _dateCtrl = TextEditingController(text: widget.date);
+    _status = widget.status;
+  }
+
+  @override
+  void dispose() {
+    _deliverableCtrl.dispose();
+    _criteriaCtrl.dispose();
+    _dateCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generateFieldWithAi(String field, TextEditingController controller) async {
+    setState(() => _kazAiLoading[field] = true);
+    try {
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Suggest a concise value for the "$field" field in a '
+        'Scope Acceptance table entry for a project management application. '
+        'Return ONLY the text value (no JSON, no markdown).',
+        maxTokens: 100,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        controller.text = cleaned;
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _kazAiLoading[field] = false);
+  }
+
+  InputDecoration _inputDecoration(String hint, TextEditingController controller, String field) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+      filled: true,
+      fillColor: const Color(0xFFF9FAFB),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFD97706), width: 1.5),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      suffixIcon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // KAZ AI button
+          IconButton(
+            tooltip: 'KAZ AI',
+            icon: _kazAiLoading[field] == true
+                ? const SizedBox(
+                    width: 14, height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.auto_awesome,
+                    color: Color(0xFFF59E0B), size: 16),
+            onPressed: _kazAiLoading[field] == true
+                ? null
+                : () => _generateFieldWithAi(field, controller),
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+          ),
+          // Clear-all button
+          if (controller.text.isNotEmpty)
+            IconButton(
+              tooltip: 'Clear all content',
+              icon: const Icon(Icons.delete_sweep,
+                  color: Color(0xFFEF4444), size: 16),
+              onPressed: () {
+                controller.clear();
+                setState(() {});
+              },
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Header ────────────────────────────────────────────
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.edit_note_rounded,
+                          color: Color(0xFFD97706), size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Edit Scope Acceptance',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Update the deliverable details below.',
+                            style: TextStyle(
+                                fontSize: 12.5, color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ── Deliverable field ─────────────────────────────────
+                const Text('Deliverable *',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                VoiceTextField(
+                  controller: _deliverableCtrl,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
+                  decoration: _inputDecoration(
+                      'Deliverable name', _deliverableCtrl, 'Deliverable'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 14),
+
+                // ── Criteria field ────────────────────────────────────
+                const Text('Criteria *',
+                    style:
+                        TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                VoiceTextField(
+                  controller: _criteriaCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
+                  decoration:
+                      _inputDecoration('Acceptance criteria', _criteriaCtrl, 'Criteria'),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 14),
+
+                // ── Status + Date row ─────────────────────────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Status',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          DropdownButtonFormField<String>(
+                            value: _status,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: const Color(0xFFF9FAFB),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE5E7EB)),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 12),
+                            ),
+                            items: const ['Pending', 'Accepted', 'Partial', 'Rejected']
+                                .map((s) => DropdownMenuItem(
+                                    value: s, child: Text(s)))
+                                .toList(),
+                            onChanged: (v) {
+                              if (v != null) setState(() => _status = v);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Date',
+                              style: TextStyle(
+                                  fontSize: 13, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 4),
+                          VoiceTextField(
+                            controller: _dateCtrl,
+                            style: const TextStyle(
+                                fontSize: 13, color: Color(0xFF1A1D1F)),
+                            decoration: _inputDecoration(
+                                'YYYY-MM-DD', _dateCtrl, 'Date'),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+
+                // ── Action buttons ────────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel',
+                          style: TextStyle(color: Color(0xFF6B7280))),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pop({
+                          'Deliverable': _deliverableCtrl.text.trim(),
+                          'Criteria': _criteriaCtrl.text.trim(),
+                          'Status': _status,
+                          'Date': _dateCtrl.text.trim(),
+                        });
+                      },
+                      icon: const Icon(Icons.check_circle_outline, size: 18),
+                      label: const Text('Save Changes'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
