@@ -7,11 +7,13 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -54,6 +56,12 @@ class _AgileTeamStructureScreenState
   bool _isSaving = false;
   bool _isGenerating = false;
   Timer? _autoSaveDebounce;
+
+  // ── Per-field history + AI state ─────────────────────────────────────
+  final Map<String, List<String>> _fieldHistories = {};
+  final Map<String, int> _fieldHistoryIndices = {};
+  final Map<String, bool> _fieldIsAiGenerated = {};
+  final Map<String, bool> _fieldIsRegenerating = {};
 
   String? get _projectId {
     try {
@@ -143,6 +151,206 @@ class _AgileTeamStructureScreenState
       }
     } catch (e) { debugPrint('Error: $e'); }
     if (mounted) setState(() => _isSaving = false);
+  }
+
+  // ── Field history tracking for undo/redo ─────────────────────────────
+  void _recordFieldHistory(String key, String value, {bool isAi = false}) {
+    final history = _fieldHistories.putIfAbsent(key, () => []);
+    final index = _fieldHistoryIndices.putIfAbsent(key, () => -1);
+    if (index < history.length - 1) {
+      history.removeRange(index + 1, history.length);
+    }
+    if (history.isEmpty || history.last != value) {
+      history.add(value);
+      _fieldHistoryIndices[key] = history.length - 1;
+    }
+    if (isAi) _fieldIsAiGenerated[key] = true;
+  }
+
+  bool _canUndoField(String key) =>
+      (_fieldHistoryIndices[key] ?? -1) > 0;
+
+  bool _canRedoField(String key) {
+    final idx = _fieldHistoryIndices[key] ?? -1;
+    final history = _fieldHistories[key] ?? [];
+    return idx >= 0 && idx < history.length - 1;
+  }
+
+  void _undoField(String key, TextEditingController controller) {
+    if (!_canUndoField(key)) return;
+    final idx = _fieldHistoryIndices[key]! - 1;
+    _fieldHistoryIndices[key] = idx;
+    controller.text = _fieldHistories[key]![idx];
+    _scheduleAutoSave();
+  }
+
+  void _redoField(String key, TextEditingController controller) {
+    if (!_canRedoField(key)) return;
+    final idx = _fieldHistoryIndices[key]! + 1;
+    _fieldHistoryIndices[key] = idx;
+    controller.text = _fieldHistories[key]![idx];
+    _scheduleAutoSave();
+  }
+
+  // ── Per-field AI regeneration ────────────────────────────────────────
+  Future<void> _regenerateField(String key, String label, TextEditingController controller) async {
+    setState(() => _fieldIsRegenerating[key] = true);
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final contextText =
+          ProjectDataHelper.buildProjectContextScan(data, sectionLabel: label);
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate the "$label" field.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current value:\n${controller.text.isEmpty ? "(empty)" : controller.text}\n\n'
+        'Provide a concise, specific recommendation for this field. '
+        'Return ONLY the text content (no JSON, no markdown headers).',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        controller.text = cleaned;
+        _recordFieldHistory(key, cleaned, isAi: true);
+        _scheduleAutoSave();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI regeneration failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _fieldIsRegenerating[key] = false);
+  }
+
+  // ── Build an enhanced field with KAZ AI + clear + formatting toolbar ─
+  Widget _buildEnhancedField({
+    required String key,
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    int minLines = 1,
+    int maxLines = 1,
+    bool isDense = true,
+  }) {
+    final isRegenerating = _fieldIsRegenerating[key] ?? false;
+    final isAiGenerated = _fieldIsAiGenerated[key] ?? false;
+    final hasContent = controller.text.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Label row with AI badge ──────────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(label,
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _kHeadline)),
+            if (isAiGenerated)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome,
+                        size: 9, color: Color(0xFF0284C7)),
+                    SizedBox(width: 2),
+                    Text('AI',
+                        style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0284C7))),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+
+        // ── Text formatting toolbar ──────────────────────────────
+        TextFormattingToolbar(controller: controller),
+        const SizedBox(height: 2),
+
+        // ── Hoverable field with AI controls ─────────────────────
+        HoverableFieldControls(
+          isAiGenerated: isAiGenerated,
+          isLoading: isRegenerating,
+          canUndo: _canUndoField(key),
+          canRedo: _canRedoField(key),
+          onUndo: () => _undoField(key, controller),
+          onRedo: () => _redoField(key, controller),
+          onRegenerate: () => _regenerateField(key, label, controller),
+          child: VoiceTextField(
+            controller: controller,
+            minLines: minLines,
+            maxLines: maxLines,
+            onChanged: (value) {
+              _recordFieldHistory(key, value);
+              _scheduleAutoSave();
+              setState(() {});
+            },
+            decoration: InputDecoration(
+              hintText: hint,
+              labelText: null,
+              isDense: isDense,
+              border: const OutlineInputBorder(),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              // ── KAZ AI button + Clear button inside the text field ──
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // KAZ AI button
+                  IconButton(
+                    tooltip: 'KAZ AI',
+                    icon: isRegenerating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome,
+                            color: Color(0xFFF59E0B), size: 16),
+                    onPressed: isRegenerating
+                        ? null
+                        : () => _regenerateField(key, label, controller),
+                    padding: const EdgeInsets.all(2),
+                    constraints: const BoxConstraints(
+                        minWidth: 28, minHeight: 28),
+                  ),
+                  // Clear-all button
+                  if (hasContent)
+                    IconButton(
+                      tooltip: 'Clear all content',
+                      icon: const Icon(Icons.delete_sweep,
+                          color: Color(0xFFEF4444), size: 16),
+                      onPressed: () {
+                        controller.clear();
+                        _recordFieldHistory(key, '');
+                        _scheduleAutoSave();
+                        setState(() {});
+                      },
+                      padding: const EdgeInsets.all(2),
+                      constraints: const BoxConstraints(
+                          minWidth: 28, minHeight: 28),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _saveData() async {
@@ -398,28 +606,19 @@ class _AgileTeamStructureScreenState
             Row(
               children: [
                 Expanded(
-                  child: VoiceTextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Squad / Team Name',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
+                  child: _buildEnhancedField(
+                    key: '${team.id}_name',
+                    label: 'Squad / Team Name',
                     controller: ctrls[0],
-                    onChanged: (_) => _scheduleAutoSave(),
                   ),
                 ),
                 const SizedBox(width: 12),
                 SizedBox(
                   width: 80,
-                  child: VoiceTextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Count',
-                      border: OutlineInputBorder(),
-                      isDense: true,
-                    ),
+                  child: _buildEnhancedField(
+                    key: '${team.id}_count',
+                    label: 'Count',
                     controller: ctrls[1],
-                    keyboardType: TextInputType.number,
-                    onChanged: (_) => _scheduleAutoSave(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -430,25 +629,20 @@ class _AgileTeamStructureScreenState
               ],
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              decoration: const InputDecoration(
-                labelText: 'Primary Role / Focus',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
+            _buildEnhancedField(
+              key: '${team.id}_role',
+              label: 'Primary Role / Focus',
               controller: ctrls[2],
-              onChanged: (_) => _scheduleAutoSave(),
+              minLines: 2,
+              maxLines: 4,
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              decoration: const InputDecoration(
-                labelText: 'Key Skills / Cross-functional coverage',
-                border: OutlineInputBorder(),
-                isDense: true,
-              ),
+            _buildEnhancedField(
+              key: '${team.id}_skills',
+              label: 'Key Skills / Cross-functional coverage',
               controller: ctrls[3],
-              maxLines: 2,
-              onChanged: (_) => _scheduleAutoSave(),
+              minLines: 2,
+              maxLines: 4,
             ),
           ],
         ),
@@ -458,25 +652,13 @@ class _AgileTeamStructureScreenState
 
   Widget _buildNotesSection() {
     _noteControllers.putIfAbsent('notes', () => TextEditingController());
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Additional Notes',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: _kHeadline)),
-        const SizedBox(height: 8),
-        VoiceTextField(
-          controller: _noteControllers['notes'],
-          decoration: const InputDecoration(
-            hintText: 'Team location, timezone overlaps, RACI notes...',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 4,
-          onChanged: (_) => _scheduleAutoSave(),
-        ),
-      ],
+    return _buildEnhancedField(
+      key: 'notes',
+      label: 'Additional Notes',
+      controller: _noteControllers['notes']!,
+      hint: 'Team location, timezone overlaps, RACI notes...',
+      minLines: 3,
+      maxLines: 6,
     );
   }
 
