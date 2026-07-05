@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/utils/download_helper_stub.dart'
     if (dart.library.html) 'package:ndu_project/utils/download_helper_web.dart' as loader;
@@ -7,6 +8,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/transition_to_prod_team_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/phase_transition_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -78,29 +80,6 @@ class _DeliverProjectClosureScreenState
               showImportButton: false,
               showContentButton: false,
               showNavigationButtons: false, onExportPdf: _exportPdf),
-            Row(
-              children: [
-                const Spacer(),
-                ExecutionActionBar(
-                  actions: [
-                    ExecutionActionItem(
-                      label: _isExporting ? 'Exporting…' : 'Export PDF',
-                      icon: Icons.picture_as_pdf_outlined,
-                      tone: ExecutionActionTone.secondary,
-                      isLoading: _isExporting,
-                      onPressed: _isExporting ? null : _exportPdf,
-                    ),
-                    ExecutionActionItem(
-                      label: _isGenerating ? 'Generating…' : 'AI Assist',
-                      icon: Icons.auto_awesome_outlined,
-                      tone: ExecutionActionTone.ai,
-                      isLoading: _isGenerating,
-                      onPressed: _isGenerating ? null : _populateFromAi,
-                    ),
-                  ],
-                ),
-              ],
-            ),
             const SizedBox(height: 12),
             _buildScopeAcceptancePanel(),
             const SizedBox(height: 16),
@@ -179,6 +158,7 @@ class _DeliverProjectClosureScreenState
       cellBuilder: (ctx, i) => LaunchDataRow(
         onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteScope(i),
+        onKazAi: () => _regenerateScopeRow(i),
         showDivider: i < _scopeItems.length - 1,
         cells: [
           LaunchEditableCell(
@@ -886,6 +866,52 @@ class _DeliverProjectClosureScreenState
       _isGenerating = false;
     });
     await _persistData();
+  }
+
+  /// Regenerate a single scope acceptance row using KAZ AI.
+  /// Re-populates the deliverable name and acceptance criteria from AI.
+  Future<void> _regenerateScopeRow(int index) async {
+    if (index < 0 || index >= _scopeItems.length) return;
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Scope Acceptance',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a deliverable name and its '
+        'acceptance criteria for a scope acceptance item.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current deliverable: ${_scopeItems[index].deliverable}\n'
+        'Current criteria: ${_scopeItems[index].acceptanceCriteria}\n\n'
+        'Return ONLY a valid JSON object with keys: "deliverable", "criteria".',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      // Parse the JSON response
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final jsonStr = result.substring(start, end + 1);
+        final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _scopeItems[index] = _scopeItems[index].copyWith(
+              deliverable: (parsed['deliverable'] ?? '').toString(),
+              acceptanceCriteria: (parsed['criteria'] ?? '').toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI regeneration failed: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _exportPdf() async {

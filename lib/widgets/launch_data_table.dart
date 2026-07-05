@@ -391,7 +391,7 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
         final hasRowActions = rows.any(
           (row) =>
               row is LaunchDataRow &&
-              (row.onDelete != null || row.onEdit != null),
+              (row.onDelete != null || row.onEdit != null || row.onKazAi != null),
         );
         final minTableWidth = _minTableWidth(effectiveColumns, hasRowActions);
         final tableWidth = constraints.maxWidth > minTableWidth
@@ -541,12 +541,14 @@ class LaunchDataRow extends StatefulWidget {
     required this.cells,
     this.onDelete,
     this.onEdit,
+    this.onKazAi,
     this.showDivider = false,
   });
 
   final List<Widget> cells;
   final VoidCallback? onDelete;
   final VoidCallback? onEdit;
+  final VoidCallback? onKazAi;
   final bool showDivider;
 
   @override
@@ -561,7 +563,7 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
   Widget build(BuildContext context) {
     final tableLayout = _TableLayoutInherited.of(context);
     final columns = tableLayout?.columns;
-    final hasActions = widget.onDelete != null || widget.onEdit != null;
+    final hasActions = widget.onDelete != null || widget.onEdit != null || widget.onKazAi != null;
     return MouseRegion(
       onEnter: (_) => Future.microtask(() {
         if (mounted) setState(() => _hovering = true);
@@ -608,6 +610,22 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                          if (widget.onKazAi != null)
+                            Tooltip(
+                              message: 'KAZ AI',
+                              child: IconButton(
+                                icon: const Icon(Icons.auto_awesome,
+                                    size: 16, color: Color(0xFFF59E0B)),
+                                onPressed: widget.onKazAi,
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(
+                                    minWidth: 28, minHeight: 28),
+                                splashRadius: 14,
+                              ),
+                            ),
+                          if (widget.onKazAi != null &&
+                              (widget.onEdit != null || widget.onDelete != null))
+                            const SizedBox(width: 2),
                           if (widget.onEdit != null)
                             Tooltip(
                               message: _isEditing ? 'Save' : 'Edit',
