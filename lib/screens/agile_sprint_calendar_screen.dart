@@ -7,11 +7,14 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/roadmap_service.dart';
 import 'package:ndu_project/services/agile_wireframe_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -34,6 +37,7 @@ class _AgileSprintCalendarScreenState
     extends State<AgileSprintCalendarScreen> {
   List<RoadmapSprint> _sprints = [];
   bool _isLoading = true;
+  bool _isGenerating = false;
   TextEditingController _ceremonyController = TextEditingController();
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
@@ -87,9 +91,41 @@ class _AgileSprintCalendarScreenState
         _sprints = sprints;
         _isLoading = false;
       });
+      // ── Auto-populate ceremony schedule from AI when empty ────────
+      if (_ceremonyController.text.trim().isEmpty && !_isGenerating) {
+        _generateCeremonies();
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _generateCeremonies() async {
+    setState(() => _isGenerating = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Sprint Ceremonies',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a sprint ceremony schedule.\n\n'
+        'Context:\n$contextText\n\n'
+        'Include: Sprint Planning, Daily Standup, Sprint Review, and Sprint Retrospective '
+        'with suggested days and times. Return ONLY the text (no JSON, no markdown headers).',
+        maxTokens: 200,
+        temperature: 0.5,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty && mounted) {
+        _ceremonyController.text = cleaned;
+        _saveCeremonies();
+      }
+    } catch (e) {
+      debugPrint('Ceremony generation error: $e');
+    }
+    if (mounted) setState(() => _isGenerating = false);
   }
 
   Future<void> _saveCeremonies() async {
@@ -220,12 +256,51 @@ class _AgileSprintCalendarScreenState
                               fontWeight: FontWeight.w600,
                               color: _kHeadline)),
                       const SizedBox(height: 8),
+                      TextFormattingToolbar(controller: _ceremonyController),
+                      const SizedBox(height: 4),
                       VoiceTextField(
                         controller: _ceremonyController,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText:
                               'e.g. Sprint Planning (Mon 9-11am), Daily Standup (9:15am), Review (Fri 3-4pm), Retro (Fri 4-5pm)',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                tooltip: 'KAZ AI',
+                                icon: _isGenerating
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      )
+                                    : const Icon(Icons.auto_awesome,
+                                        color: Color(0xFFF59E0B), size: 18),
+                                onPressed: _isGenerating
+                                    ? null
+                                    : _generateCeremonies,
+                                padding: const EdgeInsets.all(4),
+                                constraints: const BoxConstraints(
+                                    minWidth: 32, minHeight: 32),
+                              ),
+                              if (_ceremonyController.text.isNotEmpty)
+                                IconButton(
+                                  tooltip: 'Clear all content',
+                                  icon: const Icon(Icons.delete_sweep,
+                                      color: Color(0xFFEF4444), size: 18),
+                                  onPressed: () {
+                                    _ceremonyController.clear();
+                                    _saveCeremonies();
+                                    setState(() {});
+                                  },
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(
+                                      minWidth: 32, minHeight: 32),
+                                ),
+                            ],
+                          ),
                         ),
                         maxLines: 4,
                         onChanged: (_) {
@@ -233,6 +308,7 @@ class _AgileSprintCalendarScreenState
                           _saveDebounce = Timer(
                               const Duration(milliseconds: 500),
                               _saveCeremonies);
+                          setState(() {});
                         },
                       ),
                     ],

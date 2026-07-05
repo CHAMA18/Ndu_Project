@@ -9,11 +9,13 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -68,6 +70,10 @@ class _AgileEpicsFeaturesScreenState
         }
       });
       if (_selectedEpicId != null) _loadFeatures();
+      // ── Auto-populate from AI when no epics exist ──────────────────
+      if (_epics.isEmpty && !_isGenerating) {
+        _generateEpics();
+      }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -223,6 +229,70 @@ class _AgileEpicsFeaturesScreenState
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  // ── Per-field AI regeneration for epics ──────────────────────────────
+  Future<void> _regenerateEpicField(Epic epic, String field) async {
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Epic $field',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a concise $field for an agile epic.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current epic title: ${epic.title}\n'
+        'Current value: ${field == 'title' ? epic.title : field == 'theme' ? epic.theme : epic.businessValue}\n\n'
+        'Return ONLY the text value (no JSON, no markdown).',
+        maxTokens: 100,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        if (field == 'title') epic.title = cleaned;
+        setState(() {});
+        _updateEpic(epic);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI regeneration failed: $e')),
+        );
+      }
+    }
+  }
+
+  // ── Per-field AI regeneration for features ───────────────────────────
+  Future<void> _regenerateFeatureField(Feature feature, String field) async {
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Feature $field',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a concise $field for an agile feature.\n\n'
+        'Context:\n$contextText\n\n'
+        'Return ONLY the text value (no JSON, no markdown).',
+        maxTokens: 100,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        if (field == 'title') feature.title = cleaned;
+        setState(() {});
+        _updateFeature(feature);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI regeneration failed: $e')),
+        );
+      }
     }
   }
 
@@ -385,10 +455,38 @@ Widget _buildEpicTile(int index, Epic epic) {
                 children: [
                   Expanded(
                     child: VoiceTextField(
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         hintText: 'Epic title',
                         border: InputBorder.none,
                         isDense: true,
+                        suffixIcon: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'KAZ AI',
+                              icon: const Icon(Icons.auto_awesome,
+                                  color: Color(0xFFF59E0B), size: 16),
+                              onPressed: () => _regenerateEpicField(epic, 'title'),
+                              padding: const EdgeInsets.all(2),
+                              constraints: const BoxConstraints(
+                                  minWidth: 28, minHeight: 28),
+                            ),
+                            if (epic.title.isNotEmpty)
+                              IconButton(
+                                tooltip: 'Clear',
+                                icon: const Icon(Icons.delete_sweep,
+                                    color: Color(0xFFEF4444), size: 16),
+                                onPressed: () {
+                                  epic.title = '';
+                                  _updateEpic(epic);
+                                  setState(() {});
+                                },
+                                padding: const EdgeInsets.all(2),
+                                constraints: const BoxConstraints(
+                                    minWidth: 28, minHeight: 28),
+                              ),
+                          ],
+                        ),
                       ),
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 14),
@@ -478,10 +576,39 @@ Widget _buildEpicTile(int index, Epic epic) {
               children: [
                 Expanded(
                   child: VoiceTextField(
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Feature title',
                       border: InputBorder.none,
                       isDense: true,
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            tooltip: 'KAZ AI',
+                            icon: const Icon(Icons.auto_awesome,
+                                color: Color(0xFFF59E0B), size: 16),
+                            onPressed: () =>
+                                _regenerateFeatureField(feature, 'title'),
+                            padding: const EdgeInsets.all(2),
+                            constraints: const BoxConstraints(
+                                minWidth: 28, minHeight: 28),
+                          ),
+                          if (feature.title.isNotEmpty)
+                            IconButton(
+                              tooltip: 'Clear',
+                              icon: const Icon(Icons.delete_sweep,
+                                  color: Color(0xFFEF4444), size: 16),
+                              onPressed: () {
+                                feature.title = '';
+                                _updateFeature(feature);
+                                setState(() {});
+                              },
+                              padding: const EdgeInsets.all(2),
+                              constraints: const BoxConstraints(
+                                  minWidth: 28, minHeight: 28),
+                            ),
+                        ],
+                      ),
                     ),
                     style: const TextStyle(
                         fontWeight: FontWeight.w500, fontSize: 13),
@@ -588,8 +715,24 @@ Widget _buildEpicTile(int index, Epic epic) {
           SizedBox(
             width: 80,
             child: VoiceTextField(
-              decoration:
-                  const InputDecoration(border: InputBorder.none, isDense: true),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                isDense: true,
+                suffixIcon: value.isNotEmpty
+                    ? IconButton(
+                        tooltip: 'Clear',
+                        icon: const Icon(Icons.close,
+                            color: Color(0xFFEF4444), size: 12),
+                        onPressed: () {
+                          onChanged('');
+                          setState(() {});
+                        },
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                            minWidth: 20, minHeight: 20),
+                      )
+                    : null,
+              ),
               style: const TextStyle(fontSize: 11),
               controller: TextEditingController(text: value),
               onChanged: onChanged,
