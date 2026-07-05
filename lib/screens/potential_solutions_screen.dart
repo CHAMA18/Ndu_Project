@@ -256,11 +256,10 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
           _seedFieldHistories();
         } else {
           _showHintDialogOnce();
-          // Immediately apply fallback solutions so the page renders
-          // instantly without waiting for the OpenAI API (which may be
-          // slow or unavailable due to region restrictions).
-          _applyFallback(
-              'Add your solutions manually or click regenerate to try AI suggestions.');
+          // Auto-populate from AI: show shimmer loading state while
+          // the AI generates real solutions. If the AI fails, fall back
+          // to placeholder text.
+          _generateInitialSolutions();
         }
 
         if (mounted) setState(() {});
@@ -440,25 +439,39 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
   }
 
   Future<void> _generateInitialSolutions() async {
-    if (_incomingBusinessCase.trim().isEmpty) {
-      setState(() {
-        _isLoadingSolutions = false;
-      });
-      _seedFieldHistories();
-      _syncDraftToProvider();
-      return;
-    }
-
     // If API is not configured, skip directly to fallback
     if (!OpenAiConfig.isConfigured) {
       _applyFallback('AI service not configured. Add content manually.');
       return;
     }
 
+    // Build the prompt context — use business case if available, otherwise
+    // fall back to project name + notes + objective so the AI always has
+    // something to work with.
+    final projectData = ProjectDataHelper.getData(context);
+    String promptContext = _incomingBusinessCase.trim();
+
+    if (promptContext.isEmpty) {
+      // Use project name, objective, and notes as context when business
+      // case is empty — the AI can still generate meaningful solutions.
+      final projectName = projectData.projectName.trim();
+      final projectObjective = projectData.projectObjective.trim();
+      final notes = projectData.notes.trim();
+
+      final parts = <String>[];
+      if (projectName.isNotEmpty) parts.add('Project: $projectName');
+      if (projectObjective.isNotEmpty) parts.add('Objective: $projectObjective');
+      if (notes.isNotEmpty) parts.add('Notes: $notes');
+
+      promptContext = parts.isNotEmpty
+          ? parts.join('\n')
+          : 'General project delivery — suggest 3 high-level approaches.';
+    }
+
     try {
       final aiSolutions =
           await _openAiService.generateSolutionsFromBusinessCase(
-        _incomingBusinessCase,
+        promptContext,
         contextNotes: _buildPotentialSolutionsContext(),
       );
       _applySolutions(aiSolutions);
