@@ -7,11 +7,13 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -30,6 +32,10 @@ class AgileDeliveryModelScreen extends StatefulWidget {
 
 class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
   final Map<String, TextEditingController> _controllers = {};
+  final Map<String, List<String>> _fieldHistories = {};
+  final Map<String, int> _fieldHistoryIndices = {};
+  final Map<String, bool> _fieldIsAiGenerated = {};
+  final Map<String, bool> _fieldIsRegenerating = {};
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isGenerating = false;
@@ -112,7 +118,11 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
       final data = await AgileWireframeService.loadDeliveryModel(pid);
       if (!mounted) return;
       for (final f in _fields) {
-        _controllers[f.key]?.text = data[f.key] as String? ?? '';
+        final value = data[f.key] as String? ?? '';
+        _controllers[f.key]?.text = value;
+        if (value.isNotEmpty) {
+          _recordFieldHistory(f.key, value);
+        }
       }
     } catch (e) { debugPrint('Error: $e'); }
     if (mounted) setState(() => _isLoading = false);
@@ -179,6 +189,7 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
       for (final entry in parsed.entries) {
         if (_controllers.containsKey(entry.key)) {
           _controllers[entry.key]?.text = entry.value;
+          _recordFieldHistory(entry.key, entry.value, isAi: true);
         }
       }
       _performSave();
@@ -204,6 +215,95 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
     } catch (e) {
       return {};
     }
+  }
+
+  // ── Field history tracking for undo/redo ─────────────────────────────
+  void _recordFieldHistory(String key, String value, {bool isAi = false}) {
+    final history = _fieldHistories.putIfAbsent(key, () => []);
+    final index = _fieldHistoryIndices.putIfAbsent(key, () => -1);
+
+    // Truncate any redo history after current position
+    if (index < history.length - 1) {
+      history.removeRange(index + 1, history.length);
+    }
+
+    // Only add if different from the last entry
+    if (history.isEmpty || history.last != value) {
+      history.add(value);
+      _fieldHistoryIndices[key] = history.length - 1;
+    }
+
+    if (isAi) {
+      _fieldIsAiGenerated[key] = true;
+    }
+  }
+
+  bool _canUndoField(String key) {
+    final idx = _fieldHistoryIndices[key] ?? -1;
+    return idx > 0;
+  }
+
+  bool _canRedoField(String key) {
+    final idx = _fieldHistoryIndices[key] ?? -1;
+    final history = _fieldHistories[key] ?? [];
+    return idx >= 0 && idx < history.length - 1;
+  }
+
+  void _undoField(String key) {
+    if (!_canUndoField(key)) return;
+    final history = _fieldHistories[key]!;
+    final idx = _fieldHistoryIndices[key]!;
+    final newIdx = idx - 1;
+    _fieldHistoryIndices[key] = newIdx;
+    _controllers[key]?.text = history[newIdx];
+    _scheduleAutoSave();
+  }
+
+  void _redoField(String key) {
+    if (!_canRedoField(key)) return;
+    final history = _fieldHistories[key]!;
+    final idx = _fieldHistoryIndices[key]!;
+    final newIdx = idx + 1;
+    _fieldHistoryIndices[key] = newIdx;
+    _controllers[key]?.text = history[newIdx];
+    _scheduleAutoSave();
+  }
+
+  // ── Per-field AI regeneration ────────────────────────────────────────
+  Future<void> _regenerateField(String key, String label, String hint) async {
+    setState(() => _fieldIsRegenerating[key] = true);
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final contextText =
+          ProjectDataHelper.buildProjectContextScan(data, sectionLabel: label);
+      final currentValue = _controllers[key]?.text ?? '';
+
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate the "$label" section.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current value:\n${currentValue.isEmpty ? "(empty)" : currentValue}\n\n'
+        'Hint: $hint\n\n'
+        'Provide 2-3 sentences of specific, actionable recommendations for this section. '
+        'Return ONLY the text content (no JSON, no markdown headers).',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        _controllers[key]?.text = cleaned;
+        _recordFieldHistory(key, cleaned, isAi: true);
+        _scheduleAutoSave();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI regeneration failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _fieldIsRegenerating[key] = false);
   }
 
   @override
@@ -313,26 +413,92 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
   }
 
   Widget _buildField(_FieldConfig f) {
+    final controller = _controllers[f.key];
+    final isRegenerating = _fieldIsRegenerating[f.key] ?? false;
+    final isAiGenerated = _fieldIsAiGenerated[f.key] ?? false;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(f.label,
-              style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _kHeadline)),
+          // ── Label row with AI badge ──────────────────────────────
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(f.label,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _kHeadline)),
+              if (isAiGenerated)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, size: 10, color: Color(0xFF0284C7)),
+                      SizedBox(width: 3),
+                      Text('AI',
+                          style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF0284C7))),
+                    ],
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 8),
-          VoiceTextField(
-            controller: _controllers[f.key],
-            decoration: InputDecoration(
-              hintText: f.hint,
-              border: const OutlineInputBorder(),
+
+          // ── Text formatting toolbar ──────────────────────────────
+          TextFormattingToolbar(controller: controller!),
+
+          const SizedBox(height: 6),
+
+          // ── Hoverable field with AI controls ─────────────────────
+          HoverableFieldControls(
+            isAiGenerated: isAiGenerated,
+            isLoading: isRegenerating,
+            canUndo: _canUndoField(f.key),
+            canRedo: _canRedoField(f.key),
+            onUndo: () => _undoField(f.key),
+            onRedo: () => _redoField(f.key),
+            onRegenerate: () => _regenerateField(f.key, f.label, f.hint),
+            child: Container(
+              width: double.infinity,
+              constraints: BoxConstraints(
+                minHeight: f.fullWidth ? 100 : 80,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFD1D5DB)),
+              ),
+              child: VoiceTextField(
+                controller: controller,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF1F2937)),
+                decoration: InputDecoration(
+                  hintText: f.hint,
+                  hintStyle: const TextStyle(
+                      color: Color(0xFF9CA3AF), fontSize: 13),
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.all(14),
+                ),
+                minLines: f.fullWidth ? 4 : 3,
+                maxLines: f.fullWidth ? 8 : 6,
+                onChanged: (value) {
+                  _recordFieldHistory(f.key, value);
+                  _scheduleAutoSave();
+                },
+              ),
             ),
-            minLines: f.fullWidth ? 3 : 2,
-            maxLines: f.fullWidth ? 6 : 4,
-            onChanged: (_) => _scheduleAutoSave(),
           ),
         ],
       ),
