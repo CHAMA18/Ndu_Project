@@ -9,10 +9,12 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/quality_metrics_calculator.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
+import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -817,6 +819,19 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
   bool _isGenerating = false;
   Timer? _saveDebounce;
 
+  // ── Per-field history + AI state ─────────────────────────────────────
+  final Map<String, List<String>> _fieldHistories = {};
+  final Map<String, int> _fieldHistoryIndices = {};
+  final Map<String, bool> _fieldIsAiGenerated = {};
+  final Map<String, bool> _fieldIsRegenerating = {};
+
+  static const _fieldKeys = {
+    'quality_narrative': 'Quality Narrative',
+    'review_cadence': 'Review Cadence',
+    'escalation_path': 'Escalation Path',
+    'change_control': 'Change Control Process',
+  };
+
   void _onFieldChanged() {
     _saveDebounce?.cancel();
     _saveDebounce = Timer(const Duration(milliseconds: 300), () {
@@ -843,6 +858,19 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
     _reviewCadenceController.text = qData.reviewCadence;
     _escalationPathController.text = qData.escalationPath;
     _changeControlController.text = qData.changeControlProcess;
+    // Record initial values in history for undo/redo
+    if (qData.qualityPlan.isNotEmpty) {
+      _recordFieldHistory('quality_narrative', qData.qualityPlan);
+    }
+    if (qData.reviewCadence.isNotEmpty) {
+      _recordFieldHistory('review_cadence', qData.reviewCadence);
+    }
+    if (qData.escalationPath.isNotEmpty) {
+      _recordFieldHistory('escalation_path', qData.escalationPath);
+    }
+    if (qData.changeControlProcess.isNotEmpty) {
+      _recordFieldHistory('change_control', qData.changeControlProcess);
+    }
     _planController.addListener(_onFieldChanged);
     _reviewCadenceController.addListener(_onFieldChanged);
     _escalationPathController.addListener(_onFieldChanged);
@@ -875,6 +903,211 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
         escalationPath: _escalationPathController.text.trim(),
         changeControlProcess: _changeControlController.text.trim(),
       ),
+    );
+  }
+
+  // ── Field history tracking for undo/redo ─────────────────────────────
+  void _recordFieldHistory(String key, String value, {bool isAi = false}) {
+    final history = _fieldHistories.putIfAbsent(key, () => []);
+    final index = _fieldHistoryIndices.putIfAbsent(key, () => -1);
+    if (index < history.length - 1) {
+      history.removeRange(index + 1, history.length);
+    }
+    if (history.isEmpty || history.last != value) {
+      history.add(value);
+      _fieldHistoryIndices[key] = history.length - 1;
+    }
+    if (isAi) _fieldIsAiGenerated[key] = true;
+  }
+
+  bool _canUndoField(String key) =>
+      (_fieldHistoryIndices[key] ?? -1) > 0;
+
+  bool _canRedoField(String key) {
+    final idx = _fieldHistoryIndices[key] ?? -1;
+    final history = _fieldHistories[key] ?? [];
+    return idx >= 0 && idx < history.length - 1;
+  }
+
+  void _undoField(String key, TextEditingController controller) {
+    if (!_canUndoField(key)) return;
+    final idx = _fieldHistoryIndices[key]! - 1;
+    _fieldHistoryIndices[key] = idx;
+    controller.text = _fieldHistories[key]![idx];
+    _onFieldChanged();
+  }
+
+  void _redoField(String key, TextEditingController controller) {
+    if (!_canRedoField(key)) return;
+    final idx = _fieldHistoryIndices[key]! + 1;
+    _fieldHistoryIndices[key] = idx;
+    controller.text = _fieldHistories[key]![idx];
+    _onFieldChanged();
+  }
+
+  // ── Per-field AI regeneration ────────────────────────────────────────
+  Future<void> _regenerateField(String key, String label) async {
+    setState(() => _fieldIsRegenerating[key] = true);
+    try {
+      final project = ProjectDataHelper.getData(context);
+      final contextText =
+          ProjectDataHelper.buildFepContext(project, sectionLabel: label);
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'Based on this project context, regenerate the "$label" section.\n\n'
+        'Context:\n$contextText\n\n'
+        'Provide 2-3 sentences of specific, actionable recommendations. '
+        'Return ONLY the text content (no JSON, no markdown headers).',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        final controller = _controllerForKey(key);
+        controller.text = cleaned;
+        _recordFieldHistory(key, cleaned, isAi: true);
+        _onFieldChanged();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('AI regeneration failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _fieldIsRegenerating[key] = false);
+  }
+
+  TextEditingController _controllerForKey(String key) {
+    switch (key) {
+      case 'quality_narrative':
+        return _planController;
+      case 'review_cadence':
+        return _reviewCadenceController;
+      case 'escalation_path':
+        return _escalationPathController;
+      case 'change_control':
+        return _changeControlController;
+      default:
+        return _planController;
+    }
+  }
+
+  // ── Build a field with KAZ AI + clear + formatting toolbar ───────────
+  Widget _buildEnhancedField({
+    required String key,
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    int minLines = 3,
+    int maxLines = 6,
+  }) {
+    final isRegenerating = _fieldIsRegenerating[key] ?? false;
+    final isAiGenerated = _fieldIsAiGenerated[key] ?? false;
+    final hasContent = controller.text.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Label row with AI badge ──────────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _FieldLabel(label),
+            if (isAiGenerated)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F2FE),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome,
+                        size: 10, color: Color(0xFF0284C7)),
+                    SizedBox(width: 3),
+                    Text('AI',
+                        style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0284C7))),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+
+        // ── Text formatting toolbar ──────────────────────────────
+        TextFormattingToolbar(controller: controller),
+        const SizedBox(height: 4),
+
+        // ── Hoverable field with AI controls ─────────────────────
+        HoverableFieldControls(
+          isAiGenerated: isAiGenerated,
+          isLoading: isRegenerating,
+          canUndo: _canUndoField(key),
+          canRedo: _canRedoField(key),
+          onUndo: () => _undoField(key, controller),
+          onRedo: () => _redoField(key, controller),
+          onRegenerate: () => _regenerateField(key, label),
+          child: VoiceTextField(
+            controller: controller,
+            minLines: minLines,
+            maxLines: maxLines,
+            onChanged: (value) {
+              _recordFieldHistory(key, value);
+              _onFieldChanged();
+              setState(() {});
+            },
+            decoration: _inputDecoration(context, hint).copyWith(
+              // ── KAZ AI button + Clear button inside the text field ──
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // KAZ AI button
+                  IconButton(
+                    tooltip: 'KAZ AI',
+                    icon: isRegenerating
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child:
+                                CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.auto_awesome,
+                            color: Color(0xFFF59E0B), size: 18),
+                    onPressed: isRegenerating
+                        ? null
+                        : () => _regenerateField(key, label),
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(
+                        minWidth: 32, minHeight: 32),
+                  ),
+                  // Clear-all button
+                  if (hasContent)
+                    IconButton(
+                      tooltip: 'Clear all content',
+                      icon: const Icon(Icons.delete_sweep,
+                          color: Color(0xFFEF4444), size: 18),
+                      onPressed: () {
+                        controller.clear();
+                        _recordFieldHistory(key, '');
+                        _onFieldChanged();
+                        setState(() {});
+                      },
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(
+                          minWidth: 32, minHeight: 32),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1153,62 +1386,50 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _FieldLabel('Quality Narrative'),
-          VoiceTextField(
+          _buildEnhancedField(
+            key: 'quality_narrative',
+            label: 'Quality Narrative',
             controller: _planController,
+            hint:
+                'Describe goals, assurance methods, control steps, and KPI governance.',
             minLines: 5,
             maxLines: 10,
-            decoration: _inputDecoration(
-              context,
-              'Describe goals, assurance methods, control steps, and KPI governance.',
-            ),
           ),
           const SizedBox(height: 18),
           Row(
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FieldLabel('Review Cadence'),
-                    VoiceTextField(
-                      controller: _reviewCadenceController,
-                      decoration: _inputDecoration(
-                        context,
-                        'e.g. Weekly QA review, monthly management audit',
-                      ),
-                    ),
-                  ],
+                child: _buildEnhancedField(
+                  key: 'review_cadence',
+                  label: 'Review Cadence',
+                  controller: _reviewCadenceController,
+                  hint: 'e.g. Weekly QA review, monthly management audit',
+                  minLines: 2,
+                  maxLines: 4,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _FieldLabel('Escalation Path'),
-                    VoiceTextField(
-                      controller: _escalationPathController,
-                      decoration: _inputDecoration(
-                        context,
-                        'e.g. QA Lead -> PM -> Sponsor',
-                      ),
-                    ),
-                  ],
+                child: _buildEnhancedField(
+                  key: 'escalation_path',
+                  label: 'Escalation Path',
+                  controller: _escalationPathController,
+                  hint: 'e.g. QA Lead -> PM -> Sponsor',
+                  minLines: 2,
+                  maxLines: 4,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          _FieldLabel('Change Control Process'),
-          VoiceTextField(
+          _buildEnhancedField(
+            key: 'change_control',
+            label: 'Change Control Process',
             controller: _changeControlController,
+            hint:
+                'Document approval and communication process for quality plan changes.',
             minLines: 2,
             maxLines: 4,
-            decoration: _inputDecoration(
-              context,
-              'Document approval and communication process for quality plan changes.',
-            ),
           ),
           const SizedBox(height: 24),
           _SectionHeader(
