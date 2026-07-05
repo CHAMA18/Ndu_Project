@@ -424,6 +424,7 @@ class _AgileBacklogGovernanceScreenState
     final controller = _controllers[f.key];
     final isRegenerating = _fieldIsRegenerating[f.key] ?? false;
     final isAiGenerated = _fieldIsAiGenerated[f.key] ?? false;
+    final hasContent = (controller?.text ?? '').isNotEmpty;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -498,12 +499,54 @@ class _AgileBacklogGovernanceScreenState
                   border: InputBorder.none,
                   isDense: true,
                   contentPadding: const EdgeInsets.all(14),
+                  // ── KAZ AI button + Clear button inside the text field ──
+                  suffixIcon: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // KAZ AI button — generates AI content for this field
+                      IconButton(
+                        tooltip: 'KAZ AI',
+                        icon: isRegenerating
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              )
+                            : const Icon(Icons.auto_awesome,
+                                color: Color(0xFFF59E0B), size: 18),
+                        onPressed: isRegenerating
+                            ? null
+                            : () => _regenerateField(f.key, f.label, f.hint),
+                        padding: const EdgeInsets.all(4),
+                        constraints: const BoxConstraints(
+                            minWidth: 32, minHeight: 32),
+                      ),
+                      // Clear-all button — deletes all content in one click
+                      if (hasContent)
+                        IconButton(
+                          tooltip: 'Clear all content',
+                          icon: const Icon(Icons.delete_sweep,
+                              color: Color(0xFFEF4444), size: 18),
+                          onPressed: () {
+                            controller?.clear();
+                            _recordFieldHistory(f.key, '');
+                            _scheduleAutoSave();
+                            setState(() {});
+                          },
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(
+                              minWidth: 32, minHeight: 32),
+                        ),
+                    ],
+                  ),
                 ),
                 minLines: f.fullWidth ? 4 : 3,
                 maxLines: f.fullWidth ? 8 : 6,
                 onChanged: (value) {
                   _recordFieldHistory(f.key, value);
                   _scheduleAutoSave();
+                  setState(() {});
                 },
               ),
             ),
