@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/widgets/launch_modal.dart';
@@ -1196,6 +1197,7 @@ class _AddItemDialogState extends State<_AddItemDialog>
   final _dropdownValues = <String, String?>{};
   final _errors = <String, String?>{};
   final _focusNodes = <String, FocusNode>{};
+  final _kazAiLoading = <String, bool>{};
 
   late final AnimationController _animController;
   late final Animation<double> _fadeIn;
@@ -1382,13 +1384,83 @@ class _AddItemDialogState extends State<_AddItemDialog>
           focusNode: _focusNodes[col.label],
           enableDocxImport: false,
           style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
-          decoration: _modalInputDecoration(hint: col.hint, error: _errors[col.label]),
+          decoration: _modalInputDecoration(
+            hint: col.hint,
+            error: _errors[col.label],
+          ).copyWith(
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // KAZ AI button — generates AI content for this field
+                IconButton(
+                  tooltip: 'KAZ AI',
+                  icon: _kazAiLoading[col.label] == true
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome,
+                          color: Color(0xFFF59E0B), size: 16),
+                  onPressed: _kazAiLoading[col.label] == true
+                      ? null
+                      : () => _generateFieldWithAi(col.label),
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(
+                      minWidth: 28, minHeight: 28),
+                ),
+                // Clear-all button — deletes all content
+                if ((_controllers[col.label]?.text ?? '').isNotEmpty)
+                  IconButton(
+                    tooltip: 'Clear all content',
+                    icon: const Icon(Icons.delete_sweep,
+                        color: Color(0xFFEF4444), size: 16),
+                    onPressed: () {
+                      _controllers[col.label]?.clear();
+                      setState(() {});
+                    },
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(
+                        minWidth: 28, minHeight: 28),
+                  ),
+              ],
+            ),
+          ),
+          onChanged: (_) => setState(() {}),
         );
       case LaunchFieldType.date:
         return _buildDateField(col);
       case LaunchFieldType.dropdown:
         return _buildDropdownField(col);
     }
+  }
+
+  /// Generate AI content for a specific field in the Add dialog.
+  /// Uses OpenAiServiceSecure with the dialog title as context.
+  Future<void> _generateFieldWithAi(String fieldLabel) async {
+    setState(() => _kazAiLoading[fieldLabel] = true);
+    try {
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Suggest a concise value for the "$fieldLabel" field in a '
+        '"${widget.title}" table entry for a project management application. '
+        'Return ONLY the text value (no JSON, no markdown, no explanation).',
+        maxTokens: 100,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty && _controllers.containsKey(fieldLabel)) {
+        _controllers[fieldLabel]!.text = cleaned;
+        if (mounted) setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _kazAiLoading[fieldLabel] = false);
   }
 
   Widget _buildDateField(LaunchColumn col) {
