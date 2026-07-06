@@ -503,6 +503,20 @@ class _ChangeRegisterCardState extends State<_ChangeRegisterCard> {
                 );
               }
               if (snapshot.hasError) {
+                final errorStr = snapshot.error.toString();
+                // Suppress permission-denied errors — show empty state instead
+                if (errorStr.contains('permission-denied') ||
+                    errorStr.contains('PERMISSION_DENIED') ||
+                    errorStr.contains('Missing or insufficient permissions')) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 32),
+                    alignment: Alignment.center,
+                    child: const Text(
+                        'No change requests have been created yet.',
+                        style: TextStyle(color: Color(0xFF6B7280))),
+                  );
+                }
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Text(

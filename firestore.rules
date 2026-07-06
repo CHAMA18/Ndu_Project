@@ -204,6 +204,19 @@ service cloud.firestore {
       allow write: if false; // Managed by Cloud Functions only
     }
 
+    // ─── Change requests (top-level collection) ────────────────────────
+    // Authenticated users can read and write change requests scoped to
+    // their projects. The collection is queried by projectId.
+    match /change_requests/{requestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() &&
+        request.resource.data.requestedByUid == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.requestedByUid == request.auth.uid || isAdmin()
+      );
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
     // ─── Default deny all other collections ────────────────────────────
     match /{document=**} {
       allow read, write: if false;

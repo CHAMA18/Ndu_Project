@@ -460,7 +460,9 @@ class ChangeRequestService {
         query = query.where('projectId', isEqualTo: projectId);
       }
 
-      return query.snapshots().map((s) {
+      return query.snapshots().handleError((error) {
+        debugPrint('ChangeRequestService: stream error ($error)');
+      }).map((s) {
         final list =
             s.docs.map((d) => ChangeRequest.fromDoc(d)).toList();
         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
