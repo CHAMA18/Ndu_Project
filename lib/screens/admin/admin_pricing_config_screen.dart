@@ -257,7 +257,7 @@ class _AdminPricingConfigScreenState extends State<AdminPricingConfigScreen>
           controller: _tabController,
           isScrollable: true,
           tabs: const [
-            Tab(text: 'Basic Project'),
+            Tab(text: 'Regular Project'),
             Tab(text: 'Project'),
             Tab(text: 'Program'),
             Tab(text: 'Portfolio'),
@@ -466,7 +466,7 @@ class _AdminPricingConfigScreenState extends State<AdminPricingConfigScreen>
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Text(
-          'The Basic Project tier is single-user only — add-on users are not available. '
+          'The Regular Project tier is single-user only — add-on users are not available. '
           'Users who need more seats should upgrade to Project or higher.',
           style: TextStyle(color: Colors.grey, fontSize: 13, height: 1.5),
         ),

@@ -62,7 +62,7 @@ class TierPricingConfig {
   /// were previously hardcoded in pricing_screen.dart.
   static const TierPricingConfig defaultBasicProject = TierPricingConfig(
     id: PricingTierId.basicProject,
-    label: 'Basic Project',
+    label: 'Regular Project',
     subtitle: 'No Fuss routine project delivered at a fraction of the cost',
     monthlyPrice: 39,
     monthlyOriginalPrice: 79,

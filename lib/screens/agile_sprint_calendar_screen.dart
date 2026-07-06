@@ -11,6 +11,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -85,6 +86,7 @@ class _AgileSprintCalendarScreenState
       final calendarData =
           await AgileWireframeService.loadSprintCalendar(pid);
       if (!mounted) return;
+      _ceremonyController.dispose();
       _ceremonyController = TextEditingController(
           text: calendarData['ceremonies'] as String? ?? '');
       setState(() {
@@ -170,7 +172,9 @@ class _AgileSprintCalendarScreenState
     );
   }
 
-  void _deleteSprint(int index) async {
+  Future<void> _deleteSprint(int index) async {
+    final confirmed = await launchConfirmDelete(context, itemName: 'sprint');
+    if (!confirmed || !mounted) return;
     final pid = _projectId;
     if (pid == null) return;
     final updatedList = [..._sprints];

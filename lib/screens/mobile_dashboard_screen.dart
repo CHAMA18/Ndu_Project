@@ -115,18 +115,18 @@ class MobileDashboardScreen extends StatelessWidget {
     final programCount = programs.length;
     final tiles = [
       _MobileStatusCard(
-        label: 'Single projects',
-        value: '$projectCount',
-        caption: 'Active workspaces',
-        color: Colors.blue.shade600,
-        icon: Icons.folder_open_rounded,
-      ),
-      _MobileStatusCard(
-        label: 'Basic projects',
+        label: 'Regular projects',
         value: '$basicProjectCount',
         caption: 'Starter plan',
         color: Colors.teal.shade600,
         icon: Icons.folder_special_rounded,
+      ),
+      _MobileStatusCard(
+        label: 'Projects',
+        value: '$projectCount',
+        caption: 'Active workspaces',
+        color: Colors.blue.shade600,
+        icon: Icons.folder_open_rounded,
       ),
       _MobileStatusCard(
         label: 'Active work',

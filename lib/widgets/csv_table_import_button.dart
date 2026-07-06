@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 
-/// A compact "Import CSV" button designed for custom table sections.
+/// A compact "Import CSV / XLSX" button designed for custom table sections.
 ///
 /// Usage:
 /// ```dart
@@ -55,7 +55,7 @@ class CsvTableImportButton extends StatelessWidget {
 
     if (compact) {
       return Tooltip(
-        message: 'Import CSV',
+        message: 'Import CSV/XLSX',
         child: IconButton.outlined(
           onPressed: handleImport,
           icon: const Icon(Icons.upload_file_outlined, size: 18),
@@ -72,7 +72,7 @@ class CsvTableImportButton extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: handleImport,
       icon: const Icon(Icons.upload_file_outlined, size: 16),
-      label: const Text('Import CSV'),
+      label: const Text('Import CSV/XLSX'),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

@@ -872,7 +872,7 @@ class _StatsScrollRow extends StatelessWidget {
               iconBgColor: const Color(0xFFD1FAE5),
               iconColor: const Color(0xFF059669),
               value: '$basicProjectCount',
-              label: 'BASIC PROJECTS',
+              label: 'REGULAR PROJECTS',
             ),
             const SizedBox(width: 12),
             _StatCard(
@@ -880,7 +880,7 @@ class _StatsScrollRow extends StatelessWidget {
               iconBgColor: const Color(0xFFDBEAFE),
               iconColor: const Color(0xFF2563EB),
               value: '$totalProjects',
-              label: 'SINGLE PROJECTS',
+              label: 'PROJECTS',
             ),
             const SizedBox(width: 12),
             _StatCard(

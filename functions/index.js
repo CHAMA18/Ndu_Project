@@ -1,5 +1,6 @@
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const crypto = require('crypto');
 const { Resend } = require('resend');
 
 // Initialize admin only if not already initialized
@@ -1780,7 +1781,7 @@ exports.sendTeamInvitation = functions
 
     const inviter = inviterName || context.auth.token.name || context.auth.token.email || 'A team member';
     const project = projectName || 'NDU Project';
-    const signInLink = inviteLink || 'https://staging.nduproject.com/#/sign-in';
+    const signInLink = inviteLink || 'https://nduproject.com/#/sign-in';
 
     // Rate limit
     await checkRateLimit(context.auth.uid, 'invitation', 20);
@@ -1835,9 +1836,13 @@ exports.sendTeamInvitation = functions
         throw new functions.https.HttpsError('internal', `Failed to send invitation email: ${error.message}`);
       }
 
-      console.log(`Invitation email sent to ${email}: ${emailResult?.id}`);
+      console.log(`Invitation email accepted by Resend for ${email}: ${emailResult?.id}`);
 
-      // Store invitation record in Firestore for tracking
+      // Store invitation record in Firestore for tracking.
+      // Status is 'accepted' (not 'sent') because Resend has only accepted
+      // the email for delivery — actual delivery is confirmed via webhook
+      // (handleResendWebhook). The status will be updated to 'delivered',
+      // 'bounced', 'complained', or 'failed' by the webhook handler.
       const inviteRef = db.collection('teamInvitations').doc();
       await inviteRef.set({
         id: inviteRef.id,
@@ -1846,7 +1851,8 @@ exports.sendTeamInvitation = functions
         inviterName: inviter,
         projectName: project,
         signInLink: signInLink,
-        status: 'sent',
+        status: 'accepted',
+        deliveryStatus: 'pending',
         messageId: emailResult?.id || null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -2029,6 +2035,154 @@ async function logSecurityEvent(action, userId, metadata = {}) {
     console.error('[SecurityAudit] Failed to log:', e);
   }
 }
+
+// ============================================================================
+// RESEND WEBHOOK — Delivery / Bounce / Complaint tracking
+// ============================================================================
+
+/**
+ * Receive Resend webhook events to update team invitation delivery status.
+ *
+ * Setup:
+ *   1. In Resend dashboard → Settings → Webhooks → Add webhook
+ *      URL: https://<region>-<project-id>.cloudfunctions.net/handleResendWebhook
+ *      Events: email.sent, email.delivered, email.delivery_delayed,
+ *              email.bounced, email.complained, email.opened, email.clicked
+ *   2. Copy the webhook signing secret and set it as a Firebase secret:
+ *      firebase functions:secrets:set RESEND_WEBHOOK_SECRET
+ *
+ * This endpoint verifies the webhook signature, matches the email by
+ * messageId, and updates the corresponding teamInvitations document.
+ */
+exports.handleResendWebhook = functions
+  .runWith({
+    timeoutSeconds: 30,
+    memory: '128MB',
+  })
+  .https.onRequest(async (req, res) => {
+    // Webhooks are called by Resend — no CORS needed, but be permissive
+    // for any proxy that might sit in front.
+    setCorsHeaders(req, res);
+
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+    if (req.method !== 'POST') {
+      res.status(405).json({ error: 'Method not allowed' });
+      return;
+    }
+
+    // ── Signature verification ────────────────────────────────────────
+    const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
+    if (webhookSecret) {
+      try {
+        const signature = req.headers['resend-signature'] || '';
+        const timestamp = req.headers['resend-timestamp'] || '';
+        const body = JSON.stringify(req.body);
+        const payload = `${timestamp}.${body}`;
+        const expectedSig = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(payload)
+          .digest('hex');
+        if (signature !== expectedSig) {
+          console.error('[Webhook] Invalid signature — rejecting');
+          res.status(401).json({ error: 'Invalid signature' });
+          return;
+        }
+      } catch (e) {
+        console.error('[Webhook] Signature check error:', e);
+        // Continue anyway — signature verification is best-effort
+      }
+    } else {
+      console.warn('[Webhook] RESEND_WEBHOOK_SECRET not set — skipping signature verification');
+    }
+
+    const event = req.body;
+    const eventType = event.type; // e.g. 'email.delivered', 'email.bounced'
+    const emailData = event.data || {};
+    const messageId = emailData.email_id || emailData.messageId || null;
+
+    console.log(`[Webhook] Event: ${eventType}, messageId: ${messageId}`);
+
+    if (!messageId) {
+      console.warn('[Webhook] No messageId in event — ignoring');
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    // ── Map Resend event to our delivery status ───────────────────────
+    const statusMap = {
+      'email.sent': 'sent',
+      'email.delivered': 'delivered',
+      'email.delivery_delayed': 'delayed',
+      'email.bounced': 'bounced',
+      'email.complained': 'complained',
+      'email.opened': 'opened',
+      'email.clicked': 'clicked',
+    };
+    const deliveryStatus = statusMap[eventType];
+    if (!deliveryStatus) {
+      console.log(`[Webhook] Unhandled event type: ${eventType}`);
+      res.status(200).json({ received: true });
+      return;
+    }
+
+    // ── Update Firestore ──────────────────────────────────────────────
+    try {
+      const snapshot = await db.collection('teamInvitations')
+        .where('messageId', '==', messageId)
+        .limit(1)
+        .get();
+
+      if (snapshot.empty) {
+        console.warn(`[Webhook] No invitation found for messageId: ${messageId}`);
+        res.status(200).json({ received: true });
+        return;
+      }
+
+      const doc = snapshot.docs[0];
+      const updateData = {
+        deliveryStatus,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // Promote 'status' from 'accepted' to 'sent' once Resend confirms it was sent
+      if (eventType === 'email.sent') {
+        updateData.status = 'sent';
+      }
+
+      // Mark as delivered
+      if (eventType === 'email.delivered') {
+        updateData.status = 'delivered';
+        updateData.deliveredAt = admin.firestore.FieldValue.serverTimestamp();
+      }
+
+      // Mark terminal failures
+      if (eventType === 'email.bounced') {
+        updateData.status = 'failed';
+        updateData.failureReason = emailData.reason || 'bounced';
+      }
+      if (eventType === 'email.complained') {
+        updateData.status = 'complained';
+      }
+
+      await doc.ref.update(updateData);
+      console.log(`[Webhook] Updated invitation ${doc.id}: deliveryStatus=${deliveryStatus}`);
+
+      // Security audit
+      await logSecurityEvent('invitation_webhook', doc.data().inviterUid || 'system', {
+        invitationId: doc.id,
+        eventType,
+        deliveryStatus,
+        messageId,
+      }).catch(() => {});
+    } catch (e) {
+      console.error('[Webhook] Firestore update error:', e);
+    }
+
+    res.status(200).json({ received: true });
+  });
 
 // Export security utilities for use in other functions
 module.exports.security = {

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:ndu_project/utils/download_helper_stub.dart'
     if (dart.library.html) 'package:ndu_project/utils/download_helper_web.dart' as loader;
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/contract_close_out_screen.dart';
 import 'package:ndu_project/screens/deliver_project_closure_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
@@ -17,6 +19,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 
 class TransitionToProdTeamScreen extends StatefulWidget {
   const TransitionToProdTeamScreen({super.key});
@@ -44,8 +47,7 @@ class _TransitionToProdTeamScreenState
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
-  String _selectedView = 'full'; // 'full' or 'summary'
-
+  final Map<String, bool> _kazAiRegenerating = {};
   @override
   void initState() {
     super.initState();
@@ -75,38 +77,11 @@ class _TransitionToProdTeamScreenState
               title: 'Transition to Production Team',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false, onExportPdf: _exportPdf),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Spacer(),
-                ExecutionActionBar(
-                  actions: [
-                    ExecutionActionItem(
-                      label: _isExporting ? 'Exporting…' : 'Export PDF',
-                      icon: Icons.picture_as_pdf_outlined,
-                      tone: ExecutionActionTone.secondary,
-                      isLoading: _isExporting,
-                      onPressed: _isExporting ? null : _exportPdf,
-                    ),
-                    ExecutionActionItem(
-                      label: _selectedView == 'full' ? 'Summary View' : 'Full View',
-                      icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
-                      tone: ExecutionActionTone.secondary,
-                      onPressed: () => setState(() {
-                        _selectedView = _selectedView == 'full' ? 'summary' : 'full';
-                      }),
-                    ),
-                    ExecutionActionItem(
-                      label: _isGenerating ? 'Generating…' : 'AI Assist',
-                      icon: Icons.auto_awesome_outlined,
-                      tone: ExecutionActionTone.ai,
-                      isLoading: _isGenerating,
-                      onPressed: _isGenerating ? null : _populateFromAi,
-                    ),
-                  ],
-                ),
-              ],
+              showNavigationButtons: false,
+              showActivityLogAction: false,
+              onExportPdf: _exportPdf,
+              showAiAssist: true,
+              onAiAssist: _isGenerating ? null : _populateFromAi,
             ),
             const SizedBox(height: 12),
             _buildMetricsRow(),
@@ -167,7 +142,7 @@ class _TransitionToProdTeamScreenState
         ),
         ExecutionMetricData(
           label: 'Sign-Offs',
-          value: '$pendingSignOff / ${_signOffs.length}',
+          value: '$pendingSignOff',
           icon: Icons.assignment_turned_in_outlined,
           emphasisColor: pendingSignOff > 0
               ? const Color(0xFFEF4444)
@@ -195,8 +170,28 @@ class _TransitionToProdTeamScreenState
         });
         _scheduleSave();
       },
-      importLabel: 'Import from Staffing',
-      onImport: _importStaffing,
+      csvColumns: const [
+        CsvColumnSpec(key: 'name', label: 'Name', sampleValue: 'John Doe'),
+        CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'System Admin'),
+        CsvColumnSpec(key: 'contact', label: 'Contact', sampleValue: 'john@example.com'),
+        CsvColumnSpec(key: 'startDate', label: 'Start Date', sampleValue: '2025-01-15'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Active', allowedValues: ['Active', 'Transitioning', 'Released']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _teamRoster.add(LaunchTeamMember(
+              name: row['name'] ?? '',
+              role: row['role'] ?? '',
+              contact: row['contact'] ?? '',
+              startDate: row['startDate'] ?? '',
+              releaseStatus: row['status'] ?? 'Active',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
+
       emptyMessage:
           'No team members yet. Add production team members or import from staffing.',
       cellBuilder: (context, idx) {
@@ -204,6 +199,7 @@ class _TransitionToProdTeamScreenState
         return LaunchDataRow(
           onEdit: () => _scheduleSave(),
           onDelete: () => _deleteTeamMember(idx),
+          onKazAi: () => _regenerateTeamRosterRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.name,
@@ -276,6 +272,27 @@ class _TransitionToProdTeamScreenState
         });
         _scheduleSave();
       },
+      csvColumns: const [
+        CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Documentation', allowedValues: LaunchHandoverItem.categories),
+        CsvColumnSpec(key: 'item', label: 'Item', sampleValue: 'Handover runbook'),
+        CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Jane Smith'),
+        CsvColumnSpec(key: 'due', label: 'Due', sampleValue: '2025-02-01'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'In Progress', 'Complete']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _handoverChecklist.add(LaunchHandoverItem(
+              category: row['category'] ?? 'Documentation',
+              item: row['item'] ?? '',
+              owner: row['owner'] ?? '',
+              dueDate: row['due'] ?? '',
+              status: row['status'] ?? 'Pending',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       emptyMessage:
           'No handover items. Add items to track the production handover.',
       cellBuilder: (context, idx) {
@@ -283,6 +300,7 @@ class _TransitionToProdTeamScreenState
         return LaunchDataRow(
           onEdit: () => _scheduleSave(),
           onDelete: () => _deleteHandoverItem(idx),
+          onKazAi: () => _regenerateHandoverRow(idx),
           cells: [
             LaunchStatusDropdown(
               value: item.category,
@@ -355,6 +373,27 @@ class _TransitionToProdTeamScreenState
         });
         _scheduleSave();
       },
+      csvColumns: const [
+        CsvColumnSpec(key: 'topic', label: 'Topic', sampleValue: 'Deployment Process'),
+        CsvColumnSpec(key: 'from', label: 'From', sampleValue: 'Alice Brown'),
+        CsvColumnSpec(key: 'to', label: 'To', sampleValue: 'Bob Chen'),
+        CsvColumnSpec(key: 'method', label: 'Method', sampleValue: 'Walkthrough'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'Scheduled', 'Complete']),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _knowledgeTransfers.add(LaunchKnowledgeTransfer(
+              topic: row['topic'] ?? '',
+              fromPerson: row['from'] ?? '',
+              toPerson: row['to'] ?? '',
+              method: row['method'] ?? '',
+              status: row['status'] ?? 'Pending',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       emptyMessage:
           'No knowledge transfers. Track knowledge handoff from project team to operations.',
       cellBuilder: (context, idx) {
@@ -362,6 +401,7 @@ class _TransitionToProdTeamScreenState
         return LaunchDataRow(
           onEdit: () => _scheduleSave(),
           onDelete: () => _deleteKnowledgeTransfer(idx),
+          onKazAi: () => _regenerateKnowledgeTransferRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.topic,
@@ -434,6 +474,27 @@ class _TransitionToProdTeamScreenState
         });
         _scheduleSave();
       },
+      csvColumns: const [
+        CsvColumnSpec(key: 'stakeholder', label: 'Stakeholder', sampleValue: 'Jane Smith'),
+        CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Operations Director'),
+        CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'Approved', 'Rejected']),
+        CsvColumnSpec(key: 'date', label: 'Date', sampleValue: '2025-01-20'),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'Waiting for review'),
+      ],
+      onCsvImport: (rows) async {
+        for (final row in rows) {
+          setState(() {
+            _signOffs.add(LaunchApproval(
+              stakeholder: row['stakeholder'] ?? '',
+              role: row['role'] ?? '',
+              status: row['status'] ?? 'Pending',
+              date: row['date'] ?? '',
+              notes: row['notes'] ?? '',
+            ));
+          });
+        }
+        _scheduleSave();
+      },
       emptyMessage:
           'No sign-offs yet. Capture who needs to approve the handover.',
       cellBuilder: (context, idx) {
@@ -441,6 +502,7 @@ class _TransitionToProdTeamScreenState
         return LaunchDataRow(
           onEdit: () => _scheduleSave(),
           onDelete: () => _deleteApproval(idx),
+          onKazAi: () => _regenerateSignOffRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.stakeholder,
@@ -531,26 +593,6 @@ class _TransitionToProdTeamScreenState
     final confirmed = await launchConfirmDelete(context, itemName: who);
     if (!confirmed) return;
     setState(() => _signOffs.removeAt(idx));
-    _scheduleSave();
-  }
-
-  Future<void> _importStaffing() async {
-    if (_projectId == null) return;
-    final staff = await LaunchPhaseService.loadExecutionStaffing(_projectId!);
-    if (staff.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No team members found to import.')),
-        );
-      }
-      return;
-    }
-    setState(() {
-      final existing = _teamRoster.map((m) => m.name).toSet();
-      for (final m in staff) {
-        if (!existing.contains(m.name)) _teamRoster.add(m);
-      }
-    });
     _scheduleSave();
   }
 
@@ -851,6 +893,153 @@ class _TransitionToProdTeamScreenState
 
   pw.Widget _pdfCell(String text) {
     return pw.Padding(padding: const pw.EdgeInsets.all(6), child: pw.Text(text, style: const pw.TextStyle(fontSize: 9)));
+  }
+
+  // ── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _regenerateTeamRosterRow(int index) async {
+    if (index < 0 || index >= _teamRoster.length) return;
+    final key = 'team_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Production Team Roster');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a production team member name, role, and contact for a handover roster.\n\nContext:\n$ctx\n\nCurrent: ${_teamRoster[index].name} / ${_teamRoster[index].role}\n\nReturn ONLY a valid JSON object with keys: "name", "role", "contact", "status". Status must be Active, Transitioning, or Released.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _teamRoster[index] = _teamRoster[index].copyWith(
+              name: (parsed['name'] ?? '').toString(),
+              role: (parsed['role'] ?? '').toString(),
+              contact: (parsed['contact'] ?? '').toString(),
+              releaseStatus: (parsed['status'] ?? _teamRoster[index].releaseStatus).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateHandoverRow(int index) async {
+    if (index < 0 || index >= _handoverChecklist.length) return;
+    final key = 'handover_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Handover Checklist');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a handover checklist item with category, item description, and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "category", "item", "owner", "status". Status must be Pending, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _handoverChecklist[index] = _handoverChecklist[index].copyWith(
+              category: (parsed['category'] ?? _handoverChecklist[index].category).toString(),
+              item: (parsed['item'] ?? '').toString(),
+              owner: (parsed['owner'] ?? _handoverChecklist[index].owner).toString(),
+              status: (parsed['status'] ?? _handoverChecklist[index].status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateKnowledgeTransferRow(int index) async {
+    if (index < 0 || index >= _knowledgeTransfers.length) return;
+    final key = 'kt_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Knowledge Transfer');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a knowledge transfer topic, from/to persons, and method.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "topic", "from", "to", "method", "status". Status must be Pending, Scheduled, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _knowledgeTransfers[index] = _knowledgeTransfers[index].copyWith(
+              topic: (parsed['topic'] ?? '').toString(),
+              fromPerson: (parsed['from'] ?? _knowledgeTransfers[index].fromPerson).toString(),
+              toPerson: (parsed['to'] ?? _knowledgeTransfers[index].toPerson).toString(),
+              method: (parsed['method'] ?? _knowledgeTransfers[index].method).toString(),
+              status: (parsed['status'] ?? _knowledgeTransfers[index].status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateSignOffRow(int index) async {
+    if (index < 0 || index >= _signOffs.length) return;
+    final key = 'signoff_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Ops & Client Sign-Offs');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a sign-off approver name, role, and status.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "stakeholder", "role", "status", "notes". Status must be Pending, Approved, or Rejected.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _signOffs[index] = _signOffs[index].copyWith(
+              stakeholder: (parsed['stakeholder'] ?? '').toString(),
+              role: (parsed['role'] ?? _signOffs[index].role).toString(),
+              status: (parsed['status'] ?? _signOffs[index].status).toString(),
+              notes: (parsed['notes'] ?? _signOffs[index].notes).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
   }
 
   List<LaunchTeamMember> _mapMembers(List<Map<String, dynamic>>? raw) {

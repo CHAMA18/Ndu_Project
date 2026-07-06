@@ -1,15 +1,18 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart' as fp;
+import 'package:excel/excel.dart' hide Border;
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as dl;
 
-/// World-class CSV Import Dialog
+/// World-class CSV / XLSX Import Dialog
 ///
 /// Features:
 /// - Drag-and-drop file upload zone with animated border
 /// - Template download with column hints and sample data
 /// - Live CSV paste support
+/// - XLSX file import support
 /// - Column mapping preview showing which CSV columns map to which fields
 /// - Row-by-row validation with inline error badges
 /// - Data preview table before committing
@@ -85,6 +88,77 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
     });
   }
 
+  void _processExcel(Uint8List bytes) {
+    try {
+      final excel = Excel.decodeBytes(bytes);
+      if (excel.tables.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The Excel file appears to be empty.'),
+              backgroundColor: Color(0xFFDC2626),
+            ),
+          );
+        }
+        setState(() => _isFileLoading = false);
+        return;
+      }
+      final sheet = excel.tables.values.first;
+      final rows = sheet.rows;
+      if (rows.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The Excel sheet has no data rows.'),
+              backgroundColor: Color(0xFFDC2626),
+            ),
+          );
+        }
+        setState(() => _isFileLoading = false);
+        return;
+      }
+
+      // First row is the header
+      final headerRow = rows.first;
+
+      // Build CSV-like rows from remaining data rows
+      final csvLines = <String>[];
+      // Add header line with original casing
+      final origHeaders = headerRow
+          .map((cell) => (cell?.value?.toString() ?? '').trim())
+          .toList();
+      csvLines.add(origHeaders.join(','));
+
+      for (int i = 1; i < rows.length; i++) {
+        final row = rows[i];
+        final values = row
+            .map((cell) {
+              final val = cell?.value?.toString() ?? '';
+              // Escape commas and quotes for CSV
+              if (val.contains(',') || val.contains('"') || val.contains('\n')) {
+                return '"${val.replaceAll('"', '""')}"';
+              }
+              return val;
+            })
+            .toList();
+        csvLines.add(values.join(','));
+      }
+
+      final csvText = csvLines.join('\n');
+      _processCsv(csvText);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error parsing Excel file: $e'),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+      setState(() => _isFileLoading = false);
+    }
+  }
+
   void _downloadTemplate() {
     final template = CsvImportHelper.generateTemplate(widget.columns);
     final filename = CsvImportHelper.templateFilename(widget.tableTitle);
@@ -104,16 +178,21 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
     try {
       final result = await fp.FilePicker.pickFiles(
         type: fp.FileType.custom,
-        allowedExtensions: ['csv'],
+        allowedExtensions: ['csv', 'xlsx'],
         withData: true,
       );
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;
-        if (file.bytes != null) {
-          final text = utf8.decode(file.bytes!);
-          _processCsv(text);
-          _pasteController.text = text;
+        if (file.bytes != null && file.bytes!.isNotEmpty) {
+          final fileName = file.name.toLowerCase();
+          if (fileName.endsWith('.xlsx')) {
+            _processExcel(file.bytes!);
+          } else {
+            final text = utf8.decode(file.bytes!);
+            _processCsv(text);
+            _pasteController.text = text;
+          }
         }
       }
     } catch (e) {
@@ -208,7 +287,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Import CSV',
+                  'Import CSV / XLSX',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -451,8 +530,8 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
               _isFileLoading
                   ? 'Reading file...'
                   : _isDragging
-                      ? 'Drop your CSV file here'
-                      : 'Drag & drop CSV file here',
+                      ? 'Drop your CSV / XLSX file here'
+                      : 'Drag & drop CSV / XLSX file here',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -484,7 +563,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
                       size: 14, color: Color(0xFF9CA3AF)),
                   SizedBox(width: 6),
                   Text(
-                    'Supports .csv files up to 5MB',
+                    'Supports .csv and .xlsx files up to 5MB',
                     style: TextStyle(fontSize: 11, color: Color(0xFF9CA3AF)),
                   ),
                 ],

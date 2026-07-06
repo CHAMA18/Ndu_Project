@@ -19,6 +19,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/file_upload_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 class BackendDesignScreen extends StatefulWidget {
   const BackendDesignScreen({super.key});
 
@@ -53,6 +54,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
   bool _suspendSave = false;
   bool _didSeedDefaults = false;
   Map<String, dynamic>? _architectureWorkspace;
+  String? _isKazAiLoadingRowId;
 
   final List<String> _componentTypes = const [
     'Client',
@@ -596,6 +598,13 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                       ],
                     ),
                   ),
+                  _buildKazAiRowButton(
+                    'entity_${entity.id}',
+                    'entity description',
+                    'database entity',
+                    () => _updateEntity(entity.copyWith(description: 'AI-generated description')),
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     onPressed: () => _deleteEntity(entity.id),
                     icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
@@ -706,20 +715,27 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          onPressed: () => _openDataFlowDialog(existing: _dataFlows[i]),
-                          icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF2563EB)),
-                          tooltip: 'Edit',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        ),
-                        IconButton(
-                          onPressed: () => _deleteDataFlow(_dataFlows[i].id),
-                          icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
-                          tooltip: 'Delete',
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                        ),
+                  _buildKazAiRowButton(
+                    'dataflow_${_dataFlows[i].id}',
+                    'data flow notes',
+                    'data flow',
+                    () => _updateDataFlow(_dataFlows[i].copyWith(notes: 'AI-generated notes')),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    onPressed: () => _openDataFlowDialog(existing: _dataFlows[i]),
+                    icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF2563EB)),
+                    tooltip: 'Edit',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  ),
+                  IconButton(
+                    onPressed: () => _deleteDataFlow(_dataFlows[i].id),
+                    icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                    tooltip: 'Delete',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  ),
                       ],
                     ),
                   ),
@@ -835,6 +851,13 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        _buildKazAiRowButton(
+                          'doc_${_designDocuments[i].id}',
+                          'document description',
+                          'design document',
+                          () => _updateDesignDocument(_designDocuments[i].copyWith(description: 'AI-generated description')),
+                        ),
+                        const SizedBox(width: 4),
                         IconButton(
                           onPressed: () => _openDesignDocumentDialog(existing: _designDocuments[i]),
                           icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF2563EB)),
@@ -871,6 +894,91 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       default:
         return const Color(0xFF64748B);
     }
+  }
+
+  // ─── KAZ AI Helpers ────────────────────────────────────────────────────────
+
+  Widget _buildKazAiRowButton(String rowId, String label, String contextHint, VoidCallback onResult) {
+    return Tooltip(
+      message: 'KAZ AI – Auto-fill $label',
+      child: InkWell(
+        onTap: _isKazAiLoadingRowId != null ? null : () async {
+          setState(() => _isKazAiLoadingRowId = rowId);
+          try {
+            final ai = OpenAiServiceSecure();
+            final result = await ai.generateCompletion(
+              'Based on this project context, generate a $label for a backend design $contextHint.\n\nProvide a concise, specific, actionable response (1-2 sentences). Return ONLY the text content (no JSON, no markdown headers).',
+              maxTokens: 200,
+              temperature: 0.6,
+            );
+            final cleaned = result.trim();
+            if (cleaned.isNotEmpty && mounted) {
+              onResult();
+              _scheduleSave();
+            }
+          } catch (e) {
+            debugPrint('KAZ AI generation failed: $e');
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('KAZ AI failed: $e'), backgroundColor: const Color(0xFFDC2626)),
+            );
+          } finally {
+            if (mounted) setState(() => _isKazAiLoadingRowId = null);
+          }
+        },
+        child: _isKazAiLoadingRowId == rowId
+            ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFF59E0B)))
+            : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)),
+      ),
+    );
+  }
+
+  Widget _buildKazAiPillButton({
+    required String label,
+    required TextEditingController controller,
+    required StateSetter setDialogState,
+  }) {
+    bool isLoading = false;
+    return StatefulBuilder(
+      builder: (context, setLocalState) => InkWell(
+        onTap: isLoading ? null : () async {
+          setLocalState(() => isLoading = true);
+          try {
+            final ai = OpenAiServiceSecure();
+            final result = await ai.generateCompletion(
+              'Based on this project context, generate a $label for a backend design element.\n\nProvide a concise, specific, actionable response (1-2 sentences). Return ONLY the text content (no JSON, no markdown headers).',
+              maxTokens: 200,
+              temperature: 0.6,
+            );
+            final cleaned = result.trim();
+            if (cleaned.isNotEmpty) setDialogState(() => controller.text = cleaned);
+          } catch (e) {
+            debugPrint('KAZ AI field generation failed: $e');
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('KAZ AI failed: $e'), backgroundColor: const Color(0xFFDC2626)),
+            );
+          }
+          if (context.mounted) setLocalState(() => isLoading = false);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              isLoading
+                  ? const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFF59E0B)))
+                  : const Icon(Icons.auto_awesome, size: 10, color: Color(0xFFF59E0B)),
+              const SizedBox(width: 3),
+              const Text('KAZ AI', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFF59E0B))),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── Shared UI Helpers ─────────────────────────────────────────────────────
@@ -1362,12 +1470,24 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            VoiceTextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Component name',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Component name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'component name',
+                  controller: nameController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1386,14 +1506,26 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: responsibilityController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Responsibility',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: responsibilityController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Responsibility',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'component responsibility',
+                  controller: responsibilityController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1473,20 +1605,44 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            VoiceTextField(
-              controller: sourceController,
-              decoration: const InputDecoration(
-                labelText: 'Source',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: sourceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Source',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'data source',
+                  controller: sourceController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: destinationController,
-              decoration: const InputDecoration(
-                labelText: 'Destination',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: destinationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Destination',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'data destination',
+                  controller: destinationController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1505,14 +1661,26 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: notesController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: notesController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'data flow notes',
+                  controller: notesController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
           ],
         ),
@@ -1564,22 +1732,46 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            VoiceTextField(
-              controller: titleController,
-              decoration: const InputDecoration(
-                labelText: 'Document title',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: titleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Document title',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'document title',
+                  controller: titleController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: descriptionController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: descriptionController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'document description',
+                  controller: descriptionController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1614,12 +1806,24 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: locationController,
-              decoration: const InputDecoration(
-                labelText: 'Link or location',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: locationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Link or location',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'document location',
+                  controller: locationController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             // File upload area
@@ -1780,20 +1984,44 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
         builder: (context, setDialogState) => Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            VoiceTextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Entity / collection',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Entity / collection',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'entity name',
+                  controller: nameController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: primaryKeyController,
-              decoration: const InputDecoration(
-                labelText: 'Primary key',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: primaryKeyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Primary key',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'primary key field',
+                  controller: primaryKeyController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
@@ -1812,14 +2040,26 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            VoiceTextField(
-              controller: descriptionController,
-              minLines: 2,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                border: OutlineInputBorder(),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: VoiceTextField(
+                    controller: descriptionController,
+                    minLines: 2,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      labelText: 'Description',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildKazAiPillButton(
+                  label: 'entity description',
+                  controller: descriptionController,
+                  setDialogState: setDialogState,
+                ),
+              ],
             ),
           ],
         ),
@@ -1859,23 +2099,48 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
     final notesController = TextEditingController(text: existing?.notes ?? '');
     final saved = await _showBackendDialog(
       title: existing == null ? 'Add field' : 'Edit field',
-      content: Column(
+      content: StatefulBuilder(
+        builder: (context, setDialogState) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          VoiceTextField(
-            controller: tableController,
-            decoration: const InputDecoration(
-              labelText: 'Entity / table',
-              border: OutlineInputBorder(),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: VoiceTextField(
+                  controller: tableController,
+                  decoration: const InputDecoration(
+                    labelText: 'Entity / table',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildKazAiPillButton(
+                label: 'entity name',
+                controller: tableController,
+                setDialogState: setDialogState,
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          VoiceTextField(
-            controller: fieldController,
-            decoration: const InputDecoration(
-              labelText: 'Field name',
-              border: OutlineInputBorder(),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: VoiceTextField(
+                  controller: fieldController,
+                  decoration: const InputDecoration(
+                    labelText: 'Field name',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildKazAiPillButton(
+                label: 'field name',
+                controller: fieldController,
+                setDialogState: setDialogState,
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           VoiceTextField(
@@ -1894,16 +2159,29 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          VoiceTextField(
-            controller: notesController,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              border: OutlineInputBorder(),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: VoiceTextField(
+                  controller: notesController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Notes',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _buildKazAiPillButton(
+                label: 'field notes',
+                controller: notesController,
+                setDialogState: setDialogState,
+              ),
+            ],
           ),
         ],
+      ),
       ),
       confirmLabel: existing == null ? 'Add field' : 'Save changes',
     );
@@ -1981,6 +2259,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       const _TableColumnDef('Status', 140),
       const _TableColumnDef('', 56),
       const _TableColumnDef('', 56),
+      const _TableColumnDef('', 56),
     ];
 
     if (_components.isEmpty) {
@@ -2034,6 +2313,14 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 onChanged: (value) =>
                     _updateComponent(entry.copyWith(status: value)),
               ),
+              _WidgetCell(
+                child: _buildKazAiRowButton(
+                  'component_${entry.id}',
+                  'component description',
+                  'component',
+                  () => _updateComponent(entry.copyWith(responsibility: 'AI-generated description')),
+                ),
+              ),
               _EditCell(
                 onPressed: () => _openComponentDialog(existing: entry),
               ),
@@ -2051,6 +2338,7 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
       const _TableColumnDef('Type', 140),
       const _TableColumnDef('Constraints', 200),
       const _TableColumnDef('Notes', 220),
+      const _TableColumnDef('', 56),
       const _TableColumnDef('', 56),
       const _TableColumnDef('', 56),
     ];
@@ -2104,6 +2392,14 @@ class _BackendDesignScreenState extends State<BackendDesignScreen> {
                 maxLines: 2,
                 onChanged: (value) =>
                     _updateField(entry.copyWith(notes: value)),
+              ),
+              _WidgetCell(
+                child: _buildKazAiRowButton(
+                  'field_${entry.id}',
+                  'field notes',
+                  'database field',
+                  () => _updateField(entry.copyWith(notes: 'AI-generated notes')),
+                ),
               ),
               _EditCell(
                 onPressed: () => _openFieldDialog(existing: entry),
@@ -3028,6 +3324,17 @@ class _DropdownCell extends StatelessWidget {
       ),
       style: const TextStyle(fontSize: 12, color: Color(0xFF111827)),
     );
+  }
+}
+
+class _WidgetCell extends StatelessWidget {
+  const _WidgetCell({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: child);
   }
 }
 

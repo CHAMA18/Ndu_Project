@@ -41,6 +41,19 @@ class _AgileEpicsFeaturesScreenState
   bool _isLoading = true;
   bool _isGenerating = false;
 
+  // ── Managed controllers to prevent memory leaks ──
+  final Map<String, TextEditingController> _epicControllers = {};
+  final Map<String, TextEditingController> _featureControllers = {};
+  final Map<String, TextEditingController> _chipControllers = {};
+
+  TextEditingController _getController(
+      Map<String, TextEditingController> map, String key, String initialValue) {
+    if (!map.containsKey(key)) {
+      map[key] = TextEditingController(text: initialValue);
+    }
+    return map[key]!;
+  }
+
   String? get _projectId {
     try {
       return ProjectDataInherited.maybeOf(context)?.projectData.projectId;
@@ -110,6 +123,8 @@ class _AgileEpicsFeaturesScreenState
     final epic = _epics[index];
     if (pid == null) return;
     EpicFeatureService.deleteEpic(projectId: pid, epicId: epic.id);
+    _epicControllers.remove(epic.id);
+    _chipControllers.removeWhere((k, _) => k.startsWith('${epic.id}_'));
     setState(() {
       _epics.removeAt(index);
       if (_selectedEpicId == epic.id) {
@@ -143,6 +158,7 @@ class _AgileEpicsFeaturesScreenState
     final feature = _features[index];
     EpicFeatureService.deleteFeature(
         projectId: pid, epicId: _selectedEpicId!, featureId: feature.id);
+    _featureControllers.remove(feature.id);
     setState(() => _features.removeAt(index));
   }
 
@@ -252,7 +268,20 @@ class _AgileEpicsFeaturesScreenState
       );
       final cleaned = result.trim();
       if (cleaned.isNotEmpty) {
-        if (field == 'title') epic.title = cleaned;
+        switch (field) {
+          case 'title':
+            epic.title = cleaned;
+            _epicControllers[epic.id]?.text = cleaned;
+            break;
+          case 'theme':
+            epic.theme = cleaned;
+            _chipControllers['${epic.id}_Theme']?.text = cleaned;
+            break;
+          case 'businessValue':
+            epic.businessValue = cleaned;
+            _chipControllers['${epic.id}_Value']?.text = cleaned;
+            break;
+        }
         setState(() {});
         _updateEpic(epic);
       }
@@ -283,7 +312,15 @@ class _AgileEpicsFeaturesScreenState
       );
       final cleaned = result.trim();
       if (cleaned.isNotEmpty) {
-        if (field == 'title') feature.title = cleaned;
+        switch (field) {
+          case 'title':
+            feature.title = cleaned;
+            _featureControllers[feature.id]?.text = cleaned;
+            break;
+          case 'description':
+            feature.description = cleaned;
+            break;
+        }
         setState(() {});
         _updateFeature(feature);
       }
@@ -478,6 +515,7 @@ Widget _buildEpicTile(int index, Epic epic) {
                                     color: Color(0xFFEF4444), size: 16),
                                 onPressed: () {
                                   epic.title = '';
+                                  _epicControllers[epic.id]?.clear();
                                   _updateEpic(epic);
                                   setState(() {});
                                 },
@@ -490,7 +528,7 @@ Widget _buildEpicTile(int index, Epic epic) {
                       ),
                       style: const TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 14),
-                      controller: TextEditingController(text: epic.title),
+                      controller: _getController(_epicControllers, epic.id, epic.title),
                       onChanged: (v) {
                         epic.title = v;
                         _updateEpic(epic);
@@ -539,12 +577,12 @@ Widget _buildEpicTile(int index, Epic epic) {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  _buildChip('Theme', epic.theme, (v) {
+                  _buildChip(epic.id, 'Theme', epic.theme, (v) {
                     epic.theme = v;
                     _updateEpic(epic);
                   }),
                   const SizedBox(width: 8),
-                  _buildChip('Value', epic.businessValue, (v) {
+                  _buildChip(epic.id, 'Value', epic.businessValue, (v) {
                     epic.businessValue = v;
                     _updateEpic(epic);
                   }),
@@ -574,8 +612,7 @@ Widget _buildEpicTile(int index, Epic epic) {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: VoiceTextField(
+                Expanded(                    child: VoiceTextField(
                     decoration: InputDecoration(
                       hintText: 'Feature title',
                       border: InputBorder.none,
@@ -600,6 +637,7 @@ Widget _buildEpicTile(int index, Epic epic) {
                                   color: Color(0xFFEF4444), size: 16),
                               onPressed: () {
                                 feature.title = '';
+                                _featureControllers[feature.id]?.clear();
                                 _updateFeature(feature);
                                 setState(() {});
                               },
@@ -612,8 +650,7 @@ Widget _buildEpicTile(int index, Epic epic) {
                     ),
                     style: const TextStyle(
                         fontWeight: FontWeight.w500, fontSize: 13),
-                    controller:
-                        TextEditingController(text: feature.title),
+                    controller: _getController(_featureControllers, feature.id, feature.title),
                     onChanged: (v) {
                       feature.title = v;
                       _updateFeature(feature);
@@ -701,7 +738,7 @@ Widget _buildEpicTile(int index, Epic epic) {
     }
   }
 
-  Widget _buildChip(String label, String value, ValueChanged<String> onChanged) {
+  Widget _buildChip(String epicId, String label, String value, ValueChanged<String> onChanged) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
@@ -734,7 +771,7 @@ Widget _buildEpicTile(int index, Epic epic) {
                     : null,
               ),
               style: const TextStyle(fontSize: 11),
-              controller: TextEditingController(text: value),
+              controller: _getController(_chipControllers, '${epicId}_$label', value),
               onChanged: onChanged,
             ),
           ),

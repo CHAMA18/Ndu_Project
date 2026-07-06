@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -9,6 +10,7 @@ import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -44,6 +46,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  final Map<String, bool> _kazAiRegenerating = {};
   String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
@@ -242,6 +245,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
             setState(() => _teamRoster.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateTeamRosterRow(i),
           cells: [
             LaunchEditableCell(
               value: m.name,
@@ -342,6 +346,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
             setState(() => _knowledgeTransfers.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateKnowledgeTransferRow(i),
           cells: [
             LaunchEditableCell(
               value: k.topic,
@@ -448,6 +453,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
             setState(() => _vendorOffboarding.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateVendorOffboardingRow(i),
           cells: [
             LaunchEditableCell(
               value: v.title,
@@ -550,6 +556,7 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
             setState(() => _communications.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateCommunicationRow(i),
           cells: [
             LaunchEditableCell(
               value: c.audience,
@@ -620,6 +627,153 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
       }
     });
     _save();
+  }
+
+  // ── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _regenerateTeamRosterRow(int index) async {
+    if (index < 0 || index >= _teamRoster.length) return;
+    final key = 'team_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Team Ramp-Down Roster');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a team member name, role, and contact for ramp-down.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "name", "role", "contact", "status". Status must be Active, Transitioning, or Released.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _teamRoster[index] = _teamRoster[index].copyWith(
+              name: (parsed['name'] ?? '').toString(),
+              role: (parsed['role'] ?? _teamRoster[index].role).toString(),
+              contact: (parsed['contact'] ?? _teamRoster[index].contact).toString(),
+              releaseStatus: (parsed['status'] ?? _teamRoster[index].releaseStatus).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateKnowledgeTransferRow(int index) async {
+    if (index < 0 || index >= _knowledgeTransfers.length) return;
+    final key = 'kt_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Knowledge Transfer');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a knowledge transfer topic, from/to persons, and method.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "topic", "from", "to", "method", "status". Status must be Pending, Scheduled, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _knowledgeTransfers[index] = _knowledgeTransfers[index].copyWith(
+              topic: (parsed['topic'] ?? '').toString(),
+              fromPerson: (parsed['from'] ?? _knowledgeTransfers[index].fromPerson).toString(),
+              toPerson: (parsed['to'] ?? _knowledgeTransfers[index].toPerson).toString(),
+              method: (parsed['method'] ?? _knowledgeTransfers[index].method).toString(),
+              status: (parsed['status'] ?? _knowledgeTransfers[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateVendorOffboardingRow(int index) async {
+    if (index < 0 || index >= _vendorOffboarding.length) return;
+    final key = 'voff_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Vendor Offboarding');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a vendor offboarding task, details, and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "task", "details", "owner", "status". Status must be Pending, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _vendorOffboarding[index] = _vendorOffboarding[index].copyWith(
+              title: (parsed['task'] ?? '').toString(),
+              details: (parsed['details'] ?? _vendorOffboarding[index].details).toString(),
+              owner: (parsed['owner'] ?? _vendorOffboarding[index].owner).toString(),
+              status: (parsed['status'] ?? _vendorOffboarding[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateCommunicationRow(int index) async {
+    if (index < 0 || index >= _communications.length) return;
+    final key = 'comm_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Communications & People Care');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a communication audience, message, and channel.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "audience", "message", "channel", "status". Status must be Planned, Sent, or Cancelled.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _communications[index] = _communications[index].copyWith(
+              audience: (parsed['audience'] ?? '').toString(),
+              message: (parsed['message'] ?? _communications[index].message).toString(),
+              channel: (parsed['channel'] ?? _communications[index].channel).toString(),
+              status: (parsed['status'] ?? _communications[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
   }
 
   void _save() {

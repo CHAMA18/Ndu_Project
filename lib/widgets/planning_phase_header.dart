@@ -12,6 +12,7 @@ class PlanningPhaseHeader extends StatelessWidget {
     this.showNavigationButtons = true,
     this.showImportButton = true,
     this.showContentButton = true,
+    this.showActivityLogAction = true,
     this.onImportPressed,
     this.onContentPressed,
     this.breadcrumbPhase,
@@ -28,6 +29,7 @@ class PlanningPhaseHeader extends StatelessWidget {
   final bool showNavigationButtons;
   final bool showImportButton;
   final bool showContentButton;
+  final bool showActivityLogAction;
   final VoidCallback? onImportPressed;
   final VoidCallback? onContentPressed;
   final String? breadcrumbPhase;
@@ -53,7 +55,7 @@ class PlanningPhaseHeader extends StatelessWidget {
               ? onBack ?? () => Navigator.maybePop(context)
               : null,
           onForwardPressed: showNavigationButtons ? onForward : null,
-          showActivityLogAction: true,
+          showActivityLogAction: showActivityLogAction,
         ),
         if (showImportButton || showContentButton || showExportPdf || showAiAssist) ...[
           if (isMobile)

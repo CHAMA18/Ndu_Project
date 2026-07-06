@@ -2,6 +2,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
@@ -22,6 +23,7 @@ import 'package:ndu_project/utils/design_planning_document.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 
 class UiUxDesignScreen extends StatefulWidget {
   const UiUxDesignScreen({super.key});
@@ -56,6 +58,11 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
 
   // Design Review Gates
   List<_ReviewGateRow> _reviewGates = [];
+
+  // KAZ AI regeneration tracking
+  final Map<String, bool> _kazAiRegenerating = {};
+  // KAZ AI field-level generation tracking (for dialogs)
+  final Map<String, bool> _kazFieldGenerating = {};
 
   static const List<String> _journeyStatusOptions = [
     'Mapped',
@@ -537,6 +544,232 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
 
   String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
+  // ─── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _kazRegenerateJourney(int index) async {
+    if (index < 0 || index >= _journeys.length) return;
+    final key = 'journey_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'User Journey Register');
+      final openai = OpenAiServiceSecure();
+      final row = _journeys[index];
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate a user journey entry for the UI/UX design phase.\n\n'
+        'Context:\n$ctx\n\n'
+        'Current entry title: ${row.title}\n'
+        'Return ONLY a valid JSON object with keys: "title", "description", "touchpoints", "owner", "priority", "status".\n'
+        'Priority must be Critical, High, Medium, or Low. Status must be Mapped, Draft, Planned, In progress, Validated, or Deprecated.',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _journeys[index] = _JourneyRow(
+              id: row.id,
+              title: (parsed['title'] ?? row.title).toString(),
+              description: (parsed['description'] ?? row.description).toString(),
+              touchpoints: (parsed['touchpoints'] ?? row.touchpoints).toString(),
+              owner: (parsed['owner'] ?? row.owner).toString(),
+              priority: (parsed['priority'] ?? row.priority).toString(),
+              status: (parsed['status'] ?? row.status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _kazRegenerateInterface(int index) async {
+    if (index < 0 || index >= _interfaces.length) return;
+    final key = 'interface_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Interface Architecture Register');
+      final openai = OpenAiServiceSecure();
+      final row = _interfaces[index];
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate an interface architecture entry.\n\n'
+        'Context:\n$ctx\n\n'
+        'Current entry area: ${row.area}\n'
+        'Return ONLY a valid JSON object with keys: "area", "purpose", "fidelity", "owner", "status".\n'
+        'Fidelity must be High, Medium, or Low. Status must be Wireframe, User flow map, To define, Prototype, Final, or Deprecated.',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _interfaces[index] = _InterfaceRow(
+              id: row.id,
+              area: (parsed['area'] ?? row.area).toString(),
+              purpose: (parsed['purpose'] ?? row.purpose).toString(),
+              fidelity: (parsed['fidelity'] ?? row.fidelity).toString(),
+              owner: (parsed['owner'] ?? row.owner).toString(),
+              status: (parsed['status'] ?? row.status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _kazRegenerateDesignToken(int index) async {
+    if (index < 0 || index >= _designTokens.length) return;
+    final key = 'token_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Design System Tokens Register');
+      final openai = OpenAiServiceSecure();
+      final row = _designTokens[index];
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate a design system token entry.\n\n'
+        'Context:\n$ctx\n\n'
+        'Current token: ${row.title}\n'
+        'Return ONLY a valid JSON object with keys: "title", "description", "category", "status", "owner".\n'
+        'Category must be Colors, Typography, Layout, Effects, Motion, or Iconography. Status must be Ready, Draft, In review, Planned, or Deprecated.',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _designTokens[index] = _DesignTokenRow(
+              id: row.id,
+              title: (parsed['title'] ?? row.title).toString(),
+              description: (parsed['description'] ?? row.description).toString(),
+              category: (parsed['category'] ?? row.category).toString(),
+              status: (parsed['status'] ?? row.status).toString(),
+              owner: (parsed['owner'] ?? row.owner).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _kazRegenerateUsability(int index) async {
+    if (index < 0 || index >= _usabilityEntries.length) return;
+    final key = 'usability_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Usability & Accessibility Validation');
+      final openai = OpenAiServiceSecure();
+      final row = _usabilityEntries[index];
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate a usability & accessibility validation entry.\n\n'
+        'Context:\n$ctx\n\n'
+        'Current criteria: ${row.criteria}\n'
+        'Return ONLY a valid JSON object with keys: "criteria", "description", "standard", "status", "owner", "notes".\n'
+        'Status must be Pass, Fail, In progress, Not tested, or Conditional.',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _usabilityEntries[index] = _UsabilityRow(
+              id: row.id,
+              criteria: (parsed['criteria'] ?? row.criteria).toString(),
+              description: (parsed['description'] ?? row.description).toString(),
+              standard: (parsed['standard'] ?? row.standard).toString(),
+              status: (parsed['status'] ?? row.status).toString(),
+              owner: (parsed['owner'] ?? row.owner).toString(),
+              notes: (parsed['notes'] ?? row.notes).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _kazRegenerateReviewGate(int index) async {
+    if (index < 0 || index >= _reviewGates.length) return;
+    final key = 'gate_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Design Review Gates');
+      final openai = OpenAiServiceSecure();
+      final row = _reviewGates[index];
+      final result = await openai.generateCompletion(
+        'Based on this project context, regenerate a design review gate entry.\n\n'
+        'Context:\n$ctx\n\n'
+        'Current gate: ${row.gate}\n'
+        'Return ONLY a valid JSON object with keys: "gate", "description", "approver", "department", "priority", "status", "targetDate".\n'
+        'Priority must be Critical, High, Medium, or Low. Status must be Pending, In Review, Approved, Rejected, or Waived.',
+        maxTokens: 300,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _reviewGates[index] = _ReviewGateRow(
+              id: row.id,
+              gate: (parsed['gate'] ?? row.gate).toString(),
+              description: (parsed['description'] ?? row.description).toString(),
+              approver: (parsed['approver'] ?? row.approver).toString(),
+              department: (parsed['department'] ?? row.department).toString(),
+              priority: (parsed['priority'] ?? row.priority).toString(),
+              status: (parsed['status'] ?? row.status).toString(),
+              targetDate: (parsed['targetDate'] ?? row.targetDate).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
   // ─── Build ────────────────────────────────────────────────────────
 
   @override
@@ -980,10 +1213,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   _ColDef('OWNER', width: 110),
                   _ColDef('PRIORITY', width: 90),
                   _ColDef('STATUS', width: 100),
-                  _ColDef('', width: 60),
+                  _ColDef('', width: 100),
                 ]),
                 ...List.generate(_journeys.length, (i) {
                   final row = _journeys[i];
+                  final journeyKey = 'journey_$i';
+                  final isRegenerating = _kazAiRegenerating[journeyKey] ?? false;
                   return _buildTableRow(
                     cells: [
                       _CellDef(Expanded(
@@ -1002,10 +1237,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                       _CellDef(SizedBox(width: 120, child: _buildPriorityTag(row.priority))),
                       _CellDef(SizedBox(width: 130, child: _buildStatusTag(row.status))),
                       _CellDef(SizedBox(
-                        width: 60,
+                        width: 100,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(icon: isRegenerating ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)), tooltip: 'KAZ AI', onPressed: isRegenerating ? null : () => _kazRegenerateJourney(i), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                            const SizedBox(width: 4),
                             IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showJourneyDialog(existing: row), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                             IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete(() => _deleteJourney(row)), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                           ],
@@ -1081,10 +1318,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   _ColDef('FIDELITY', width: 90),
                   _ColDef('OWNER', width: 110),
                   _ColDef('STATE', width: 110),
-                  _ColDef('', width: 60),
+                  _ColDef('', width: 100),
                 ]),
                 ...List.generate(_interfaces.length, (i) {
                   final row = _interfaces[i];
+                  final interfaceKey = 'interface_$i';
+                  final isRegenerating = _kazAiRegenerating[interfaceKey] ?? false;
                   return _buildTableRow(
                     cells: [
                       _CellDef(Expanded(
@@ -1102,10 +1341,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                       _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
                       _CellDef(SizedBox(width: 130, child: _buildInterfaceStateTag(row.status))),
                       _CellDef(SizedBox(
-                        width: 60,
+                        width: 100,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(icon: isRegenerating ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)), tooltip: 'KAZ AI', onPressed: isRegenerating ? null : () => _kazRegenerateInterface(i), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                            const SizedBox(width: 4),
                             IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showInterfaceDialog(existing: row), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                             IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete(() => _deleteInterface(row)), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                           ],
@@ -1181,10 +1422,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   _ColDef('CATEGORY', width: 110),
                   _ColDef('OWNER', width: 130),
                   _ColDef('STATUS', width: 90),
-                  _ColDef('', width: 60),
+                  _ColDef('', width: 100),
                 ]),
                 ...List.generate(_designTokens.length, (i) {
                   final row = _designTokens[i];
+                  final tokenKey = 'token_$i';
+                  final isRegenerating = _kazAiRegenerating[tokenKey] ?? false;
                   return _buildTableRow(
                     cells: [
                       _CellDef(Expanded(
@@ -1202,10 +1445,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                       _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
                       _CellDef(SizedBox(width: 120, child: _buildTokenStatusTag(row.status))),
                       _CellDef(SizedBox(
-                        width: 60,
+                        width: 100,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(icon: isRegenerating ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)), tooltip: 'KAZ AI', onPressed: isRegenerating ? null : () => _kazRegenerateDesignToken(i), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                            const SizedBox(width: 4),
                             IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showDesignTokenDialog(existing: row), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                             IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete(() => _deleteDesignToken(row)), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                           ],
@@ -1283,10 +1528,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   _ColDef('STANDARD', width: 120),
                   _ColDef('OWNER', width: 100),
                   _ColDef('STATUS', width: 100),
-                  _ColDef('', width: 60),
+                  _ColDef('', width: 100),
                 ]),
                 ...List.generate(_usabilityEntries.length, (i) {
                   final row = _usabilityEntries[i];
+                  final usabilityKey = 'usability_$i';
+                  final isRegenerating = _kazAiRegenerating[usabilityKey] ?? false;
                   return _buildTableRow(
                     cells: [
                       _CellDef(Expanded(
@@ -1304,10 +1551,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                       _CellDef(SizedBox(width: 130, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569))))),
                       _CellDef(SizedBox(width: 130, child: _buildUsabilityStatusTag(row.status))),
                       _CellDef(SizedBox(
-                        width: 60,
+                        width: 100,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(icon: isRegenerating ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)), tooltip: 'KAZ AI', onPressed: isRegenerating ? null : () => _kazRegenerateUsability(i), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                            const SizedBox(width: 4),
                             IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showUsabilityDialog(existing: row), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                             IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete(() => _deleteUsability(row)), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                           ],
@@ -1388,10 +1637,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                   _ColDef('APPROVER', width: 120),
                   _ColDef('PRIORITY', width: 80),
                   _ColDef('STATUS', width: 100),
-                  _ColDef('', width: 60),
+                  _ColDef('', width: 100),
                 ]),
                 ...List.generate(_reviewGates.length, (i) {
                   final row = _reviewGates[i];
+                  final gateKey = 'gate_$i';
+                  final isRegenerating = _kazAiRegenerating[gateKey] ?? false;
                   return _buildTableRow(
                     cells: [
                       _CellDef(Expanded(
@@ -1409,10 +1660,12 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                       _CellDef(SizedBox(width: 110, child: _buildPriorityTag(row.priority))),
                       _CellDef(SizedBox(width: 130, child: _buildReviewGateStatusTag(row.status))),
                       _CellDef(SizedBox(
-                        width: 60,
+                        width: 100,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            IconButton(icon: isRegenerating ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)), tooltip: 'KAZ AI', onPressed: isRegenerating ? null : () => _kazRegenerateReviewGate(i), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+                            const SizedBox(width: 4),
                             IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: () => _showReviewGateDialog(existing: row), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                             IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete(() => _deleteReviewGate(row)), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
                           ],
@@ -1749,13 +2002,31 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                VoiceTextField(controller: titleController, decoration: const InputDecoration(labelText: 'Journey title', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: titleController,
+                  labelText: 'Journey title',
+                  aiHint: 'user journey title',
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: descController,
+                  labelText: 'Description',
+                  aiHint: 'user journey description',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: touchpointsController, decoration: const InputDecoration(labelText: 'Touchpoints', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: touchpointsController,
+                  labelText: 'Touchpoints',
+                  aiHint: 'key touchpoints for this journey',
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: ownerController,
+                  labelText: 'Owner',
+                  aiHint: 'journey owner role',
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -1822,11 +2093,25 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                VoiceTextField(controller: areaController, decoration: const InputDecoration(labelText: 'Area / screen name', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: areaController,
+                  labelText: 'Area / screen name',
+                  aiHint: 'interface area name',
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: purposeController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Purpose', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: purposeController,
+                  labelText: 'Purpose',
+                  aiHint: 'interface purpose',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: ownerController,
+                  labelText: 'Owner',
+                  aiHint: 'interface owner role',
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -1892,11 +2177,25 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                VoiceTextField(controller: titleController, decoration: const InputDecoration(labelText: 'Token name', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: titleController,
+                  labelText: 'Token name',
+                  aiHint: 'design token name',
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description / value', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: descController,
+                  labelText: 'Description / value',
+                  aiHint: 'design token description',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: ownerController,
+                  labelText: 'Owner',
+                  aiHint: 'token owner role',
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
@@ -1963,13 +2262,23 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                VoiceTextField(controller: criteriaController, decoration: const InputDecoration(labelText: 'Criteria', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: criteriaController,
+                  labelText: 'Criteria',
+                  aiHint: 'usability criteria',
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: descController,
+                  labelText: 'Description',
+                  aiHint: 'criteria description',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: VoiceTextField(controller: standardController, decoration: const InputDecoration(labelText: 'Standard', border: OutlineInputBorder()))),
+                    Expanded(child: _buildKazAiTextField(controller: standardController, labelText: 'Standard', aiHint: 'e.g. WCAG 2.1 AA')), 
                     const SizedBox(width: 12),
                     Expanded(child: DropdownButtonFormField<String>(
                       value: status,
@@ -1982,11 +2291,17 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: VoiceTextField(controller: ownerController, decoration: const InputDecoration(labelText: 'Owner', border: OutlineInputBorder()))),
+                    Expanded(child: _buildKazAiTextField(controller: ownerController, labelText: 'Owner', aiHint: 'criteria owner')), 
                   ],
                 ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: notesController, minLines: 2, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: notesController,
+                  labelText: 'Notes',
+                  aiHint: 'additional notes',
+                  minLines: 2,
+                  maxLines: 3,
+                ),
               ],
             ),
           ),
@@ -2036,15 +2351,25 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                VoiceTextField(controller: gateController, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: gateController,
+                  labelText: 'Gate name',
+                  aiHint: 'review gate name',
+                ),
                 const SizedBox(height: 12),
-                VoiceTextField(controller: descController, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
+                _buildKazAiTextField(
+                  controller: descController,
+                  labelText: 'Description',
+                  aiHint: 'gate description',
+                  minLines: 2,
+                  maxLines: 4,
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: VoiceTextField(controller: approverController, decoration: const InputDecoration(labelText: 'Approver', border: OutlineInputBorder()))),
+                    Expanded(child: _buildKazAiTextField(controller: approverController, labelText: 'Approver', aiHint: 'approver role')),
                     const SizedBox(width: 12),
-                    Expanded(child: VoiceTextField(controller: deptController, decoration: const InputDecoration(labelText: 'Department', border: OutlineInputBorder()))),
+                    Expanded(child: _buildKazAiTextField(controller: deptController, labelText: 'Department', aiHint: 'department name')),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -2094,6 +2419,83 @@ class _UiUxDesignScreenState extends State<UiUxDesignScreen> {
   void _deleteReviewGate(_ReviewGateRow row) {
     setState(() => _reviewGates.removeWhere((g) => g.id == row.id));
     _scheduleSave();
+  }
+
+  // ─── KAZ AI TextField Builder for Dialogs ──────────────────────────────
+
+  Widget _buildKazAiTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String aiHint,
+    int minLines = 1,
+    int maxLines = 1,
+  }) {
+    final isGeneratingNotifier = ValueNotifier<bool>(false);
+    return StatefulBuilder(
+      builder: (context, setFieldState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(labelText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280))),
+                ValueListenableBuilder<bool>(
+                  valueListenable: isGeneratingNotifier,
+                  builder: (_, isGen, __) => TextButton.icon(
+                    onPressed: isGen
+                        ? null
+                        : () async {
+                            isGeneratingNotifier.value = true;
+                            try {
+                              final projectData = ProjectDataHelper.getData(context);
+                              final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: labelText);
+                              final openai = OpenAiServiceSecure();
+                              final result = await openai.generateCompletion(
+                                'Based on this project context, generate a "$aiHint" for the UI/UX design phase.\n\n'
+                                'Context:\n$ctx\n\n'
+                                'Provide 1-2 concise, specific sentences. Return ONLY the text content (no JSON, no markdown).',
+                                maxTokens: 200,
+                                temperature: 0.6,
+                              );
+                              final cleaned = result.trim();
+                              if (cleaned.isNotEmpty) {
+                                controller.text = cleaned;
+                                controller.selection = TextSelection.fromPosition(TextPosition(offset: cleaned.length));
+                              }
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+                            }
+                            isGeneratingNotifier.value = false;
+                          },
+                    icon: isGen
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)),
+                    label: Text(isGen ? 'Generating...' : 'KAZ AI', style: const TextStyle(fontSize: 11, color: Color(0xFFF59E0B), fontWeight: FontWeight.w600)),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            VoiceTextField(
+              controller: controller,
+              minLines: minLines,
+              maxLines: maxLines,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   void _confirmDelete(VoidCallback onDelete) {

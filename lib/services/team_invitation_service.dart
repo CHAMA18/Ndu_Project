@@ -2,30 +2,24 @@ library;
 
 /// Team Invitation Service
 ///
-/// Sends invitation emails to team members via the Firebase Cloud Function
-/// `sendTeamInvitation`. The Cloud Function uses SMTP credentials stored as
-/// Firebase secrets to send branded HTML emails with a sign-in link.
+/// Sends invitation emails to team members via the Firebase Callable Cloud
+/// Function `sendTeamInvitation`. The Cloud Function uses Resend to send
+/// branded HTML emails with a sign-in link.
 ///
 /// Setup (one-time, on the server):
-///   firebase functions:secrets:set SMTP_HOST
-///   firebase functions:secrets:set SMTP_PORT
-///   firebase functions:secrets:set SMTP_USER
-///   firebase functions:secrets:set SMTP_PASSWORD
-///   firebase functions:secrets:set SMTP_FROM_EMAIL
+///   firebase functions:secrets:set RESEND_API_KEY
 ///   firebase deploy --only functions:sendTeamInvitation
+///
+/// IMPORTANT: This service propagates errors to the caller so they can be
+/// displayed to the user. Do NOT silently swallow errors here.
 
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 class TeamInvitationService {
   TeamInvitationService._();
-
-  /// Cloud Function URL (region us-central1, project ndu-d3f60)
-  static const String _functionUrl =
-      'https://us-central1-ndu-d3f60.cloudfunctions.net/sendTeamInvitation';
 
   /// Send an invitation email to a team member.
   ///
@@ -57,50 +51,35 @@ class TeamInvitationService {
     final link = inviteLink ?? 'https://staging.nduproject.com/#/sign-in';
 
     try {
-      // Get the user's ID token for authentication
-      final idToken = await user.getIdToken();
+      // Call the Callable Cloud Function via the Firebase SDK.
+      // This handles CORS, auth tokens, and data serialization automatically.
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'sendTeamInvitation',
+        options: HttpsCallableOptions(timeout: const Duration(seconds: 30)),
+      );
 
-      // Call the Cloud Function via HTTP
-      final response = await http.post(
-        Uri.parse(_functionUrl),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-        body: jsonEncode({
-          'data': {
-            'email': email,
-            'inviterName': inviter,
-            'projectName': projectName ?? 'NDU Project',
-            'inviteLink': link,
-          },
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final result = await callable.call<Map<String, dynamic>>({
+        'email': email,
+        'inviterName': inviter,
+        'projectName': projectName ?? 'NDU Project',
+        'inviteLink': link,
+      });
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final result = data['result'] as Map<String, dynamic>? ?? data;
-        if (result['success'] == true) {
-          debugPrint('[TeamInvitationService] Invitation sent to $email');
-          return result['message'] as String? ?? 'Invitation sent.';
-        } else {
-          throw Exception(result['message'] as String? ?? 'Failed to send invitation.');
-        }
+      final data = result.data;
+      if (data['success'] == true) {
+        debugPrint('[TeamInvitationService] Invitation accepted for $email (messageId: ${data['messageId']})');
+        return data['message'] as String? ?? 'Invitation accepted for delivery.';
       } else {
-        final errorData = jsonDecode(response.body) as Map<String, dynamic>;
-        final error = errorData['error'] as Map<String, dynamic>?;
-        final message = error?['message'] as String? ?? 'Failed to send invitation.';
-        debugPrint('[TeamInvitationService] HTTP ${response.statusCode}: $message');
-
-        if (message.contains('not configured') || message.contains('failed-precondition')) {
-          return 'Email service is being configured. Invitation queued for later delivery.';
-        }
-        throw Exception(message);
+        throw Exception(data['message'] as String? ?? 'Failed to send invitation.');
       }
+    } on FirebaseFunctionsException catch (e) {
+      debugPrint('[TeamInvitationService] Firebase error: ${e.code} — ${e.message}');
+      // Propagate the real error so callers can display it to the user
+      throw Exception(_friendlyFirebaseError(e));
     } catch (e) {
       debugPrint('[TeamInvitationService] Error: $e');
-      // Don't block onboarding if email fails — return a friendly message
-      return 'Invitation queued. Email will be sent when the service is fully configured.';
+      // Re-throw so the caller knows the email was NOT sent
+      throw Exception('Failed to send invitation: $e');
     }
   }
 
@@ -126,6 +105,27 @@ class TeamInvitationService {
       }
     }
     return results;
+  }
+
+  /// Returns a human-readable error message for Firebase Functions errors.
+  static String _friendlyFirebaseError(FirebaseFunctionsException e) {
+    switch (e.code) {
+      case 'unauthenticated':
+        return 'You must be signed in to send invitations.';
+      case 'failed-precondition':
+        if (e.message?.contains('not configured') == true) {
+          return 'Email service is not configured. Please contact your administrator.';
+        }
+        return 'Invitation could not be sent: ${e.message ?? 'Service not ready'}.';
+      case 'resource-exhausted':
+        return 'Too many invitations sent. Please wait before trying again.';
+      case 'invalid-argument':
+        return e.message ?? 'Invalid email address.';
+      case 'internal':
+        return 'Email delivery failed on the server. Please try again later.';
+      default:
+        return e.message ?? 'Failed to send invitation (error: ${e.code}).';
+    }
   }
 
   /// Get all invitations sent by the current user.

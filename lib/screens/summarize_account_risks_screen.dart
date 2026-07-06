@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:ndu_project/utils/download_helper_stub.dart'
     if (dart.library.html) 'package:ndu_project/utils/download_helper_web.dart' as loader;
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -46,6 +48,7 @@ class _SummarizeAccountRisksScreenState
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  final Map<String, bool> _kazAiRegenerating = {};
   String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
@@ -212,6 +215,7 @@ class _SummarizeAccountRisksScreenState
             setState(() => _highlights.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateHighlightRow(i),
           cells: [
             LaunchEditableCell(
               value: h.title,
@@ -286,6 +290,7 @@ class _SummarizeAccountRisksScreenState
             setState(() => _topRisks.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateRiskRow(i),
           cells: [
             LaunchEditableCell(
               value: r.title,
@@ -380,6 +385,7 @@ class _SummarizeAccountRisksScreenState
             setState(() => _next90Days.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateNext90Row(i),
           cells: [
             LaunchEditableCell(
               value: f.title,
@@ -423,6 +429,114 @@ class _SummarizeAccountRisksScreenState
         );
       },
     );
+  }
+
+  // ── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _regenerateHighlightRow(int index) async {
+    if (index < 0 || index >= _highlights.length) return;
+    final key = 'highlight_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Highlights & Wins');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a highlight/win title and details for a project summary.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "title", "details".',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _highlights[index] = _highlights[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? _highlights[index].details).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateRiskRow(int index) async {
+    if (index < 0 || index >= _topRisks.length) return;
+    final key = 'risk_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Top Risks');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a top risk title, details, and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "title", "details", "owner", "status". Status must be Open, Mitigated, or Closed.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _topRisks[index] = _topRisks[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? _topRisks[index].details).toString(),
+              owner: (parsed['owner'] ?? _topRisks[index].owner).toString(),
+              status: (parsed['status'] ?? _topRisks[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateNext90Row(int index) async {
+    if (index < 0 || index >= _next90Days.length) return;
+    final key = 'next90_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Next 90 Days Focus');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a priority item for the next 90 days with details and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "title", "details", "owner", "status". Status must be Planned, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _next90Days[index] = _next90Days[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? _next90Days[index].details).toString(),
+              owner: (parsed['owner'] ?? _next90Days[index].owner).toString(),
+              status: (parsed['status'] ?? _next90Days[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
   }
 
   void _save() {

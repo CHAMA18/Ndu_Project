@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -10,6 +11,7 @@ import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -47,6 +49,7 @@ class _ActualVsPlannedGapAnalysisScreenState
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  final Map<String, bool> _kazAiRegenerating = {};
   String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
@@ -185,6 +188,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             setState(() => _scopeGaps.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateScopeGapRow(i),
           cells: [
             LaunchEditableCell(
               value: g.planned,
@@ -279,6 +283,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             setState(() => _milestoneVariances.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateMilestoneVarianceRow(i),
           cells: [
             LaunchEditableCell(
               value: m.milestone,
@@ -380,6 +385,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             setState(() => _budgetVariances.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateBudgetVarianceRow(i),
           cells: [
             LaunchEditableCell(
               value: b.category,
@@ -483,6 +489,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             setState(() => _rootCauses.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateRootCauseRow(i),
           cells: [
             LaunchEditableCell(
               value: r.gap,
@@ -583,6 +590,7 @@ class _ActualVsPlannedGapAnalysisScreenState
             setState(() => _followUpActions.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateFollowUpRow(i),
           cells: [
             LaunchEditableCell(
               value: f.title,
@@ -626,6 +634,189 @@ class _ActualVsPlannedGapAnalysisScreenState
         );
       },
     );
+  }
+
+  // ── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _regenerateScopeGapRow(int index) async {
+    if (index < 0 || index >= _scopeGaps.length) return;
+    final key = 'gap_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Scope Gap Analysis');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a planned deliverable, actual outcome, gap description, and status.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "planned", "actual", "gap", "status". Status must be Met, Partial, Missed, or Exceeded.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _scopeGaps[index] = _scopeGaps[index].copyWith(
+              planned: (parsed['planned'] ?? '').toString(),
+              actual: (parsed['actual'] ?? _scopeGaps[index].actual).toString(),
+              gapDescription: (parsed['gap'] ?? _scopeGaps[index].gapDescription).toString(),
+              gapStatus: (parsed['status'] ?? _scopeGaps[index].gapStatus).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateMilestoneVarianceRow(int index) async {
+    if (index < 0 || index >= _milestoneVariances.length) return;
+    final key = 'msvar_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Milestone Variance');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a milestone name, variance, and status.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "milestone", "variance", "status". Status must be On Track, Delayed, Missed, or Early.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _milestoneVariances[index] = _milestoneVariances[index].copyWith(
+              milestone: (parsed['milestone'] ?? '').toString(),
+              varianceDays: (parsed['variance'] ?? _milestoneVariances[index].varianceDays).toString(),
+              status: (parsed['status'] ?? _milestoneVariances[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateBudgetVarianceRow(int index) async {
+    if (index < 0 || index >= _budgetVariances.length) return;
+    final key = 'bv_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Budget Variance');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a budget category, planned amount, actual amount, and variance.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "category", "planned", "actual", "variance", "percent".',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _budgetVariances[index] = _budgetVariances[index].copyWith(
+              category: (parsed['category'] ?? '').toString(),
+              plannedAmount: (parsed['planned'] ?? _budgetVariances[index].plannedAmount).toString(),
+              actualAmount: (parsed['actual'] ?? _budgetVariances[index].actualAmount).toString(),
+              variance: (parsed['variance'] ?? _budgetVariances[index].variance).toString(),
+              variancePercent: (parsed['percent'] ?? _budgetVariances[index].variancePercent).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateRootCauseRow(int index) async {
+    if (index < 0 || index >= _rootCauses.length) return;
+    final key = 'rc_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Root Cause Analysis');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a gap description, root cause, impact, and corrective action.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "gap", "root_cause", "impact", "action", "status". Status must be Open, In Progress, or Resolved.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _rootCauses[index] = _rootCauses[index].copyWith(
+              gap: (parsed['gap'] ?? '').toString(),
+              rootCause: (parsed['root_cause'] ?? _rootCauses[index].rootCause).toString(),
+              impact: (parsed['impact'] ?? _rootCauses[index].impact).toString(),
+              correctiveAction: (parsed['action'] ?? _rootCauses[index].correctiveAction).toString(),
+              status: (parsed['status'] ?? _rootCauses[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateFollowUpRow(int index) async {
+    if (index < 0 || index >= _followUpActions.length) return;
+    final key = 'fu_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Follow-Up Actions');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a follow-up action title, details, and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "title", "details", "owner", "status". Status must be Open, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _followUpActions[index] = _followUpActions[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? _followUpActions[index].details).toString(),
+              owner: (parsed['owner'] ?? _followUpActions[index].owner).toString(),
+              status: (parsed['status'] ?? _followUpActions[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
   }
 
   void _save() {

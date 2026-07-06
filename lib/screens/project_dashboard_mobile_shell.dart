@@ -774,17 +774,7 @@ class _ProjectDashboardMobileShellState
                                   childAspectRatio: 0.82,
                                   children: [
                                     _statCard(
-                                      label: 'Single Projects',
-                                      value: user == null
-                                          ? 'Sign in to view'
-                                          : singleCount.toString(),
-                                      icon: Icons.folder,
-                                      iconBg: const Color(0xFFEFF6FF),
-                                      iconColor: _Tokens.primary,
-                                      onTap: () {},
-                                    ),
-                                    _statCard(
-                                      label: 'Basic Projects',
+                                      label: 'Regular Projects',
                                       value: user == null
                                           ? 'Sign in to view'
                                           : basicCount.toString(),
@@ -792,6 +782,16 @@ class _ProjectDashboardMobileShellState
                                       iconBg: const Color(0xFFF0FDFA),
                                       iconColor: const Color(0xFF0D9488),
                                       filled: true,
+                                      onTap: () {},
+                                    ),
+                                    _statCard(
+                                      label: 'Projects',
+                                      value: user == null
+                                          ? 'Sign in to view'
+                                          : singleCount.toString(),
+                                      icon: Icons.folder,
+                                      iconBg: const Color(0xFFEFF6FF),
+                                      iconColor: _Tokens.primary,
                                       onTap: () {},
                                     ),
                                     _statCard(
@@ -845,8 +845,8 @@ class _ProjectDashboardMobileShellState
                                         children: [
                                           Text(
                                             widget.isBasicPlan
-                                                ? 'Basic Projects'
-                                                : 'Single Projects',
+                                                ? 'Regular Projects'
+                                                : 'Projects',
                                             style: const TextStyle(
                                               fontSize: 20,
                                               fontWeight: FontWeight.w600,

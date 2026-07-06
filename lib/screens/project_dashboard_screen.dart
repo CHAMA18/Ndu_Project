@@ -859,7 +859,7 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
                           const Icon(Icons.add_circle_outline, size: 22),
                           const SizedBox(width: 10),
                           Text(widget.isBasicPlan
-                              ? 'Create Basic Project'
+                              ? 'Create Regular Project'
                               : 'Create Project'),
                           const SizedBox(width: 6),
                           const Icon(Icons.arrow_forward, size: 20),
@@ -1018,21 +1018,20 @@ class _StatusStrip extends StatelessWidget {
 
         if (user == null) {
           final metrics = [
-            DashboardStatCard(
-              label: 'Single Projects',
-              value: '—',
-              subLabel: 'Sign in to view',
-              icon: Icons.folder_open_rounded,
-              color: Colors.blue.shade600,
-              onTap: openProjectDashboard,
-            ),
-            DashboardStatCard(
-              label: 'Basic Projects',
+            DashboardStatCard(                      label: 'Regular Projects',
               value: '—',
               subLabel: 'Sign in to view',
               icon: Icons.folder_special_rounded,
               color: Colors.teal.shade600,
               onTap: openBasicDashboard,
+            ),
+            DashboardStatCard(
+              label: 'Projects',
+              value: '—',
+              subLabel: 'Sign in to view',
+              icon: Icons.folder_open_rounded,
+              color: Colors.blue.shade600,
+              onTap: openProjectDashboard,
             ),
             DashboardStatCard(
               label: 'Programs',
@@ -1080,20 +1079,20 @@ class _StatusStrip extends StatelessWidget {
 
                     final metrics = [
                       DashboardStatCard(
-                        label: 'Single Projects',
-                        value: '$projectCount',
-                        subLabel: 'Active workspaces',
-                        icon: Icons.folder_open_rounded,
-                        color: Colors.blue.shade600,
-                        onTap: openProjectDashboard,
-                      ),
-                      DashboardStatCard(
-                        label: 'Basic Projects',
+                        label: 'Regular Projects',
                         value: '$basicProjectCount',
                         subLabel: 'Basic plan workspaces',
                         icon: Icons.folder_special_rounded,
                         color: Colors.teal.shade600,
                         onTap: openBasicDashboard,
+                      ),
+                      DashboardStatCard(
+                        label: 'Projects',
+                        value: '$projectCount',
+                        subLabel: 'Active workspaces',
+                        icon: Icons.folder_open_rounded,
+                        color: Colors.blue.shade600,
+                        onTap: openProjectDashboard,
                       ),
                       DashboardStatCard(
                         label: 'Programs',
@@ -1183,12 +1182,12 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final user = FirebaseAuth.instance.currentUser;
-    final titleText = widget.isBasicPlan ? 'Basic Projects' : 'Single Projects';
+    final titleText = widget.isBasicPlan ? 'Regular Projects' : 'Projects';
     final subtitleText = widget.isBasicPlan
         ? 'Review all basic plan projects before upgrading to unlock more sections.'
         : 'Review all standalone projects before they are linked into programs or portfolios.';
     final searchHint =
-        widget.isBasicPlan ? 'Search basic projects...' : 'Search projects...';
+        widget.isBasicPlan ? 'Search regular projects...' : 'Search projects...';
     final tipText = widget.isBasicPlan
         ? 'Basic plan workspaces focus on initiation essentials'
         : 'If more than 3 projects, group up to 3 into a program';
@@ -1463,7 +1462,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                           const SizedBox(height: 16),
                           Text(
                             widget.isBasicPlan
-                                ? 'No basic projects yet'
+                                ? 'No regular projects yet'
                                 : 'No projects yet',
                             style: textTheme.bodyLarge?.copyWith(
                               color: Colors.grey.shade600,
@@ -1473,7 +1472,7 @@ class _SingleProjectsCardState extends State<_SingleProjectsCard> {
                           const SizedBox(height: 8),
                           Text(
                             widget.isBasicPlan
-                                ? 'Create your first basic project using the "Create Project" button above'
+                                ? 'Create your first regular project using the "Create Project" button above'
                                 : 'Create your first project using the "Create Project" button above',
                             style: textTheme.bodySmall
                                 ?.copyWith(color: Colors.grey.shade600),
@@ -2450,7 +2449,7 @@ class _SingleProjectsExpandedScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(isBasicPlan ? 'Basic Projects' : 'Single Projects'),
+        title: Text(isBasicPlan ? 'Regular Projects' : 'Projects'),
         backgroundColor: Colors.white,
         elevation: 0,
         foregroundColor: Colors.black87,

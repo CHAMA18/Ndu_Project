@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -10,6 +11,7 @@ import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -45,6 +47,7 @@ class _VendorAccountCloseOutScreenState
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  final Map<String, bool> _kazAiRegenerating = {};
   String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
@@ -76,44 +79,11 @@ class _VendorAccountCloseOutScreenState
               title: 'Vendor Account Close Out',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false, onExportPdf: _exportPdf),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                const Spacer(),
-                ExecutionActionBar(
-                  actions: [
-                    ExecutionActionItem(
-                      label: 'Import Vendors',
-                      icon: Icons.download_outlined,
-                      tone: ExecutionActionTone.secondary,
-                      onPressed: _importVendors,
-                    ),
-                    ExecutionActionItem(
-                      label: _isExporting ? 'Exporting…' : 'Export PDF',
-                      icon: Icons.picture_as_pdf_outlined,
-                      tone: ExecutionActionTone.secondary,
-                      isLoading: _isExporting,
-                      onPressed: _isExporting ? null : _exportPdf,
-                    ),
-                    ExecutionActionItem(
-                      label: _selectedView == 'full' ? 'Summary View' : 'Full View',
-                      icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
-                      tone: ExecutionActionTone.secondary,
-                      onPressed: () => setState(() {
-                        _selectedView = _selectedView == 'full' ? 'summary' : 'full';
-                      }),
-                    ),
-                    ExecutionActionItem(
-                      label: _isGenerating ? 'Generating…' : 'AI Assist',
-                      icon: Icons.auto_awesome_outlined,
-                      tone: ExecutionActionTone.ai,
-                      isLoading: _isGenerating,
-                      onPressed: _isGenerating ? null : _populateFromAi,
-                    ),
-                  ],
-                ),
-              ],
+              showNavigationButtons: false,
+              showActivityLogAction: false,
+              onExportPdf: _exportPdf,
+              showAiAssist: true,
+              onAiAssist: _isGenerating ? null : _populateFromAi,
             ),
             const SizedBox(height: 12),
             _buildMetricsRow(),
@@ -240,6 +210,7 @@ class _VendorAccountCloseOutScreenState
             setState(() => _vendors.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateVendorRow(i),
           cells: [
             LaunchEditableCell(
               value: v.vendorName,
@@ -348,6 +319,7 @@ class _VendorAccountCloseOutScreenState
             setState(() => _accessItems.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateAccessRow(i),
           cells: [
             LaunchEditableCell(
               value: a.system,
@@ -452,6 +424,7 @@ class _VendorAccountCloseOutScreenState
             setState(() => _obligations.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateObligationRow(i),
           cells: [
             LaunchEditableCell(
               value: o.title,
@@ -547,6 +520,7 @@ class _VendorAccountCloseOutScreenState
             setState(() => _closureChecklist.removeAt(i));
             _save();
           },
+          onKazAi: () => _regenerateClosureChecklistRow(i),
           cells: [
             LaunchEditableCell(
               value: c.title,
@@ -816,6 +790,153 @@ class _VendorAccountCloseOutScreenState
       _isGenerating = false;
     });
     await _persistData();
+  }
+
+  // ── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _regenerateVendorRow(int index) async {
+    if (index < 0 || index >= _vendors.length) return;
+    final key = 'vendor_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Vendor Account Close Out');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a vendor name, contract ref, outstanding items, and status for vendor close-out.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "vendor", "contract_ref", "outstanding", "status", "notes". Status must be Active, Closing, or Closed.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _vendors[index] = _vendors[index].copyWith(
+              vendorName: (parsed['vendor'] ?? '').toString(),
+              contractRef: (parsed['contract_ref'] ?? _vendors[index].contractRef).toString(),
+              outstandingItems: (parsed['outstanding'] ?? _vendors[index].outstandingItems).toString(),
+              accountStatus: (parsed['status'] ?? _vendors[index].accountStatus).toString(),
+              notes: (parsed['notes'] ?? _vendors[index].notes).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateAccessRow(int index) async {
+    if (index < 0 || index >= _accessItems.length) return;
+    final key = 'access_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Access Revocation');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a system, vendor, and access level for access revocation tracking.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "system", "vendor", "access_level", "status". Status must be Pending, Revoked, or Confirmed.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _accessItems[index] = _accessItems[index].copyWith(
+              system: (parsed['system'] ?? '').toString(),
+              vendor: (parsed['vendor'] ?? _accessItems[index].vendor).toString(),
+              accessLevel: (parsed['access_level'] ?? _accessItems[index].accessLevel).toString(),
+              status: (parsed['status'] ?? _accessItems[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateObligationRow(int index) async {
+    if (index < 0 || index >= _obligations.length) return;
+    final key = 'obligation_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Outstanding Obligations');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest an outstanding obligation title, details, and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "title", "details", "owner", "status". Status must be Open, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _obligations[index] = _obligations[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? _obligations[index].details).toString(),
+              owner: (parsed['owner'] ?? _obligations[index].owner).toString(),
+              status: (parsed['status'] ?? _obligations[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateClosureChecklistRow(int index) async {
+    if (index < 0 || index >= _closureChecklist.length) return;
+    final key = 'closure_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Account Closure Checklist');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a closure checklist task, details, and owner.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "task", "details", "owner", "status". Status must be Pending, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _closureChecklist[index] = _closureChecklist[index].copyWith(
+              title: (parsed['task'] ?? '').toString(),
+              details: (parsed['details'] ?? _closureChecklist[index].details).toString(),
+              owner: (parsed['owner'] ?? _closureChecklist[index].owner).toString(),
+              status: (parsed['status'] ?? _closureChecklist[index].status).toString(),
+            );
+          });
+          _save();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
   }
 
   String _s(dynamic v) => (v ?? '').toString().trim();

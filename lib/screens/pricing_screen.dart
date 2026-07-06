@@ -150,7 +150,7 @@ class _PricingScreenState extends State<PricingScreen> {
   static const List<_PricingPlan> _plans = [
     _PricingPlan(
       tier: _PlanTier.basicProject,
-      label: 'Basic Project',
+      label: 'Regular Project',
       badgeColor: _themeColor,
       subtitle: 'No Fuss routine project delivered at a fraction of the cost',
       monthlyPrice: 39,

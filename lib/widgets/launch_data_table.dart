@@ -489,7 +489,7 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
             (col, _) => Text(
               col.label,
               textAlign: TextAlign.left,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -759,11 +759,9 @@ class _LaunchEditableCellState extends State<LaunchEditableCell> {
     if (!isEditing) {
       return Align(
         alignment: Alignment.centerLeft,
-        child: Text(
+        child:        Text(
           widget.value.isEmpty ? '—' : widget.value,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-          softWrap: false,
+          softWrap: true,
           style: TextStyle(
             fontSize: 13,
             color: widget.value.isEmpty

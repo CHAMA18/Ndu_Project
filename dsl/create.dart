@@ -810,7 +810,7 @@ void buildNduProject(App app) {
           spacing: 20,
           children: [
             Text('Choose your plan', style: Styles.headlineSmall),
-            Text('Scale from single projects to full portfolios', style: Styles.bodyMedium, color: Colors.secondaryText),
+            Text('Scale from projects to full portfolios', style: Styles.bodyMedium, color: Colors.secondaryText),
             // Billing toggle
             Row(
               mainAxis: MainAxis.center,
@@ -834,7 +834,7 @@ void buildNduProject(App app) {
                       crossAxis: CrossAxis.start,
                       spacing: 12,
                       children: [
-                        Text('Basic Project', style: Styles.titleMedium),
+                        Text('Regular Project', style: Styles.titleMedium),
                         Row(spacing: 2, children: [
                           Text('\$39', style: Styles.headlineMedium),
                           Text('/mo', style: Styles.bodySmall, color: Colors.secondaryText),
@@ -844,7 +844,7 @@ void buildNduProject(App app) {
                         Row(spacing: 8, children: [Icon('check_circle', size: 16, color: Colors.tertiary), Text('Basic dashboards & reports', style: Styles.bodySmall)]),
                         Row(spacing: 8, children: [Icon('check_circle', size: 16, color: Colors.tertiary), Text('Email support', style: Styles.bodySmall)]),
                         Spacer(flex: 1, name: 'PlanSpacer'),
-                        Button('Select Plan', width: double.infinity, borderRadius: 12, color: Colors.hex(0xFFFFC107), textColor: Colors.hex(0xFF0F172A), onTap: Snackbar('Plan selected: Basic Project')),
+                        Button('Select Plan', width: double.infinity, borderRadius: 12, color: Colors.hex(0xFFFFC107), textColor: Colors.hex(0xFF0F172A), onTap: Snackbar('Plan selected: Regular Project')),
                       ],
                     ),
                   ),
@@ -952,8 +952,8 @@ void buildNduProject(App app) {
             Row(
               spacing: 12,
               children: [
-                Flexible(statCard(label: 'Single Projects', value: '3', subLabel: 'Active'), flex: 1),
-                Flexible(statCard(label: 'Basic Projects', value: '7', subLabel: 'In progress'), flex: 1),
+                Flexible(statCard(label: 'Regular Projects', value: '7', subLabel: 'In progress'), flex: 1),
+                Flexible(statCard(label: 'Projects', value: '3', subLabel: 'Active'), flex: 1),
                 Flexible(statCard(label: 'Programs', value: '2', subLabel: 'Running'), flex: 1),
                 Flexible(statCard(label: 'Portfolios', value: '1', subLabel: 'Active'), flex: 1),
               ],

@@ -87,6 +87,9 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
   String? _emailError;
   String _firstName = '';
 
+  // Per-email invitation status tracking
+  final Map<String, _InviteStatus> _inviteStatuses = {};
+
   // Entrance animation
   late final AnimationController _entranceController;
   late final Animation<double> _entranceScale;
@@ -280,26 +283,8 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
         skipped: false,
       );
       await ProfileOnboardingService.markComplete(_answers);
-
-      // Send invitation emails to queued team members
-      if (_answers.invitedEmails.isNotEmpty) {
-        final user = FirebaseAuth.instance.currentUser;
-        final inviterName = user?.displayName ??
-            user?.email ??
-            'A team member';
-        for (final email in _answers.invitedEmails) {
-          try {
-            await TeamInvitationService.sendInvitation(
-              email: email,
-              inviterName: inviterName,
-              projectName: 'NDU Project',
-            );
-            debugPrint('[Onboarding] Invitation sent to $email');
-          } catch (e) {
-            debugPrint('[Onboarding] Failed to send invitation to $email: $e');
-          }
-        }
-      }
+      // Invitations are sent immediately when added in Step 7,
+      // so no bulk send needed here.
     } catch (e) {
       debugPrint('[Onboarding] finish save error (non-blocking): $e');
     } finally {
@@ -319,6 +304,19 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
     } else {
       context.go('/${widget.returnTo}');
     }
+  }
+
+  String _reviewInviteSummary() {
+    final total = _answers.invitedEmails.length;
+    if (total == 0) return 'None — invite later';
+    final sent = _inviteStatuses.values.where((s) => s == _InviteStatus.sent).length;
+    final failed = _inviteStatuses.values.where((s) => s == _InviteStatus.failed).length;
+    final pending = total - sent - failed;
+    final parts = <String>[];
+    if (sent > 0) parts.add('$sent sent');
+    if (failed > 0) parts.add('$failed failed');
+    if (pending > 0) parts.add('$pending pending');
+    return '$total email(s) — ${parts.join(', ')}';
   }
 
   // ── Setters ────────────────────────────────────────────────────────────
@@ -402,7 +400,35 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
       );
       _emailInviteController.clear();
       _emailError = null;
+      _inviteStatuses[email] = _InviteStatus.sending;
     });
+
+    // Send the invitation immediately
+    _sendInvitationForEmail(email);
+  }
+
+  Future<void> _sendInvitationForEmail(String email) async {
+    final user = FirebaseAuth.instance.currentUser;
+    final inviterName = user?.displayName ?? user?.email ?? 'A team member';
+    try {
+      final message = await TeamInvitationService.sendInvitation(
+        email: email,
+        inviterName: inviterName,
+        projectName: 'NDU Project',
+      );
+      debugPrint('[Onboarding] Invitation result for $email: $message');
+      // Guard: only update if still mounted, email still in list, AND
+      // status is still 'sending' (avoids stale responses overwriting a retry)
+      if (!mounted || !_answers.invitedEmails.contains(email)) return;
+      if (_inviteStatuses[email] != _InviteStatus.sending) return;
+      // If the service returned a message (no exception), the email was accepted
+      setState(() => _inviteStatuses[email] = _InviteStatus.sent);
+    } catch (e) {
+      debugPrint('[Onboarding] Failed to send invitation to $email: $e');
+      if (!mounted || !_answers.invitedEmails.contains(email)) return;
+      if (_inviteStatuses[email] != _InviteStatus.sending) return;
+      setState(() => _inviteStatuses[email] = _InviteStatus.failed);
+    }
   }
 
   void _removeInviteEmail(String email) {
@@ -412,6 +438,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
             .where((e) => e != email)
             .toList(growable: false),
       );
+      _inviteStatuses.remove(email);
     });
   }
 
@@ -1327,7 +1354,12 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                       children: _answers.invitedEmails.map((email) {
                         return _InviteChip(
                           email: email,
+                          status: _inviteStatuses[email] ?? _InviteStatus.sending,
                           onRemove: () => _removeInviteEmail(email),
+                          onRetry: () {
+                            setState(() => _inviteStatuses[email] = _InviteStatus.sending);
+                            _sendInvitationForEmail(email);
+                          },
                         );
                       }).toList(),
                     ),
@@ -1339,7 +1371,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            'Branded invitation emails will be sent from nduproject.tech when you finish setup. Each link expires in 7 days and takes the recipient to the sign-in page.',
+                            'Invitation emails are sent immediately from nduproject.tech. Each link expires in 7 days and takes the recipient to the sign-in page.',
                             style: TextStyle(
                               color: _textSecondary.withOpacity(0.85),
                               fontSize: 11,
@@ -1494,7 +1526,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               label: 'Team invitations',
               value: _answers.invitedEmails.isEmpty
                   ? 'None — invite later'
-                  : '${_answers.invitedEmails.length} email(s) queued',
+                  : _reviewInviteSummary(),
             ),
             _ReviewRow(
               label: 'Max members / project',
@@ -1527,7 +1559,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
                         ),
                         SizedBox(height: 4),
                         Text(
-                          'Tap "Finish setup" to save your answers, send team invitations, and personalize your workspace.',
+                          'Tap "Finish setup" to save your answers and personalize your workspace.',
                           style: TextStyle(
                             color: _textSecondary,
                             fontSize: 12,
@@ -2357,37 +2389,90 @@ class _CustomTextField extends StatelessWidget {
   }
 }
 
+enum _InviteStatus { sending, sent, failed }
+
 class _InviteChip extends StatelessWidget {
-  const _InviteChip({required this.email, required this.onRemove});
+  const _InviteChip({
+    required this.email,
+    required this.status,
+    required this.onRemove,
+    this.onRetry,
+  });
   final String email;
+  final _InviteStatus status;
   final VoidCallback onRemove;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: _bgSurfaceHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _border.withOpacity(0.5), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.person_outline_rounded, color: _gold, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            email,
-            style: const TextStyle(color: _textPrimary, fontSize: 12),
+    final borderColor = switch (status) {
+      _InviteStatus.sending => _border.withOpacity(0.5),
+      _InviteStatus.sent => const Color(0xFF22C55E).withOpacity(0.6),
+      _InviteStatus.failed => const Color(0xFFEF4444).withOpacity(0.6),
+    };
+    final bgColor = switch (status) {
+      _InviteStatus.sending => _bgSurfaceHighest,
+      _InviteStatus.sent => const Color(0xFF22C55E).withOpacity(0.08),
+      _InviteStatus.failed => const Color(0xFFEF4444).withOpacity(0.08),
+    };
+    return GestureDetector(
+      onTap: (status == _InviteStatus.failed && onRetry != null) ? onRetry : null,
+      child: Tooltip(
+        message: switch (status) {
+          _InviteStatus.sending => 'Sending…',
+          _InviteStatus.sent => 'Invitation sent',
+          _InviteStatus.failed => 'Failed — tap to retry',
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor, width: 1),
           ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: onRemove,
-            child: const Icon(Icons.close_rounded, color: _textMuted, size: 14),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _statusIcon(),
+              const SizedBox(width: 6),
+              Text(
+                email,
+                style: const TextStyle(color: _textPrimary, fontSize: 12),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: onRemove,
+                child: const Icon(Icons.close_rounded, color: _textMuted, size: 14),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
+  }
+
+  Widget _statusIcon() {
+    return switch (status) {
+      _InviteStatus.sending => const SizedBox(
+          width: 14,
+          height: 14,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: _gold,
+          ),
+        ),
+      _InviteStatus.sent => const Icon(
+          Icons.check_circle_rounded,
+          color: Color(0xFF22C55E),
+          size: 14,
+        ),
+      _InviteStatus.failed => const Icon(
+          Icons.error_rounded,
+          color: Color(0xFFEF4444),
+          size: 14,
+        ),
+    };
   }
 }
 

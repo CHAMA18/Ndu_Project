@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -10,6 +11,7 @@ import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/execution_phase_ui.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
@@ -43,6 +45,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  final Map<String, bool> _kazAiRegenerating = {};
   String _selectedView = 'full'; // 'full' or 'summary'
 
   @override
@@ -74,7 +77,9 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
               title: 'Contract Close Out',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false, onExportPdf: _exportPdf),
+              showNavigationButtons: false,
+              showActivityLogAction: false,
+              onExportPdf: _exportPdf),
             const SizedBox(height: 16),
             _buildMetricsRow(),
             const SizedBox(height: 20),
@@ -190,6 +195,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             setState(() => _financialSummary.removeAt(idx));
             _scheduleSave();
           },
+          onKazAi: () => _regenerateFinancialRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.label,
@@ -278,6 +284,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             setState(() => _contracts.removeAt(idx));
             _scheduleSave();
           },
+          onKazAi: () => _regenerateContractRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.contractName,
@@ -381,6 +388,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             setState(() => _closeOutSteps.removeAt(idx));
             _scheduleSave();
           },
+          onKazAi: () => _regenerateCloseOutStepRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.step,
@@ -476,6 +484,7 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
             setState(() => _signOffs.removeAt(idx));
             _scheduleSave();
           },
+          onKazAi: () => _regenerateSignOffRow(idx),
           cells: [
             LaunchEditableCell(
               value: item.stakeholder,
@@ -743,6 +752,152 @@ class _ContractCloseOutScreenState extends State<ContractCloseOutScreen> {
       _isGenerating = false;
     });
     await _persistData();
+  }
+
+  // ── KAZ AI Row Regeneration ─────────────────────────────────────────────
+
+  Future<void> _regenerateFinancialRow(int index) async {
+    if (index < 0 || index >= _financialSummary.length) return;
+    final key = 'financial_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Financial Summary');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a financial metric name, value, and notes for contract close-out.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "label", "value", "notes".',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _financialSummary[index] = _financialSummary[index].copyWith(
+              label: (parsed['label'] ?? '').toString(),
+              value: (parsed['value'] ?? '').toString(),
+              notes: (parsed['notes'] ?? _financialSummary[index].notes).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateContractRow(int index) async {
+    if (index < 0 || index >= _contracts.length) return;
+    final key = 'contract_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Contract Close Out');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a contract name, vendor, ref, value, and close-out status.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "contract_name", "vendor", "ref", "value", "status". Status must be Open, In Progress, Closed, or Disputed.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _contracts[index] = _contracts[index].copyWith(
+              contractName: (parsed['contract_name'] ?? '').toString(),
+              vendor: (parsed['vendor'] ?? _contracts[index].vendor).toString(),
+              contractRef: (parsed['ref'] ?? _contracts[index].contractRef).toString(),
+              value: (parsed['value'] ?? _contracts[index].value).toString(),
+              closeOutStatus: (parsed['status'] ?? _contracts[index].closeOutStatus).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateCloseOutStepRow(int index) async {
+    if (index < 0 || index >= _closeOutSteps.length) return;
+    final key = 'step_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Close-Out Steps');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a close-out verification step, contract ref, and notes.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "step", "contract_ref", "status", "notes". Status must be Pending, In Progress, or Complete.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _closeOutSteps[index] = _closeOutSteps[index].copyWith(
+              step: (parsed['step'] ?? '').toString(),
+              contractRef: (parsed['contract_ref'] ?? _closeOutSteps[index].contractRef).toString(),
+              status: (parsed['status'] ?? _closeOutSteps[index].status).toString(),
+              notes: (parsed['notes'] ?? _closeOutSteps[index].notes).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  Future<void> _regenerateSignOffRow(int index) async {
+    if (index < 0 || index >= _signOffs.length) return;
+    final key = 'signoff_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final ctx = ProjectDataHelper.buildProjectContextScan(projectData, sectionLabel: 'Financial & Compliance Sign-Off');
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a finance/compliance approver name, role, and status.\n\nContext:\n$ctx\n\nReturn ONLY a valid JSON object with keys: "stakeholder", "role", "status", "notes". Status must be Pending, Approved, or Rejected.',
+        maxTokens: 250, temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final parsed = jsonDecode(result.substring(start, end + 1)) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _signOffs[index] = _signOffs[index].copyWith(
+              stakeholder: (parsed['stakeholder'] ?? '').toString(),
+              role: (parsed['role'] ?? _signOffs[index].role).toString(),
+              status: (parsed['status'] ?? _signOffs[index].status).toString(),
+              notes: (parsed['notes'] ?? _signOffs[index].notes).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('KAZ AI failed: $e')));
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
   }
 
   List<LaunchFinancialMetric> _mapMetrics(List<Map<String, dynamic>>? r) =>

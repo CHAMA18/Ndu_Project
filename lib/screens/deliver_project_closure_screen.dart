@@ -50,6 +50,7 @@ class _DeliverProjectClosureScreenState
   bool _isExporting = false;
   bool _hasLoaded = false;
   bool _suspendSave = false;
+  final Map<String, bool> _kazAiRegenerating = {};
 
   @override
   void initState() {
@@ -80,7 +81,9 @@ class _DeliverProjectClosureScreenState
               title: 'Deliver Project',
               showImportButton: false,
               showContentButton: false,
-              showNavigationButtons: false, onExportPdf: _exportPdf),
+              showNavigationButtons: false,
+              showActivityLogAction: false,
+              onExportPdf: _exportPdf),
             const SizedBox(height: 12),
             _buildScopeAcceptancePanel(),
             const SizedBox(height: 16),
@@ -244,6 +247,7 @@ class _DeliverProjectClosureScreenState
       cellBuilder: (ctx, i) => LaunchDataRow(
         onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteMilestone(i),
+        onKazAi: () => _regenerateMilestoneRow(i),
         showDivider: i < _milestones.length - 1,
         cells: [
           LaunchEditableCell(
@@ -334,6 +338,7 @@ class _DeliverProjectClosureScreenState
       cellBuilder: (ctx, i) => LaunchDataRow(
         onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteFollowUp(i, _outstandingItems),
+        onKazAi: () => _regenerateOutstandingRow(i),
         showDivider: i < _outstandingItems.length - 1,
         cells: [
           LaunchEditableCell(
@@ -426,6 +431,7 @@ class _DeliverProjectClosureScreenState
       cellBuilder: (ctx, i) => LaunchDataRow(
         onEdit: () => _scheduleSave(),
         onDelete: () => _confirmDeleteFollowUp(i, _riskFollowUps),
+        onKazAi: () => _regenerateRiskFollowUpRow(i),
         showDivider: i < _riskFollowUps.length - 1,
         cells: [
           LaunchEditableCell(
@@ -898,8 +904,12 @@ class _DeliverProjectClosureScreenState
 
   /// Regenerate a single scope acceptance row using KAZ AI.
   /// Re-populates the deliverable name and acceptance criteria from AI.
+  /// Regenerate a single scope acceptance row using KAZ AI.
   Future<void> _regenerateScopeRow(int index) async {
     if (index < 0 || index >= _scopeItems.length) return;
+    final key = 'scope_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
     try {
       final projectData = ProjectDataHelper.getData(context);
       final contextText = ProjectDataHelper.buildProjectContextScan(
@@ -917,7 +927,6 @@ class _DeliverProjectClosureScreenState
         maxTokens: 200,
         temperature: 0.6,
       );
-      // Parse the JSON response
       final start = result.indexOf('{');
       final end = result.lastIndexOf('}');
       if (start != -1 && end != -1) {
@@ -939,6 +948,168 @@ class _DeliverProjectClosureScreenState
           SnackBar(content: Text('KAZ AI regeneration failed: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  /// Regenerate a single delivery milestone row using KAZ AI.
+  Future<void> _regenerateMilestoneRow(int index) async {
+    if (index < 0 || index >= _milestones.length) return;
+    final key = 'milestone_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Delivery Milestones',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a delivery milestone title '
+        'and its status for a project closure checklist.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current milestone: ${_milestones[index].title}\n'
+        'Current status: ${_milestones[index].status}\n\n'
+        'Return ONLY a valid JSON object with keys: "title", "status". '
+        'Status must be one of: Pending, In Progress, Complete, Delayed.',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final jsonStr = result.substring(start, end + 1);
+        final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _milestones[index] = _milestones[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              status: (parsed['status'] ?? _milestones[index].status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI regeneration failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  /// Regenerate a single outstanding item row using KAZ AI.
+  Future<void> _regenerateOutstandingRow(int index) async {
+    if (index < 0 || index >= _outstandingItems.length) return;
+    final key = 'outstanding_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Outstanding Items',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest an outstanding item title, '
+        'details, owner, and status for a project closure checklist.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current title: ${_outstandingItems[index].title}\n'
+        'Current details: ${_outstandingItems[index].details}\n'
+        'Current owner: ${_outstandingItems[index].owner}\n'
+        'Current status: ${_outstandingItems[index].status}\n\n'
+        'Return ONLY a valid JSON object with keys: "title", "details", '
+        '"owner", "status". Status must be one of: Open, In Progress, '
+        'Complete, Deferred.',
+        maxTokens: 250,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final jsonStr = result.substring(start, end + 1);
+        final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _outstandingItems[index] = _outstandingItems[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? '').toString(),
+              owner: (parsed['owner'] ?? _outstandingItems[index].owner).toString(),
+              status: (parsed['status'] ?? _outstandingItems[index].status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI regeneration failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
+    }
+  }
+
+  /// Regenerate a single post-delivery risk row using KAZ AI.
+  Future<void> _regenerateRiskFollowUpRow(int index) async {
+    if (index < 0 || index >= _riskFollowUps.length) return;
+    final key = 'risk_$index';
+    if (_kazAiRegenerating[key] == true) return;
+    setState(() => _kazAiRegenerating[key] = true);
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final contextText = ProjectDataHelper.buildProjectContextScan(
+        projectData,
+        sectionLabel: 'Post-Delivery Risks',
+      );
+      final openai = OpenAiServiceSecure();
+      final result = await openai.generateCompletion(
+        'Based on this project context, suggest a post-delivery risk title, '
+        'details, owner, and status for a project closure risk register.\n\n'
+        'Context:\n$contextText\n\n'
+        'Current title: ${_riskFollowUps[index].title}\n'
+        'Current details: ${_riskFollowUps[index].details}\n'
+        'Current owner: ${_riskFollowUps[index].owner}\n'
+        'Current status: ${_riskFollowUps[index].status}\n\n'
+        'Return ONLY a valid JSON object with keys: "title", "details", '
+        '"owner", "status". Status must be one of: Open, In Progress, '
+        'Complete, Deferred.',
+        maxTokens: 250,
+        temperature: 0.6,
+      );
+      final start = result.indexOf('{');
+      final end = result.lastIndexOf('}');
+      if (start != -1 && end != -1) {
+        final jsonStr = result.substring(start, end + 1);
+        final parsed = jsonDecode(jsonStr) as Map<String, dynamic>;
+        if (mounted) {
+          setState(() {
+            _riskFollowUps[index] = _riskFollowUps[index].copyWith(
+              title: (parsed['title'] ?? '').toString(),
+              details: (parsed['details'] ?? '').toString(),
+              owner: (parsed['owner'] ?? _riskFollowUps[index].owner).toString(),
+              status: (parsed['status'] ?? _riskFollowUps[index].status).toString(),
+            );
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI regeneration failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _kazAiRegenerating[key] = false);
     }
   }
 
