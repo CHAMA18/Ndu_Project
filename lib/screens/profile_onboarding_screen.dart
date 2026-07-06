@@ -1023,8 +1023,8 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               title: 'Other / It depends',
               description:
                   'Shared ownership, board approval, or a hybrid situation.',
-              selected: false,
-              onTap: () => _setDecisionMaker(true),
+              selected: _answers.isDecisionMaker == null,
+              onTap: () => _setDecisionMaker(null),
             ),
           ],
         ),
@@ -1506,7 +1506,7 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
               label: 'Decision maker',
               value: _answers.isDecisionMaker == true
                   ? 'Yes'
-                  : (_answers.isDecisionMaker == false ? 'No' : '—'),
+                  : (_answers.isDecisionMaker == false ? 'No' : 'Other'),
             ),
             _ReviewRow(
               label: 'Country',
