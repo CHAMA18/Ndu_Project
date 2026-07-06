@@ -117,57 +117,63 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
 
   void _applySuggestion(Map<String, dynamic> s) {
     final provider = context.read<WBSProvider>();
-    final l1Id = provider.addLevel1Node(
+    final wbs = provider.wbs!;
+    final l1Id = provider.addChildNode(
+      wbs.level0.id,
       s['name'] as String? ?? '',
       s['description'] as String?,
     );
-    provider.updateNode(
-      l1Id,
-      WBSNode(
-        id: l1Id,
-        level: WBSLevel.level1,
-        code: '',
-        name: s['name'] as String? ?? '',
-        description: s['description'] as String?,
-        aiGenerated: true,
-        aiSource: s['aiSource'] != null
-            ? AISource.values.byName(s['aiSource'] as String)
-            : null,
-        aiConfidence: s['aiConfidence'] != null
-            ? AIConfidence.values.byName(s['aiConfidence'] as String)
-            : null,
-        aiReference: s['aiReference'] as String?,
-        children: const [],
-      ),
-    );
-    final children = s['children'] as List?;
-    if (children != null) {
-      for (final child in children) {
-        final c = child as Map<String, dynamic>;
-        final l2Id = provider.addLevel2Node(
-          l1Id,
-          c['name'] as String? ?? '',
-          c['description'] as String?,
-        );
-        provider.updateNode(
-          l2Id,
-          WBSNode(
-            id: l2Id,
-            level: WBSLevel.level2,
-            code: '',
-            name: c['name'] as String? ?? '',
-            description: c['description'] as String?,
-            aiGenerated: true,
-            aiSource: c['aiSource'] != null
-                ? AISource.values.byName(c['aiSource'] as String)
-                : null,
-            aiConfidence: c['aiConfidence'] != null
-                ? AIConfidence.values.byName(c['aiConfidence'] as String)
-                : null,
-            aiReference: c['aiReference'] as String?,
-            children: const [],
-          ),
-        );
+    if (l1Id.isNotEmpty) {
+      provider.updateNode(
+        l1Id,
+        WBSNode(
+          id: l1Id,
+          level: WBSLevel.level1,
+          code: '',
+          name: s['name'] as String? ?? '',
+          description: s['description'] as String?,
+          aiGenerated: true,
+          aiSource: s['aiSource'] != null
+              ? AISource.values.byName(s['aiSource'] as String)
+              : null,
+          aiConfidence: s['aiConfidence'] != null
+              ? AIConfidence.values.byName(s['aiConfidence'] as String)
+              : null,
+          aiReference: s['aiReference'] as String?,
+          children: const [],
+        ),
+      );
+      final children = s['children'] as List?;
+      if (children != null) {
+        for (final child in children) {
+          final c = child as Map<String, dynamic>;
+          final l2Id = provider.addChildNode(
+            l1Id,
+            c['name'] as String? ?? '',
+            c['description'] as String?,
+          );
+          if (l2Id.isNotEmpty) {
+            provider.updateNode(
+              l2Id,
+              WBSNode(
+                id: l2Id,
+                level: WBSLevel.level2,
+                code: '',
+                name: c['name'] as String? ?? '',
+                description: c['description'] as String?,
+                aiGenerated: true,
+                aiSource: c['aiSource'] != null
+                    ? AISource.values.byName(c['aiSource'] as String)
+                    : null,
+                aiConfidence: c['aiConfidence'] != null
+                    ? AIConfidence.values.byName(c['aiConfidence'] as String)
+                    : null,
+                aiReference: c['aiReference'] as String?,
+                children: const [],
+              ),
+            );
+          }
+        }
       }
     }
     setState(() {

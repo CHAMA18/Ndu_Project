@@ -1,3 +1,5 @@
+export 'package:ndu_project/wbs/models/wbs_models.dart' show ProjectMethodology;
+
 // Enums
 enum ChecklistStatus { ready, inReview, pending }
 
@@ -466,8 +468,6 @@ class SpecializedDesignData {
 }
 
 // --- Enterprise Design Models ---
-
-enum ProjectMethodology { waterfall, agile, hybrid }
 
 enum ExecutionStrategy { inHouse, contracted, hybrid }
 

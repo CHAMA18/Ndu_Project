@@ -10,11 +10,7 @@ class PlanningPhaseHeader extends StatelessWidget {
     this.onBack,
     this.onForward,
     this.showNavigationButtons = true,
-    this.showImportButton = true,
-    this.showContentButton = true,
     this.showActivityLogAction = true,
-    this.onImportPressed,
-    this.onContentPressed,
     this.breadcrumbPhase,
     this.breadcrumbTitle,
     this.showExportPdf = true,
@@ -27,11 +23,7 @@ class PlanningPhaseHeader extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onForward;
   final bool showNavigationButtons;
-  final bool showImportButton;
-  final bool showContentButton;
   final bool showActivityLogAction;
-  final VoidCallback? onImportPressed;
-  final VoidCallback? onContentPressed;
   final String? breadcrumbPhase;
   final String? breadcrumbTitle;
   final bool showExportPdf;
@@ -57,7 +49,7 @@ class PlanningPhaseHeader extends StatelessWidget {
           onForwardPressed: showNavigationButtons ? onForward : null,
           showActivityLogAction: showActivityLogAction,
         ),
-        if (showImportButton || showContentButton || showExportPdf || showAiAssist) ...[
+        if (showExportPdf || showAiAssist) ...[
           if (isMobile)
             const SizedBox(height: 12)
           else
@@ -68,18 +60,6 @@ class PlanningPhaseHeader extends StatelessWidget {
               spacing: 10,
               runSpacing: 8,
               children: [
-                if (showImportButton)
-                  _YellowButton(
-                    label: 'Import',
-                    icon: Icons.upload_outlined,
-                    onPressed: onImportPressed ?? () {},
-                  ),
-                if (showContentButton)
-                  _WhiteButton(
-                    label: 'Content',
-                    icon: Icons.download_outlined,
-                    onPressed: onContentPressed ?? () {},
-                  ),
                 if (showExportPdf)
                   _WhiteButton(
                     label: 'Export PDF',
@@ -115,34 +95,6 @@ class PlanningPhaseHeader extends StatelessWidget {
       const SnackBar(
         content: Text('AI Assist will generate content for this section.'),
         duration: Duration(seconds: 2),
-      ),
-    );
-  }
-}
-
-class _YellowButton extends StatelessWidget {
-  const _YellowButton(
-      {required this.label, required this.icon, this.onPressed});
-
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFFFD700),
-        foregroundColor: Colors.black87,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      icon: Icon(icon, size: 18),
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -18,6 +18,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/schedule/models/schedule_models.dart';
@@ -27,6 +28,8 @@ import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
 
 class BuilderScreen extends StatefulWidget {
   const BuilderScreen({super.key});
@@ -170,6 +173,12 @@ class _BuilderScreenState extends State<BuilderScreen> {
                             _showAddDialog(context, provider, root.id, 1),
                       ),
                       _ActionChip(
+                        icon: Icons.date_range,
+                        label: 'Setup Timeline',
+                        enabled: !schedule.isLocked,
+                        onTap: () => _showTimelineSetupDialog(context, provider, root),
+                      ),
+                      _ActionChip(
                         icon: Icons.upload_outlined,
                         label: 'Import',
                         enabled: !schedule.isLocked,
@@ -220,6 +229,14 @@ class _BuilderScreenState extends State<BuilderScreen> {
                 costTotal: costTotal,
                 currency: currency,
                 hasEstimate: estimate != null,
+              ),
+              const SizedBox(height: 24),
+              // Timeline Visualization
+              const SizedBox(height: 8),
+              _TimelineVisualization(
+                activities: [root, ...root.children],
+                provider: provider,
+                isLocked: schedule.isLocked,
               ),
               const SizedBox(height: 24),
               // Live activity tree
@@ -288,6 +305,149 @@ class _BuilderScreenState extends State<BuilderScreen> {
       return l.varianceDelta ?? 0;
     }
     return l.total;
+  }
+
+  void _showTimelineSetupDialog(BuildContext context, ScheduleProvider provider,
+      ScheduleActivity root) {
+    final startCtrl = TextEditingController(
+      text: root.startDate != null ? DateFormat('MM/dd/yy').format(root.startDate!) : '01/06/26',
+    );
+    final endCtrl = TextEditingController(
+      text: root.endDate != null ? DateFormat('MM/dd/yy').format(root.endDate!) : '12/31/26',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFFE4E7EC)),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: LightModeColors.accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.date_range, size: 18, color: LightModeColors.accent),
+            ),
+            const SizedBox(width: 12),
+            const Text('Setup Project Timeline',
+                style: TextStyle(color: Color(0xFF1A1D1F), fontWeight: FontWeight.w600, fontSize: 16)),
+          ],
+        ),
+        content: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Set the overall project timeline. Individual activity dates can be adjusted below.',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 12, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DateField(
+                      label: 'Project Start',
+                      controller: startCtrl,
+                      icon: Icons.play_circle_outline,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _DateField(
+                      label: 'Project End',
+                      controller: endCtrl,
+                      icon: Icons.stop_circle_outlined,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Icon(Icons.info_outline, size: 14, color: Color(0xFF6B7280)),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'This sets the project-wide date range. Use the timeline view below to set dates for individual activities.',
+                        style: TextStyle(color: Color(0xFF6B7280), fontSize: 11, height: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF6B7280))),
+          ),
+          FilledButton(
+            onPressed: () {
+              final startDate = _parseDate(startCtrl.text);
+              final endDate = _parseDate(endCtrl.text);
+              if (startDate != null && endDate != null) {
+                provider.updateActivity(root.id, root.copyWith(
+                  startDate: startDate,
+                  endDate: endDate,
+                ));
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Project timeline set: ${DateFormat('MMM d, y').format(startDate)} — ${DateFormat('MMM d, y').format(endDate)}'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: LightModeColors.accent,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter valid dates in MM/DD/YY format')),
+                );
+              }
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: LightModeColors.accent,
+              foregroundColor: LightModeColors.lightOnPrimary,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('Apply Timeline'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  DateTime? _parseDate(String text) {
+    try {
+      final cleaned = text.trim();
+      if (cleaned.isEmpty) return null;
+      // Try MM/dd/yy first
+      return DateFormat('MM/dd/yy').parse(cleaned);
+    } catch (_) {
+      try {
+        return DateFormat('MM/dd/yyyy').parse(text.trim());
+      } catch (_) {
+        return null;
+      }
+    }
   }
 
   void _showAddDialog(BuildContext context, ScheduleProvider provider,
@@ -629,6 +789,39 @@ class _ActivityNode extends StatelessWidget {
                   style: const TextStyle(
                       color: Color(0xFF6B7280), fontSize: 11)),
             ),
+          // Inline start/end date chips
+          if (activity.startDate != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFA7F3D0)),
+                ),
+                child: Text(
+                  'Start: ${activity.startDate!.month}/${activity.startDate!.day}/${activity.startDate!.year.toString().substring(2)}',
+                  style: const TextStyle(color: Color(0xFF065F46), fontSize: 10, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          if (activity.endDate != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: const Color(0xFFFDE68A)),
+                ),
+                child: Text(
+                  'End: ${activity.endDate!.month}/${activity.endDate!.day}/${activity.endDate!.year.toString().substring(2)}',
+                  style: const TextStyle(color: Color(0xFF92400E), fontSize: 10, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           if (!isRoot && !isLocked) ...[
             IconButton(
               icon: const Icon(Icons.add, size: 14, color: Color(0xFF6B7280)),
@@ -650,16 +843,181 @@ class _ActivityNode extends StatelessWidget {
   }
 }
 
-/// Sample activity table — demonstrates the full columnar view (ID, Name,
-/// Duration, Start, Finish, Predecessors, Resources) that the Gantt and List
-/// View tabs render against live data.
-class _SampleActivityTable extends StatelessWidget {
+/// Interactive sample activity table with inline editing, add-row, and KAZ AI
+/// generation. Demonstrates the full columnar view (ID, Name, Duration, Start,
+/// Finish, Predecessors, Resources) that the Gantt and List View tabs render.
+class _SampleActivityTable extends StatefulWidget {
   final Schedule schedule;
   const _SampleActivityTable({required this.schedule});
 
   @override
+  State<_SampleActivityTable> createState() => _SampleActivityTableState();
+}
+
+class _SampleActivityTableState extends State<_SampleActivityTable> {
+  late List<_SampleRow> _rows;
+
+  final _nameCtrl = TextEditingController();
+  final _durationCtrl = TextEditingController();
+  final _startCtrl = TextEditingController(text: '01/06/26');
+  final _finishCtrl = TextEditingController(text: '01/30/26');
+  final _predecessorsCtrl = TextEditingController();
+  final _resourcesCtrl = TextEditingController();
+  bool _isGenerating = false;
+  int _nextId = 8;
+
+  @override
+  void initState() {
+    super.initState();
+    _rows = _sampleRows(
+        widget.schedule.projectName, widget.schedule.basis.deliveryModel);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _durationCtrl.dispose();
+    _startCtrl.dispose();
+    _finishCtrl.dispose();
+    _predecessorsCtrl.dispose();
+    _resourcesCtrl.dispose();
+    super.dispose();
+  }
+
+  void _addRow() {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+
+    setState(() {
+      _rows.add(_SampleRow(
+        (_nextId++).toString(),
+        name,
+        _durationCtrl.text.trim().isNotEmpty
+            ? _durationCtrl.text.trim()
+            : '—',
+        _startCtrl.text.trim().isNotEmpty
+            ? _startCtrl.text.trim()
+            : '—',
+        _finishCtrl.text.trim().isNotEmpty
+            ? _finishCtrl.text.trim()
+            : '—',
+        _predecessorsCtrl.text.trim().isNotEmpty
+            ? _predecessorsCtrl.text.trim()
+            : '—',
+        _resourcesCtrl.text.trim().isNotEmpty
+            ? _resourcesCtrl.text.trim()
+            : '—',
+        ScheduleDomain.execution.color,
+      ));
+      _nameCtrl.clear();
+      _durationCtrl.clear();
+      _predecessorsCtrl.clear();
+      _resourcesCtrl.clear();
+      _startCtrl.text = '01/06/26';
+      _finishCtrl.text = '01/30/26';
+    });
+  }
+
+  void _removeRow(int index) {
+    if (index < 0 || index >= _rows.length) return;
+    setState(() => _rows.removeAt(index));
+  }
+
+  Future<void> _generateWithKazAi() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+
+    try {
+      final projectName = widget.schedule.projectName;
+      final deliveryModel = widget.schedule.basis.deliveryModel;
+      final existingCount = _rows.length;
+
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'You are a project schedule expert. Generate 3-5 additional schedule '
+        'activities for a project called "$projectName" using the '
+        '$deliveryModel delivery model. The existing $existingCount activities '
+        'cover engineering, procurement, execution, construction, and '
+        'commissioning. Suggest realistic follow-on or parallel activities '
+        'with typical durations and resource assignments.\n\n'
+        'Return the result as a pipe-delimited table with columns:\n'
+        'ID|Activity Name|Duration|Start|Finish|Predecessors|Resources\n'
+        'Use sequential IDs starting at $_nextId. Dates should be in MM/DD/YY format, '
+        'continuing from mid-to-late 2026.\n\n'
+        'Example:\n'
+        '$_nextId|Site Preparation|15 d|08/24/26|09/11/26|7FS|Civil Crew (4)\n'
+        'Return ONLY the pipe-delimited rows, one per line, no headers, no markdown.',
+        maxTokens: 500,
+        temperature: 0.7,
+      );
+
+      if (!mounted) return;
+
+      final lines = result
+          .split('\n')
+          .map((l) => l.trim())
+          .where((l) => l.contains('|'))
+          .toList();
+
+      if (lines.isEmpty) {
+        _showInfo('Could not parse AI response. Try again.');
+        return;
+      }
+
+      final domains = [
+        ScheduleDomain.engineering.color,
+        ScheduleDomain.procurement.color,
+        ScheduleDomain.execution.color,
+        ScheduleDomain.construction.color,
+        ScheduleDomain.commissioning.color,
+      ];
+
+      setState(() {
+        for (final line in lines) {
+          final parts = line.split('|').map((p) => p.trim()).toList();
+          if (parts.length < 7) continue;
+          final name = parts[1];
+          final duration = parts[2];
+          final start = parts[3];
+          final finish = parts[4];
+          final predecessors = parts[5];
+          final resources = parts[6];
+          final domainColor = domains[_nextId % domains.length];
+          _rows.add(_SampleRow(
+            (_nextId++).toString(),
+            name,
+            duration,
+            start,
+            finish,
+            predecessors,
+            resources,
+            domainColor,
+          ));
+        }
+      });
+
+      _showInfo(
+          'Added ${lines.length} AI-generated activities to the schedule.');
+    } catch (e) {
+      if (mounted) {
+        _showInfo('KAZ AI generation failed: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  void _showInfo(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+      );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final rows = _sampleRows(schedule.projectName, schedule.basis.deliveryModel);
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -676,6 +1034,7 @@ class _SampleActivityTable extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
@@ -689,15 +1048,64 @@ class _SampleActivityTable extends StatelessWidget {
                         fontSize: 14,
                         fontWeight: FontWeight.w700)),
                 const Spacer(),
+                // KAZ AI generate button
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: _isGenerating
+                        ? const Color(0xFFFEF3C7)
+                        : const Color(0xFFFFF7ED),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _isGenerating
+                          ? const Color(0xFFF59E0B)
+                          : const Color(0xFFFDE68A),
+                    ),
+                  ),
+                  child: InkWell(
+                    onTap: _isGenerating ? null : _generateWithKazAi,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _isGenerating
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFFF59E0B),
+                                  ),
+                                )
+                              : const Icon(Icons.auto_awesome,
+                                  size: 14, color: Color(0xFFF59E0B)),
+                          const SizedBox(width: 6),
+                          Text(
+                            _isGenerating ? 'Generating...' : 'KAZ AI',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF92400E),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF3F4F6),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFE4E7EC)),
                   ),
-                  child: Text('${rows.length} activities',
+                  child: Text('${_rows.length} activities',
                       style: const TextStyle(
                           color: Color(0xFF495057),
                           fontSize: 11,
@@ -707,6 +1115,7 @@ class _SampleActivityTable extends StatelessWidget {
             ),
           ),
           const Divider(color: Color(0xFFE4E7EC), height: 1),
+          // Data table
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
@@ -758,53 +1167,232 @@ class _SampleActivityTable extends StatelessWidget {
                             color: Color(0xFF6B7280),
                             fontSize: 12,
                             fontWeight: FontWeight.w600))),
+                DataColumn(label: SizedBox(width: 32)),
               ],
-              rows: rows
-                  .map((r) => DataRow(cells: [
-                        DataCell(Text(r.id,
-                            style: const TextStyle(
-                                color: Color(0xFF495057),
-                                fontSize: 11,
-                                fontFamily: 'monospace',
-                                fontWeight: FontWeight.bold))),
-                        DataCell(Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                  color: Color(r.domainColor),
-                                  shape: BoxShape.circle),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(r.name,
-                                style: const TextStyle(
-                                    color: Color(0xFF1A1D1F),
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500)),
-                          ],
-                        )),
-                        DataCell(Text(r.duration,
-                            style: const TextStyle(
-                                color: Color(0xFF495057), fontSize: 12))),
-                        DataCell(Text(r.start,
-                            style: const TextStyle(
-                                color: Color(0xFF495057), fontSize: 12))),
-                        DataCell(Text(r.finish,
-                            style: const TextStyle(
-                                color: Color(0xFF495057), fontSize: 12))),
-                        DataCell(Text(r.predecessors,
-                            style: const TextStyle(
-                                color: Color(0xFF495057),
-                                fontSize: 11,
-                                fontFamily: 'monospace'))),
-                        DataCell(Text(r.resources,
-                            style: const TextStyle(
-                                color: Color(0xFF495057), fontSize: 12))),
-                      ]))
-                  .toList(),
+              rows: [
+                // Data rows
+                ..._rows.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final r = entry.value;
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(r.id,
+                          style: const TextStyle(
+                              color: Color(0xFF495057),
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold))),
+                      DataCell(Row(
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                                color: Color(r.domainColor),
+                                shape: BoxShape.circle),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(r.name,
+                              style: const TextStyle(
+                                  color: Color(0xFF1A1D1F),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500)),
+                        ],
+                      )),
+                      DataCell(Text(r.duration,
+                          style: const TextStyle(
+                              color: Color(0xFF495057), fontSize: 12))),
+                      DataCell(Text(r.start,
+                          style: const TextStyle(
+                              color: Color(0xFF495057), fontSize: 12))),
+                      DataCell(Text(r.finish,
+                          style: const TextStyle(
+                              color: Color(0xFF495057), fontSize: 12))),
+                      DataCell(Text(r.predecessors,
+                          style: const TextStyle(
+                              color: Color(0xFF495057),
+                              fontSize: 11,
+                              fontFamily: 'monospace'))),
+                      DataCell(Text(r.resources,
+                          style: const TextStyle(
+                              color: Color(0xFF495057), fontSize: 12))),
+                      DataCell(
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle_outline,
+                              size: 16, color: Color(0xFF9CA3AF)),
+                          onPressed: () => _removeRow(i),
+                          tooltip: 'Remove activity',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                              minWidth: 28, minHeight: 28),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+                // ── New-row edit fields ──
+                DataRow(
+                  color: WidgetStateProperty.all(
+                      const Color(0xFFFAFFFB)),
+                  cells: [
+                    DataCell(
+                      SizedBox(
+                        width: 40,
+                        child: Text(
+                          _nextId.toString(),
+                          style: const TextStyle(
+                              color: Color(0xFF9CA3AF),
+                              fontSize: 11,
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 200,
+                        child: VoiceTextField(
+                          controller: _nameCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'New activity name...',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          ),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1A1D1F)),
+                          onChanged: (_) => setState(() {}),
+                          onSubmitted: (_) => _addRow(),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 80,
+                        child: VoiceTextField(
+                          controller: _durationCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. 10 d',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          ),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1A1D1F)),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 80,
+                        child: VoiceTextField(
+                          controller: _startCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'MM/DD/YY',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          ),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1A1D1F)),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 80,
+                        child: VoiceTextField(
+                          controller: _finishCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'MM/DD/YY',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          ),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1A1D1F)),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 100,
+                        child: VoiceTextField(
+                          controller: _predecessorsCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. 6FS',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          ),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1A1D1F)),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      SizedBox(
+                        width: 130,
+                        child: VoiceTextField(
+                          controller: _resourcesCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'e.g. Crew (4)',
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding:
+                                EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                          ),
+                          style: const TextStyle(
+                              fontSize: 12, color: Color(0xFF1A1D1F)),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      IconButton(
+                        icon: Icon(
+                          Icons.add_circle_outline,
+                          size: 20,
+                          color: _nameCtrl.text.trim().isNotEmpty
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFF9CA3AF),
+                        ),
+                        onPressed: _nameCtrl.text.trim().isNotEmpty
+                            ? _addRow
+                            : null,
+                        tooltip: 'Add activity',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(
+                            minWidth: 28, minHeight: 28),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
+          // Footnote
+          if (_rows.length <= 7)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.edit_outlined,
+                      size: 12, color: Color(0xFF9CA3AF)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Type an activity name and press Enter or tap + to add. '
+                    'Use KAZ AI to auto-generate realistic schedule activities.',
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF9CA3AF)),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -843,15 +1431,712 @@ class _SampleRow {
       this.predecessors, this.resources, this.domainColor);
 }
 
+/// Interactive Gantt-style timeline visualization showing all activities as
+/// horizontal bars. Each bar is color-coded by domain, shows start/end dates,
+/// and supports inline date editing per activity.
+class _TimelineVisualization extends StatefulWidget {
+  final List<ScheduleActivity> activities;
+  final ScheduleProvider provider;
+  final bool isLocked;
+
+  const _TimelineVisualization({
+    required this.activities,
+    required this.provider,
+    required this.isLocked,
+  });
+
+  @override
+  State<_TimelineVisualization> createState() => _TimelineVisualizationState();
+}
+
+class _TimelineVisualizationState extends State<_TimelineVisualization> {
+  int? _editingIndex;
+  DateTime? _editStart;
+  DateTime? _editEnd;
+
+  /// Compute the overall timeline range from all activities.
+  (DateTime, DateTime) _computeRange() {
+    DateTime earliest = DateTime.now();
+    DateTime latest = DateTime.now().add(const Duration(days: 365));
+    bool hasDates = false;
+    for (final a in widget.activities) {
+      if (a.startDate != null && a.endDate != null) {
+        if (!hasDates) {
+          earliest = a.startDate!;
+          latest = a.endDate!;
+          hasDates = true;
+        } else {
+          if (a.startDate!.isBefore(earliest)) earliest = a.startDate!;
+          if (a.endDate!.isAfter(latest)) latest = a.endDate!;
+        }
+      }
+    }
+    if (!hasDates) {
+      // Default range: anchor around today
+      final now = DateTime.now();
+      earliest = DateTime(now.year, now.month - 1, 1);
+      latest = DateTime(now.year + 1, now.month + 1, 0);
+    }
+    // Add padding
+    earliest = DateTime(earliest.year, earliest.month - 1, 1);
+    latest = DateTime(latest.year, latest.month + 2, 0);
+    return (earliest, latest);
+  }
+
+  List<DateTime> _monthMarkers(DateTime start, DateTime end) {
+    final months = <DateTime>[];
+    var current = DateTime(start.year, start.month, 1);
+    while (!current.isAfter(end)) {
+      months.add(current);
+      current = DateTime(current.year, current.month + 1, 1);
+    }
+    return months;
+  }
+
+  Future<void> _pickDate(BuildContext context, bool isStart, int activityIndex) async {
+    final activity = widget.activities[activityIndex];
+    final current = isStart ? (activity.startDate ?? DateTime.now()) : (activity.endDate ?? DateTime.now().add(const Duration(days: 30)));
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: current,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime(2030, 12, 31),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: LightModeColors.accent,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: const Color(0xFF1A1D1F),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked == null) return;
+    setState(() {
+      if (isStart) {
+        _editStart = picked;
+      } else {
+        _editEnd = picked;
+      }
+    });
+  }
+
+  void _saveActivityDates(int activityIndex) {
+    final activity = widget.activities[activityIndex];
+    final start = _editStart ?? activity.startDate;
+    final end = _editEnd ?? activity.endDate;
+    widget.provider.updateActivity(activity.id, activity.copyWith(
+      startDate: start,
+      endDate: end,
+    ));
+    setState(() {
+      _editingIndex = null;
+      _editStart = null;
+      _editEnd = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (rangeStart, rangeEnd) = _computeRange();
+    final totalDays = rangeEnd.difference(rangeStart).inDays.clamp(1, 9999);
+    final months = _monthMarkers(rangeStart, rangeEnd);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: LightModeColors.accent.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.timeline, size: 16, color: LightModeColors.accent),
+                ),
+                const SizedBox(width: 10),
+                const Text('Project Timeline',
+                    style: TextStyle(color: Color(0xFF1A1D1F), fontSize: 14, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (!widget.isLocked)
+                  _TimelineKazAiButton(activities: widget.activities, provider: widget.provider),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE4E7EC)),
+                  ),
+                  child: Text(
+                    '${DateFormat('MMM d').format(rangeStart)} — ${DateFormat('MMM d, y').format(rangeEnd)}',
+                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFFE4E7EC), height: 1),
+          // ── Month header ──
+          SizedBox(
+            height: 28,
+            child: Row(
+              children: [
+                const SizedBox(width: 160),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Stack(
+                        children: months.map((month) {
+                          final dayOffset = month.difference(rangeStart).inDays;
+                          final fraction = dayOffset / totalDays;
+                          final xPos = fraction * constraints.maxWidth;
+                          return Positioned(
+                            left: xPos,
+                            top: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 1,
+                              color: const Color(0xFFE4E7EC),
+                            ),
+                          );
+                        }).toList()..addAll(months.map((month) {
+                          final dayOffset = month.difference(rangeStart).inDays;
+                          final fraction = dayOffset / totalDays;
+                          final xPos = fraction * constraints.maxWidth;
+                          return Positioned(
+                            left: xPos + 4,
+                            top: 6,
+                            child: Text(
+                              DateFormat('MMM').format(month),
+                              style: TextStyle(
+                                color: month.month == DateTime.now().month && month.year == DateTime.now().year
+                                    ? LightModeColors.accent
+                                    : const Color(0xFF9CA3AF),
+                                fontSize: 10,
+                                fontWeight: month.month == DateTime.now().month && month.year == DateTime.now().year
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        })),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Color(0xFFF3F4F6), height: 1),
+          // ── Activity bars ──
+          ...widget.activities.asMap().entries.map((entry) {
+            final i = entry.key;
+            final a = entry.value;
+            final isEditing = _editingIndex == i;
+            final barStart = _editStart ?? a.startDate;
+            final barEnd = _editEnd ?? a.endDate;
+            final hasDates = barStart != null && barEnd != null;
+            final leftFrac = hasDates ? barStart.difference(rangeStart).inDays / totalDays : 0.0;
+            final widthFrac = hasDates ? barEnd.difference(barStart).inDays / totalDays : 0.0;
+            final clampedLeft = leftFrac.clamp(0.0, 1.0);
+            final clampedWidth = widthFrac.clamp(0.01, 1.0 - clampedLeft);
+
+            return Column(
+              children: [
+                const Divider(color: Color(0xFFF3F4F6), height: 1),
+                Container(
+                  height: 44,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      // ── Activity label (fixed width) ──
+                      SizedBox(
+                        width: 160,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Color(a.domain.color),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    a.code,
+                                    style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 9, fontFamily: 'monospace'),
+                                  ),
+                                  Text(
+                                    a.name,
+                                    style: const TextStyle(color: Color(0xFF1A1D1F), fontSize: 11, fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 1,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // ── Gantt bar area ──
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: widget.isLocked ? null : () {
+                            setState(() {
+                              if (_editingIndex == i) {
+                                _editingIndex = null;
+                              } else {
+                                _editingIndex = i;
+                                _editStart = null;
+                                _editEnd = null;
+                              }
+                            });
+                          },
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Stack(
+                                children: [
+                                  // Grid lines
+                                  if (months.length > 1)
+                                    ...months.map((month) {
+                                      final xPos = month.difference(rangeStart).inDays / totalDays * constraints.maxWidth;
+                                      return Positioned(
+                                        left: xPos,
+                                        top: 0,
+                                        bottom: 0,
+                                        child: Container(width: 1, color: const Color(0xFFF3F4F6)),
+                                      );
+                                    }),
+                                  // Bar
+                                  if (hasDates)
+                                    Positioned(
+                                      left: clampedLeft * constraints.maxWidth,
+                                      top: 10,
+                                      bottom: 10,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 250),
+                                        width: (clampedWidth * constraints.maxWidth).clamp(20.0, constraints.maxWidth),
+                                        decoration: BoxDecoration(
+                                          color: Color(a.domain.color).withValues(alpha: isEditing ? 0.5 : 0.25),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: isEditing ? LightModeColors.accent : Color(a.domain.color).withValues(alpha: 0.5),
+                                            width: isEditing ? 2 : 1,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${barStart.month}/${barStart.day} — ${barEnd.month}/${barEnd.day}',
+                                            style: TextStyle(
+                                              color: Color(a.domain.color),
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  // Today marker
+                                  if (DateTime.now().isAfter(rangeStart) && DateTime.now().isBefore(rangeEnd))
+                                    Positioned(
+                                      left: DateTime.now().difference(rangeStart).inDays / totalDays * constraints.maxWidth,
+                                      top: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        width: 2,
+                                        color: const Color(0xFFEF4444).withValues(alpha: 0.6),
+                                      ),
+                                    ),
+                                  // No-dates placeholder
+                                  if (!hasDates && !widget.isLocked)
+                                    Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF9FAFB),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: const Color(0xFFE4E7EC), style: BorderStyle.solid),
+                                        ),
+                                        child: const Text(
+                                          'Click to set dates',
+                                          style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 10),
+                                        ),
+                                      ),
+                                    ),
+                                  if (!hasDates && widget.isLocked)
+                                    Center(
+                                      child: Text(
+                                        'No dates set',
+                                        style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 10),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Inline date editor (when editing) ──
+                if (isEditing)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(176, 0, 16, 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFAFFFB),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: LightModeColors.accent.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_calendar, size: 14, color: LightModeColors.accent),
+                        const SizedBox(width: 8),
+                        _InlineDateChip(
+                          label: 'Start',
+                          date: barStart,
+                          onTap: () => _pickDate(context, true, i),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(Icons.arrow_forward, size: 12, color: Color(0xFF9CA3AF)),
+                        ),
+                        _InlineDateChip(
+                          label: 'End',
+                          date: barEnd,
+                          onTap: () => _pickDate(context, false, i),
+                        ),
+                        const Spacer(),
+                        // Duration display
+                        if (barStart != null && barEnd != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              '${barEnd.difference(barStart).inDays} days',
+                              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        // Save button
+                        SizedBox(
+                          height: 28,
+                          child: FilledButton(
+                            onPressed: () => _saveActivityDates(i),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: LightModeColors.accent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                            ),
+                            child: const Text('Save', style: TextStyle(fontSize: 11)),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        // Cancel button
+                        TextButton(
+                          onPressed: () => setState(() {
+                            _editingIndex = null;
+                            _editStart = null;
+                            _editEnd = null;
+                          }),
+                          child: const Text('Cancel', style: TextStyle(color: Color(0xFF6B7280), fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          }),
+          // ── Today legend ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(160, 6, 16, 10),
+            child: Row(
+              children: [
+                Container(width: 12, height: 3, color: const Color(0xFFEF4444).withValues(alpha: 0.6)),
+                const SizedBox(width: 4),
+                const Text('Today', style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 9)),
+                const Spacer(),
+                // Domain legend
+                ...ScheduleDomain.values.map((d) => Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 8, height: 8, decoration: BoxDecoration(color: Color(d.color), shape: BoxShape.circle)),
+                      const SizedBox(width: 3),
+                      Text(d.label, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 9)),
+                    ],
+                  ),
+                )),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// KAZ AI button that auto-suggests start/end dates for activities without dates.
+class _TimelineKazAiButton extends StatefulWidget {
+  final List<ScheduleActivity> activities;
+  final ScheduleProvider provider;
+
+  const _TimelineKazAiButton({required this.activities, required this.provider});
+
+  @override
+  State<_TimelineKazAiButton> createState() => _TimelineKazAiButtonState();
+}
+
+class _TimelineKazAiButtonState extends State<_TimelineKazAiButton> {
+  bool _isGenerating = false;
+
+  Future<void> _suggestDates() async {
+    if (_isGenerating) return;
+    setState(() => _isGenerating = true);
+    try {
+      final activitiesWithoutDates = widget.activities
+          .where((a) => a.startDate == null || a.endDate == null)
+          .toList();
+      if (activitiesWithoutDates.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('All activities already have dates set.'), duration: Duration(seconds: 2)),
+          );
+        }
+        return;
+      }
+
+      final activityNames = activitiesWithoutDates.map((a) => '${a.code}: ${a.name}').join(', ');
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'You are a project scheduling expert. Given these activities: $activityNames. '
+        'Suggest realistic start and end dates for each activity. Activities should follow logical sequencing. '
+        'The project should start in Q1 2026.\n\n'
+        'Return ONLY a pipe-delimited table with columns:\n'
+        'Code|StartDate(MM/dd/yy)|EndDate(MM/dd/yy)\n'
+        'One row per activity, no headers, no markdown.',
+        maxTokens: 400,
+        temperature: 0.6,
+      );
+
+      if (!mounted) return;
+      final lines = result.split('\n').map((l) => l.trim()).where((l) => l.contains('|')).toList();
+
+      int applied = 0;
+      for (final line in lines) {
+        final parts = line.split('|').map((p) => p.trim()).toList();
+        if (parts.length < 3) continue;
+        final code = parts[0];
+        final start = _tryParseDate(parts[1]);
+        final end = _tryParseDate(parts[2]);
+        if (start == null || end == null) continue;
+        final matchIdx = activitiesWithoutDates.indexWhere((a) => a.code == code);
+        if (matchIdx < 0) continue;
+        final activity = activitiesWithoutDates[matchIdx];
+        widget.provider.updateActivity(activity.id, activity.copyWith(
+          startDate: start,
+          endDate: end,
+        ));
+        applied++;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(applied > 0 ? 'KAZ AI set dates for $applied activities' : 'Could not parse AI suggestions. Try again.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: LightModeColors.accent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e'), duration: const Duration(seconds: 3)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  DateTime? _tryParseDate(String text) {
+    try {
+      return DateFormat('MM/dd/yy').parse(text.trim());
+    } catch (_) {
+      try {
+        return DateFormat('MM/dd/yyyy').parse(text.trim());
+      } catch (_) {
+        return null;
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      decoration: BoxDecoration(
+        color: _isGenerating ? const Color(0xFFFEF3C7) : const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: _isGenerating ? const Color(0xFFF59E0B) : const Color(0xFFFDE68A),
+        ),
+      ),
+      child: InkWell(
+        onTap: _isGenerating ? null : _suggestDates,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _isGenerating
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFF59E0B)))
+                  : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)),
+              const SizedBox(width: 6),
+              Text(
+                _isGenerating ? 'Suggesting...' : 'KAZ AI Dates',
+                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF92400E)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Inline date chip used in the timeline editor row.
+class _InlineDateChip extends StatelessWidget {
+  final String label;
+  final DateTime? date;
+  final VoidCallback onTap;
+
+  const _InlineDateChip({required this.label, required this.date, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFE4E7EC)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 10, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 4),
+            Text(
+              date != null ? DateFormat('MMM d, y').format(date!) : 'Pick date',
+              style: TextStyle(
+                color: date != null ? const Color(0xFF1A1D1F) : const Color(0xFFF59E0B),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.calendar_today, size: 12, color: date != null ? LightModeColors.accent : const Color(0xFFF59E0B)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// "Drawing from" context banner shown at the top of the Schedule Builder.
 ///
 /// Surfaces a one-line summary of the upstream Planning Phase data this page
 /// is consuming — the WBS (with deliverable + sub-deliverable counts) and
 /// the Cost Estimate total. Uses a soft accent-tinted surface so it sits
 /// naturally between the level-convention card and the activity tree.
+class _DateField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final IconData icon;
+
+  const _DateField({
+    required this.label,
+    required this.controller,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                color: Color(0xFF6B7280), fontSize: 11, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'MM/DD/YY',
+            hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 12),
+            prefixIcon: Icon(icon, size: 16, color: LightModeColors.accent),
+            filled: true,
+            fillColor: Colors.white,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: LightModeColors.accent, width: 1.6),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFE4E7EC)),
+            ),
+          ),
+          style: const TextStyle(color: Color(0xFF1A1D1F), fontSize: 13),
+        ),
+      ],
+    );
+  }
+}
+
 class _DrawingFromBanner extends StatelessWidget {
   final WBS? wbs;
-  final ({int level0, int level1, int level2})? wbsCounts;
+  final ({int level0, int level1, int level2, int level3, int level4, int level5})? wbsCounts;
   final double costTotal;
   final String currency;
   final bool hasEstimate;

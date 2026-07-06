@@ -1,8 +1,7 @@
 /// WBS — ChangeNotifier-based state management (Dart equivalent)
 ///
-/// Mirrors the Zustand store in the Next.js module.
-/// Persists to SharedPreferences as JSON.
-
+/// Supports unlimited tree depth up to WBSFramework.maxDepth.
+/// Now includes ProjectMethodology and per-node methodology tracking for hybrid projects.
 
 library;
 
@@ -12,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/models/wbs_templates.dart';
 
-const String _storageKey = 'ndu_wbs_v1';
+const String _storageKey = 'ndu_wbs_v2';
 
 class WBSProvider extends ChangeNotifier {
   WBS? _wbs;
@@ -65,6 +64,10 @@ class WBSProvider extends ChangeNotifier {
       projectName: json['projectName'] as String,
       framework: WBSFramework.values
           .byName(json['framework'] as String? ?? 'waterfallDeliverable'),
+      methodology: json['methodology'] != null
+          ? ProjectMethodology.values
+              .byName(json['methodology'] as String)
+          : ProjectMethodology.waterfall,
       level0: _nodeFromJson(json['level0'] as Map<String, dynamic>),
       aiSuggestions: [],
       createdAt: DateTime.now(),
@@ -79,7 +82,21 @@ class WBSProvider extends ChangeNotifier {
       code: json['code'] as String? ?? '0',
       name: json['name'] as String,
       description: json['description'] as String?,
+      estimationMethod: json['estimationMethod'] != null
+          ? EstimationMethod.values.byName(json['estimationMethod'] as String)
+          : null,
+      isWorkPackage: json['isWorkPackage'] as bool?,
       aiGenerated: json['aiGenerated'] as bool? ?? false,
+      aiSource: json['aiSource'] != null
+          ? AISource.values.byName(json['aiSource'] as String)
+          : null,
+      aiConfidence: json['aiConfidence'] != null
+          ? AIConfidence.values.byName(json['aiConfidence'] as String)
+          : null,
+      methodology: json['methodology'] as String?,
+      costLineIds: json['costLineIds'] != null
+          ? (json['costLineIds'] as List<dynamic>).cast<String>()
+          : null,
       children: (json['children'] as List<dynamic>? ?? [])
           .map((c) => _nodeFromJson(c as Map<String, dynamic>))
           .toList(),
@@ -91,6 +108,8 @@ class WBSProvider extends ChangeNotifier {
         'projectId': wbs.projectId,
         'projectName': wbs.projectName,
         'framework': wbs.framework.name,
+        if (wbs.methodology != ProjectMethodology.waterfall)
+          'methodology': wbs.methodology.name,
         'level0': _nodeToJson(wbs.level0),
       };
 
@@ -99,8 +118,17 @@ class WBSProvider extends ChangeNotifier {
         'level': node.level.name,
         'code': node.code,
         'name': node.name,
-        'description': node.description,
-        'aiGenerated': node.aiGenerated,
+        if (node.description != null) 'description': node.description,
+        if (node.estimationMethod != null)
+          'estimationMethod': node.estimationMethod!.name,
+        if (node.isWorkPackage != null) 'isWorkPackage': node.isWorkPackage,
+        if (node.aiGenerated) 'aiGenerated': true,
+        if (node.aiSource != null) 'aiSource': node.aiSource!.name,
+        if (node.aiConfidence != null)
+          'aiConfidence': node.aiConfidence!.name,
+        if (node.methodology != null) 'methodology': node.methodology,
+        if (node.costLineIds != null && node.costLineIds!.isNotEmpty)
+          'costLineIds': node.costLineIds,
         'children': node.children.map(_nodeToJson).toList(),
       };
 
@@ -109,11 +137,13 @@ class WBSProvider extends ChangeNotifier {
   void setup({
     required String projectName,
     required WBSFramework framework,
+    ProjectMethodology methodology = ProjectMethodology.waterfall,
   }) {
     _wbs = createEmptyWBS(
       projectId: 'default',
       projectName: projectName,
       framework: framework,
+      methodology: methodology,
     );
     _setupComplete = true;
     notifyListeners();
@@ -129,47 +159,37 @@ class WBSProvider extends ChangeNotifier {
 
   // ---- Node operations ----
 
-  String addLevel1Node(String name, [String? description]) {
+  /// Add a child node at any level under [parentId].
+  /// The new node's level is automatically determined as parentLevel + 1.
+  /// Returns the new node's ID, or '' on failure.
+  String addChildNode(String parentId, String name, [String? description]) {
     if (_wbs == null) return '';
-    final id = newWBSId('node');
-    final newNode = WBSNode(
-      id: id,
-      level: WBSLevel.level1,
-      code: '${_wbs!.level0.children.length + 1}',
-      name: name,
-      description: description,
-      aiGenerated: false,
-      isWorkPackage: _wbs!.framework != WBSFramework.agile,
-      children: [],
-    );
-    final updatedLevel0 = recalcCodes(_wbs!.level0.copyWith(
-      children: [..._wbs!.level0.children, newNode],
-    ));
-    _wbs = _wbs!.copyWith(
-      level0: updatedLevel0,
-      updatedAt: DateTime.now(),
-    );
-    notifyListeners();
-    _saveToStorage();
-    return id;
-  }
+    final parent = findNode(parentId);
+    if (parent == null) return '';
+    final parentDepth = parent.level.value;
+    final newLevel = parentDepth + 1;
+    final maxDepth = _wbs!.framework.maxDepth;
 
-  String addLevel2Node(String parentId, String name, [String? description]) {
-    if (_wbs == null) return '';
+    if (newLevel > maxDepth) {
+      debugPrint('Cannot add node: max depth ($maxDepth) reached');
+      return '';
+    }
+
     final id = newWBSId('node');
+    final framework = _wbs!.framework;
     final newNode = WBSNode(
       id: id,
-      level: WBSLevel.level2,
+      level: WBSLevelMeta.fromInt(newLevel),
       code: '',
       name: name,
       description: description,
       aiGenerated: false,
-      isWorkPackage: _wbs!.framework != WBSFramework.agile,
-      estimationMethod: _wbs!.framework == WBSFramework.agile
-          ? EstimationMethod.storyPoints
-          : null,
+      isWorkPackage: newLevel >= 3 && framework != WBSFramework.agile,
+      estimationMethod: framework.suggestedEstimation(newLevel),
+      methodology: parent.methodology, // inherit parent methodology
       children: [],
     );
+
     final updatedLevel0 = recalcCodes(_findAndUpdateNode(
         _wbs!.level0, parentId, (n) => n.copyWith(children: [...n.children, newNode])));
     _wbs = _wbs!.copyWith(
@@ -181,11 +201,39 @@ class WBSProvider extends ChangeNotifier {
     return id;
   }
 
-  void addNodeFromTemplate(TemplateNode template) {
-    final l1Id = addLevel1Node(template.name, template.description);
-    for (final child in template.children) {
-      addLevel2Node(l1Id, child.name, child.description);
+  /// Add multiple child nodes at once (from template).
+  void addNodesFromTemplate(String parentId, List<TemplateNode> templates) {
+    for (final t in templates) {
+      final childId = addChildNode(parentId, t.name, t.description);
+      for (final c in t.children) {
+        if (childId.isNotEmpty) {
+          addChildNode(childId, c.name, c.description);
+        }
+      }
     }
+  }
+
+  /// Add nodes from a flat list of names (used by KAZ AI generation).
+  void addBulkNodes(String parentId, List<String> names) {
+    for (final n in names) {
+      if (n.trim().isNotEmpty) {
+        addChildNode(parentId, n.trim());
+      }
+    }
+  }
+
+  /// Set the methodology for a specific node (for hybrid projects).
+  void setNodeMethodology(String nodeId, String? methodology) {
+    if (_wbs == null) return;
+    final updatedLevel0 = _findAndUpdateNode(_wbs!.level0, nodeId, (n) {
+      return n.copyWith(methodology: methodology);
+    });
+    _wbs = _wbs!.copyWith(
+      level0: updatedLevel0,
+      updatedAt: DateTime.now(),
+    );
+    notifyListeners();
+    _saveToStorage();
   }
 
   void updateNode(String id, WBSNode patch) {
@@ -210,6 +258,7 @@ class WBSProvider extends ChangeNotifier {
       aiSource: patch.aiSource,
       aiConfidence: patch.aiConfidence,
       aiReference: patch.aiReference,
+      methodology: patch.methodology,
     );
   }
 
@@ -253,7 +302,9 @@ class WBSProvider extends ChangeNotifier {
   void unlinkCostLine(String nodeId, String costLineId) {
     if (_wbs == null) return;
     final updatedLevel0 = _findAndUpdateNode(_wbs!.level0, nodeId, (n) {
-      final List<String> ids = (n.costLineIds ?? <String>[]).where((id) => id != costLineId).toList();
+      final List<String> ids = (n.costLineIds ?? <String>[])
+          .where((id) => id != costLineId)
+          .toList();
       return n.copyWith(costLineIds: ids);
     });
     _wbs = _wbs!.copyWith(
@@ -308,12 +359,10 @@ class WBSProvider extends ChangeNotifier {
       return arr.map((n) => n.copyWith(children: swap(n.children))).toList();
     }
 
-    // Check if the id is in the root's children
     final idx = root.children.indexWhere((n) => n.id == id);
     if (idx >= 0) {
       return root.copyWith(children: swap(root.children));
     }
-    // Otherwise recurse
     return root.copyWith(
       children: root.children
           .map((c) => _swapNode(c, id, directionUp))

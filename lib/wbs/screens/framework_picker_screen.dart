@@ -1,13 +1,15 @@
-library;
-
-/// Framework Picker Screen — 2-step setup for a new WBS.
+/// Framework Picker Screen — 3-step setup for a new WBS.
 ///
 /// Step 1: Project name (Level 0 node)
-/// Step 2: Framework selection (Agile + 5 Waterfall variations with ratings)
+/// Step 2: Project methodology (Waterfall, Agile, Hybrid)
+/// Step 3: Framework selection (Agile + 5 Waterfall variations with ratings)
+///
+/// The methodology determines the default framework and the depth structure.
 ///
 /// Rendered inside a [ResponsiveScaffold] so the standard app sidebar stays
-/// visible during setup. Light-mode (white) theme — matches the rest of the
-/// app.
+/// visible during setup. Light-mode (white) theme.
+
+library;
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -26,10 +28,12 @@ class FrameworkPickerScreen extends StatefulWidget {
 class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   int _step = 0;
   String _projectName = '';
+  ProjectMethodology? _methodology;
   WBSFramework? _framework;
 
   @override
   Widget build(BuildContext context) {
+    final totalSteps = 3;
     return ResponsiveScaffold(
       activeItemLabel: 'Work Breakdown Structure',
       appBarTitle: 'Work Breakdown Structure',
@@ -48,7 +52,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.folder_open,
+                  Icon(Icons.folder_open,
                       color: LightModeColors.accent, size: 28),
                   const SizedBox(width: 8),
                   const Text('NDU ',
@@ -75,7 +79,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
               // Progress dots
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(2, (i) {
+                children: List.generate(totalSteps, (i) {
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     width: i == _step ? 24 : 8,
@@ -90,6 +94,18 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                 }),
               ),
               const SizedBox(height: 32),
+              // Step indicator
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Step ${_step + 1} of $totalSteps',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Color(0xFF9CA3AF),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
               // Step content
               Expanded(child: _buildStepContent()),
               // Footer nav
@@ -117,7 +133,9 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24)),
                     ),
-                    child: Text(_step == 1 ? 'Create WBS' : 'Continue'),
+                    child: Text(_step == totalSteps - 1
+                        ? 'Create WBS'
+                        : 'Continue'),
                   ),
                 ],
               ),
@@ -133,18 +151,31 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
       case 0:
         return _projectName.trim().isNotEmpty;
       case 1:
+        return _methodology != null;
+      case 2:
         return _framework != null;
     }
     return false;
   }
 
   void _handleNext() {
-    if (_step < 1) {
-      setState(() => _step++);
-    } else {
+    if (_step == 0 && _projectName.trim().isNotEmpty) {
+      setState(() => _step = 1);
+    } else if (_step == 1 && _methodology != null) {
+      // Auto-select the default framework based on methodology
+      if (_framework == null) {
+        _framework = switch (_methodology!) {
+          ProjectMethodology.agile => WBSFramework.agile,
+          ProjectMethodology.waterfall => WBSFramework.waterfallDeliverable,
+          ProjectMethodology.hybrid => WBSFramework.waterfallDeliverable,
+        };
+      }
+      setState(() => _step = 2);
+    } else if (_step == 2 && _framework != null) {
       context.read<WBSProvider>().setup(
             projectName: _projectName.trim(),
             framework: _framework!,
+            methodology: _methodology!,
           );
     }
   }
@@ -154,10 +185,14 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
       case 0:
         return _buildProjectNameStep();
       case 1:
+        return _buildMethodologyStep();
+      case 2:
         return _buildFrameworkStep();
     }
     return const SizedBox();
   }
+
+  // ── STEP 1: Project Name ───────────────────────────────────────────
 
   Widget _buildProjectNameStep() {
     return Column(
@@ -202,24 +237,177 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
     );
   }
 
-  Widget _buildFrameworkStep() {
+  // ── STEP 2: Methodology ────────────────────────────────────────────
+
+  Widget _buildMethodologyStep() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('Pick a WBS framework',
+        const Text('Choose delivery methodology',
             style: TextStyle(
                 color: Color(0xFF1A1D1F),
                 fontSize: 28,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         const Text(
-            'The framework determines how your project is decomposed.',
+            'The methodology determines how your WBS is structured and decomposed.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
+        const SizedBox(height: 32),
+        Expanded(
+          child: ListView(
+            children: ProjectMethodology.values.map((m) {
+              final selected = _methodology == m;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => setState(() => _methodology = m),
+                    borderRadius: BorderRadius.circular(16),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? m.color.withValues(alpha: 0.08)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: selected
+                              ? m.color
+                              : const Color(0xFFE4E7EC),
+                          width: selected ? 2 : 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: selected ? 0.08 : 0.03),
+                            blurRadius: selected ? 16 : 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // Icon with colored circle
+                          Container(
+                            width: 52,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? m.color.withValues(alpha: 0.15)
+                                  : const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(m.icon,
+                                color: selected ? m.color : const Color(0xFF6B7280),
+                                size: 26),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(m.label,
+                                        style: TextStyle(
+                                            color: selected
+                                                ? m.color
+                                                : const Color(0xFF1A1D1F),
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700)),
+                                    if (selected) ...[
+                                      const SizedBox(width: 8),
+                                      Icon(Icons.check_circle,
+                                          color: m.color, size: 18),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  m.description,
+                                  style: const TextStyle(
+                                      color: Color(0xFF6B7280),
+                                      fontSize: 13,
+                                      height: 1.4),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        // Methodology info banner
+        if (_methodology != null)
+          Container(
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _methodology!.color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: _methodology!.color.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                Icon(_methodology!.icon,
+                    size: 16, color: _methodology!.color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${_methodology!.label} project: max depth ${switch (_methodology!) { ProjectMethodology.agile => '5 (Epic → Feature → Story → Task → Subtask)', ProjectMethodology.waterfall => '5 (Deliverable → Sub-Deliverable → WP → Activity → Sub-Activity)', ProjectMethodology.hybrid => '5, mix of Waterfall and Agile subtrees' }}',
+                    style: TextStyle(
+                        color: _methodology!.color.withValues(alpha: 0.9),
+                        fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── STEP 3: Framework ──────────────────────────────────────────────
+
+  Widget _buildFrameworkStep() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Pick a WBS framework',
+                style: TextStyle(
+                    color: Color(0xFF1A1D1F),
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+            'The framework determines how your${_methodology != null ? ' ${_methodology!.label}' : ''} project is decomposed.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
         const SizedBox(height: 24),
         Expanded(
           child: ListView(
-            children: WBSFramework.values.map((f) {
+            children: WBSFramework.values
+                .where((f) =>
+                    // For Agile methodology, only show Agile framework
+                    _methodology == ProjectMethodology.agile
+                        ? f == WBSFramework.agile
+                        : true)
+                .map((f) {
               final selected = _framework == f;
               final isPhase = f == WBSFramework.waterfallPhase;
               return Container(
@@ -252,18 +440,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                       child: Row(
                         children: [
                           Icon(
-                            switch (f) {
-                              WBSFramework.agile => Icons.speed,
-                              WBSFramework.waterfallDeliverable =>
-                                Icons.inventory_2,
-                              WBSFramework.waterfallDiscipline =>
-                                Icons.engineering,
-                              WBSFramework.waterfallFunctional =>
-                                Icons.group,
-                              WBSFramework.waterfallGeographic =>
-                                Icons.public,
-                              WBSFramework.waterfallPhase => Icons.timeline,
-                            },
+                            f.iconData,
                             color: selected
                                 ? LightModeColors.accent
                                 : const Color(0xFF6B7280),
@@ -291,6 +468,24 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                           color: LightModeColors.accent,
                                           fontSize: 13,
                                           fontWeight: FontWeight.bold),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // Show depth badge
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF3F4F6),
+                                        borderRadius:
+                                            BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'L0–L${f.maxDepth}',
+                                        style: const TextStyle(
+                                            color: Color(0xFF6B7280),
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w600),
+                                      ),
                                     ),
                                   ],
                                 ),

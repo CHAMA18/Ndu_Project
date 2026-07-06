@@ -32,7 +32,6 @@ import 'package:ndu_project/wbs/screens/wbs_ai_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_validator_screen.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
-import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 
@@ -367,7 +366,7 @@ class _ExportAndLinkTab extends StatelessWidget {
                         border:
                             Border.all(color: const Color(0xFFE4E7EC)),
                       ),
-                      child: Text('${counts.level1 + counts.level2 + 1} nodes',
+                      child: Text('${counts.level1 + counts.level2 + counts.level3 + counts.level4 + counts.level5 + 1} nodes',
                           style: const TextStyle(
                               color: Color(0xFF495057),
                               fontSize: 11,
