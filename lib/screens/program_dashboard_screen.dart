@@ -763,7 +763,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
     final width = MediaQuery.sizeOf(context).width;
     // Desktop (>1180): 3-column hero bento
     // Tablet (700-1180): 2-column (KPI + chart side-by-side, gauge below)
-    // Mobile (<700): stacked vertically
+    // Mobile (<700): stacked vertically with tighter spacing
     if (width > 1180) {
       return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(flex: 3, child: _budgetKpi(metrics ?? _emptyMetrics)),
@@ -784,11 +784,14 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
         _progressGauge(metrics ?? _emptyMetrics),
       ]);
     }
+    // Mobile: stacked with 16dp spacing (Material 3 compact)
     return Column(children: [
       _budgetKpi(metrics ?? _emptyMetrics),
-      const SizedBox(height: 24),
-      SizedBox(height: 220, child: _plannedVsActual(metrics ?? _emptyMetrics)),
-      const SizedBox(height: 24),
+      const SizedBox(height: 16),
+      SizedBox(
+          height: 180,
+          child: _plannedVsActual(metrics ?? _emptyMetrics)),
+      const SizedBox(height: 16),
       _progressGauge(metrics ?? _emptyMetrics),
     ]);
   }
