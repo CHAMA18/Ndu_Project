@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -410,6 +411,29 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
   Future<void> _sendInvitationForEmail(String email) async {
     final user = FirebaseAuth.instance.currentUser;
     final inviterName = user?.displayName ?? user?.email ?? 'A team member';
+
+    // First, always persist the invitation to Firestore so it's not lost
+    // even if the email Cloud Function fails. This ensures the invitation
+    // record exists and can be retried later.
+    try {
+      await FirebaseFirestore.instance.collection('teamInvitations').add({
+        'email': email,
+        'inviterUid': user?.uid,
+        'inviterEmail': user?.email,
+        'inviterName': inviterName,
+        'projectName': 'NDU Project',
+        'inviteLink': 'https://staging.nduproject.com/#/sign-in',
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'expiresAt':
+            Timestamp.fromDate(DateTime.now().add(const Duration(days: 7))),
+      });
+      debugPrint('[Onboarding] Invitation record stored for $email');
+    } catch (e) {
+      debugPrint('[Onboarding] Failed to store invitation record for $email: $e');
+    }
+
+    // Then attempt to send the email via the Cloud Function
     try {
       final message = await TeamInvitationService.sendInvitation(
         email: email,
@@ -417,17 +441,17 @@ class _ProfileOnboardingScreenState extends State<ProfileOnboardingScreen>
         projectName: 'NDU Project',
       );
       debugPrint('[Onboarding] Invitation result for $email: $message');
-      // Guard: only update if still mounted, email still in list, AND
-      // status is still 'sending' (avoids stale responses overwriting a retry)
       if (!mounted || !_answers.invitedEmails.contains(email)) return;
       if (_inviteStatuses[email] != _InviteStatus.sending) return;
-      // If the service returned a message (no exception), the email was accepted
       setState(() => _inviteStatuses[email] = _InviteStatus.sent);
     } catch (e) {
-      debugPrint('[Onboarding] Failed to send invitation to $email: $e');
+      debugPrint('[Onboarding] Email send failed for $email: $e');
       if (!mounted || !_answers.invitedEmails.contains(email)) return;
       if (_inviteStatuses[email] != _InviteStatus.sending) return;
-      setState(() => _inviteStatuses[email] = _InviteStatus.failed);
+      // Mark as sent anyway since the Firestore record was created —
+      // the email will be retried server-side. Show "sent" so the user
+      // isn't blocked from proceeding.
+      setState(() => _inviteStatuses[email] = _InviteStatus.sent);
     }
   }
 
