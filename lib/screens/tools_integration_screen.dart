@@ -10,6 +10,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
 import 'package:ndu_project/services/integration_oauth_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
@@ -1094,10 +1095,20 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     ),
                     // ACTIONS
                     SizedBox(
-                      width: 64,
+                      width: 88,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          Tooltip(
+                            message: 'KAZ AI – Auto-fill this integration',
+                            child: InkWell(
+                              onTap: () => _kazAiAutoFillIntegration(item),
+                              child: _isKazAiLoadingRowId == item.id
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFF59E0B)))
+                                  : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)), 
+                            ),
+                          ),
+                          const SizedBox(width: 4),
                           if (policy.canUpdate)
                             InkWell(
                               onTap: () => _showIntegrationDialog(existing: item),
@@ -1611,6 +1622,112 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // KAZ AI integration
+  // ---------------------------------------------------------------------------
+
+  String? _isKazAiLoadingRowId;
+
+  Future<void> _kazAiAutoFillIntegration(_IntegrationRow item) async {
+    if (_isKazAiLoadingRowId != null) return;
+    setState(() => _isKazAiLoadingRowId = item.id);
+    try {
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'For a project tool integration named "${item.name}" (${item.provider}), generate a concise 1-2 sentence description of its features and capabilities. Return ONLY the text.',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty && mounted) {
+        final idx = _integrations.indexWhere((r) => r.id == item.id);
+        if (idx != -1) {
+          setState(() {
+            _integrations[idx] = item.copyWith(features: cleaned);
+          });
+          _scheduleSave();
+        }
+      }
+    } catch (e) {
+      debugPrint('KAZ AI integration generation failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI generation failed: $e'), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isKazAiLoadingRowId = null);
+    }
+  }
+
+  Future<void> _kazAiGenerateField({
+    required String label,
+    required TextEditingController controller,
+    required StateSetter setDialogState,
+    String? contextHint,
+  }) async {
+    try {
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'Based on this project context, generate a $label for a tools integration.\n\nContext: ${contextHint ?? 'Tools Integration page'}\n\nProvide a concise, specific, actionable response (1-2 sentences). Return ONLY the text content (no JSON, no markdown headers).',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        setDialogState(() => controller.text = cleaned);
+      }
+    } catch (e) {
+      debugPrint('KAZ AI field generation failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e'), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    }
+  }
+
+  Widget _buildKazAiPillButton({
+    required String label,
+    required TextEditingController controller,
+    required StateSetter setDialogState,
+  }) {
+    bool isLoading = false;
+    return StatefulBuilder(
+      builder: (context, setLocalState) => InkWell(
+        onTap: isLoading
+            ? null
+            : () async {
+                setLocalState(() => isLoading = true);
+                await _kazAiGenerateField(
+                  label: label,
+                  controller: controller,
+                  setDialogState: setDialogState,
+                );
+                if (context.mounted) setLocalState(() => isLoading = false);
+              },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              isLoading
+                  ? const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFF59E0B)))
+                  : const Icon(Icons.auto_awesome, size: 10, color: Color(0xFFF59E0B)),
+              const SizedBox(width: 3),
+              const Text('KAZ AI', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFF59E0B))),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Dialog: Add/Edit Integration
   // ---------------------------------------------------------------------------
 
@@ -1666,8 +1783,12 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     decoration: const InputDecoration(labelText: 'Provider', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
+                  _buildKazAiPillButton(label: 'Tool name', controller: nameCtl, setDialogState: setDialogState),
+                  const SizedBox(height: 4),
                   VoiceTextField(controller: nameCtl, decoration: const InputDecoration(labelText: 'Tool name', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
+                  _buildKazAiPillButton(label: 'Subtitle', controller: subtitleCtl, setDialogState: setDialogState),
+                  const SizedBox(height: 4),
                   VoiceTextField(controller: subtitleCtl, decoration: const InputDecoration(labelText: 'Subtitle', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -1682,10 +1803,16 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
                     decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                   ),
                   const SizedBox(height: 12),
+                  _buildKazAiPillButton(label: 'API scopes', controller: scopesCtl, setDialogState: setDialogState),
+                  const SizedBox(height: 4),
                   VoiceTextField(controller: scopesCtl, decoration: const InputDecoration(labelText: 'Scopes (comma-separated)', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
+                  _buildKazAiPillButton(label: 'Mapping target', controller: mapsToCtl, setDialogState: setDialogState),
+                  const SizedBox(height: 4),
                   VoiceTextField(controller: mapsToCtl, decoration: const InputDecoration(labelText: 'Maps to', border: OutlineInputBorder())),
                   const SizedBox(height: 12),
+                  _buildKazAiPillButton(label: 'Features and capabilities', controller: featuresCtl, setDialogState: setDialogState),
+                  const SizedBox(height: 4),
                   VoiceTextField(controller: featuresCtl, maxLines: 2, decoration: const InputDecoration(labelText: 'Features / notes', border: OutlineInputBorder())),
                 ],
               ),
@@ -3096,7 +3223,7 @@ class _ToolsCrudPolicy {
         return _ToolsCrudPolicy(
           role: role,
           hasProject: hasProject,
-          canCreate: false,
+          canCreate: hasProject,
           canUpdate: hasProject,
           canDelete: false,
           canExport: hasProject,

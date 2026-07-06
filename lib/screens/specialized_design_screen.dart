@@ -20,6 +20,7 @@ import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 
 class SpecializedDesignScreen extends StatefulWidget {
   const SpecializedDesignScreen({super.key});
@@ -47,6 +48,7 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
   List<_ComplianceRow> _complianceRows = [];
   List<_ReviewGateRow> _reviewGates = [];
   bool _frameworkGuideExpanded = false;
+  String? _isKazAiLoadingRowId;
 
   static const List<String> _statusOptions = [
     'Ready',
@@ -541,11 +543,117 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
       child: Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)));
   }
 
-  Widget _crudButtons(VoidCallback onEdit, VoidCallback onDelete) {
-    return SizedBox(width: 60, child: Row(mainAxisSize: MainAxisSize.min, children: [
+  Widget _crudButtons(VoidCallback onEdit, VoidCallback onDelete, {VoidCallback? onKazAi, String? kazAiRowId}) {
+    return SizedBox(width: 88, child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Tooltip(
+        message: 'KAZ AI – Auto-fill this row',
+        child: InkWell(
+          onTap: onKazAi,
+          child: kazAiRowId != null && _isKazAiLoadingRowId == kazAiRowId
+              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFF59E0B)))
+              : const Icon(Icons.auto_awesome, size: 14, color: Color(0xFFF59E0B)),
+        ),
+      ),
+      const SizedBox(width: 4),
       IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: onEdit, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
       IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: onDelete, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
     ]));
+  }
+
+  // ─── KAZ AI helpers ─────────────────────────────────────────────
+
+  Future<void> _kazAiAutoFillRow({
+    required String rowId,
+    required String label,
+    required String contextHint,
+    required void Function(String field, String value) onResult,
+  }) async {
+    if (_isKazAiLoadingRowId != null) return;
+    setState(() => _isKazAiLoadingRowId = rowId);
+    try {
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'Based on this project context, generate a $label for a specialized design $contextHint.\n\nProvide a concise, specific, actionable response (1-2 sentences). Return ONLY the text content (no JSON, no markdown headers).',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty && mounted) {
+        onResult(label, cleaned);
+        _scheduleSave();
+      }
+    } catch (e) {
+      debugPrint('KAZ AI row generation failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI generation failed: $e'), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isKazAiLoadingRowId = null);
+    }
+  }
+
+  Future<void> _kazAiGenerateField({
+    required String label,
+    required TextEditingController controller,
+    required StateSetter setDialogState,
+    String? contextHint,
+  }) async {
+    try {
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        'Based on this project context, generate a $label for a specialized design element.\n\nContext: ${contextHint ?? 'Specialized Design page'}\n\nProvide a concise, specific, actionable response (1-2 sentences). Return ONLY the text content (no JSON, no markdown headers).',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty) {
+        setDialogState(() => controller.text = cleaned);
+      }
+    } catch (e) {
+      debugPrint('KAZ AI field generation failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e'), backgroundColor: const Color(0xFFDC2626)),
+        );
+      }
+    }
+  }
+
+  Widget _buildKazAiPillButton({
+    required String label,
+    required TextEditingController controller,
+    required StateSetter setDialogState,
+  }) {
+    bool isLoading = false;
+    return StatefulBuilder(
+      builder: (context, setLocalState) => InkWell(
+        onTap: isLoading ? null : () async {
+          setLocalState(() => isLoading = true);
+          await _kazAiGenerateField(label: label, controller: controller, setDialogState: setDialogState);
+          if (context.mounted) setLocalState(() => isLoading = false);
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              isLoading
+                  ? const SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFF59E0B)))
+                  : const Icon(Icons.auto_awesome, size: 10, color: Color(0xFFF59E0B)),
+              const SizedBox(width: 3),
+              const Text('KAZ AI', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFF59E0B))),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ─── Security Register ──────────────────────────────────────────
@@ -600,7 +708,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 5, child: Text(row.decision, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4))),
                   SizedBox(width: 120, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
                   SizedBox(width: 130, child: _buildStatusTag(row.status)),
-                  _crudButtons(() => _showSecurityDialog(existing: row), () => _confirmDelete(() { setState(() => _securityRows.remove(row)); _scheduleSave(); })),
+                  _crudButtons(() => _showSecurityDialog(existing: row), () => _confirmDelete(() { setState(() => _securityRows.remove(row)); _scheduleSave(); }), onKazAi: () => _kazAiAutoFillRow(
+                    rowId: row.pattern, label: 'security pattern', contextHint: 'security control',
+                    onResult: (field, value) {
+                      final idx = _securityRows.indexOf(row);
+                      if (idx != -1) setState(() { _securityRows[idx].decision = value; });
+                    },
+                  ), kazAiRowId: row.pattern),
                 ]);
               }),
             ]),
@@ -659,7 +773,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 5, child: Text(row.focus, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4))),
                   SizedBox(width: 130, child: Text(row.sla, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0EA5E9)))),
                   SizedBox(width: 130, child: _buildStatusTag(row.status)),
-                  _crudButtons(() => _showPerformanceDialog(existing: row), () => _confirmDelete(() { setState(() => _performanceRows.remove(row)); _scheduleSave(); })),
+                  _crudButtons(() => _showPerformanceDialog(existing: row), () => _confirmDelete(() { setState(() => _performanceRows.remove(row)); _scheduleSave(); }), onKazAi: () => _kazAiAutoFillRow(
+                    rowId: row.hotspot, label: 'performance focus', contextHint: 'performance hotspot',
+                    onResult: (field, value) {
+                      final idx = _performanceRows.indexOf(row);
+                      if (idx != -1) setState(() { _performanceRows[idx].focus = value; });
+                    },
+                  ), kazAiRowId: row.hotspot),
                 ]);
               }),
             ]),
@@ -718,7 +838,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   SizedBox(width: 150, child: Text(row.system, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
                   SizedBox(width: 120, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
                   SizedBox(width: 130, child: _buildStatusTag(row.status)),
-                  _crudButtons(() => _showIntegrationDialog(existing: row), () => _confirmDelete(() { setState(() => _integrationRows.remove(row)); _scheduleSave(); })),
+                  _crudButtons(() => _showIntegrationDialog(existing: row), () => _confirmDelete(() { setState(() => _integrationRows.remove(row)); _scheduleSave(); }), onKazAi: () => _kazAiAutoFillRow(
+                    rowId: row.flow, label: 'integration system', contextHint: 'integration flow',
+                    onResult: (field, value) {
+                      final idx = _integrationRows.indexOf(row);
+                      if (idx != -1) setState(() { _integrationRows[idx].system = value; });
+                    },
+                  ), kazAiRowId: row.flow),
                 ]);
               }),
             ]),
@@ -779,7 +905,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   Expanded(flex: 4, child: Text(row.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), height: 1.4))),
                   SizedBox(width: 120, child: Text(row.owner, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
                   SizedBox(width: 130, child: _buildComplianceStatusTag(row.status)),
-                  _crudButtons(() => _showComplianceDialog(existing: row), () => _confirmDelete(() { setState(() => _complianceRows.removeWhere((r) => r.id == row.id)); _scheduleSave(); })),
+                  _crudButtons(() => _showComplianceDialog(existing: row), () => _confirmDelete(() { setState(() => _complianceRows.removeWhere((r) => r.id == row.id)); _scheduleSave(); }), onKazAi: () => _kazAiAutoFillRow(
+                    rowId: row.id, label: 'compliance description', contextHint: 'compliance standard',
+                    onResult: (field, value) {
+                      final idx = _complianceRows.indexWhere((r) => r.id == row.id);
+                      if (idx != -1) setState(() { _complianceRows[idx].description = value; });
+                    },
+                  ), kazAiRowId: row.id),
                 ]);
               }),
             ]),
@@ -849,7 +981,13 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
                   SizedBox(width: 130, child: Text(row.approver, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
                   SizedBox(width: 110, child: _buildPriorityTag(row.priority)),
                   SizedBox(width: 130, child: _buildReviewGateStatusTag(row.status)),
-                  _crudButtons(() => _showReviewGateDialog(existing: row), () => _confirmDelete(() { setState(() => _reviewGates.removeWhere((g) => g.id == row.id)); _scheduleSave(); })),
+                  _crudButtons(() => _showReviewGateDialog(existing: row), () => _confirmDelete(() { setState(() => _reviewGates.removeWhere((g) => g.id == row.id)); _scheduleSave(); }), onKazAi: () => _kazAiAutoFillRow(
+                    rowId: row.id, label: 'review gate description', contextHint: 'review gate',
+                    onResult: (field, value) {
+                      final idx = _reviewGates.indexWhere((g) => g.id == row.id);
+                      if (idx != -1) setState(() { _reviewGates[idx].description = value; });
+                    },
+                  ), kazAiRowId: row.id),
                 ]);
               }),
             ]),
@@ -867,8 +1005,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add security control' : 'Edit security control'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _buildKazAiPillButton(label: 'Pattern name', controller: patternCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: patternCtrl, decoration: const InputDecoration(labelText: 'Pattern name', border: OutlineInputBorder())),
         const SizedBox(height: 12),
+        _buildKazAiPillButton(label: 'Decision and scope', controller: decisionCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: decisionCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Decision & scope', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
@@ -906,8 +1048,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add performance hotspot' : 'Edit performance hotspot'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _buildKazAiPillButton(label: 'Service hotspot name', controller: hotspotCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: hotspotCtrl, decoration: const InputDecoration(labelText: 'Service hotspot', border: OutlineInputBorder())),
         const SizedBox(height: 12),
+        _buildKazAiPillButton(label: 'Design focus', controller: focusCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: focusCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Design focus', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
@@ -945,8 +1091,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add integration flow' : 'Edit integration flow'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _buildKazAiPillButton(label: 'Flow name', controller: flowCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: flowCtrl, decoration: const InputDecoration(labelText: 'Flow name', border: OutlineInputBorder())),
         const SizedBox(height: 12),
+        _buildKazAiPillButton(label: 'External system', controller: systemCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: systemCtrl, decoration: const InputDecoration(labelText: 'External system', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
@@ -985,8 +1135,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add compliance standard' : 'Edit compliance standard'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _buildKazAiPillButton(label: 'Standard name', controller: standardCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: standardCtrl, decoration: const InputDecoration(labelText: 'Standard', border: OutlineInputBorder())),
         const SizedBox(height: 12),
+        _buildKazAiPillButton(label: 'Description', controller: descCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: descCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [
@@ -1029,8 +1183,12 @@ class _SpecializedDesignScreenState extends State<SpecializedDesignScreen> {
     final saved = await showDialog<bool>(context: context, builder: (ctx) => StatefulBuilder(builder: (context, setModalState) => AlertDialog(
       title: Text(existing == null ? 'Add review gate' : 'Edit review gate'),
       content: SizedBox(width: 560, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        _buildKazAiPillButton(label: 'Gate name', controller: gateCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: gateCtrl, decoration: const InputDecoration(labelText: 'Gate name', border: OutlineInputBorder())),
         const SizedBox(height: 12),
+        _buildKazAiPillButton(label: 'Gate description', controller: descCtrl, setDialogState: setModalState),
+        const SizedBox(height: 4),
         VoiceTextField(controller: descCtrl, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder())),
         const SizedBox(height: 12),
         Row(children: [

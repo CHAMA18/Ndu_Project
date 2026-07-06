@@ -811,12 +811,9 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
-  void _addMethodologyStandard() {
-    if (!_canCreateAlignment) {
-      _showPermissionSnackBar('add delivery models');
-      return;
-    }
+  bool _isGeneratingModelAi = false;
 
+  void _addMethodologyStandard() {
     setState(() {
       _methodologyStandards.add(
         _MethodologyStandard(
@@ -1078,6 +1075,96 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              Tooltip(
+                                message: 'KAZ AI – Auto-fill this model',
+                                child: InkWell(
+                                  onTap: () async {
+                                    if (_isGeneratingModelAi) return;
+
+                                    // Collect controllers for the row fields
+                                    final modelCtl = TextEditingController(text: row.model);
+                                    final bestFitCtl = TextEditingController(text: row.bestFit);
+                                    final evidenceCtl = TextEditingController(text: row.evidence);
+                                    final controlsCtl = TextEditingController(text: row.controls);
+                                    final exitCtl = TextEditingController(text: row.exitStandard);
+
+                                    setState(() => _isGeneratingModelAi = true);
+                                    try {
+                                      final projectData = ProjectDataInherited.maybeOf(context)?.projectData;
+                                      final projectContext = ProjectDataHelper.buildProjectContextScan(
+                                        projectData ?? ProjectDataModel(),
+                                        sectionLabel: 'Technical Alignment - Delivery Model',
+                                      );
+                                      final ai = OpenAiServiceSecure();
+
+                                      final prompts = <(String, TextEditingController)>[
+                                        ('model name', modelCtl),
+                                        ('best-fit use case', bestFitCtl),
+                                        ('required alignment evidence', evidenceCtl),
+                                        ('technical control focus', controlsCtl),
+                                        ('exit standard', exitCtl),
+                                      ];
+
+                                      for (final (label, ctl) in prompts) {
+                                        if (ctl.text.trim().isEmpty) {
+                                          final result = await ai.generateCompletion(
+                                            'Based on this project context, generate a $label for a delivery model.\n\n'
+                                            'Context:\n$projectContext\n\n'
+                                            'Provide a concise, specific, actionable response (1-2 sentences). '
+                                            'Return ONLY the text content (no JSON, no markdown headers).',
+                                            maxTokens: 200,
+                                            temperature: 0.6,
+                                          );
+                                          final cleaned = result.trim();
+                                          if (cleaned.isNotEmpty) ctl.text = cleaned;
+                                        }
+                                      }
+
+                                      setState(() {
+                                        _methodologyStandards[idx] = _MethodologyStandard(
+                                          model: modelCtl.text.trim(),
+                                          bestFit: bestFitCtl.text.trim(),
+                                          evidence: evidenceCtl.text.trim(),
+                                          controls: controlsCtl.text.trim(),
+                                          exitStandard: exitCtl.text.trim(),
+                                        );
+                                        _scheduleSave();
+                                      });
+                                    } catch (e) {
+                                      debugPrint('KAZ AI model generation failed: $e');
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text('KAZ AI generation failed: $e'),
+                                            backgroundColor: const Color(0xFFDC2626),
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      // Dispose temporary controllers
+                                      modelCtl.dispose();
+                                      bestFitCtl.dispose();
+                                      evidenceCtl.dispose();
+                                      controlsCtl.dispose();
+                                      exitCtl.dispose();
+                                      if (mounted) setState(() => _isGeneratingModelAi = false);
+                                    }
+                                  },
+                                  child: _isGeneratingModelAi
+                                      ? const SizedBox(
+                                          width: 14,
+                                          height: 14,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 1.5,
+                                            color: Color(0xFFF59E0B),
+                                          ),
+                                        )
+                                      : const Icon(Icons.auto_awesome,
+                                          size: 14,
+                                          color: Color(0xFFF59E0B)),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
                               InkWell(
                                 onTap: () => _showMethodologyDialog(
                                     existing: row,
@@ -1126,6 +1213,90 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
     );
   }
 
+  Widget _buildKazAiFieldButton({
+    required String label,
+    required TextEditingController controller,
+    required StateSetter setDState,
+  }) {
+    bool isGenerating = false;
+    return StatefulBuilder(
+      builder: (context, setLocalState) => Tooltip(
+        message: 'KAZ AI – Generate $label',
+        child: InkWell(
+          onTap: isGenerating
+              ? null
+              : () async {
+                  setLocalState(() => isGenerating = true);
+                  try {
+                    final projectData = ProjectDataInherited.maybeOf(context)?.projectData;
+                    final projectContext = ProjectDataHelper.buildProjectContextScan(
+                      projectData ?? ProjectDataModel(),
+                      sectionLabel: 'Technical Alignment - Delivery Model',
+                    );
+                    final ai = OpenAiServiceSecure();
+                    final result = await ai.generateCompletion(
+                      'Based on this project context, generate a $label for a delivery model.\n\n'
+                      'Context:\n$projectContext\n\n'
+                      'Provide a concise, specific, actionable response (1-2 sentences). '
+                      'Return ONLY the text content (no JSON, no markdown headers).',
+                      maxTokens: 200,
+                      temperature: 0.6,
+                    );
+                    final cleaned = result.trim();
+                    if (cleaned.isNotEmpty) {
+                      setDState(() => controller.text = cleaned);
+                    }
+                  } catch (e) {
+                    debugPrint('KAZ AI field generation failed: $e');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('KAZ AI failed: $e'),
+                          backgroundColor: const Color(0xFFDC2626),
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (context.mounted) setLocalState(() => isGenerating = false);
+                  }
+                },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF59E0B).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                isGenerating
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Color(0xFFF59E0B),
+                        ),
+                      )
+                    : const Icon(Icons.auto_awesome, size: 12, color: Color(0xFFF59E0B)),
+                const SizedBox(width: 4),
+                const Text(
+                  'KAZ AI',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFF59E0B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showMethodologyDialog({_MethodologyStandard? existing, int? index}) {
     final isEdit = existing != null;
     final modelCtl = TextEditingController(text: existing?.model ?? '');
@@ -1156,6 +1327,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  _buildKazAiFieldButton(
+                    label: 'Model name',
+                    controller: modelCtl,
+                    setDState: setDState,
+                  ),
+                  const SizedBox(height: 6),
                   VoiceTextField(
                     controller: modelCtl,
                     decoration: const InputDecoration(
@@ -1165,6 +1342,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _buildKazAiFieldButton(
+                    label: 'Best-fit use case',
+                    controller: bestFitCtl,
+                    setDState: setDState,
+                  ),
+                  const SizedBox(height: 6),
                   VoiceTextField(
                     controller: bestFitCtl,
                     maxLines: 3,
@@ -1176,6 +1359,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _buildKazAiFieldButton(
+                    label: 'Required alignment evidence',
+                    controller: evidenceCtl,
+                    setDState: setDState,
+                  ),
+                  const SizedBox(height: 6),
                   VoiceTextField(
                     controller: evidenceCtl,
                     maxLines: 3,
@@ -1187,6 +1376,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _buildKazAiFieldButton(
+                    label: 'Technical control focus',
+                    controller: controlsCtl,
+                    setDState: setDState,
+                  ),
+                  const SizedBox(height: 6),
                   VoiceTextField(
                     controller: controlsCtl,
                     maxLines: 3,
@@ -1198,6 +1393,12 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _buildKazAiFieldButton(
+                    label: 'Exit standard',
+                    controller: exitCtl,
+                    setDState: setDState,
+                  ),
+                  const SizedBox(height: 6),
                   VoiceTextField(
                     controller: exitCtl,
                     maxLines: 3,
