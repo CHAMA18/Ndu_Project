@@ -1,16 +1,15 @@
 /// Project Controls — ChangeNotifier state management
 ///
 /// Serves as the single source of truth for project controls.
-/// Persists to SharedPreferences.
+/// Persists all data to Firestore via ProjectControlsFirestoreService.
 
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/project_controls/models/project_controls_models.dart';
+import 'package:ndu_project/project_controls/services/project_controls_firestore_service.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart' as ce_models;
 
-const String _storageKey = 'ndu_project_controls_v1';
-const String _currentUser = 'you@ndu.project';
+String get _currentUser => FirebaseAuth.instance.currentUser?.email ?? 'you@ndu.project';
 
 class ProjectControlsProvider extends ChangeNotifier {
   ProjectControlsState _state = ProjectControlsState(
@@ -25,49 +24,51 @@ class ProjectControlsProvider extends ChangeNotifier {
 
   ProjectControlsState get state => _state;
 
+  bool _loaded = false;
+
   ProjectControlsProvider() {
-    _loadFromStorage();
+    _loadFromFirestore();
   }
 
-  // ─── Persistence ─────────────────────────────────────────────────────
-  Future<void> _loadFromStorage() async {
+  bool get isLoaded => _loaded;
+
+  // ─── Firestore persistence ─────────────────────────────────────────
+  Future<void> _loadFromFirestore() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
-      if (raw != null) {
-        final data = jsonDecode(raw) as Map<String, dynamic>;
-        // Simplified deserialization
-        _state = _state.copyWith(
-          deliveryModel: DeliveryModel.values
-              .byName(data['deliveryModel'] as String? ?? 'waterfall'),
-          isBaselined: data['isBaselined'] as bool? ?? false,
-          isExecutionActive: data['isExecutionActive'] as bool? ?? false,
-        );
-        notifyListeners();
-      }
+      final firestoreState =
+          await ProjectControlsFirestoreService.instance.loadState();
+      _state = firestoreState;
+      _loaded = true;
+      notifyListeners();
     } catch (e) {
-      debugPrint('Error loading PC state: $e');
+      debugPrint('[PC Provider] Firestore load error: $e');
+      _loaded = true;
+      notifyListeners();
     }
   }
 
-  Future<void> _saveToStorage() async {
+  Future<void> _saveToFirestore() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_storageKey, jsonEncode({
-        'deliveryModel': _state.deliveryModel.name,
-        'isBaselined': _state.isBaselined,
-        'isExecutionActive': _state.isExecutionActive,
-      }));
+      await ProjectControlsFirestoreService.instance.saveRootMetadata(
+        deliveryModel: _state.deliveryModel,
+        isBaselined: _state.isBaselined,
+        isExecutionActive: _state.isExecutionActive,
+      );
     } catch (e) {
-      debugPrint('Error saving PC state: $e');
+      debugPrint('[PC Provider] Firestore save error: $e');
     }
+  }
+
+  /// Force-reload from Firestore (e.g. after sign-in or pull-to-refresh).
+  Future<void> reloadFromFirestore() async {
+    await _loadFromFirestore();
   }
 
   // ─── Setup ───────────────────────────────────────────────────────────
   void setDeliveryModel(DeliveryModel model) {
     _state = _state.copyWith(deliveryModel: model);
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
   }
 
   /// Sync the BAC (Budget at Completion) from the Cost Estimate module.
@@ -99,7 +100,7 @@ class ProjectControlsProvider extends ChangeNotifier {
             '\$${bac.toStringAsFixed(0)}',
             'BAC synced from Cost Estimate (total authorized budget)');
         notifyListeners();
-        _saveToStorage();
+        _saveToFirestore();
       }
       return;
     }
@@ -176,13 +177,16 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('BAC', '—', '\$${bac.toStringAsFixed(0)}',
         'BAC synced from Cost Estimate (${estimate.lines.length} cost lines, \$$bac total)');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    for (final wp in _state.workPackages) {
+      ProjectControlsFirestoreService.instance.saveWorkPackage(wp);
+    }
   }
 
   void activateExecution() {
     _state = _state.copyWith(isExecutionActive: true);
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
   }
 
   // ─── Work Packages ──────────────────────────────────────────────────
@@ -190,7 +194,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _state = _state.copyWith(workPackages: [..._state.workPackages, wp]);
     _addAudit('workPackages', '—', wp.name, 'Work package added');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveWorkPackage(wp);
   }
 
   void updateWorkPackage(String id, WorkPackageControl updated) {
@@ -209,7 +214,8 @@ class ProjectControlsProvider extends ChangeNotifier {
           '${updated.percentComplete}', 'Progress updated');
     }
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveWorkPackage(updated);
   }
 
   // ─── Change Management ──────────────────────────────────────────────
@@ -223,7 +229,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('changeRequest', '—', cr.id,
         'Change request submitted: ${cr.description}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveChangeRequest(cr);
   }
 
   void updateChangeStatus(String id, ChangeStatus status) {
@@ -245,7 +252,9 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('changeStatus.$id', '', status.label,
         'Change request status updated to ${status.label}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    final updated = _state.changeRequests.firstWhere((cr) => cr.id == id);
+    ProjectControlsFirestoreService.instance.saveChangeRequest(updated);
   }
 
   void approveChangeStep(String changeId) {
@@ -293,7 +302,9 @@ class ProjectControlsProvider extends ChangeNotifier {
         allApproved ? 'ALL APPROVED' : 'step $newIdx',
         'Change approval step ${currentIdx + 1} approved');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    final updated = _state.changeRequests.firstWhere((c) => c.id == changeId);
+    ProjectControlsFirestoreService.instance.saveChangeRequest(updated);
   }
 
   void rejectChangeRequest(String id, String reason) {
@@ -307,7 +318,9 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('changeRejection.$id', '', 'REJECTED',
         'Change request rejected: $reason');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    final updated = _state.changeRequests.firstWhere((cr) => cr.id == id);
+    ProjectControlsFirestoreService.instance.saveChangeRequest(updated);
   }
 
   // ─── Baseline Management ────────────────────────────────────────────
@@ -328,7 +341,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('baseline.${type.name}', '', 'v${baseline.version}',
         '${type.label} locked at version ${baseline.version}${reason != null ? ' — $reason' : ''}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveBaseline(baseline);
   }
 
   /// Convenience wrapper that explicitly creates a snapshot with a reason.
@@ -352,7 +366,10 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('baseline.rollback', 'v$version', 'current',
         'Rolled back to baseline v$version — restored ${baseline.workPackages.length} work packages (was $previousWpCount), budget \$${baseline.totalBudget}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    for (final wp in _state.workPackages) {
+      ProjectControlsFirestoreService.instance.saveWorkPackage(wp);
+    }
   }
 
   // ─── Schedule Control ───────────────────────────────────────────────
@@ -363,7 +380,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('scheduleVariance.${sv.workPackageId}', '—', 'created',
         'Schedule variance record added for ${sv.workPackageId}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveScheduleVariance(sv);
   }
 
   void updateScheduleVariance(String workPackageId, ScheduleVariance updated) {
@@ -381,7 +399,8 @@ class ProjectControlsProvider extends ChangeNotifier {
         updated.compressionStrategy.label,
         'Schedule variance updated — strategy: ${updated.compressionStrategy.label}, reason: "${updated.delayReason}"');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveScheduleVariance(updated);
   }
 
   void setCompressionStrategy(
@@ -399,7 +418,8 @@ class ProjectControlsProvider extends ChangeNotifier {
         strategy.label,
         'Compression strategy set to ${strategy.label} for $workPackageId');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveScheduleVariance(updated);
   }
 
   void setDelayReason(String workPackageId, String reason) {
@@ -415,7 +435,8 @@ class ProjectControlsProvider extends ChangeNotifier {
         reason.isEmpty ? '(cleared)' : reason,
         'Delay reason recorded for $workPackageId');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveScheduleVariance(updated);
   }
 
   // ─── Risk & Issues ──────────────────────────────────────────────────
@@ -425,7 +446,8 @@ class ProjectControlsProvider extends ChangeNotifier {
         item.status.label,
         '${item.isIssue ? "Issue" : "Risk"} ${item.id} added: ${item.description}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveRiskItem(item);
   }
 
   void updateRiskItem(String id, RiskItem updated) {
@@ -437,7 +459,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('risk.$id', '', updated.status.label,
         'Risk/issue $id updated — status: ${updated.status.label}, owner: ${updated.owner}');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveRiskItem(updated);
   }
 
   void closeRiskItem(String id) {
@@ -454,7 +477,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('resource.${ra.resourceName}', '—', 'added',
         'Resource ${ra.resourceName} (${ra.discipline.label}) added');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveResourceAllocation(ra);
   }
 
   void updateResourceAllocation(
@@ -472,7 +496,8 @@ class ProjectControlsProvider extends ChangeNotifier {
         '${updated.weeklyHours.length}w',
         'Resource allocation updated for $resourceName');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveResourceAllocation(updated);
   }
 
   // ─── Reporting ──────────────────────────────────────────────────────
@@ -492,7 +517,8 @@ class ProjectControlsProvider extends ChangeNotifier {
     _addAudit('report.${type.name}', '—', report.id,
         '${type.label} generated (${start.day}/${start.month}–${end.day}/${end.month})');
     notifyListeners();
-    _saveToStorage();
+    _saveToFirestore();
+    ProjectControlsFirestoreService.instance.saveReport(report);
   }
 
   String _buildDefaultReportSummary(
@@ -554,6 +580,7 @@ class ProjectControlsProvider extends ChangeNotifier {
       reason: reason,
     );
     _state = _state.copyWith(auditTrail: [..._state.auditTrail, entry]);
+    ProjectControlsFirestoreService.instance.saveAuditEntry(entry);
   }
 
   // ─── Scope Growth Detection ────────────────────────────────────────
@@ -573,360 +600,5 @@ class ProjectControlsProvider extends ChangeNotifier {
     return issues;
   }
 
-  // ─── Seed demo data ────────────────────────────────────────────────
-  void seedDemoData(DeliveryModel model) {
-    final wps = [
-      WorkPackageControl(
-        id: 'wp_001',
-        wbsCode: '1.1',
-        name: model == DeliveryModel.agile
-            ? 'User Authentication Epic'
-            : 'Site Preparation',
-        scopeDescription: model == DeliveryModel.agile
-            ? 'Complete authentication system with MFA'
-            : 'Clear, grade, and prepare site for construction',
-        deliverables: ['Completed site survey', 'Grading plan'],
-        acceptanceCriteria: ['Site passes geotech inspection'],
-        priority: 'High',
-        status: 'In Progress',
-        plannedStart: DateTime(2026, 1, 15),
-        plannedFinish: DateTime(2026, 3, 30),
-        actualStart: DateTime(2026, 1, 18),
-        percentComplete: 68,
-        isCriticalPath: true,
-        remainingDuration: 42,
-        floatDays: 5,
-        originalBudget: 4200000,
-        currentBudget: 4200000,
-        committedCost: 3100000,
-        actualCost: 2950000,
-        earnedValue: 2856000,
-        plannedValue: 3100000,
-        storyPoints: model == DeliveryModel.agile ? 55 : null,
-        storyPointsCompleted: model == DeliveryModel.agile ? 38 : null,
-        velocity: model == DeliveryModel.agile ? 22 : null,
-        progressMethod: model == DeliveryModel.agile
-            ? ProgressMethod.storyPointsCompleted
-            : ProgressMethod.physicalPercent,
-      ),
-      WorkPackageControl(
-        id: 'wp_002',
-        wbsCode: '1.2',
-        name: model == DeliveryModel.agile
-            ? 'Customer Management Epic'
-            : 'Foundation Works',
-        scopeDescription: model == DeliveryModel.agile
-            ? 'Customer CRUD, search, and history'
-            : 'Concrete foundations and piers',
-        deliverables: ['Foundation drawings', 'Concrete pour records'],
-        acceptanceCriteria: ['Strength test passes'],
-        priority: 'High',
-        status: 'Not Started',
-        plannedStart: DateTime(2026, 4, 1),
-        plannedFinish: DateTime(2026, 6, 15),
-        percentComplete: 0,
-        isCriticalPath: true,
-        remainingDuration: 75,
-        floatDays: 0,
-        originalBudget: 6800000,
-        currentBudget: 6800000,
-        committedCost: 0,
-        actualCost: 0,
-        earnedValue: 0,
-        plannedValue: 0,
-        storyPoints: model == DeliveryModel.agile ? 89 : null,
-        storyPointsCompleted: model == DeliveryModel.agile ? 0 : null,
-        velocity: model == DeliveryModel.agile ? 22 : null,
-        progressMethod: model == DeliveryModel.agile
-            ? ProgressMethod.storyPointsCompleted
-            : ProgressMethod.physicalPercent,
-      ),
-      WorkPackageControl(
-        id: 'wp_003',
-        wbsCode: '1.3',
-        name: model == DeliveryModel.agile
-            ? 'Reporting Epic'
-            : 'Structural Steel',
-        scopeDescription: model == DeliveryModel.agile
-            ? 'Dashboards and reporting suite'
-            : 'Steel erection for building structure',
-        deliverables: ['Steel shop drawings', 'Erection sequence'],
-        acceptanceCriteria: ['Inspection passed'],
-        priority: 'Medium',
-        status: 'In Progress',
-        plannedStart: DateTime(2026, 3, 1),
-        plannedFinish: DateTime(2026, 5, 30),
-        actualStart: DateTime(2026, 3, 5),
-        percentComplete: 45,
-        isCriticalPath: false,
-        remainingDuration: 56,
-        floatDays: 12,
-        originalBudget: 5200000,
-        currentBudget: 5400000,
-        committedCost: 4200000,
-        actualCost: 2400000,
-        earnedValue: 2430000,
-        plannedValue: 2800000,
-        storyPoints: model == DeliveryModel.agile ? 42 : null,
-        storyPointsCompleted: model == DeliveryModel.agile ? 19 : null,
-        velocity: model == DeliveryModel.agile ? 22 : null,
-        progressMethod: model == DeliveryModel.agile
-            ? ProgressMethod.storyPointsCompleted
-            : ProgressMethod.physicalPercent,
-      ),
-    ];
-
-    final demoCR = ChangeRequest(
-      id: 'cr_001',
-      description: 'Add fire suppression system to Site Preparation scope',
-      requestor: 'John Smith (Site Manager)',
-      justification: 'Local fire code update requires automated suppression',
-      rootCause: 'Regulatory change',
-      category: ChangeCategory.scope,
-      priority: 'High',
-      status: ChangeStatus.underReview,
-      impact: const ImpactAnalysis(
-        scheduleImpactDays: 14,
-        costImpactAmount: 350000,
-        scopeImpact: 'New deliverable: Fire suppression installation',
-        resourceImpact: 'Additional fire protection contractor required',
-        procurementImpact: 'New PO for suppression equipment',
-        riskImpact: 'Reduces fire risk but adds schedule risk',
-        qualityImpact: 'Must meet NFPA standards',
-      ),
-      approval: ApprovalWorkflow(steps: [
-        ApprovalStep(id: 'step_1', role: ApprovalRole.projectManager, approved: true, approvedAt: DateTime(2026, 6, 20)),
-        ApprovalStep(id: 'step_2', role: ApprovalRole.projectControls, approved: false),
-        ApprovalStep(id: 'step_3', role: ApprovalRole.finance, approved: false),
-        ApprovalStep(id: 'step_4', role: ApprovalRole.sponsor, approved: false),
-      ], currentStepIndex: 1),
-      dateSubmitted: DateTime(2026, 6, 18),
-      affectedBaselines: ['Scope Baseline', 'Cost Baseline', 'Schedule Baseline'],
-    );
-
-    // ─── Baseline history (two prior snapshots for diff/compare) ─────────
-    final baselineV1 = BaselineSnapshot(
-      version: 1,
-      lockedAt: DateTime(2026, 1, 5),
-      lockedBy: 'jane.doe@ndu.project',
-      type: BaselineType.scope,
-      workPackages: wps.take(2).toList(),
-      totalBudget: wps.take(2).fold(0.0, (s, w) => s + w.originalBudget),
-      reason: 'Initial project baseline at kickoff',
-    );
-    final baselineV2 = BaselineSnapshot(
-      version: 2,
-      lockedAt: DateTime(2026, 3, 1),
-      lockedBy: 'jane.doe@ndu.project',
-      type: BaselineType.scope,
-      workPackages: List.from(wps),
-      totalBudget: wps.fold(0.0, (s, w) => s + w.originalBudget),
-      reason: 'Added Structural Steel work package after design review',
-    );
-
-    // ─── Schedule variances (one per work package) ──────────────────────
-    final scheduleVariances = [
-      ScheduleVariance(
-        workPackageId: 'wp_001',
-        plannedStart: DateTime(2026, 1, 15),
-        actualStart: DateTime(2026, 1, 18),
-        plannedFinish: DateTime(2026, 3, 30),
-        floatDays: 5,
-        delayReason: 'Late mobilisation due to equipment transport delays',
-        compressionStrategy: CompressionStrategy.none,
-      ),
-      ScheduleVariance(
-        workPackageId: 'wp_002',
-        plannedStart: DateTime(2026, 4, 1),
-        plannedFinish: DateTime(2026, 6, 15),
-        floatDays: 0,
-        delayReason: '',
-        compressionStrategy: CompressionStrategy.fastTrack,
-      ),
-      ScheduleVariance(
-        workPackageId: 'wp_003',
-        plannedStart: DateTime(2026, 3, 1),
-        actualStart: DateTime(2026, 3, 5),
-        plannedFinish: DateTime(2026, 5, 30),
-        floatDays: 12,
-        delayReason: 'Shop drawing revisions required after vendor feedback',
-        compressionStrategy: CompressionStrategy.crash,
-      ),
-    ];
-
-    // ─── Risks & Issues ─────────────────────────────────────────────────
-    final risksAndIssues = [
-      const RiskItem(
-        id: 'rsk_001',
-        description: 'Long-lead steel delivery may slip beyond Q3',
-        probability: 4,
-        impact: 5,
-        owner: 'Procurement Lead',
-        mitigation: 'Dual-source RFQs issued; expedite fee budget set',
-        status: RiskStatus.open,
-      ),
-      const RiskItem(
-        id: 'rsk_002',
-        description: 'Concrete pour weather risk during monsoon window',
-        probability: 3,
-        impact: 4,
-        owner: 'Construction Manager',
-        mitigation: 'Tented pour area + 7-day weather lookahead review',
-        status: RiskStatus.mitigated,
-      ),
-      const RiskItem(
-        id: 'rsk_003',
-        description: 'Permit approval timeline may exceed 8 weeks',
-        probability: 2,
-        impact: 3,
-        owner: 'Project Manager',
-        mitigation: 'Pre-application meeting scheduled; third-party expediter on standby',
-        status: RiskStatus.open,
-      ),
-      const RiskItem(
-        id: 'iss_001',
-        description: 'Survey crew encountered undocumented underground utility',
-        probability: 5,
-        impact: 4,
-        owner: 'Site Engineer',
-        mitigation: 'Utility re-route in progress; coordination with city utilities office',
-        status: RiskStatus.realized,
-        isIssue: true,
-      ),
-      const RiskItem(
-        id: 'iss_002',
-        description: 'QA inspector shortage delaying inspection sign-offs',
-        probability: 4,
-        impact: 3,
-        owner: 'QA Lead',
-        mitigation: 'Subcontracted third-party inspector onboarded',
-        status: RiskStatus.open,
-        isIssue: true,
-      ),
-    ];
-
-    // ─── Resource allocations (12 weeks) ────────────────────────────────
-    List<double> buildWeekly(double base, List<double> adj) {
-      final out = <double>[];
-      for (var i = 0; i < 12; i++) {
-        out.add(base + (i < adj.length ? adj[i] : 0));
-      }
-      return out;
-    }
-
-    final resourceAllocations = [
-      ResourceAllocation(
-        resourceName: 'A. Khan (PM)',
-        discipline: ResourceDiscipline.pm,
-        weeklyHours: buildWeekly(40, [0, 0, 5, 5, 5, 10, 10, 10, 5, 0, 0, 0]),
-        capacityHoursPerWeek: 40,
-      ),
-      ResourceAllocation(
-        resourceName: 'M. Garcia (Eng)',
-        discipline: ResourceDiscipline.engineering,
-        weeklyHours: buildWeekly(35, [10, 10, 10, 5, 0, 0, 0, 0, 5, 10, 5, 0]),
-        capacityHoursPerWeek: 40,
-      ),
-      ResourceAllocation(
-        resourceName: 'L. Chen (Design)',
-        discipline: ResourceDiscipline.design,
-        weeklyHours: buildWeekly(30, [15, 15, 10, 5, 0, 0, 0, 5, 10, 5, 0, 0]),
-        capacityHoursPerWeek: 40,
-      ),
-      ResourceAllocation(
-        resourceName: 'R. Patel (QA)',
-        discipline: ResourceDiscipline.qa,
-        weeklyHours: buildWeekly(20, [0, 0, 5, 10, 15, 20, 20, 15, 10, 5, 0, 0]),
-        capacityHoursPerWeek: 40,
-      ),
-      ResourceAllocation(
-        resourceName: 'Site Crew (Constr.)',
-        discipline: ResourceDiscipline.construction,
-        weeklyHours: buildWeekly(120,
-            [40, 80, 120, 160, 200, 200, 200, 160, 120, 80, 40, 0]),
-        capacityHoursPerWeek: 200,
-      ),
-    ];
-
-    // ─── Reports (history) ──────────────────────────────────────────────
-    final reports = [
-      ReportRecord(
-        id: 'rpt_seed_001',
-        type: ReportType.costVariance,
-        generatedAt: DateTime(2026, 6, 1),
-        dateRangeStart: DateTime(2026, 1, 1),
-        dateRangeEnd: DateTime(2026, 5, 31),
-        generatedBy: 'jane.doe@ndu.project',
-        summaryText:
-            'Cost Variance Report (Jan–May 2026)\nCPI: 0.97 • CV: -\$0.21M • EAC: \$16.4M',
-      ),
-      ReportRecord(
-        id: 'rpt_seed_002',
-        type: ReportType.evmForecast,
-        generatedAt: DateTime(2026, 6, 8),
-        dateRangeStart: DateTime(2026, 1, 1),
-        dateRangeEnd: DateTime(2026, 6, 7),
-        generatedBy: 'you@ndu.project',
-        summaryText:
-            'EVM Forecast Report (Jan–Jun 2026)\nEAC: \$16.55M • VAC: -\$0.35M • Avg progress: 38%',
-      ),
-      ReportRecord(
-        id: 'rpt_seed_003',
-        type: ReportType.riskBurnDown,
-        generatedAt: DateTime(2026, 6, 15),
-        dateRangeStart: DateTime(2026, 1, 1),
-        dateRangeEnd: DateTime(2026, 6, 14),
-        generatedBy: 'jane.doe@ndu.project',
-        summaryText:
-            'Risk Burn-down Report (Jan–Jun 2026)\nOpen risks: 2 • Critical: 1 • Realized issues: 1',
-      ),
-    ];
-
-    // ─── Audit trail (initial entries) ──────────────────────────────────
-    final auditTrail = [
-      AuditEntry(
-        id: 'audit_seed_001',
-        user: 'jane.doe@ndu.project',
-        timestamp: DateTime(2026, 1, 5, 9, 30),
-        field: 'baseline.scope',
-        previousValue: '—',
-        newValue: 'v1',
-        reason: 'Initial project baseline at kickoff',
-      ),
-      AuditEntry(
-        id: 'audit_seed_002',
-        user: 'jane.doe@ndu.project',
-        timestamp: DateTime(2026, 3, 1, 14, 12),
-        field: 'baseline.scope',
-        previousValue: 'v1',
-        newValue: 'v2',
-        reason: 'Added Structural Steel work package after design review',
-      ),
-      AuditEntry(
-        id: 'audit_seed_003',
-        user: 'john.smith@ndu.project',
-        timestamp: DateTime(2026, 6, 18, 10, 5),
-        field: 'changeRequest',
-        previousValue: '—',
-        newValue: 'cr_001',
-        reason: 'Change request submitted: Add fire suppression system',
-      ),
-    ];
-
-    _state = _state.copyWith(
-      deliveryModel: model,
-      isBaselined: true,
-      isExecutionActive: true,
-      workPackages: wps,
-      changeRequests: [demoCR],
-      baselineHistory: [baselineV1, baselineV2],
-      scheduleVariances: scheduleVariances,
-      risksAndIssues: risksAndIssues,
-      resourceAllocations: resourceAllocations,
-      reports: reports,
-      auditTrail: auditTrail,
-    );
-    notifyListeners();
-    _saveToStorage();
-  }
+  // (seedDemoData removed — data now comes from Firestore)
 }

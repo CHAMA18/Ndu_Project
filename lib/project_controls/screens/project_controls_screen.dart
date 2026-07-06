@@ -37,21 +37,17 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 10, vsync: this);
-    // Sync from Cost Estimate module if available, otherwise seed demo data
+    // Sync from Cost Estimate module if available (no demo data fallback)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<ProjectControlsProvider>();
       final ceProvider = context.read<CostEstimateProvider>();
-      if (provider.state.workPackages.isEmpty) {
-        // Try to sync from Cost Estimate first
-        if (ceProvider.estimate != null && ceProvider.setupComplete) {
+      if (ceProvider.estimate != null && ceProvider.setupComplete) {
+        if (provider.state.workPackages.isEmpty) {
           provider.syncFromCostEstimate(ceProvider.estimate);
         } else {
-          // No cost estimate yet — seed demo data
-          provider.seedDemoData(DeliveryModel.waterfall);
+          // Work packages exist — sync BAC from Cost Estimate if it changed
+          provider.syncFromCostEstimate(ceProvider.estimate);
         }
-      } else if (ceProvider.estimate != null && ceProvider.setupComplete) {
-        // Work packages exist — sync BAC from Cost Estimate if it changed
-        provider.syncFromCostEstimate(ceProvider.estimate);
       }
     });
   }
