@@ -13,6 +13,7 @@ import 'package:ndu_project/project_controls/providers/project_controls_provider
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/theme.dart';
 
 class ProjectControlsScreen extends StatefulWidget {
@@ -73,43 +74,27 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
           breadcrumbTitle: 'Project Controls',
           body: Column(
             children: [
-              // Tab bar
-              Container(
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE4E7EC)),
-                ),
-                child: TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  dividerColor: Colors.transparent,
-                  indicator: BoxDecoration(
-                    color: LightModeColors.accent,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  labelColor: LightModeColors.lightOnPrimary,
-                  unselectedLabelColor: const Color(0xFF6B7280),
-                  labelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
-                  unselectedLabelStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 6),
+              // ── World-class Section Navigator ─────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: SectionNavigator(
+                  title: 'Project Controls Navigation',
+                  subtitle: 'Navigate between project control sections',
+                  icon: Icons.dashboard_outlined,
                   tabs: const [
-                    Tab(text: 'Dashboard'),
-                    Tab(text: 'Scope Tracking'),
-                    Tab(text: 'Cost Control'),
-                    Tab(text: 'Change Mgmt'),
-                    Tab(text: 'Forecasting'),
-                    Tab(text: 'Baseline Mgmt'),
-                    Tab(text: 'Schedule'),
-                    Tab(text: 'Risk & Issues'),
-                    Tab(text: 'Resource'),
-                    Tab(text: 'Reporting'),
+                    SectionTab(icon: Icons.dashboard_outlined, label: 'Dashboard'),
+                    SectionTab(icon: Icons.account_tree_outlined, label: 'Scope Tracking'),
+                    SectionTab(icon: Icons.attach_money, label: 'Cost Control'),
+                    SectionTab(icon: Icons.sync_alt, label: 'Change Mgmt'),
+                    SectionTab(icon: Icons.trending_up, label: 'Forecasting'),
+                    SectionTab(icon: Icons.history, label: 'Baseline Mgmt'),
+                    SectionTab(icon: Icons.schedule, label: 'Schedule'),
+                    SectionTab(icon: Icons.warning_amber_outlined, label: 'Risk & Issues'),
+                    SectionTab(icon: Icons.people_outline, label: 'Resource'),
+                    SectionTab(icon: Icons.assessment_outlined, label: 'Reporting'),
                   ],
+                  controller: _tabController,
+                  onChanged: (index) => setState(() {}),
                 ),
               ),
               // Tab content

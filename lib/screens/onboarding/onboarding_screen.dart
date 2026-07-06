@@ -411,16 +411,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
           const SizedBox(height: 32),
 
-          // Project type selector
+          // Subscription tier selector
           Wrap(
             spacing: 12,
             runSpacing: 12,
             alignment: WrapAlignment.center,
             children: [
-              _buildProjectTypeChip('Project'),
-              _buildProjectTypeChip('Agile Project'),
-              _buildProjectTypeChip('Program'),
-              _buildProjectTypeChip('Waterfall Project'),
+              _buildProjectTypeChip('Regular Project', '1 user'),
+              _buildProjectTypeChip('Project', 'Up to 7 users'),
+              _buildProjectTypeChip('Program', 'Up to 12 users'),
+              _buildProjectTypeChip('Portfolio', 'Up to 24 users'),
             ],
           ),
         ],
@@ -522,20 +522,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildProjectTypeChip(String label) {
+  Widget _buildProjectTypeChip(String label, String subtitle) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
       ),
     );
   }
