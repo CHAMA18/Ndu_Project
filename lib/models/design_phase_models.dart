@@ -1,3 +1,4 @@
+import 'package:ndu_project/wbs/models/wbs_models.dart' show ProjectMethodology;
 export 'package:ndu_project/wbs/models/wbs_models.dart' show ProjectMethodology;
 
 // Enums

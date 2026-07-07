@@ -1,3 +1,4 @@
+import 'package:ndu_project/widgets/launch_notes_section.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/utils/download_helper_stub.dart'
@@ -91,6 +92,11 @@ showNavigationButtons: false,
  const SizedBox(height: 16),
  _buildRiskFollowUpsPanel(),
  const SizedBox(height: 24),
+            LaunchNotesSection(
+              controller: _notesController,
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 16),
  LaunchPhaseNavigation(
  backLabel: 'Back: Salvage and/or Disposal Plan',
  nextLabel: 'Next: Transition To Production Team',
@@ -1350,6 +1356,7 @@ class _ScopeEditDialog extends StatefulWidget {
 
 class _ScopeEditDialogState extends State<_ScopeEditDialog> {
  late final TextEditingController _deliverableCtrl;
+  final TextEditingController _notesController = TextEditingController();
  late final TextEditingController _criteriaCtrl;
  late final TextEditingController _dateCtrl;
  late String _status;
@@ -1367,6 +1374,7 @@ class _ScopeEditDialogState extends State<_ScopeEditDialog> {
 
  @override
  void dispose() {
+    _notesController.dispose();
  _deliverableCtrl.dispose();
  _criteriaCtrl.dispose();
  _dateCtrl.dispose();

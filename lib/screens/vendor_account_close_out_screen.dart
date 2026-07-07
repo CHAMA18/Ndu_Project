@@ -1,3 +1,5 @@
+import 'package:ndu_project/widgets/launch_notes_section.dart';
+import 'package:ndu_project/widgets/launch_notes_section.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -36,6 +38,7 @@ class VendorAccountCloseOutScreen extends StatefulWidget {
 }
 
 class _VendorAccountCloseOutScreenState
+  final TextEditingController _notesController = TextEditingController();
  extends State<VendorAccountCloseOutScreen> {
  List<LaunchVendorItem> _vendors = [];
  List<LaunchAccessItem> _accessItems = [];
@@ -94,6 +97,11 @@ showNavigationButtons: false,
  const SizedBox(height: 16),
  _buildClosureChecklistPanel(),
  const SizedBox(height: 24),
+            LaunchNotesSection(
+              controller: _notesController,
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 16),
  LaunchPhaseNavigation(
  backLabel: 'Back: Contract Close Out',
  nextLabel: 'Next: Project Summary',

@@ -1,3 +1,4 @@
+import 'package:ndu_project/widgets/launch_notes_section.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -51,6 +52,7 @@ class ProjectCloseOutScreen extends StatefulWidget {
 
 class _ProjectCloseOutScreenState extends State<ProjectCloseOutScreen> {
  List<LaunchCloseOutCheckItem> _closeOutChecklist = [];
+  final TextEditingController _notesController = TextEditingController();
  List<LaunchApproval> _approvals = [];
  List<LaunchArchiveItem> _archive = [];
  LaunchClosureNotes _lessonsLearned = LaunchClosureNotes();
@@ -641,6 +643,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
 
  Widget _buildNavigation() {
+            LaunchNotesSection(
+              controller: _notesController,
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 16),
  return LaunchPhaseNavigation(
  backLabel: 'Back: Actual vs Planned Gap Analysis',
  nextLabel: 'Next: Demobilize Team',

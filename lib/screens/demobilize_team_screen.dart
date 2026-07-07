@@ -1,3 +1,4 @@
+import 'package:ndu_project/widgets/launch_notes_section.dart';
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -36,6 +37,7 @@ class DemobilizeTeamScreen extends StatefulWidget {
 
 class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
  List<LaunchTeamMember> _teamRoster = [];
+  final TextEditingController _notesController = TextEditingController();
  List<LaunchKnowledgeTransfer> _knowledgeTransfers = [];
  List<LaunchFollowUpItem> _vendorOffboarding = [];
  List<LaunchCommunicationItem> _communications = [];
@@ -126,6 +128,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 16),
  _buildCommunicationsPanel(),
  const SizedBox(height: 24),
+            LaunchNotesSection(
+              controller: _notesController,
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 16),
  LaunchPhaseNavigation(
  backLabel: 'Back: Project Close Out',
  nextLabel: 'Project Complete',

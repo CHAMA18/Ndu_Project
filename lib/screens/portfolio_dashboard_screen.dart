@@ -59,19 +59,10 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  end: Alignment.bottomRight,
  );
 
-<<<<<<< HEAD
   // ── Real data state ──
   DashboardMetrics? _metrics;
   List<ProjectRecord> _projects = [];
   bool _loading = true;
-=======
- // ── Real data state ──
- DashboardMetrics? _metrics;
- List<ProjectRecord> _projects = [];
- bool _loading = true;
- String? _loadError;
- bool _loadTimedOut = false;
->>>>>>> facf09fe (Describe your changes)
 
  @override
  void initState() {
@@ -90,7 +81,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  super.dispose();
  }
 
-<<<<<<< HEAD
   Future<void> _loadData() async {
     try {
       final user = FirebaseAuth.instance.currentUser;
@@ -115,109 +105,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       if (mounted) setState(() => _loading = false);
     }
   }
-=======
- Future<void> _loadData() async {
- if (!mounted) return;
- setState(() {
- _loading = true;
- _loadError = null;
- _loadTimedOut = false;
- });
-
- try {
- final user = FirebaseAuth.instance.currentUser;
- if (user == null) {
- if (mounted) {
- setState(() {
- _loading = false;
- _loadError = 'Please sign in to view your portfolio.';
- });
- }
- return;
- }
-
- // Run both loads in parallel with a 30-second overall timeout
- final results = await Future.wait([
- DashboardMetricsService.load(),
- _loadProjects(user.uid),
- ]).timeout(
- const Duration(seconds: 30),
- onTimeout: () {
- debugPrint('[PortfolioDashboard] Load timed out after 30s');
- _loadTimedOut = true;
- // Return whatever partial data we have — metrics is always
- // non-throwing, and we supply an empty project list as fallback
- return [
- DashboardMetrics(
- assignedToMe: const [],
- pastDue: const [],
- projectStatuses: const [],
- programStatuses: const [],
- portfolioStatuses: const [],
- ),
- <ProjectRecord>[],
- ];
- },
- );
-
- final metrics = results[0] as DashboardMetrics;
- final projects = results[1] as List<ProjectRecord>;
-
- if (mounted) {
- setState(() {
- _metrics = metrics;
- _projects = projects;
- _loading = false;
- });
- }
- } catch (e) {
- debugPrint('[PortfolioDashboard] load error: $e');
- if (mounted) {
- setState(() {
- _loading = false;
- _loadError = 'Failed to load portfolio data. Please try again.';
- });
- }
- }
- }
-
- /// Load projects via a one-shot Firestore get() — avoids stream-based
- /// hangs if the real-time listener never fires (e.g. missing index,
- /// permission error, or network flake).
- Future<List<ProjectRecord>> _loadProjects(String uid) async {
- try {
- final snapshot = await FirebaseFirestore.instance
- .collection('projects')
- .where('ownerId', isEqualTo: uid)
- .orderBy('createdAt', descending: true)
- .limit(200)
- .get()
- .timeout(const Duration(seconds: 15));
-
- return snapshot.docs
- .map((doc) => ProjectRecord.fromDoc(doc))
- .toList();
- } catch (e) {
- debugPrint('[PortfolioDashboard] project load error: $e');
- // If the composite index query fails, try without orderBy
- try {
- final fallback = await FirebaseFirestore.instance
- .collection('projects')
- .where('ownerId', isEqualTo: uid)
- .limit(200)
- .get()
- .timeout(const Duration(seconds: 10));
-
- return fallback.docs
- .map((doc) => ProjectRecord.fromDoc(doc))
- .toList();
- } catch (e2) {
- debugPrint('[PortfolioDashboard] fallback project load error: $e2');
- return [];
- }
- }
- }
->>>>>>> facf09fe (Describe your changes)
 
  // ── Derived metrics from real data ──
  int get _totalProjects => _projects.length;
@@ -269,7 +156,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  NavigationContextService.instance
  .setLastClientDashboard(AppRoutes.portfolioDashboard);
 
-<<<<<<< HEAD
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
@@ -351,91 +237,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       ),
     );
   }
-=======
- return Scaffold(
- backgroundColor: _bg,
- body: SafeArea(
- child: LayoutBuilder(
- builder: (context, constraints) {
- final horizontalPadding =
- constraints.maxWidth < 600 ? 20.0 : 40.0;
- return Stack(
- children: [
- // Subtle atmospheric glows
- Positioned(
- top: -100,
- right: -100,
- child: Container(
- width: 400,
- height: 400,
- decoration: BoxDecoration(
- shape: BoxShape.circle,
- gradient: RadialGradient(
- colors: [
- _blue.withValues(alpha: 0.03),
- Colors.transparent,
- ],
- ),
- ),
- ),
- ),
- Positioned(
- bottom: -150,
- left: -80,
- child: Container(
- width: 350,
- height: 350,
- decoration: BoxDecoration(
- shape: BoxShape.circle,
- gradient: RadialGradient(
- colors: [
- _gold.withValues(alpha: 0.03),
- Colors.transparent,
- ],
- ),
- ),
- ),
- ),
- // Main content
- FadeTransition(
- opacity: _fadeAnimation,
- child: _loading
- ? const Center(
- child: CircularProgressIndicator(
- color: _blue, strokeWidth: 3))
- : _loadError != null
- ? _errorState()
- : RefreshIndicator(
- onRefresh: _loadData,
- color: _blue,
- backgroundColor: Colors.white,
- strokeWidth: 3,
- child: SingleChildScrollView(
- physics: const AlwaysScrollableScrollPhysics(),
- padding: EdgeInsets.symmetric(
- horizontal: horizontalPadding, vertical: 28),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- _buildHeader(),
- const SizedBox(height: 28),
- _buildKpis(context),
- const SizedBox(height: 28),
- _buildBento(context),
- const SizedBox(height: 72),
- ],
- ),
- ),
- ),
- ),
- ],
- );
- },
- ),
- ),
- );
- }
->>>>>>> facf09fe (Describe your changes)
 
  // ═══════════════════════════════════════════════════════════════════════
  // HEADER
@@ -1676,7 +1477,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  ]));
  }
 
-<<<<<<< HEAD
   Widget _emptyStateCard(String title, String subtitle, IconData icon) {
     return _glassCard(
         child: Padding(
@@ -1700,85 +1500,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                       fontFamily: appFontFamily)),
             ]))));
   }
-=======
- Widget _errorState() {
- return Center(
- child: Padding(
- padding: const EdgeInsets.all(40),
- child: Column(
- mainAxisAlignment: MainAxisAlignment.center,
- children: [
- Icon(
- _loadTimedOut ? Icons.schedule : Icons.error_outline_rounded,
- size: 56,
- color: _loadTimedOut ? _amber : _crimson,
- ),
- const SizedBox(height: 20),
- Text(
- _loadTimedOut ? 'Loading timed out' : 'Failed to load portfolio',
- style: TextStyle(
- color: _onSurface,
- fontSize: 20,
- fontWeight: FontWeight.w700,
- fontFamily: appFontFamily,
- ),
- ),
- const SizedBox(height: 10),
- Text(
- _loadTimedOut
- ? 'The portfolio data is taking longer than expected. Some data may be unavailable.'
- : (_loadError ?? 'An unexpected error occurred.'),
- textAlign: TextAlign.center,
- style: TextStyle(
- color: _muted,
- fontSize: 14,
- fontFamily: appFontFamily,
- ),
- ),
- const SizedBox(height: 28),
- ElevatedButton.icon(
- onPressed: _loadData,
- icon: const Icon(Icons.refresh, size: 18),
- label: Text('Retry', style: TextStyle(fontFamily: appFontFamily)),
- style: ElevatedButton.styleFrom(
- backgroundColor: _blue,
- foregroundColor: Colors.white,
- padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12),
- ),
- ),
- ),
- ],
- ),
- ),
- );
- }
-
- Widget _emptyStateCard(String title, String subtitle, IconData icon) {
- return _glassCard(
- child: Padding(
- padding: const EdgeInsets.all(40),
- child: Center(
- child: Column(children: [
- Icon(icon, size: 48, color: _muted.withValues(alpha: 0.4)),
- const SizedBox(height: 16),
- Text(title,
- style: TextStyle(
- color: _onSurface,
- fontSize: 18,
- fontWeight: FontWeight.w700,
- fontFamily: appFontFamily)),
- const SizedBox(height: 8),
- Text(subtitle,
- textAlign: TextAlign.center,
- style: TextStyle(
- color: _muted,
- fontSize: 14,
- fontFamily: appFontFamily)),
- ]))));
- }
->>>>>>> facf09fe (Describe your changes)
 }
 
 // ═══════════════════════════════════════════════════════════════════════

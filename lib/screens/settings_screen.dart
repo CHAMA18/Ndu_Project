@@ -71,7 +71,6 @@ class _SettingsScreenState extends State<SettingsScreen>
 
  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-<<<<<<< HEAD
   // ── SharedPreferences keys ──
   static const _prefThemeMode = 'pref_theme_mode';
   static const _prefLanguage = 'pref_language';
@@ -127,59 +126,6 @@ class _SettingsScreenState extends State<SettingsScreen>
       if (mounted) setState(() => _twoFactorLoading = false);
     }
   }
-=======
- // ── SharedPreferences keys ──
- static const _prefTimezone = 'pref_timezone';
- static const _prefDateFormat = 'pref_date_format';
- static const _prefEmailNotif = 'pref_email_notif';
- static const _prefPushNotif = 'pref_push_notif';
- static const _prefWeeklyDigest = 'pref_weekly_digest';
- static const _prefProjectUpdates = 'pref_project_updates';
- static const _prefSecurityAlerts = 'pref_security_alerts';
- static const _prefFontSize = 'pref_font_size';
- static const _prefCompactMode = 'pref_compact_mode';
- static const _prefReduceAnimations = 'pref_reduce_animations';
-
- // ── Preference state ──
- String _language = 'English';
- String _timezone = 'UTC';
- String _dateFormat = 'MM/dd/yyyy';
- bool _emailNotif = true;
- bool _pushNotif = true;
- bool _weeklyDigest = false;
- bool _projectUpdates = true;
- bool _securityAlerts = true;
- String _fontSize = 'medium'; // 'small', 'medium', 'large'
- bool _compactMode = false;
- bool _reduceAnimations = false;
- bool _twoFactorEnabled = false;
- bool _twoFactorLoading = true;
-
- Future<void> _loadPreferences() async {
- final prefs = await SharedPreferences.getInstance();
- if (!mounted) return;
- setState(() {
- _language = prefs.getString('pref_language') ?? 'English';
- _timezone = prefs.getString(_prefTimezone) ?? 'UTC';
- _dateFormat = prefs.getString(_prefDateFormat) ?? 'MM/dd/yyyy';
- _emailNotif = prefs.getBool(_prefEmailNotif) ?? true;
- _pushNotif = prefs.getBool(_prefPushNotif) ?? true;
- _weeklyDigest = prefs.getBool(_prefWeeklyDigest) ?? false;
- _projectUpdates = prefs.getBool(_prefProjectUpdates) ?? true;
- _securityAlerts = prefs.getBool(_prefSecurityAlerts) ?? true;
- _fontSize = prefs.getString(_prefFontSize) ?? 'medium';
- _compactMode = prefs.getBool(_prefCompactMode) ?? false;
- _reduceAnimations = prefs.getBool(_prefReduceAnimations) ?? false;
- });
- // Load 2FA status
- try {
- final enabled = await TwoFactorAuthService.isEnabled();
- if (mounted) setState(() { _twoFactorEnabled = enabled; _twoFactorLoading = false; });
- } catch (e) {
- if (mounted) setState(() => _twoFactorLoading = false);
- }
- }
->>>>>>> facf09fe (Describe your changes)
 
  Future<void> _setPref(String key, dynamic value) async {
  final prefs = await SharedPreferences.getInstance();
@@ -229,7 +175,6 @@ class _SettingsScreenState extends State<SettingsScreen>
  context.go('/${AppRoutes.dashboard}');
  }
 
-<<<<<<< HEAD
     return ResponsiveScaffold(
       activeItemLabel: 'Settings',
       backgroundColor: Colors.white,
@@ -284,62 +229,6 @@ class _SettingsScreenState extends State<SettingsScreen>
       ),
     );
   }
-=======
- return ResponsiveScaffold(
- activeItemLabel: 'Settings',
- backgroundColor: Theme.of(context).colorScheme.surface,
- appBarTitle: 'Settings',
- floatingActionButton: const KazAiChatBubble(positioned: false),
- body: Column(
- children: [
- // TopAppBar
- _TopAppBar(onBack: handleBackNavigation),
- // Scrollable content
- Expanded(
- child: SingleChildScrollView(
- padding: const EdgeInsets.fromLTRB(16, 24, 16, 100),
- child: Center(
- child: ConstrainedBox(
- constraints: const BoxConstraints(maxWidth: 1100),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.stretch,
- children: [
- InnerPageNavigationHint(
- pageId: 'settings',
- pageTitle: 'Settings',
- description: 'Navigate between settings sections',
- currentSectionId: _tabs[_tabController.index],
- sections: [
- InnerPageSection(id: 'Preferences', label: 'Preferences', icon: Icons.tune, status: _tabController.index == _tabs.indexOf('Preferences') ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 1),
- if (_isAdminDomain)
- InnerPageSection(id: 'Integrations', label: 'Integrations', icon: Icons.integration_instructions, status: _tabController.index == _tabs.indexOf('Integrations') ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 2),
- InnerPageSection(id: 'Access & Collaborators', label: 'Access & Collaborators', icon: Icons.people, status: _tabController.index == _tabs.indexOf('Access & Collaborators') ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: _isAdminDomain ? 3 : 2),
- InnerPageSection(id: 'Billing & Subscription', label: 'Billing & Subscription', icon: Icons.credit_card, status: _tabController.index == _tabs.indexOf('Billing & Subscription') ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: _isAdminDomain ? 4 : 3),
- InnerPageSection(id: 'Report & Analysis', label: 'Report & Analysis', icon: Icons.analytics, status: _tabController.index == _tabs.indexOf('Report & Analysis') ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: _isAdminDomain ? 5 : 4),
- if (_isAdminDomain)
- InnerPageSection(id: 'Edit Content', label: 'Edit Content', icon: Icons.edit_note, status: _tabController.index == _tabs.indexOf('Edit Content') ? InnerPageSectionStatus.current : InnerPageSectionStatus.available, stepNumber: 6),
- ],
- onSectionTap: (sectionId) {
- final index = _tabs.indexOf(sectionId);
- if (index >= 0) {
- _tabController.animateTo(index);
- setState(() {});
- }
- },
- ),
- const SizedBox(height: 24),
- _builderForTab(_tabController.index),
- ],
- ),
- ),
- ),
- ),
- ),
- ],
- ),
- );
- }
->>>>>>> facf09fe (Describe your changes)
 
  void _handleLogout() {
  AuthNav.signOutAndExit(context);
@@ -365,7 +254,6 @@ class _SettingsScreenState extends State<SettingsScreen>
  }
  }
 
-<<<<<<< HEAD
   // ────────────────────────────────────────────────────────────────
   //  PREFERENCES PANEL
   // ────────────────────────────────────────────────────────────────
@@ -411,55 +299,6 @@ class _SettingsScreenState extends State<SettingsScreen>
         ),
       );
     }
-=======
- // ────────────────────────────────────────────────────────────────
- // PREFERENCES PANEL
- // ────────────────────────────────────────────────────────────────
- Widget _preferencesPanel() {
- const accent = Color(0xFFFFC107);
- final theme = Theme.of(context);
- final themeProvider = context.read<ThemeModeProvider>();
- final currentThemeMode = themeProvider.label;
-
- Widget sectionCard({required String title, required IconData icon, required List<Widget> children}) {
- return Container(
- padding: const EdgeInsets.all(24),
- decoration: BoxDecoration(
- borderRadius: BorderRadius.circular(24),
- color: Theme.of(context).colorScheme.surface,
- border: Border.all(color: Colors.grey.withOpacity(0.12)),
- boxShadow: const [
- BoxShadow(blurRadius: 18, offset: Offset(0, 14), color: Color(0x0F000000))
- ],
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Row(
- children: [
- Container(
- width: 44,
- height: 44,
- decoration: BoxDecoration(
- color: accent.withOpacity(0.18),
- borderRadius: BorderRadius.circular(12),
- ),
- child: Icon(icon, color: accent, size: 22),
- ),
- const SizedBox(width: 14),
- Expanded(
- child: Text(title,
- style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
- ),
- ],
- ),
- const SizedBox(height: 20),
- ...children,
- ],
- ),
- );
- }
->>>>>>> facf09fe (Describe your changes)
 
  Widget toggleRow(String label, bool value, ValueChanged<bool> onChanged, {IconData? icon}) {
  return Padding(
@@ -569,7 +408,6 @@ class _SettingsScreenState extends State<SettingsScreen>
  ),
  const SizedBox(height: 28),
 
-<<<<<<< HEAD
               // ── Appearance ──
               sectionCard(
                 title: 'Appearance',
@@ -695,143 +533,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ),
               ],
               const SizedBox(height: 20),
-=======
- // ── Appearance ──
- sectionCard(
- title: 'Appearance',
- icon: Icons.palette_outlined,
- children: [
- const Text('Theme mode', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
- const SizedBox(height: 12),
- Row(
- children: [
- _ThemeModeOption(
- label: 'Light',
- icon: Icons.light_mode,
- selected: currentThemeMode == 'light',
- accent: accent,
- onTap: () {
- themeProvider.setThemeMode(ThemeMode.light);
- setState(() {});
- },
- ),
- const SizedBox(width: 12),
- _ThemeModeOption(
- label: 'Dark',
- icon: Icons.dark_mode,
- selected: currentThemeMode == 'dark',
- accent: accent,
- onTap: () {
- themeProvider.setThemeMode(ThemeMode.dark);
- setState(() {});
- },
- ),
- const SizedBox(width: 12),
- _ThemeModeOption(
- label: 'System',
- icon: Icons.settings_suggest,
- selected: currentThemeMode == 'system',
- accent: accent,
- onTap: () {
- themeProvider.setThemeMode(ThemeMode.system);
- setState(() {});
- },
- ),
- ],
- ),
- ],
- ),
- const SizedBox(height: 20),
-
- // ── Language & Region ──
- if (isWide)
- Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(
- child: sectionCard(
- title: 'Language & Region',
- icon: Icons.language,
- children: [
- dropdownRow('Language', _language,
- ['English', 'Fran\u00e7ais', 'Espa\u00f1ol', 'Deutsch', 'Portugu\u00eas', '\u0627\u0644\u0639\u0631\u0628\u064a\u0629', '\u4e2d\u6587', '\u65e5\u672c\u8a9e'],
- (v) async {
- if (v != null) {
- setState(() => _language = v);
- await AppLocalizations.setLanguage(v);
- }
- },
- icon: Icons.translate),
- const SizedBox(height: 8),
- dropdownRow('Timezone', _timezone,
- ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Shanghai', 'Africa/Kinshasa'],
- (v) { if (v != null) { setState(() => _timezone = v); _setPref(_prefTimezone, v); } },
- icon: Icons.schedule),
- const SizedBox(height: 8),
- dropdownRow('Date format', _dateFormat,
- ['MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'dd MMM yyyy', 'MMM dd, yyyy'],
- (v) { if (v != null) { setState(() => _dateFormat = v); _setPref(_prefDateFormat, v); } },
- icon: Icons.calendar_today),
- ],
- ),
- ),
- const SizedBox(width: 20),
- Expanded(
- child: sectionCard(
- title: 'Notifications',
- icon: Icons.notifications_outlined,
- children: [
- toggleRow('Email notifications', _emailNotif, (v) { setState(() => _emailNotif = v); _setPref(_prefEmailNotif, v); }, icon: Icons.email_outlined),
- toggleRow('Push notifications', _pushNotif, (v) { setState(() => _pushNotif = v); _setPref(_prefPushNotif, v); }, icon: Icons.notifications_active_outlined),
- toggleRow('Weekly digest', _weeklyDigest, (v) { setState(() => _weeklyDigest = v); _setPref(_prefWeeklyDigest, v); }, icon: Icons.article_outlined),
- toggleRow('Project updates', _projectUpdates, (v) { setState(() => _projectUpdates = v); _setPref(_prefProjectUpdates, v); }, icon: Icons.update),
- toggleRow('Security alerts', _securityAlerts, (v) { setState(() => _securityAlerts = v); _setPref(_prefSecurityAlerts, v); }, icon: Icons.security_outlined),
- ],
- ),
- ),
- ],
- )
- else ...[
- sectionCard(
- title: 'Language & Region',
- icon: Icons.language,
- children: [
- dropdownRow('Language', _language,
- ['English', 'Fran\u00e7ais', 'Espa\u00f1ol', 'Deutsch', 'Portugu\u00eas', '\u0627\u0644\u0639\u0631\u0628\u064a\u0629', '\u4e2d\u6587', '\u65e5\u672c\u8a9e'],
- (v) async {
- if (v != null) {
- setState(() => _language = v);
- await AppLocalizations.setLanguage(v);
- }
- },
- icon: Icons.translate),
- const SizedBox(height: 8),
- dropdownRow('Timezone', _timezone,
- ['UTC', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'Europe/London', 'Europe/Paris', 'Asia/Tokyo', 'Asia/Shanghai', 'Africa/Kinshasa'],
- (v) { if (v != null) { setState(() => _timezone = v); _setPref(_prefTimezone, v); } },
- icon: Icons.schedule),
- const SizedBox(height: 8),
- dropdownRow('Date format', _dateFormat,
- ['MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'dd MMM yyyy', 'MMM dd, yyyy'],
- (v) { if (v != null) { setState(() => _dateFormat = v); _setPref(_prefDateFormat, v); } },
- icon: Icons.calendar_today),
- ],
- ),
- const SizedBox(height: 20),
- sectionCard(
- title: 'Notifications',
- icon: Icons.notifications_outlined,
- children: [
- toggleRow('Email notifications', _emailNotif, (v) { setState(() => _emailNotif = v); _setPref(_prefEmailNotif, v); }, icon: Icons.email_outlined),
- toggleRow('Push notifications', _pushNotif, (v) { setState(() => _pushNotif = v); _setPref(_prefPushNotif, v); }, icon: Icons.notifications_active_outlined),
- toggleRow('Weekly digest', _weeklyDigest, (v) { setState(() => _weeklyDigest = v); _setPref(_prefWeeklyDigest, v); }, icon: Icons.article_outlined),
- toggleRow('Project updates', _projectUpdates, (v) { setState(() => _projectUpdates = v); _setPref(_prefProjectUpdates, v); }, icon: Icons.update),
- toggleRow('Security alerts', _securityAlerts, (v) { setState(() => _securityAlerts = v); _setPref(_prefSecurityAlerts, v); }, icon: Icons.security_outlined),
- ],
- ),
- ],
- const SizedBox(height: 20),
->>>>>>> facf09fe (Describe your changes)
 
  // ── Display & Accessibility ──
  sectionCard(
@@ -998,7 +699,6 @@ class _SettingsScreenState extends State<SettingsScreen>
  ),
  const SizedBox(height: 20),
 
-<<<<<<< HEAD
               // ── About ──
               sectionCard(
                 title: 'About',
@@ -1030,54 +730,6 @@ class _SettingsScreenState extends State<SettingsScreen>
                 ],
               ),
               const SizedBox(height: 20),
-=======
- // ── Active Sessions ──
- sectionCard(
- title: 'Active Sessions',
- icon: Icons.devices,
- children: [
- const Text(
- 'Manage devices where you are currently signed in.',
- style: TextStyle(fontSize: 13, color: Colors.black54),
- ),
- const SizedBox(height: 16),
- ActiveSessionsSection(accent: accent),
- ],
- ),
- const SizedBox(height: 20),
-
- // ── About ──
- sectionCard(
- title: 'About',
- icon: Icons.info_outline,
- children: [
- _PrefInfoRow(label: 'App version', value: '1.0.0'),
- _PrefInfoRow(label: 'Build', value: '2024.12'),
- const SizedBox(height: 8),
- _PrefActionTile(
- icon: Icons.description_outlined,
- label: 'Open source licenses',
- subtitle: 'View third-party licenses',
- onTap: () {
- showLicensePage(context: context);
- },
- ),
- _PrefActionTile(
- icon: Icons.gavel,
- label: 'Terms of service',
- subtitle: 'Read our terms',
- onTap: () {},
- ),
- _PrefActionTile(
- icon: Icons.privacy_tip_outlined,
- label: 'Privacy policy',
- subtitle: 'How we handle your data',
- onTap: () {},
- ),
- ],
- ),
- const SizedBox(height: 20),
->>>>>>> facf09fe (Describe your changes)
 
  // ── Account actions (log out) ──
  _AccountActionsSection(onLogout: _handleLogout),
@@ -2402,7 +2054,6 @@ class _TopAppBar extends StatelessWidget {
  const _TopAppBar({required this.onBack});
  final VoidCallback onBack;
 
-<<<<<<< HEAD
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -2442,47 +2093,6 @@ class _TopAppBar extends StatelessWidget {
       ),
     );
   }
-=======
- @override
- Widget build(BuildContext context) {
- return Container(
- height: 56,
- color: Theme.of(context).colorScheme.surface,
- child: Row(
- children: [
- const SizedBox(width: 8),
- SizedBox(
- width: 40,
- height: 40,
- child: IconButton(
- onPressed: onBack,
- icon: const Icon(Icons.arrow_back, size: 22),
- color: const Color(0xFF005bb3),
- padding: EdgeInsets.zero,
- style: IconButton.styleFrom(
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(20),
- ),
- ),
- ),
- ),
- const Expanded(
- child: Text(
- 'Settings',
- textAlign: TextAlign.center,
- style: TextStyle(
- color: Color(0xFF005bb3),
- fontSize: 20,
- fontWeight: FontWeight.w600,
- ),
- ),
- ),
- const SizedBox(width: 48), // balance the back button
- ],
- ),
- );
- }
->>>>>>> facf09fe (Describe your changes)
 }
 
 class _AccountPlanCard extends StatelessWidget {

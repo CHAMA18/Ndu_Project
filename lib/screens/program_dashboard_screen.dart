@@ -758,7 +758,6 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
  );
  }
 
-<<<<<<< HEAD
   // ─── Hero Bento Grid ─────────────────────────────────────────────────────
   Widget _buildHeroBento(BuildContext context, {_ProgramMetrics? metrics}) {
     final width = MediaQuery.sizeOf(context).width;
@@ -796,42 +795,6 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
       _progressGauge(metrics ?? _emptyMetrics),
     ]);
   }
-=======
- // ─── Hero Bento Grid ─────────────────────────────────────────────────────
- Widget _buildHeroBento(BuildContext context, {_ProgramMetrics? metrics}) {
- final width = MediaQuery.sizeOf(context).width;
- // Desktop (>1180): 3-column hero bento
- // Tablet (700-1180): 2-column (KPI + chart side-by-side, gauge below)
- // Mobile (<700): stacked vertically
- if (width > 1180) {
- return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
- Expanded(flex: 3, child: _budgetKpi(metrics ?? _emptyMetrics)),
- const SizedBox(width: 24),
- Expanded(flex: 6, child: _plannedVsActual(metrics ?? _emptyMetrics)),
- const SizedBox(width: 24),
- Expanded(flex: 3, child: _progressGauge(metrics ?? _emptyMetrics)),
- ]);
- }
- if (width >= 700) {
- return Column(children: [
- Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
- Expanded(flex: 3, child: _budgetKpi(metrics ?? _emptyMetrics)),
- const SizedBox(width: 24),
- Expanded(flex: 6, child: _plannedVsActual(metrics ?? _emptyMetrics)),
- ]),
- const SizedBox(height: 24),
- _progressGauge(metrics ?? _emptyMetrics),
- ]);
- }
- return Column(children: [
- _budgetKpi(metrics ?? _emptyMetrics),
- const SizedBox(height: 24),
- SizedBox(height: 220, child: _plannedVsActual(metrics ?? _emptyMetrics)),
- const SizedBox(height: 24),
- _progressGauge(metrics ?? _emptyMetrics),
- ]);
- }
->>>>>>> facf09fe (Describe your changes)
 
  Widget _budgetKpi(_ProgramMetrics metrics) {
  return _surfaceCard(

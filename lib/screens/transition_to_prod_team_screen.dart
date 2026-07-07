@@ -1,3 +1,5 @@
+import 'package:ndu_project/widgets/launch_notes_section.dart';
+import 'package:ndu_project/widgets/launch_notes_section.dart';
 import 'dart:convert';
 import 'package:ndu_project/utils/download_helper_stub.dart'
  if (dart.library.html) 'package:ndu_project/utils/download_helper_web.dart' as loader;
@@ -36,6 +38,7 @@ class TransitionToProdTeamScreen extends StatefulWidget {
 }
 
 class _TransitionToProdTeamScreenState
+  final TextEditingController _notesController = TextEditingController();
  extends State<TransitionToProdTeamScreen> {
  List<LaunchTeamMember> _teamRoster = [];
  List<LaunchHandoverItem> _handoverChecklist = [];
@@ -92,6 +95,11 @@ showNavigationButtons: false,
  const SizedBox(height: 16),
  _buildSignOffsPanel(),
  const SizedBox(height: 24),
+            LaunchNotesSection(
+              controller: _notesController,
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 16),
  LaunchPhaseNavigation(
  backLabel: 'Back: Deliver Project',
  nextLabel: 'Next: Contract Close Out',
