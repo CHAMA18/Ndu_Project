@@ -17,6 +17,7 @@ import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/project_intelligence_service.dart';
+import 'package:ndu_project/widgets/shimmer_loading.dart';
 
 class ProjectControlsScreen extends StatefulWidget {
   const ProjectControlsScreen({super.key});
@@ -65,16 +66,14 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
     return Consumer3<ProjectControlsProvider, CostEstimateProvider, ProjectDataProvider>(
       builder: (context, provider, ceProvider, pdProvider, _) {
         final state = provider.state;
-<<<<<<< HEAD
-=======
-        
+
         // ── AI Context: derive insights from project data ──────────────
         final projectData = pdProvider.projectData;
         final aiContext = projectData.projectId != null
             ? ProjectIntelligenceService.buildContextScan(projectData,
                 sectionLabel: 'Project Controls')
             : '';
-        
+
         // ── Auto-populate: extract milestones from project activities ──
         final aiMilestones = <String>[];
         if (projectData.keyMilestones.isNotEmpty) {
@@ -86,7 +85,7 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
             aiMilestones.add(a.title);
           }
         }
-        
+
         // ── Auto-populate: extract cost forecasts from project context ──
         String aiCostForecast = '';
         if (projectData.costAnalysisData != null) {
@@ -102,7 +101,7 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
             aiCostForecast = 'Estimated solution cost: \$${total.toStringAsFixed(0)}';
           }
         }
-        
+
         // ── Auto-populate: change recommendations from risks/constraints ──
         final changeRecommendations = <String>[];
         if (projectData.charterConstraints.isNotEmpty) {
@@ -121,7 +120,7 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
             }
           }
         }
-        
+
         // ── Loading state while Firestore data loads ───────────────
         if (!provider.isLoaded) {
           return ResponsiveScaffold(
@@ -129,11 +128,10 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
             appBarTitle: 'Project Controls',
             breadcrumbPhase: 'Execution Phase',
             breadcrumbTitle: 'Project Controls',
-            body: const _ProjectControlsLoadingSkeleton(),
+            body: const PageShimmerSkeleton(),
           );
         }
-        
->>>>>>> 605961e9 (latest changes)
+
         return ResponsiveScaffold(
           activeItemLabel: 'Project Controls',
           appBarTitle: 'Project Controls',
