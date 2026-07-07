@@ -1042,229 +1042,351 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  ],
  ),
  );
- }
-
- Widget _buildClosureInsights(BuildContext context) {
- return _SectionCard(
- title: 'Closure Insights',
- subtitle: 'Capture final risks, coverage, and warranty commitments.',
- icon: Icons.lightbulb_outline,
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- if (_insights.isEmpty)
- const _InlineEmptyState(
- title: 'No closure insights yet',
- message: 'Add risks, coverage, and warranty notes to close out.',
- )
- else
- LayoutBuilder(
- builder: (context, constraints) {
- final bool isWide = constraints.maxWidth >= 900;
- if (isWide) {
- return Row(
- children: [
- for (int i = 0; i < _insights.length; i++) ...[
- Expanded(
- child: _InsightCard(
- item: _insights[i],
- onChanged: _updateInsight,
- onDelete: () => _deleteInsight(_insights[i].id),
- ),
- ),
- if (i != _insights.length - 1)
- const SizedBox(width: 16),
- ],
- ],
- );
- }
- return Column(
- children: [
- for (int i = 0; i < _insights.length; i++) ...[
- _InsightCard(
- item: _insights[i],
- onChanged: _updateInsight,
- onDelete: () => _deleteInsight(_insights[i].id),
- ),
- if (i != _insights.length - 1)
- const SizedBox(height: 16),
- ],
- ],
- );
- },
- ),
- const SizedBox(height: 16),
- FilledButton.icon(
- onPressed: _addInsight,
- icon: const Icon(Icons.add, size: 16),
- label: const Text('Add insight'),
- style: FilledButton.styleFrom(
- backgroundColor: const Color(0xFF0F172A),
- foregroundColor: Colors.white,
- padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
- shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
- textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
- ),
- ),
- ],
- ),
- );
- }
+ } Widget _buildClosureInsights(BuildContext context) {
+    return _SectionCard(
+      title: 'Closure Insights',
+      subtitle: 'Capture final risks, coverage, and warranty commitments.',
+      icon: Icons.lightbulb_outline,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_insights.isEmpty)
+            const _InlineEmptyState(
+              title: 'No closure insights yet',
+              message: 'Add risks, coverage, and warranty notes to close out.',
+            )
+          else
+            ...List.generate(_insights.length, (i) => Padding(
+              padding: EdgeInsets.only(bottom: i < _insights.length - 1 ? 16 : 0),
+              child: _VerticalInsightCard(
+                item: _insights[i],
+                onChanged: _updateInsight,
+                onDelete: () => _deleteInsight(_insights[i].id),
+              ),
+            )),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _addInsight,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add insight'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF0F172A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
  Widget _buildPremiumActionBar(BuildContext context) {
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(20),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- boxShadow: const [
- BoxShadow(
- color: Color(0x0A000000), blurRadius: 16, offset: Offset(0, 8)),
- ],
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Row(
- children: [
- const Text(
- 'Finalize decision log',
- style: TextStyle(
- fontSize: 16,
- fontWeight: FontWeight.w700,
- color: Color(0xFF111827)),
- ),
- const SizedBox(width: 8),
- Container(
- padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
- decoration: BoxDecoration(
- color: const Color(0xFFE5E7EB),
- borderRadius: BorderRadius.circular(12),
- ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- Icon(Icons.lock_outline, size: 12, color: Color(0xFF6B7280)),
- SizedBox(width: 4),
- Text(
- 'Read-only',
- style: TextStyle(
- fontSize: 11,
- fontWeight: FontWeight.w600,
- color: Color(0xFF6B7280),
- ),
- ),
- ],
- ),
- ),
- ],
- ),
- const SizedBox(height: 6),
- const Text(
- 'Capture the final decision summary and next-step actions.',
- style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
- ),
- const SizedBox(height: 14),
- _buildStaticLabeledField(
- label: 'Finalization notes',
- text: _finalNotesController.text.isEmpty
- ? 'No finalization notes recorded'
- : _finalNotesController.text,
- hintText: 'Summarize final checks, approvals, and open items.',
- ),
- const SizedBox(height: 12),
- _buildStaticLabeledField(
- label: 'Next steps after closeout',
- text: _nextStepsController.text.isEmpty
- ? 'No next steps recorded'
- : _nextStepsController.text,
- hintText: 'List post-launch actions and support transitions.',
- ),
- ],
- ),
- );
- }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000), blurRadius: 16, offset: Offset(0, 8)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header with edit indicator ──
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: const Color(0xFFE5E7EB).withOpacity(0.7),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xFFEEF2FF),
+                        Color(0xFFE8F0FE),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.fact_check_outlined,
+                    size: 18,
+                    color: Color(0xFF4338CA),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Finalize Decision Log',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF111827),
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Capture the final decision summary and next-step actions.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // ── Editable badge ──
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFFD1FAE5).withOpacity(0.7),
+                        const Color(0xFFECFDF5).withOpacity(0.5),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF6EE7B7).withOpacity(0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.edit_outlined,
+                        size: 12,
+                        color: const Color(0xFF059669),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Editable \u00B7 Auto-saves',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF059669),
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // ── Editable fields ──
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Finalization notes ──
+                _buildEditableField(
+                  label: 'Finalization notes',
+                  hintText: 'Summarize final checks, approvals, and open items…',
+                  icon: Icons.description_outlined,
+                  controller: _finalNotesController,
+                  maxLines: 4,
+                ),
+                const SizedBox(height: 24),
+                // ── Next steps ──
+                _buildEditableField(
+                  label: 'Next steps after closeout',
+                  hintText: 'List post-launch actions and support transitions…',
+                  icon: Icons.trending_flat_rounded,
+                  controller: _nextStepsController,
+                  maxLines: 4,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
- InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
- return InputDecoration(
- hintText: hintText,
- isDense: dense,
- filled: true,
- fillColor: Colors.white,
- contentPadding: EdgeInsets.symmetric(
- horizontal: 12,
- vertical: dense ? 8 : 12,
- ),
- border: OutlineInputBorder(
- borderRadius: BorderRadius.circular(12),
- borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
- ),
- enabledBorder: OutlineInputBorder(
- borderRadius: BorderRadius.circular(12),
- borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
- ),
- focusedBorder: OutlineInputBorder(
- borderRadius: BorderRadius.circular(12),
- borderSide: const BorderSide(color: Color(0xFF93C5FD)),
- ),
- );
- }
+  /// Input decoration shared by checklist and sign-off rows.
+  InputDecoration _inputDecoration(String hintText, {bool dense = false}) {
+    return InputDecoration(
+      hintText: hintText,
+      hintStyle: const TextStyle(
+        fontSize: 13,
+        color: Color(0xFF9CA3AF),
+        fontWeight: FontWeight.w500,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF4338CA), width: 1.5),
+      ),
+      filled: true,
+      fillColor: const Color(0xFFF9FAFB),
+      isDense: dense,
+      contentPadding: dense
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+          : const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
+  }
 
- Widget _buildStaticLabeledField({
- required String label,
- required String text,
- required String hintText,
- }) {
- return Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Row(
- children: [
- Text(
- label,
- style: const TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600,
- color: Color(0xFF374151)),
- ),
- const SizedBox(width: 6),
- const Icon(
- Icons.lock_rounded,
- size: 10,
- color: Color(0xFF9CA3AF),
- ),
- ],
- ),
- const SizedBox(height: 6),
- Container(
- width: double.infinity,
- padding: const EdgeInsets.all(12),
- decoration: BoxDecoration(
- color: const Color(0xFFF8FAFC),
- borderRadius: BorderRadius.circular(12),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Text(
- text,
- style: TextStyle(
- fontSize: 14,
- color: text == hintText ||
- text == 'No finalization notes recorded' ||
- text == 'No next steps recorded'
- ? const Color(0xFF9CA3AF)
- : const Color(0xFF111827),
- fontStyle: text == hintText ||
- text == 'No finalization notes recorded' ||
- text == 'No next steps recorded'
- ? FontStyle.italic
- : FontStyle.normal,
- ),
- ),
- ),
- ],
- );
- }
+  /// World-class editable text field used in the decision log.
+  Widget _buildEditableField({
+    required String label,
+    required String hintText,
+    required IconData icon,
+    required TextEditingController controller,
+    int maxLines = 4,
+  }) {
+    final hasContent = controller.text.trim().isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Label row ──
+        Row(
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F4F6),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 14, color: const Color(0xFF6B7280)),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF374151),
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // ── Content status badge ──
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: hasContent
+                    ? const Color(0xFFD1FAE5).withOpacity(0.5)
+                    : const Color(0xFFFEF3C7).withOpacity(0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: hasContent
+                      ? const Color(0xFFA7F3D0).withOpacity(0.6)
+                      : const Color(0xFFFDE68A).withOpacity(0.6),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    hasContent
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    size: 10,
+                    color: hasContent
+                        ? const Color(0xFF059669)
+                        : const Color(0xFFD97706),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    hasContent ? 'Filled' : 'Empty',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: hasContent
+                          ? const Color(0xFF059669)
+                          : const Color(0xFFD97706),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // ── Editable text area ──
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: VoiceTextField(
+            controller: controller,
+            maxLines: maxLines,
+            style: TextStyle(
+              fontSize: 14,
+              color: hasContent
+                  ? const Color(0xFF111827)
+                  : const Color(0xFF9CA3AF),
+              height: 1.6,
+            ),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(
+                color: const Color(0xFF9CA3AF),
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                fontStyle: FontStyle.italic,
+              ),
+              border: InputBorder.none,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            ),
+          ),
+        ),
+        // ── Character counter ──
+        const SizedBox(height: 6),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            '${controller.text.length} characters',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: const Color(0xFF9CA3AF),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
  Widget _buildTableHeader(List<String> labels,
  {List<int>? columnWidths}) {
@@ -1440,71 +1562,295 @@ class _CurrentUserProfileChip extends StatelessWidget {
  },
  );
  }
+}/// World-class vertical insight card with rich visual hierarchy.
+class _VerticalInsightCard extends StatefulWidget {
+  const _VerticalInsightCard({
+    required this.item,
+    required this.onChanged,
+    required this.onDelete,
+  });
+
+  final _InsightItem item;
+  final ValueChanged<_InsightItem> onChanged;
+  final VoidCallback onDelete;
+
+  @override
+  State<_VerticalInsightCard> createState() => _VerticalInsightCardState();
 }
 
-class _InsightCard extends StatelessWidget {
- const _InsightCard({
- required this.item,
- required this.onChanged,
- required this.onDelete,
- });
+class _VerticalInsightCardState extends State<_VerticalInsightCard> {
+  bool _isHovered = false;
 
- final _InsightItem item;
- final ValueChanged<_InsightItem> onChanged;
- final VoidCallback onDelete;
+  @override
+  Widget build(BuildContext context) {
+    final hasTitle = widget.item.title.trim().isNotEmpty;
+    final hasDetail = widget.item.detail.trim().isNotEmpty;
 
- @override
- Widget build(BuildContext context) {
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
- decoration: BoxDecoration(
- color: const Color(0xFFF9FAFB),
- borderRadius: BorderRadius.circular(18),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- VoiceTextFormField(
- key: ValueKey('insight-title-${item.id}'),
- initialValue: item.title,
- decoration: const InputDecoration(
- hintText: 'Insight title',
- border: InputBorder.none,
- ),
- style: const TextStyle(
- fontSize: 14,
- fontWeight: FontWeight.w700,
- color: Color(0xFF111827)),
- onChanged: (value) =>
- onChanged(item.copyWith(title: value)),
- ),
- const SizedBox(height: 8),
- VoiceTextFormField(
- key: ValueKey('insight-detail-${item.id}'),
- initialValue: item.detail,
- decoration: const InputDecoration(
- hintText: 'Detail',
- border: InputBorder.none,
- ),
- maxLines: 3,
- style: const TextStyle(
- fontSize: 13, color: Color(0xFF6B7280), height: 1.4),
- onChanged: (value) =>
- onChanged(item.copyWith(detail: value)),
- ),
- Align(
- alignment: Alignment.centerRight,
- child: IconButton(
- icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
- onPressed: onDelete,
- ),
- ),
- ],
- ),
- );
- }
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _isHovered
+                ? const Color(0xFFC7D2FE)
+                : const Color(0xFFE5E7EB),
+            width: _isHovered ? 1.5 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: _isHovered
+                  ? const Color(0xFF6366F1).withOpacity(0.06)
+                  : Colors.black.withOpacity(0.03),
+              blurRadius: _isHovered ? 16 : 8,
+              offset: Offset(0, _isHovered ? 6 : 2),
+            ),
+          ],
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Accent bar ──
+              Container(
+                width: 5,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      const Color(0xFF6366F1),
+                      const Color(0xFF8B5CF6).withOpacity(0.6),
+                    ],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(16),
+                    bottomLeft: Radius.circular(16),
+                  ),
+                ),
+              ),
+              // ── Content ──
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Header row: icon + title + delete ──
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            margin: const EdgeInsets.only(top: 2),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  const Color(0xFF6366F1).withOpacity(0.12),
+                                  const Color(0xFF8B5CF6).withOpacity(0.08),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              Icons.lightbulb_outline_rounded,
+                              size: 16,
+                              color: hasTitle
+                                  ? const Color(0xFF6366F1)
+                                  : const Color(0xFF9CA3AF),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: VoiceTextFormField(
+                              key: ValueKey('insight-title-${widget.item.id}'),
+                              initialValue: widget.item.title,
+                              decoration: InputDecoration(
+                                hintText: 'Insight title',
+                                hintStyle: TextStyle(
+                                  color: const Color(0xFF9CA3AF),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 6),
+                              ),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight:
+                                    hasTitle ? FontWeight.w700 : FontWeight.w600,
+                                color: hasTitle
+                                    ? const Color(0xFF111827)
+                                    : const Color(0xFF9CA3AF),
+                                letterSpacing: -0.2,
+                              ),
+                              onChanged: (value) => widget
+                                  .onChanged(widget.item.copyWith(title: value)),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          // ── Status indicator ──
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: hasTitle && hasDetail
+                                  ? const Color(0xFFD1FAE5).withOpacity(0.6)
+                                  : const Color(0xFFFEF3C7).withOpacity(0.5),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: hasTitle && hasDetail
+                                    ? const Color(0xFFA7F3D0)
+                                    : const Color(0xFFFDE68A),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  hasTitle && hasDetail
+                                      ? Icons.check_circle_rounded
+                                      : Icons.edit_note_rounded,
+                                  size: 12,
+                                  color: hasTitle && hasDetail
+                                      ? const Color(0xFF059669)
+                                      : const Color(0xFFD97706),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  hasTitle && hasDetail
+                                      ? 'Complete'
+                                      : 'Draft',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: hasTitle && hasDetail
+                                        ? const Color(0xFF059669)
+                                        : const Color(0xFFD97706),
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // ── Detail field ──
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: const Color(0xFFE5E7EB).withOpacity(0.6),
+                          ),
+                        ),
+                        child: VoiceTextFormField(
+                          key: ValueKey('insight-detail-${widget.item.id}'),
+                          initialValue: widget.item.detail,
+                          decoration: InputDecoration(
+                            hintText:
+                                'Describe the risk, coverage need, or warranty detail…',
+                            hintStyle: TextStyle(
+                              color: const Color(0xFF9CA3AF),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          maxLines: 4,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: hasDetail
+                                ? const Color(0xFF1F2937)
+                                : const Color(0xFF9CA3AF),
+                            height: 1.55,
+                          ),
+                          onChanged: (value) => widget
+                              .onChanged(widget.item.copyWith(detail: value)),
+                        ),
+                      ),
+                      // ── Footer: meta + delete ──
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          // Character / word count
+                          Icon(Icons.text_fields_rounded,
+                              size: 12, color: const Color(0xFF9CA3AF)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${widget.item.detail.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length} words',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: const Color(0xFF9CA3AF),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          // Delete button
+                          InkWell(
+                            onTap: widget.onDelete,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _isHovered
+                                    ? const Color(0xFFFEF2F2)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.delete_outline_rounded,
+                                    size: 14,
+                                    color: _isHovered
+                                        ? const Color(0xFFEF4444)
+                                        : const Color(0xFF9CA3AF),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Remove',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _isHovered
+                                          ? const Color(0xFFEF4444)
+                                          : const Color(0xFF9CA3AF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
+
 
 class _SectionCard extends StatelessWidget {
  const _SectionCard({

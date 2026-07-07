@@ -553,132 +553,200 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
  padding: EdgeInsets.symmetric(
  horizontal: horizontalPadding, vertical: 36),
  child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- _ProjectHeader(
- onAddProject: _handleAddProject,
- isBasicPlan: widget.isBasicPlan,
- ),
- const SizedBox(height: 26),
- const _StatusStrip(),
- const SizedBox(height: 28),
- // ── Compact action button row: Group Into A Program + Project Logs ──
- if (!widget.isBasicPlan)
- Padding(
- padding: const EdgeInsets.only(bottom: 20),
- child: Row(
- children: [
- Expanded(
- child: _CompactActionButton(
- label: 'Group Into A Program',
- subtitle:
- 'Select up to 3 projects to combine',
- icon: Icons.layers_outlined,
- accent: const Color(0xFF8B5CF6),
- onTap: () {
- // Open the expanded grouping view
- Navigator.of(context).push(
- MaterialPageRoute(
- builder: (_) =>
- _GroupProjectsExpandedScreen(
- projects: const [],
- isLoading: false,
- selectedIdsListenable:
- _selectedProjectIds,
- selectedIds: _selectedProjectIds.value,
- onToggle: _toggleSelection,
- onClear: _clearSelection,
- ),
- ),
- );
- },
- ),
- ),
- const SizedBox(width: 12),
- Expanded(
- child: _CompactActionButton(
- label: 'Project Logs',
- subtitle: 'Activity across all projects',
- icon: Icons.fact_check_outlined,
- accent: const Color(0xFFFCD34D),
- onTap: () => ProjectActivitiesLogScreen.open(
- context),
- ),
- ),
- ],
- ),
- ),
- // ── Past-due + Assigned-to-me + Project metrics ──
- if (_isLoadingMetrics)
- const Padding(
- padding: EdgeInsets.symmetric(vertical: 24),
- child: Center(child: CircularProgressIndicator()),
- )
- else if (_metrics != null) ...[
- if (_metrics!.totalPastDue > 0) ...[
- PastDueActivitiesCard(
- activities: _metrics!.pastDue),
- const SizedBox(height: 18),
- ],
- AssignedActivitiesCard(
- activities: _metrics!.assignedToMe),
- const SizedBox(height: 18),
- if (_metrics!.projectStatuses.isNotEmpty) ...[
- CollapsibleSection(
- title: 'Project status',
- itemCount: _metrics!.projectStatuses.length,
- initiallyExpanded: false,
- child: Wrap(
- spacing: 16,
- runSpacing: 16,
- children: _metrics!.projectStatuses
- .map((r) => ProjectMetricsCard(
- rollup: r,
- level: 'Project',
- ))
- .toList(),
- ),
- ),
- const SizedBox(height: 18),
- ],
- ],
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            _ProjectHeader(
+              onAddProject: _handleAddProject,
+              isBasicPlan: widget.isBasicPlan,
+            ),
+            const SizedBox(height: 26),
+            const _StatusStrip(),
+            // ── GAP only when action buttons or metrics follow ──
+            if (!widget.isBasicPlan || _isLoadingMetrics || _metrics != null)
+              const SizedBox(height: 28),
+            // ── Compact action button row ──
+            if (!widget.isBasicPlan)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _CompactActionButton(
+                        label: 'Group Into A Program',
+                        subtitle:
+                            'Select up to 3 projects to combine',
+                        icon: Icons.layers_outlined,
+                        accent: const Color(0xFF8B5CF6),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  _GroupProjectsExpandedScreen(
+                                projects: const [],
+                                isLoading: false,
+                                selectedIdsListenable:
+                                    _selectedProjectIds,
+                                selectedIds: _selectedProjectIds.value,
+                                onToggle: _toggleSelection,
+                                onClear: _clearSelection,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _CompactActionButton(
+                        label: 'Project Logs',
+                        subtitle: 'Activity across all projects',
+                        icon: Icons.fact_check_outlined,
+                        accent: const Color(0xFFFCD34D),
+                        onTap: () => ProjectActivitiesLogScreen.open(
+                            context),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            // ── Past-due + Assigned-to-me + Project metrics ──
+            if (_isLoadingMetrics)
+              _buildMetricsSkeleton()
+            else if (_metrics != null) ...[
+              if (_metrics!.totalPastDue > 0) ...[
+                PastDueActivitiesCard(
+                  activities: _metrics!.pastDue),
+                const SizedBox(height: 18),
+              ],
+              AssignedActivitiesCard(
+                activities: _metrics!.assignedToMe),
+              const SizedBox(height: 18),
+              if (_metrics!.projectStatuses.isNotEmpty) ...[
+                CollapsibleSection(
+                  title: 'Project status',
+                  itemCount: _metrics!.projectStatuses.length,
+                  initiallyExpanded: false,
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: _metrics!.projectStatuses
+                        .map((r) => ProjectMetricsCard(
+                              rollup: r,
+                              level: 'Project',
+                            ))
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 18),
+              ],
+            ],
  if (user == null)
- buildProjectColumns(
- projects: const [], isLoading: false)
- else
- StreamBuilder<List<ProjectRecord>>(
- stream: ProjectService.streamProjects(
- ownerId: user.uid,
- filterByOwner: true,
- limit: 200,
- ),
- builder: (context, snapshot) {
- final projects =
- snapshot.data ?? const <ProjectRecord>[];
- final isLoading = snapshot.connectionState ==
- ConnectionState.waiting;
- final error = snapshot.hasError
- ? snapshot.error.toString()
- : null;
- return buildProjectColumns(
- projects: projects,
- isLoading: isLoading,
- error: error,
- );
- },
- ),
- const SizedBox(height: 96),
- ],
- ),
- );
- },
- ),
+  buildProjectColumns(
+    projects: const [], isLoading: false)
+else
+  StreamBuilder<List<ProjectRecord>>(
+    stream: ProjectService.streamProjects(
+      ownerId: user.uid,
+      filterByOwner: true,
+      limit: 200,
+    ),
+    builder: (context, snapshot) {
+      final projects =
+          snapshot.data ?? const <ProjectRecord>[];
+      final isLoading = snapshot.connectionState ==
+          ConnectionState.waiting;
+      final error = snapshot.hasError
+          ? snapshot.error.toString()
+          : null;
+      return buildProjectColumns(
+        projects: projects,
+        isLoading: isLoading,
+        error: error,
+      );
+    },
+  ),
+  // ── Bottom spacing only when content exists above ──
+  if (user != null || _metrics != null || !widget.isBasicPlan)
+    const SizedBox(height: 96),
+],
+      ),
+    ); },
+   ),
  ),
  const KazAiChatBubble(),
- ],
- ),
- );
- }
+],
+  ),
+);
+  }
+
+  /// World-class metrics loading skeleton — fills space so the dashboard
+  /// never has empty gaps during data fetch.
+  Widget _buildMetricsSkeleton() {
+    return Column(
+      children: [
+        Container(
+          height: 100,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: List.generate(3, (i) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _shimmerBox(width: 80, height: 10),
+                    _shimmerBox(width: 120, height: 22),
+                    _shimmerBox(width: 60, height: 8),
+                  ],
+                ),
+              ),
+            )),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Container(
+          height: 76,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: List.generate(4, (i) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _shimmerBox(width: 60, height: 10),
+                    _shimmerBox(width: 100, height: 18),
+                    _shimmerBox(width: 40, height: 8),
+                  ],
+                ),
+              ),
+            )),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _shimmerBox({required double width, required double height, double radius = 6}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE4E7EC),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
 }
 
 class _ProjectHeader extends StatefulWidget {

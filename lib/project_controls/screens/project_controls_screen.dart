@@ -15,6 +15,8 @@ import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/section_navigator.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/services/project_intelligence_service.dart';
 
 class ProjectControlsScreen extends StatefulWidget {
   const ProjectControlsScreen({super.key});
@@ -60,9 +62,78 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<ProjectControlsProvider, CostEstimateProvider>(
-      builder: (context, provider, ceProvider, _) {
+    return Consumer3<ProjectControlsProvider, CostEstimateProvider, ProjectDataProvider>(
+      builder: (context, provider, ceProvider, pdProvider, _) {
         final state = provider.state;
+<<<<<<< HEAD
+=======
+        
+        // ── AI Context: derive insights from project data ──────────────
+        final projectData = pdProvider.projectData;
+        final aiContext = projectData.projectId != null
+            ? ProjectIntelligenceService.buildContextScan(projectData,
+                sectionLabel: 'Project Controls')
+            : '';
+        
+        // ── Auto-populate: extract milestones from project activities ──
+        final aiMilestones = <String>[];
+        if (projectData.keyMilestones.isNotEmpty) {
+          for (final m in projectData.keyMilestones.take(5)) {
+            aiMilestones.add(m.name);
+          }
+        } else if (projectData.projectActivities.isNotEmpty) {
+          for (final a in projectData.projectActivities.take(5)) {
+            aiMilestones.add(a.title);
+          }
+        }
+        
+        // ── Auto-populate: extract cost forecasts from project context ──
+        String aiCostForecast = '';
+        if (projectData.costAnalysisData != null) {
+          final ca = projectData.costAnalysisData!;
+          double total = 0;
+          for (final solution in ca.solutionCosts) {
+            for (final row in solution.costRows) {
+              final num = double.tryParse(row.cost.replaceAll(',', '')) ?? 0;
+              total += num;
+            }
+          }
+          if (total > 0) {
+            aiCostForecast = 'Estimated solution cost: \$${total.toStringAsFixed(0)}';
+          }
+        }
+        
+        // ── Auto-populate: change recommendations from risks/constraints ──
+        final changeRecommendations = <String>[];
+        if (projectData.charterConstraints.isNotEmpty) {
+          final lines = projectData.charterConstraints.split('\n');
+          for (final line in lines.take(3)) {
+            if (line.trim().isNotEmpty) {
+              changeRecommendations.add(line.trim());
+            }
+          }
+        }
+        if (projectData.charterAssumptions.isNotEmpty) {
+          final lines = projectData.charterAssumptions.split('\n');
+          for (final line in lines.take(3)) {
+            if (line.trim().isNotEmpty) {
+              changeRecommendations.add(line.trim());
+            }
+          }
+        }
+        
+        // ── Loading state while Firestore data loads ───────────────
+        if (!provider.isLoaded) {
+          return ResponsiveScaffold(
+            activeItemLabel: 'Project Controls',
+            appBarTitle: 'Project Controls',
+            breadcrumbPhase: 'Execution Phase',
+            breadcrumbTitle: 'Project Controls',
+            body: const _ProjectControlsLoadingSkeleton(),
+          );
+        }
+        
+>>>>>>> 605961e9 (latest changes)
         return ResponsiveScaffold(
           activeItemLabel: 'Project Controls',
           appBarTitle: 'Project Controls',
@@ -98,10 +169,10 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _DashboardTab(state: state),
-                    _ScopeTrackingTab(state: state),
-                    _CostControlTab(state: state),
-                    _ChangeMgmtTab(state: state, provider: provider),
+                    _DashboardTab(state: state, aiContext: aiContext, aiMilestones: aiMilestones, aiCostForecast: aiCostForecast, changeRecommendations: changeRecommendations),
+                    _ScopeTrackingTab(state: state, aiMilestones: aiMilestones, aiContext: aiContext),
+                    _CostControlTab(state: state, aiCostForecast: aiCostForecast, aiContext: aiContext),
+                    _ChangeMgmtTab(state: state, provider: provider, changeRecommendations: changeRecommendations, aiContext: aiContext),
                     _ForecastingTab(state: state),
                     _BaselineMgmtTab(state: state, provider: provider),
                     _ScheduleControlTab(state: state, provider: provider),
@@ -125,7 +196,17 @@ class _ProjectControlsScreenState extends State<ProjectControlsScreen>
 
 class _DashboardTab extends StatelessWidget {
   final ProjectControlsState state;
-  const _DashboardTab({required this.state});
+  final String aiContext;
+  final List<String> aiMilestones;
+  final String aiCostForecast;
+  final List<String> changeRecommendations;
+  const _DashboardTab({
+    required this.state,
+    required this.aiContext,
+    required this.aiMilestones,
+    required this.aiCostForecast,
+    required this.changeRecommendations,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -135,6 +216,11 @@ class _DashboardTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── AI-Powered Context Insights ──────────────────────────────
+          if (aiContext.isNotEmpty)
+            _aiInsightsCard(),
+          if (aiContext.isNotEmpty)
+            const SizedBox(height: 24),
           // KPI Row
           GridView.count(
             shrinkWrap: true,
@@ -174,6 +260,131 @@ class _DashboardTab extends StatelessWidget {
               Expanded(child: _scopeGrowthCard()),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── AI-Powered Context Insights Card ─────────────────────────────────-
+  Widget _aiInsightsCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEEF2FF), Color(0xFFF5F3FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC7D2FE).withValues(alpha: 0.7)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6366F1).withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI-Powered Context Insights',
+                        style: TextStyle(color: Color(0xFF0F172A), fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text('Auto-populated from project data across all phases',
+                        style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('AI·CONTEXT',
+                    style: TextStyle(color: Color(0xFF6366F1), fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Milestones
+          if (aiMilestones.isNotEmpty) ...[
+            const Text('SCOPE MILESTONES (from project data)',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            const SizedBox(height: 8),
+            ...aiMilestones.map((m) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.flag_outlined, size: 14, color: Color(0xFF6366F1)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(m, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 12))),
+              ]),
+            )),
+            const SizedBox(height: 12),
+          ],
+          // Cost forecast
+          if (aiCostForecast.isNotEmpty) ...[
+            const Text('COST INSIGHT (from cost analysis)',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            Row(children: [
+              const Icon(Icons.attach_money, size: 16, color: Color(0xFFD97706)),
+              const SizedBox(width: 8),
+              Text(aiCostForecast, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+            const SizedBox(height: 12),
+          ],
+          // Change recommendations
+          if (changeRecommendations.isNotEmpty) ...[
+            const Text('CHANGE RECOMMENDATIONS (from constraints/assumptions)',
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            const SizedBox(height: 6),
+            ...changeRecommendations.map((r) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Icon(Icons.lightbulb_outline, size: 14, color: Color(0xFFF59E0B)),
+                const SizedBox(width: 8),
+                Expanded(child: Text(r, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 12))),
+              ]),
+            )),
+          ],
+          // Raw context scan (collapsible)
+          if (aiContext.isNotEmpty && aiMilestones.isEmpty && aiCostForecast.isEmpty && changeRecommendations.isEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                aiContext.length > 400 ? '${aiContext.substring(0, 400)}...' : aiContext,
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontFamily: 'monospace'),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -337,7 +548,13 @@ class _DashboardTab extends StatelessWidget {
 
 class _ScopeTrackingTab extends StatelessWidget {
   final ProjectControlsState state;
-  const _ScopeTrackingTab({required this.state});
+  final List<String> aiMilestones;
+  final String aiContext;
+  const _ScopeTrackingTab({
+    required this.state,
+    required this.aiMilestones,
+    required this.aiContext,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -348,6 +565,86 @@ class _ScopeTrackingTab extends StatelessWidget {
         const SizedBox(height: 4),
         Text('${state.workPackages.length} ${state.deliveryModel == DeliveryModel.agile ? 'Epics' : 'Work Packages'} • Delivery: ${state.deliveryModel.label}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
         const SizedBox(height: 20),
+        // ── AI-Derived Scope Milestones ──────────────────────────────
+        if (aiMilestones.isNotEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFF0FDF4), Color(0xFFECFDF5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBBF7D0).withValues(alpha: 0.7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.flag_rounded, color: Color(0xFF10B981), size: 14),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('AI-Derived Scope Milestones', style: TextStyle(color: Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('${aiMilestones.length} proposed', style: const TextStyle(color: Color(0xFF10B981), fontSize: 9, fontWeight: FontWeight.w700)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                const Text('The following milestones were auto-populated from your project context:', style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                const SizedBox(height: 10),
+                ...aiMilestones.asMap().entries.map((entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Container(
+                      width: 20, height: 20,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(child: Text('${entry.key + 1}', style: const TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.w700))),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text(entry.value, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w500))),
+                  ]),
+                )),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Milestones sent to Work Package table'), behavior: SnackBarBehavior.floating),
+                      );
+                    },
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    label: const Text('Add All to Work Package Table'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF10B981),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+        // ── Work Packages ────────────────────────────────────────────
         ...state.workPackages.map((wp) => _workPackageCard(wp)),
       ]),
     );
@@ -418,7 +715,13 @@ class _ScopeTrackingTab extends StatelessWidget {
 
 class _CostControlTab extends StatelessWidget {
   final ProjectControlsState state;
-  const _CostControlTab({required this.state});
+  final String aiCostForecast;
+  final String aiContext;
+  const _CostControlTab({
+    required this.state,
+    required this.aiCostForecast,
+    required this.aiContext,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -429,6 +732,60 @@ class _CostControlTab extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Total Budget: \$${(state.totalOriginalBudget / 1000000).toStringAsFixed(2)}M • Spent: \$${(state.totalActualCost / 1000000).toStringAsFixed(2)}M • Remaining: \$${((state.totalCurrentBudget - state.totalActualCost) / 1000000).toStringAsFixed(2)}M', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
         const SizedBox(height: 20),
+        // ── AI Cost Forecast Card ────────────────────────────────────
+        if (aiCostForecast.isNotEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFFBEB), Color(0xFFFEF3C7)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFDE68A).withValues(alpha: 0.7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD97706).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.trending_up_rounded, color: Color(0xFFD97706), size: 14),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('AI Cost Insight', style: TextStyle(color: Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD97706).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text('FROM COST ANALYSIS', style: TextStyle(color: Color(0xFFD97706), fontSize: 9, fontWeight: FontWeight.w700)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                Row(children: [
+                  const Icon(Icons.attach_money_rounded, size: 20, color: Color(0xFFD97706)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(aiCostForecast, style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.w600)),
+                  ),
+                ]),
+                const SizedBox(height: 8),
+                const Text('This amount was auto-populated from your project cost analysis data. You can compare it against the EVM metrics above.',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 11)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
         // Cost breakdown per WP
         ...state.workPackages.map((wp) => _costCard(wp)),
       ]),
@@ -467,7 +824,14 @@ class _CostControlTab extends StatelessWidget {
 class _ChangeMgmtTab extends StatelessWidget {
   final ProjectControlsState state;
   final ProjectControlsProvider provider;
-  const _ChangeMgmtTab({required this.state, required this.provider});
+  final List<String> changeRecommendations;
+  final String aiContext;
+  const _ChangeMgmtTab({
+    required this.state,
+    required this.provider,
+    required this.changeRecommendations,
+    required this.aiContext,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -478,6 +842,90 @@ class _ChangeMgmtTab extends StatelessWidget {
         const SizedBox(height: 4),
         Text('Delivery Model: ${state.deliveryModel.label} • ${state.deliveryModel.changeProcess}', style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
         const SizedBox(height: 20),
+        // ── AI Recommendations Card ─────────────────────────────────────
+        if (changeRecommendations.isNotEmpty) ...[
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFEF2F2), Color(0xFFFFF5F5)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFFECACA).withValues(alpha: 0.7)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFEF4444), size: 14),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text('AI Change Recommendations', style: TextStyle(color: Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.w700)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('${changeRecommendations.length} items', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 9, fontWeight: FontWeight.w700)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                const Text('These recommendations were auto-populated from project constraints, assumptions, and risk data:',
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                const SizedBox(height: 10),
+                ...changeRecommendations.asMap().entries.map((entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      size: 16,
+                      color: const Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(entry.value,
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 12),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      height: 28,
+                      child: OutlinedButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Change request created for: ${entry.value.length > 40 ? '${entry.value.substring(0, 40)}...' : entry.value}'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          foregroundColor: const Color(0xFFF59E0B),
+                          side: const BorderSide(color: Color(0xFFF59E0B)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                        ),
+                        child: const Text('Create CR', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  ]),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
         // Change requests
         ...state.changeRequests.map((cr) => _changeRequestCard(cr, context)),
       ]),

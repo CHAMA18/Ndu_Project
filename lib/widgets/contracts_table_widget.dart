@@ -73,7 +73,7 @@ class ContractsTableWidget extends StatelessWidget {
                 _TableHeaderCell('Effective Date', flex: 2),
                 _TableHeaderCell('Expiry', flex: 2),
                 _TableHeaderCell('Total Value', flex: 2),
-                _TableHeaderCell('Actions', flex: 1),
+                _TableHeaderCell('Actions', flex: 2),
               ],
             ),
           ),
@@ -840,61 +840,84 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                   Expanded(
                     flex: 2,
                     child: Center(
-                      child: _isHovering
-                          ? Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (_previousState != null)
-                                  IconButton(
-                                    icon: const Icon(Icons.undo,
-                                        size: 16, color: Color(0xFF64748B)),
-                                    onPressed: _undo,
-                                    tooltip: 'Undo',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                        minWidth: 32, minHeight: 32),
-                                  ),
-                                IconButton(
-                                  icon: _isRegenerating
-                                      ? const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Color(0xFF7C3AED),
-                                          ),
-                                        )
-                                      : const Icon(Icons.auto_awesome,
-                                          size: 16, color: Color(0xFF7C3AED)),
-                                  onPressed: _isRegenerating
-                                      ? null
-                                      : _regenerateKeyTerms,
-                                  tooltip: 'Regenerate Key Terms',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 32, minHeight: 32),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // KAZ AI button — always visible
+                          Tooltip(
+                            message: 'KAZ AI — Regenerate Key Terms',
+                            child: InkWell(
+                              onTap: _isRegenerating ? null : _regenerateKeyTerms,
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF5F3FF),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFFDDD6FE)),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 16, color: Color(0xFF64748B)),
-                                  onPressed: _showFullEditDialog,
-                                  tooltip: 'Edit',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 32, minHeight: 32),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (_isRegenerating)
+                                      const SizedBox(
+                                        width: 12,
+                                        height: 12,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 1.5,
+                                          color: Color(0xFF7C3AED),
+                                        ),
+                                      )
+                                    else
+                                      const Icon(Icons.auto_awesome_rounded,
+                                          size: 13, color: Color(0xFF7C3AED)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _isRegenerating ? '...' : 'KAZ AI',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF7C3AED),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline,
-                                      size: 16, color: Color(0xFF9CA3AF)),
-                                  onPressed: _deleteContract,
-                                  tooltip: 'Delete',
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(
-                                      minWidth: 32, minHeight: 32),
-                                ),
-                              ],
-                            )
-                          : const SizedBox(width: 40),
+                              ),
+                            ),
+                          ),
+                          if (_isHovering) ...[
+                            const SizedBox(width: 4),
+                            if (_previousState != null)
+                              IconButton(
+                                icon: const Icon(Icons.undo,
+                                    size: 16, color: Color(0xFF64748B)),
+                                onPressed: _undo,
+                                tooltip: 'Undo',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                    minWidth: 32, minHeight: 32),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined,
+                                  size: 16, color: Color(0xFF64748B)),
+                              onPressed: _showFullEditDialog,
+                              tooltip: 'Edit',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 32, minHeight: 32),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline,
+                                  size: 16, color: Color(0xFF9CA3AF)),
+                              onPressed: _deleteContract,
+                              tooltip: 'Delete',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(
+                                  minWidth: 32, minHeight: 32),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
