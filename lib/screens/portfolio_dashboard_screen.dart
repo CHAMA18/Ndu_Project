@@ -13,8 +13,12 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/dashboard_metrics_service.dart';
 import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/services/portfolio_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
+import 'package:ndu_project/widgets/compact_action_button.dart';
+import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/screens/project_activities_log_screen.dart';
 
 class PortfolioDashboardScreen extends StatefulWidget {
  final String? portfolioId;
@@ -64,6 +68,175 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   List<ProjectRecord> _projects = [];
   bool _loading = true;
 
+  // ── Search state ──
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  List<ProjectRecord> get _filteredProjects {
+    if (_searchQuery.isEmpty) return _projects;
+    final q = _searchQuery.toLowerCase();
+    return _projects.where((p) {
+      return p.name.toLowerCase().contains(q) ||
+          p.progressSnapshot.currentPhase.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  // ── View-more toggles (show 7 by default, expand to all) ──
+  bool _showAllProjects = false;
+  bool _showAllInSnapshot = false;
+
+  // ── Portfolio Grouping state (up to 7 projects) ──
+  final TextEditingController _groupSearchController = TextEditingController();
+  String _groupSearchQuery = '';
+  Set<String> _selectedPortfolioIds = {};
+
+  List<ProjectRecord> get _filteredGroupProjects {
+    if (_groupSearchQuery.isEmpty) return _projects;
+    final q = _groupSearchQuery.toLowerCase();
+    return _projects.where((p) {
+      return p.name.toLowerCase().contains(q) ||
+          p.progressSnapshot.currentPhase.toLowerCase().contains(q);
+    }).toList();
+  }
+
+  void _togglePortfolioSelection(String id) {
+    setState(() {
+      if (_selectedPortfolioIds.contains(id)) {
+        _selectedPortfolioIds.remove(id);
+      } else {
+        if (_selectedPortfolioIds.length >= 7) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You can select up to 7 projects for a portfolio.'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        _selectedPortfolioIds.add(id);
+      }
+    });
+  }
+
+  void _clearPortfolioSelection() {
+    setState(() => _selectedPortfolioIds = {});
+  }
+
+  Future<void> _handleCreatePortfolio() async {
+    final nameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final portfolioName = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.pie_chart_outline_rounded,
+                    color: Color(0xFF4338CA), size: 24),
+              ),
+              const SizedBox(width: 12),
+              const Text('Name Your Portfolio'),
+            ],
+          ),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Give a name to your new portfolio of ${_selectedPortfolioIds.length} projects.',
+                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+                VoiceTextFormField(
+                  controller: nameController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    labelText: 'Portfolio Name',
+                    hintText: 'e.g., Infrastructure Portfolio',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                  ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    if (value.trim().length < 3) {
+                      return 'Name must be at least 3 characters';
+                    }
+                    return null;
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState?.validate() ?? false) {
+                  Navigator.of(dialogContext).pop(nameController.text.trim());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4338CA),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Create Portfolio'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (portfolioName == null || !mounted) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      await PortfolioService.createPortfolio(
+        name: portfolioName,
+        projectIds: _selectedPortfolioIds.toList(),
+        ownerId: user.uid,
+      );
+
+      if (!mounted) return;
+      _clearPortfolioSelection();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Portfolio created successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error creating portfolio: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      nameController.dispose();
+    }
+  }
+
  @override
  void initState() {
  super.initState();
@@ -72,14 +245,15 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  ..forward();
  _fadeAnimation = CurvedAnimation(
  parent: _fadeController, curve: Curves.easeOutCubic);
- _loadData();
- }
+ _loadData();  }
 
- @override
- void dispose() {
- _fadeController.dispose();
- super.dispose();
- }
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    _searchController.dispose();
+    _groupSearchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _loadData() async {
     try {
@@ -215,11 +389,14 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                           child: SingleChildScrollView(
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding, vertical: 28),
-                            child: Column(
+                                horizontal: horizontalPadding, vertical: 28),                              child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _buildHeader(),
+                                const SizedBox(height: 28),
+                                _buildSearchBar(),
+                                const SizedBox(height: 20),
+                                _buildGroupPortfolioSection(context),
                                 const SizedBox(height: 28),
                                 _buildKpis(context),
                                 const SizedBox(height: 28),
@@ -735,9 +912,10 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  'Create a project from the dashboard to start tracking portfolio health.',
  Icons.inventory_2_outlined,
  );
- }
-
- return Column(children: [
+ }  return Column(children: [
+ // ── FINALIZATION SNAPSHOT — full-width table ──
+    _buildFinalizationSnapshotTable(),
+    const SizedBox(height: 24),
  if (isDesktop)
  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
  Expanded(flex: 8, child: _portfolioTable()),
@@ -780,10 +958,1031 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  ]);
  }
 
+ // ═══════════════════════════════════════════════════════════════════════
+ // SEARCH BAR
+ // ═══════════════════════════════════════════════════════════════════════
+ Widget _buildSearchBar() {
+   return _glassCard(
+     child: Padding(
+       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+       child: Row(
+         children: [
+           Icon(Icons.search, size: 20, color: _muted),
+           const SizedBox(width: 10),
+           Expanded(
+             child: TextField(
+               controller: _searchController,
+               onChanged: (v) => setState(() => _searchQuery = v),
+               style: TextStyle(
+                 fontSize: 14,
+                 color: _onSurface,
+                 fontFamily: appFontFamily,
+               ),
+               decoration: InputDecoration(
+                 hintText: 'Search projects by name or phase...',
+                 hintStyle: TextStyle(
+                   fontSize: 14,
+                   color: _muted.withValues(alpha: 0.6),
+                   fontFamily: appFontFamily,
+                 ),
+                 border: InputBorder.none,
+                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
+               ),
+             ),
+           ),
+           if (_searchQuery.isNotEmpty)
+             IconButton(
+               onPressed: () {
+                 _searchController.clear();
+                 setState(() => _searchQuery = '');
+               },
+               icon: Icon(Icons.close_rounded, size: 18, color: _muted),
+               tooltip: 'Clear search',
+             ),
+           Container(
+             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+             decoration: BoxDecoration(
+               color: _searchQuery.isEmpty
+                   ? _surfaceHighest.withValues(alpha: 0.4)
+                   : _blue.withValues(alpha: 0.1),
+               borderRadius: BorderRadius.circular(8),
+             ),
+             child: Text(
+               '${_filteredProjects.length} project${_filteredProjects.length == 1 ? '' : 's'}',
+               style: TextStyle(
+                 fontSize: 12,
+                 fontWeight: FontWeight.w600,
+                 color: _searchQuery.isEmpty ? _muted : _blue,
+                 fontFamily: appFontFamily,
+               ),
+             ),
+           ),
+         ],
+       ),
+     ),
+   );
+ }
+
+ // ═══════════════════════════════════════════════════════════════════════
+ // GROUP PORTFOLIO SECTION — Group Into Portfolio + Activity Logs
+ // ═══════════════════════════════════════════════════════════════════════
+ Widget _buildGroupPortfolioSection(BuildContext context) {
+   return Column(
+     crossAxisAlignment: CrossAxisAlignment.start,
+     children: [
+       // ── Action buttons row: Group Into Portfolio + Activity Logs ──
+       LayoutBuilder(
+         builder: (context, constraints) {
+           final useColumn = constraints.maxWidth < 500;
+           final buttons = [
+             CompactActionButton(
+               label: 'Group Into Portfolio',
+               subtitle: 'Select up to 7 projects to combine',
+               icon: Icons.pie_chart_outline_rounded,
+               accent: const Color(0xFF4338CA),
+               onTap: () {
+                 // Scroll to the grouping card below
+                 // For mobile, the card is already visible inline
+               },
+             ),
+             CompactActionButton(
+               label: 'Activity Logs',
+               subtitle: 'Activity across all projects',
+               icon: Icons.fact_check_outlined,
+               accent: const Color(0xFFFCD34D),
+               onTap: () {
+                 Navigator.of(context).push(
+                   MaterialPageRoute(
+                     builder: (_) => const ProjectActivitiesLogScreen(),
+                   ),
+                 );
+               },
+             ),
+           ];
+
+           if (useColumn) {
+             return Column(
+               children: [
+                 for (int i = 0; i < buttons.length; i++) ...[
+                   if (i > 0) const SizedBox(height: 12),
+                   buttons[i],
+                 ],
+               ],
+             );
+           }
+
+           return Row(
+             children: [
+               for (int i = 0; i < buttons.length; i++) ...[
+                 if (i > 0) const SizedBox(width: 16),
+                 Expanded(child: buttons[i]),
+               ],
+             ],
+           );
+         },
+       ),
+       const SizedBox(height: 24),
+       // ── Group Into Portfolio inline card ──
+       _buildGroupPortfolioCard(context),
+     ],
+   );
+ }
+
+ // ═══════════════════════════════════════════════════════════════════════
+ // GROUP PORTFOLIO CARD — selectable project rows + Create Portfolio
+ // ═══════════════════════════════════════════════════════════════════════
+ Widget _buildGroupPortfolioCard(BuildContext context) {
+   final selectedCount = _selectedPortfolioIds.length;
+   final groupProjects = _filteredGroupProjects;
+
+   return _glassCard(
+     child: Padding(
+       padding: const EdgeInsets.all(24),
+       child: Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           // Heading
+           Row(
+             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+             children: [
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text(
+                       'Group Projects Into A Portfolio',
+                       style: TextStyle(
+                         color: _onSurface,
+                         fontSize: 18,
+                         fontWeight: FontWeight.w700,
+                         letterSpacing: -0.3,
+                         fontFamily: appFontFamily,
+                       ),
+                     ),
+                     const SizedBox(height: 6),
+                     Text(
+                       'When you have multiple projects, select up to seven that share a strategic outcome to create a new portfolio.',
+                       style: TextStyle(
+                         color: _muted,
+                         fontSize: 13,
+                         fontFamily: appFontFamily,
+                         height: 1.4,
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
+               const SizedBox(width: 12),
+               Container(
+                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                 decoration: BoxDecoration(
+                   color: _surface.withValues(alpha: 0.6),
+                   borderRadius: BorderRadius.circular(20),
+                   border: Border.all(color: _outline.withValues(alpha: 0.3)),
+                 ),
+                 child: Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                     Icon(Icons.filter_alt_outlined, size: 16, color: _muted),
+                     const SizedBox(width: 6),
+                     Text(
+                       'Up to 7 projects',
+                       style: TextStyle(
+                         fontSize: 12,
+                         fontWeight: FontWeight.w600,
+                         color: _muted,
+                         fontFamily: appFontFamily,
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
+             ],
+           ),
+           const SizedBox(height: 20),
+           // Search bar
+           Container(
+             decoration: BoxDecoration(
+               color: _surface.withValues(alpha: 0.4),
+               borderRadius: BorderRadius.circular(12),
+               border: Border.all(color: _outline.withValues(alpha: 0.2)),
+             ),
+             child: TextField(
+               controller: _groupSearchController,
+               onChanged: (v) => setState(() => _groupSearchQuery = v),
+               style: TextStyle(
+                 fontSize: 14,
+                 color: _onSurface,
+                 fontFamily: appFontFamily,
+               ),
+               decoration: InputDecoration(
+                 hintText: 'Search projects to group...',
+                 hintStyle: TextStyle(
+                   fontSize: 14,
+                   color: _muted.withValues(alpha: 0.6),
+                   fontFamily: appFontFamily,
+                 ),
+                 prefixIcon: Icon(Icons.search, size: 20, color: _muted),
+                 suffixIcon: _groupSearchQuery.isNotEmpty
+                     ? IconButton(
+                         onPressed: () {
+                           _groupSearchController.clear();
+                           setState(() => _groupSearchQuery = '');
+                         },
+                         icon: Icon(Icons.close_rounded, size: 18, color: _muted),
+                       )
+                     : null,
+                 border: InputBorder.none,
+                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
+               ),
+             ),
+           ),
+           const SizedBox(height: 20),
+           // Selectable project rows
+           if (groupProjects.isEmpty)
+             Padding(
+               padding: const EdgeInsets.symmetric(vertical: 24),
+               child: Center(
+                 child: Text(
+                   'No projects available to group',
+                   style: TextStyle(color: _muted, fontFamily: appFontFamily),
+                 ),
+               ),
+             )
+           else
+             ...groupProjects.map((p) {
+               final isSelected = _selectedPortfolioIds.contains(p.id);
+               return Padding(
+                 padding: const EdgeInsets.only(bottom: 10),
+                 child: InkWell(
+                   onTap: () => _togglePortfolioSelection(p.id),
+                   borderRadius: BorderRadius.circular(14),
+                   child: Container(
+                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                     decoration: BoxDecoration(
+                       color: isSelected
+                           ? const Color(0xFFEEF2FF)
+                           : _surface.withValues(alpha: 0.3),
+                       borderRadius: BorderRadius.circular(14),
+                       border: Border.all(
+                         color: isSelected
+                             ? const Color(0xFFA5B4FC)
+                             : _outline.withValues(alpha: 0.15),
+                         width: isSelected ? 2 : 1,
+                       ),
+                     ),
+                     child: Row(
+                       children: [
+                         Container(
+                           width: 10,
+                           height: 10,
+                           decoration: BoxDecoration(
+                             shape: BoxShape.circle,
+                             color: isSelected ? _blue : _surfaceHighest,
+                           ),
+                         ),
+                         const SizedBox(width: 14),
+                         Expanded(
+                           child: Column(
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             children: [
+                               Text(
+                                 p.name.isEmpty ? 'Untitled Project' : p.name,
+                                 style: TextStyle(
+                                   fontWeight: FontWeight.w600,
+                                   fontSize: 14,
+                                   color: _onSurface,
+                                   fontFamily: appFontFamily,
+                                 ),
+                                 maxLines: 1,
+                                 overflow: TextOverflow.ellipsis,
+                               ),
+                               Text(
+                                 p.progressSnapshot.currentPhase,
+                                 style: TextStyle(
+                                   fontSize: 12,
+                                   color: _muted,
+                                   fontFamily: appFontFamily,
+                                 ),
+                                 maxLines: 1,
+                                 overflow: TextOverflow.ellipsis,
+                               ),
+                             ],
+                           ),
+                         ),
+                         Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                           decoration: BoxDecoration(
+                             color: isSelected ? _blue : Colors.white,
+                             borderRadius: BorderRadius.circular(10),
+                             border: Border.all(
+                               color: isSelected ? _blue : _outline.withValues(alpha: 0.3),
+                             ),
+                           ),
+                           child: Text(
+                             isSelected ? 'Selected' : 'Tap to include',
+                             style: TextStyle(
+                               fontSize: 12,
+                               fontWeight: FontWeight.w600,
+                               color: isSelected ? Colors.white : _muted,
+                               fontFamily: appFontFamily,
+                             ),
+                           ),
+                         ),
+                       ],
+                     ),
+                   ),
+                 ),
+               );
+             }),
+           const SizedBox(height: 20),
+           // Divider
+           Divider(color: _outline.withValues(alpha: 0.2), height: 1),
+           const SizedBox(height: 20),
+           // Selection count + Create Portfolio button
+           Row(
+             children: [
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text(
+                       '$selectedCount/7 projects selected. Select up to seven to create a portfolio.',
+                       style: TextStyle(
+                         color: _onSurface,
+                         fontSize: 14,
+                         fontWeight: FontWeight.w600,
+                         fontFamily: appFontFamily,
+                       ),
+                     ),
+                     const SizedBox(height: 4),
+                     if (selectedCount > 0)
+                       Text(
+                         selectedCount == 7
+                             ? 'Maximum number of projects selected.'
+                             : '${7 - selectedCount} more project${7 - selectedCount == 1 ? '' : 's'} can be added.',
+                         style: TextStyle(
+                           color: _muted,
+                           fontSize: 12,
+                           fontFamily: appFontFamily,
+                         ),
+                       ),
+                   ],
+                 ),
+               ),
+               const SizedBox(width: 16),
+               if (selectedCount > 0)
+                 TextButton(
+                   onPressed: _clearPortfolioSelection,
+                   child: Text(
+                     'Clear all',
+                     style: TextStyle(
+                       color: _muted,
+                       fontFamily: appFontFamily,
+                     ),
+                   ),
+                 ),
+               ElevatedButton.icon(
+                 onPressed: selectedCount >= 1 ? _handleCreatePortfolio : null,
+                 icon: const Icon(Icons.pie_chart_outline_rounded, size: 18),
+                 label: Text(
+                   selectedCount >= 1 ? 'Create Portfolio' : 'Select projects',
+                   style: const TextStyle(fontWeight: FontWeight.w700),
+                 ),
+                 style: ElevatedButton.styleFrom(
+                   backgroundColor: _blue,
+                   foregroundColor: Colors.white,
+                   disabledBackgroundColor: _surfaceHighest.withValues(alpha: 0.5),
+                   disabledForegroundColor: _muted,
+                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                   shape: RoundedRectangleBorder(
+                     borderRadius: BorderRadius.circular(12),
+                   ),
+                 ),
+               ),
+             ],
+           ),
+         ],
+       ),
+     ),
+   );
+ }
+
+ // ═══════════════════════════════════════════════════════════════════════
+ // FINALIZATION SNAPSHOT TABLE — world-class close-out readiness view
+ // ═══════════════════════════════════════════════════════════════════════
+ Widget _buildFinalizationSnapshotTable() {
+   final sorted = List<ProjectRecord>.from(_projects)
+     ..sort((a, b) {
+       // Sort by completion descending (most-ready first)
+       final cmp = b.progressSnapshot.completionPercent
+           .compareTo(a.progressSnapshot.completionPercent);
+       if (cmp != 0) return cmp;
+       return b.updatedAt.compareTo(a.updatedAt);
+     });
+
+   // ── Computed aggregates ──
+   final totalPct = _totalProjects > 0
+       ? (_projects.fold<int>(0, (s, p) => s + p.progressSnapshot.completionPercent) /
+               _totalProjects)
+           .round()
+       : 0;
+   final totalTMs = _totalMilestones;
+   final totalAMs = _achievedMilestones;
+   final totalTAs = _totalActivities;
+   final totalIAs = _completedActivities;
+   final totalODs = _overdueActivities;
+
+   return _glassCard(
+     glow: totalODs > 0 ? _crimson : null,
+     blur: 12,
+     child: Column(
+       crossAxisAlignment: CrossAxisAlignment.start,
+       children: [
+         // ── Header ──
+         Container(
+           padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
+           decoration: BoxDecoration(
+             border: Border(
+               bottom: BorderSide(
+                 color: _outline.withValues(alpha: 0.3),
+               ),
+             ),
+           ),
+           child: Row(
+             children: [
+               Container(
+                 width: 36,
+                 height: 36,
+                 decoration: BoxDecoration(
+                   color: const Color(0xFFEEF2FF),
+                   borderRadius: BorderRadius.circular(10),
+                 ),
+                 child: const Icon(
+                   Icons.flag_outlined,
+                   size: 18,
+                   color: Color(0xFF4338CA),
+                 ),
+               ),
+               const SizedBox(width: 14),
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text(
+                       'Finalization Snapshot',
+                       style: TextStyle(
+                         color: _onSurface,
+                         fontSize: 18,
+                         fontWeight: FontWeight.w700,
+                         letterSpacing: -0.3,
+                         fontFamily: appFontFamily,
+                       ),
+                     ),
+                     const SizedBox(height: 2),
+                     Text(
+                       'Real-time close-out readiness across $_totalProjects project${_totalProjects == 1 ? '' : 's'}',
+                       style: TextStyle(
+                         color: _muted,
+                         fontSize: 13,
+                         fontFamily: appFontFamily,
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
+               // ── Summary KPI chips ──
+               _summaryChip('Avg Completion', '$totalPct%', _blue),
+               const SizedBox(width: 10),
+               _summaryChip(
+                 'Overdue Activities',
+                 '$totalODs',
+                 totalODs > 0 ? _crimsonBright : _emerald,
+               ),
+             ],
+           ),
+         ),
+         // ── Column headers ──
+         Container(
+           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+           color: _surface.withValues(alpha: 0.3),
+           child: Row(
+             children: [
+               _hCell('Project / Phase', flex: 28),
+               _hCell('Completion', flex: 14, align: TextAlign.center),
+               _hCell('Milestones', flex: 12, align: TextAlign.center),
+               _hCell('Activities', flex: 12, align: TextAlign.center),
+               _hCell('Overdue', flex: 10, align: TextAlign.center),
+               _hCell('Health', flex: 12, align: TextAlign.center),
+               _hCell('Updated', flex: 12, align: TextAlign.end),
+             ],
+           ),
+         ),
+         // ── Project rows ──
+        if (sorted.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(40),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.flag_outlined,
+                      size: 40, color: _muted.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No projects to snapshot',
+                    style: TextStyle(
+                      color: _muted,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: appFontFamily,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Create projects to see finalization readiness here.',
+                    style: TextStyle(
+                      color: _muted.withValues(alpha: 0.7),
+                      fontSize: 12,
+                      fontFamily: appFontFamily,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else ...[  // Only show up to 7 initially
+          // Note: snapDisplayCount is computed here in a helper getter below the return
+          for (var i = 0; i < _snapDisplayCount(sorted.length) && i < sorted.length; i++)
+            _buildSnapshotRow(
+              index: i,
+              project: sorted[i],
+              snap: sorted[i].progressSnapshot,
+              isLast: _showAllInSnapshot ? i == sorted.length - 1 : i == _snapDisplayCount(sorted.length) - 1,
+              healthColor: _snapshotHealthColor(sorted[i].progressSnapshot.health),
+              healthLabel: _snapshotHealthLabel(sorted[i].progressSnapshot.health),
+              healthIcon: _snapshotHealthIcon(sorted[i].progressSnapshot.health),
+            ),
+          if (sorted.length > 7)
+            _buildViewMoreToggle(
+              isExpanded: _showAllInSnapshot,
+              totalCount: sorted.length,
+              compact: true,
+              onToggle: () {
+                setState(() => _showAllInSnapshot = !_showAllInSnapshot);
+              },
+            ),
+        ],
+         // ── Summary footer ──
+         Container(
+           padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
+           decoration: BoxDecoration(
+             color: _surface.withValues(alpha: 0.5),
+             border: Border(
+               top: BorderSide(
+                 color: _outline.withValues(alpha: 0.3),
+               ),
+             ),
+           ),
+           child: Row(
+             children: [
+               Expanded(
+                 flex: 28,
+                 child: Text(
+                   '$_totalProjects project${_totalProjects == 1 ? '' : 's'}',
+                   style: TextStyle(
+                     fontWeight: FontWeight.w700,
+                     fontSize: 13,
+                     color: _onSurface,
+                     fontFamily: appFontFamily,
+                   ),
+                 ),
+               ),
+               Expanded(
+                 flex: 14,
+                 child: Center(
+                   child: Text(
+                     '$totalPct%',
+                     style: TextStyle(
+                       fontWeight: FontWeight.w800,
+                       fontSize: 13,
+                       color: _blue,
+                       fontFamily: appFontFamily,
+                     ),
+                   ),
+                 ),
+               ),
+               Expanded(
+                 flex: 12,
+                 child: Center(
+                   child: Text(
+                     '$totalAMs/$totalTMs',
+                     style: TextStyle(
+                       fontWeight: FontWeight.w700,
+                       fontSize: 13,
+                       color: _onSurface,
+                       fontFamily: appFontFamily,
+                     ),
+                   ),
+                 ),
+               ),
+               Expanded(
+                 flex: 12,
+                 child: Center(
+                   child: Text(
+                     '$totalIAs/$totalTAs',
+                     style: TextStyle(
+                       fontWeight: FontWeight.w700,
+                       fontSize: 13,
+                       color: _onSurface,
+                       fontFamily: appFontFamily,
+                     ),
+                   ),
+                 ),
+               ),
+               Expanded(
+                 flex: 10,
+                 child: Center(
+                   child: Container(
+                     padding:
+                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                     decoration: BoxDecoration(
+                       color: totalODs > 0
+                           ? _crimson.withValues(alpha: 0.12)
+                           : _emerald.withValues(alpha: 0.1),
+                       borderRadius: BorderRadius.circular(6),
+                     ),
+                     child: Text(
+                       '$totalODs',
+                       style: TextStyle(
+                         fontWeight: FontWeight.w800,
+                         fontSize: 12,
+                         color: totalODs > 0 ? _crimsonBright : _emerald,
+                         fontFamily: appFontFamily,
+                       ),
+                       textAlign: TextAlign.center,
+                     ),
+                   ),
+                 ),
+               ),
+               Expanded(
+                 flex: 12,
+                 child: const SizedBox.shrink(),
+               ),
+               Expanded(
+                 flex: 12,
+                 child: const SizedBox.shrink(),
+               ),
+             ],
+           ),
+         ),
+       ],
+     ),
+   );
+ }
+
+ Widget _buildSnapshotRow({
+   required int index,
+   required ProjectRecord project,
+   required ProjectProgressSnapshot snap,
+   required bool isLast,
+   required Color healthColor,
+   required String healthLabel,
+   required IconData healthIcon,
+ }) {
+   final progressVal = snap.completion.clamp(0.0, 1.0);
+   final phase = snap.currentPhase;
+   final milestoneRatio = snap.totalMilestones > 0
+       ? snap.achievedMilestones / snap.totalMilestones
+       : 0.0;
+   final activityRatio = snap.totalActivities > 0
+       ? snap.implementedActivities / snap.totalActivities
+       : 0.0;
+
+   // Relative time helper
+   String relativeTime(DateTime dt) {
+     final diff = DateTime.now().difference(dt);
+     if (diff.inMinutes < 1) return 'now';
+     if (diff.inHours < 1) return '${diff.inMinutes}m';
+     if (diff.inDays < 1) return '${diff.inHours}h';
+     if (diff.inDays < 7) return '${diff.inDays}d';
+     if (diff.inDays < 30) return '${(diff.inDays / 7).round()}w';
+     return '${dt.day}/${dt.month}';
+   }
+
+   // Phase dot color
+   Color phaseDotColor(String ph) {
+     final n = ph.toLowerCase();
+     if (n.contains('complete')) return _emerald;
+     if (n.contains('launch') || n.contains('close')) return _blue;
+     if (n.contains('execution')) return _gold;
+     if (n.contains('design')) return const Color(0xFF8B5CF6);
+     if (n.contains('planning')) return const Color(0xFFF59E0B);
+     return _muted;
+   }
+
+   final dotColor = phaseDotColor(phase);
+
+   return Container(
+     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+     decoration: BoxDecoration(
+       color: index.isOdd
+           ? _surface.withValues(alpha: 0.15)
+           : Colors.transparent,
+       border: isLast
+           ? null
+           : Border(
+               bottom: BorderSide(
+                 color: _outline.withValues(alpha: 0.08),
+               ),
+             ),
+     ),
+     child: Row(
+       children: [
+         // ── Project name + phase ──
+         Expanded(
+           flex: 28,
+           child: Row(
+             children: [
+               Container(
+                 width: 8,
+                 height: 8,
+                 decoration: BoxDecoration(
+                   shape: BoxShape.circle,
+                   color: dotColor,
+                   boxShadow: [
+                     BoxShadow(
+                       color: dotColor.withValues(alpha: 0.4),
+                       blurRadius: 4,
+                     ),
+                   ],
+                 ),
+               ),
+               const SizedBox(width: 12),
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     Text(
+                       project.name.isEmpty ? 'Untitled' : project.name,
+                       style: TextStyle(
+                         fontWeight: FontWeight.w700,
+                         fontSize: 14,
+                         color: _onSurface,
+                         fontFamily: appFontFamily,
+                       ),
+                       maxLines: 1,
+                       overflow: TextOverflow.ellipsis,
+                     ),
+                     Text(
+                       phase,
+                       style: TextStyle(
+                         fontSize: 11,
+                         color: _muted,
+                         fontFamily: appFontFamily,
+                       ),
+                       maxLines: 1,
+                       overflow: TextOverflow.ellipsis,
+                     ),
+                   ],
+                 ),
+               ),
+             ],
+           ),
+         ),
+         // ── Completion ──
+         Expanded(
+           flex: 14,
+           child: Column(
+             mainAxisSize: MainAxisSize.min,
+             children: [
+               Text(
+                 '${snap.completionPercent}%',
+                 style: TextStyle(
+                   fontWeight: FontWeight.w800,
+                   fontSize: 13,
+                   color: _onSurface,
+                   fontFamily: appFontFamily,
+                 ),
+               ),
+               const SizedBox(height: 3),
+               ClipRRect(
+                 borderRadius: BorderRadius.circular(2),
+                 child: LinearProgressIndicator(
+                   value: progressVal,
+                   minHeight: 4,
+                   backgroundColor: _surfaceHighest.withValues(alpha: 0.5),
+                   valueColor: AlwaysStoppedAnimation<Color>(
+                     progressVal >= 0.8
+                         ? _emerald
+                         : progressVal >= 0.5
+                             ? _amber
+                             : _crimson,
+                   ),
+                 ),
+               ),
+             ],
+           ),
+         ),
+         // ── Milestones ──
+         Expanded(
+           flex: 12,
+           child: _cellMetric(
+             '${snap.achievedMilestones}/${snap.totalMilestones}',
+             ratio: milestoneRatio,
+           ),
+         ),
+         // ── Activities ──
+         Expanded(
+           flex: 12,
+           child: _cellMetric(
+             '${snap.implementedActivities}/${snap.totalActivities}',
+             ratio: activityRatio,
+           ),
+         ),
+         // ── Overdue ──
+         Expanded(
+           flex: 10,
+           child: Center(
+             child: snap.overdueActivities > 0
+                 ? Container(
+                     padding: const EdgeInsets.symmetric(
+                         horizontal: 10, vertical: 4),
+                     decoration: BoxDecoration(
+                       color: _crimson.withValues(alpha: 0.1),
+                       borderRadius: BorderRadius.circular(8),
+                       border: Border.all(
+                         color: _crimson.withValues(alpha: 0.2),
+                       ),
+                     ),
+                     child: Text(
+                       '${snap.overdueActivities}',
+                       style: TextStyle(
+                         fontWeight: FontWeight.w800,
+                         fontSize: 12,
+                         color: _crimsonBright,
+                         fontFamily: appFontFamily,
+                       ),
+                       textAlign: TextAlign.center,
+                     ),
+                   )
+                 : Icon(
+                     Icons.check_circle_outline,
+                     size: 16,
+                     color: _emerald.withValues(alpha: 0.6),
+                   ),
+           ),
+         ),
+         // ── Health ──
+         Expanded(
+           flex: 12,
+           child: Center(
+             child: Container(
+               padding: const EdgeInsets.symmetric(
+                   horizontal: 10, vertical: 5),
+               decoration: BoxDecoration(
+                 color: healthColor.withValues(alpha: 0.1),
+                 borderRadius: BorderRadius.circular(20),
+                 border: Border.all(
+                   color: healthColor.withValues(alpha: 0.25),
+                 ),
+               ),
+               child: Row(
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   Icon(healthIcon, size: 11, color: healthColor),
+                   const SizedBox(width: 4),
+                   Text(
+                     healthLabel,
+                     style: TextStyle(
+                       fontSize: 11,
+                       fontWeight: FontWeight.w700,
+                       color: healthColor,
+                       fontFamily: appFontFamily,
+                     ),
+                     maxLines: 1,
+                       overflow: TextOverflow.ellipsis,
+                     ),
+                   ],
+                 ),
+               ),
+             ),
+           ),
+           // ── Updated ──
+           Expanded(
+             flex: 12,
+             child: Align(
+               alignment: Alignment.centerRight,
+               child: Text(
+                 relativeTime(project.updatedAt),
+                 style: TextStyle(
+                   fontSize: 12,
+                   color: _muted,
+                   fontFamily: appFontFamily,
+                 ),
+               ),
+             ),
+           ),
+         ],
+       ),
+     );
+   }
+
+ // ── Helper: header cell ──
+ Widget _hCell(String label,
+     {int flex = 1, TextAlign align = TextAlign.start}) {
+   return Expanded(
+     flex: flex,
+     child: Text(
+       label,
+       textAlign: align,
+       style: TextStyle(
+         fontSize: 11,
+         fontWeight: FontWeight.w700,
+         color: _muted,
+         letterSpacing: 0.5,
+         fontFamily: appFontFamily,
+       ),
+     ),
+   );
+ }
+
+ // ── Helper: summary KPI chip ──
+ Widget _summaryChip(String label, String value, Color color) {
+   return Container(
+     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+     decoration: BoxDecoration(
+       color: color.withValues(alpha: 0.08),
+       borderRadius: BorderRadius.circular(10),
+       border: Border.all(color: color.withValues(alpha: 0.15)),
+     ),
+     child: Row(
+       mainAxisSize: MainAxisSize.min,
+       children: [
+         Text(
+           value,
+           style: TextStyle(
+             fontWeight: FontWeight.w800,
+             fontSize: 14,
+             color: color,
+             fontFamily: appFontFamily,
+           ),
+         ),
+         const SizedBox(width: 6),
+         Text(
+           label,
+           style: TextStyle(
+             fontSize: 10,
+             fontWeight: FontWeight.w600,
+             color: color.withValues(alpha: 0.8),
+             fontFamily: appFontFamily,
+           ),
+         ),
+       ],
+     ),
+   );
+ }
+
+ // ── Helper: numeric cell with subtle ratio indicator ──
+ Widget _cellMetric(String text, {required double ratio}) {
+   final numericColor = ratio >= 0.8
+       ? _emerald
+       : ratio >= 0.5
+           ? _amber
+           : ratio > 0
+               ? _crimson
+               : _muted;
+   return Center(
+     child: Column(
+       mainAxisSize: MainAxisSize.min,
+       children: [
+         Text(
+           text,
+           style: TextStyle(
+             fontWeight: FontWeight.w700,
+             fontSize: 13,
+             color: _onSurface,
+             fontFamily: appFontFamily,
+           ),
+         ),
+         const SizedBox(height: 3),
+         ClipRRect(
+           borderRadius: BorderRadius.circular(2),
+           child: LinearProgressIndicator(
+             value: ratio,
+             minHeight: 3,
+             backgroundColor: _surfaceHighest.withValues(alpha: 0.4),
+             valueColor: AlwaysStoppedAnimation<Color>(numericColor),
+           ),
+         ),
+       ],
+     ),
+   );
+ }
+
  // ── Portfolio Table — REAL PROJECTS ──
  Widget _portfolioTable() {
- final sortedProjects = List<ProjectRecord>.from(_projects)
- ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+   final sortedProjects = List<ProjectRecord>.from(_filteredProjects)
+     ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
  return _glassCard(
  child: Column(
@@ -824,105 +2023,18 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  child: Text('No projects found',
  style: TextStyle(
  color: _muted, fontFamily: appFontFamily))))
- else
- ...List.generate(sortedProjects.length, (i) {
- final p = sortedProjects[i];
- final status = p.progressSnapshot.health;
- String statusText;
- Color statusColor;
- switch (status) {
- case ProjectProgressHealth.completed:
- statusText = 'Completed';
- statusColor = _emerald;
- break;
- case ProjectProgressHealth.onTrack:
- statusText = 'On Track';
- statusColor = _emerald;
- break;
- case ProjectProgressHealth.behind:
- statusText = 'Behind';
- statusColor = _crimson;
- break;
- case ProjectProgressHealth.inProgress:
- statusText = 'In Progress';
- statusColor = _amber;
- break;
- }
- final phase = p.progressSnapshot.currentPhase;
- final progress = p.progressSnapshot.completionPercent;
- final overdue = p.progressSnapshot.overdueActivities;
-
- return Container(
- padding: const EdgeInsets.symmetric(
- horizontal: 20, vertical: 14),
- decoration: BoxDecoration(
- color: i.isOdd
- ? _surface.withValues(alpha: 0.3)
- : Colors.transparent,
- border: i < sortedProjects.length - 1
- ? Border(
- bottom: BorderSide(
- color: _outline.withValues(alpha: 0.1)))
- : null),
- child: Row(children: [
- Expanded(
- flex: 3,
- child: Row(children: [
- Container(
- width: 4,
- height: 28,
- decoration: BoxDecoration(
- color: statusColor,
- borderRadius: BorderRadius.circular(2))),
- const SizedBox(width: 10),
- Expanded(
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(p.name.isEmpty ? 'Untitled' : p.name,
- style: TextStyle(
- color: _onSurface,
- fontSize: 14,
- fontWeight: FontWeight.w700,
- fontFamily: appFontFamily),
- maxLines: 1,
- overflow: TextOverflow.ellipsis),
- Text(phase,
- style: TextStyle(
- color: _muted,
- fontSize: 11,
- fontFamily: appFontFamily)),
- ])),
- ])),
- Expanded(
- flex: 2,
- child: Row(children: [
- _dot(statusColor),
- const SizedBox(width: 8),
- Text(statusText,
- style: TextStyle(
- color: _muted,
- fontSize: 13,
- fontFamily: appFontFamily)),
- ])),
- Expanded(
- flex: 1,
- child: _badge('$progress%')),
- Expanded(
- flex: 1,
- child: _badge('$overdue',
- high: overdue > 0)),
- Expanded(
- flex: 2,
- child: Text(
- '${p.updatedAt.day}/${p.updatedAt.month}/${p.updatedAt.year}',
- style: TextStyle(
- color: _muted,
- fontSize: 12,
- fontFamily: appFontFamily))),
- ]),
- );
- }),
+ else ...[  // Show up to 7 by default
+ for (var i = 0; i < _tblDisplayCount(sortedProjects.length) && i < sortedProjects.length; i++)
+ _buildPortfolioRow(sortedProjects[i], i, _tblDisplayCount(sortedProjects.length)),
+ if (sortedProjects.length > 7)
+ _buildViewMoreToggle(
+ isExpanded: _showAllProjects,
+ totalCount: sortedProjects.length,
+ onToggle: () {
+ setState(() => _showAllProjects = !_showAllProjects);
+ },
+ ),
+ ],
  ]));
  }
 
@@ -1371,6 +2483,242 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  ]))),
  ]));
  }
+
+ // ═══════════════════════════════════════════════════════════════════════
+ // VIEW-MORE TOGGLE & HEALTH HELPERS
+ // ═══════════════════════════════════════════════════════════════════════
+
+ /// "View All X projects" / "Show Less" toggle button.
+  Widget _buildViewMoreToggle({
+    required bool isExpanded,
+    required int totalCount,
+    bool compact = false,
+    required VoidCallback onToggle,
+  }) {
+    final remaining = totalCount - 7;
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: compact ? 12 : 14,
+        ),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: _outline.withValues(alpha: 0.15),
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedRotation(
+              turns: isExpanded ? 0.5 : 0,
+              duration: const Duration(milliseconds: 200),
+              child: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 18,
+                color: _blue,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isExpanded
+                  ? 'Show Less'
+                  : 'View All $totalCount Projects',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: _blue,
+                fontFamily: appFontFamily,
+              ),
+            ),
+            if (!isExpanded && remaining > 0) ...[  // e.g. "+3 more"
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _blue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '+$remaining more',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _blue,
+                    fontFamily: appFontFamily,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Display count helpers (moved out of list literals for valid Dart) ──
+
+  int _snapDisplayCount(int totalLength) =>
+      _showAllInSnapshot ? totalLength : (7 < totalLength ? 7 : totalLength);
+
+  int _tblDisplayCount(int totalLength) =>
+      _showAllProjects ? totalLength : (7 < totalLength ? 7 : totalLength);
+
+  // ── Snapshot health helpers (de-duplicate switch logic) ──
+
+  Color _snapshotHealthColor(ProjectProgressHealth health) {
+    switch (health) {
+      case ProjectProgressHealth.completed:
+      case ProjectProgressHealth.onTrack:
+        return _emerald;
+      case ProjectProgressHealth.behind:
+        return _crimson;
+      case ProjectProgressHealth.inProgress:
+        return _amber;
+    }
+  }
+
+  String _snapshotHealthLabel(ProjectProgressHealth health) {
+    switch (health) {
+      case ProjectProgressHealth.completed:
+        return 'Completed';
+      case ProjectProgressHealth.onTrack:
+        return 'On Track';
+      case ProjectProgressHealth.behind:
+        return 'Behind';
+      case ProjectProgressHealth.inProgress:
+        return 'In Progress';
+    }
+  }
+
+  IconData _snapshotHealthIcon(ProjectProgressHealth health) {
+    switch (health) {
+      case ProjectProgressHealth.completed:
+        return Icons.check_circle_rounded;
+      case ProjectProgressHealth.onTrack:
+        return Icons.trending_up_rounded;
+      case ProjectProgressHealth.behind:
+        return Icons.error_outline_rounded;
+      case ProjectProgressHealth.inProgress:
+        return Icons.autorenew_rounded;
+    }
+  }
+
+  /// Builds a single row for the Portfolio Health Overview table.
+  Widget _buildPortfolioRow(ProjectRecord p, int index, int displayCount) {
+    final status = p.progressSnapshot.health;
+    final (String statusText, Color statusColor) = switch (status) {
+      ProjectProgressHealth.completed || ProjectProgressHealth.onTrack => ('On Track', _emerald),
+      ProjectProgressHealth.behind => ('Behind', _crimson),
+      ProjectProgressHealth.inProgress => ('In Progress', _amber),
+    };
+    final phase = p.progressSnapshot.currentPhase;
+    final progress = p.progressSnapshot.completionPercent;
+    final overdue = p.progressSnapshot.overdueActivities;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20, vertical: 14,
+      ),
+      decoration: BoxDecoration(
+        color: index.isOdd
+            ? _surface.withValues(alpha: 0.3)
+            : Colors.transparent,
+        border: index < displayCount - 1
+            ? Border(
+                bottom: BorderSide(
+                  color: _outline.withValues(alpha: 0.1),
+                ),
+              )
+            : null,
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        p.name.isEmpty ? 'Untitled' : p.name,
+                        style: TextStyle(
+                          color: _onSurface,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: appFontFamily,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        phase,
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 11,
+                          fontFamily: appFontFamily,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Row(
+              children: [
+                _dot(statusColor),
+                const SizedBox(width: 8),
+                Text(
+                  statusText,
+                  style: TextStyle(
+                    color: _muted,
+                    fontSize: 13,
+                    fontFamily: appFontFamily,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(flex: 1, child: _badge('$progress%')),
+          Expanded(
+            flex: 1,
+            child: _badge('$overdue', high: overdue > 0),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              '${p.updatedAt.day}/${p.updatedAt.month}/${p.updatedAt.year}',
+              style: TextStyle(
+                color: _muted,
+                fontSize: 12,
+                fontFamily: appFontFamily,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
  // ═══════════════════════════════════════════════════════════════════════
  // HELPER WIDGETS
