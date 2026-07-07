@@ -3788,8 +3788,8 @@ $domainHints
           item: itemName,
           description: description,
           estimatedCost: normalizedCost,
-          roiPercent: raw.roiPercent,
-          npvByYear: npvByYear,
+          roiPercent: _clampRoi(raw.roiPercent, projectType),
+          npvByYear: _sanitizeNpv(npvByYear, normalizedCost, raw.roiPercent),
         ));
       }
 
@@ -4137,6 +4137,36 @@ $domainHints
     return '''
 For each solution below, provide a cost breakdown with up to 20 items (aim for 8-20 when possible).
 Each item must include: item, description, estimated_cost (number in $currency), roi_percent (number), and npv_by_years (keys "3_years", "5_years", "10_years" with numeric values in $currency).
+
+CRITICAL — Realistic Financial Guidelines:
+- Every estimated_cost MUST be a realistic, non-zero value based on real-world market rates.
+- NEVER return estimated_cost as 0 or null. Minimum is \$5,000.
+- Research-based cost ranges (USD) by project type:
+  • Healthcare/Software platform: \$50,000–\$2,000,000+
+  • Physical pharmacy/construction: \$100,000–\$5,000,000+
+  • Digital transformation: \$75,000–\$1,500,000
+  • Staffing/Training: \$20,000–\$500,000
+  • Regulatory/Compliance: \$10,000–\$200,000
+  • Monitoring/Ongoing: \$15,000–\$300,000/year (NEVER \$0)
+
+CRITICAL — ROI and NPV Consistency Rules:
+- roi_percent is the RETURN ON INVESTMENT percentage for that line item.
+  Realistic ranges: 5%–45% for most projects. NEVER exceed 100% per item.
+  Higher-risk digital projects may go up to 60%. Physical projects typically 10%–25%.
+- npv_by_years MUST be the NET PRESENT VALUE of future cash flows from that item.
+  NPV MUST be positive if ROI is positive.
+  NPV MUST increase with time horizon: 10_years > 5_years > 3_years.
+  NPV at 5_years should typically be 1.2x–3x the estimated_cost for profitable items.
+  Example: if estimated_cost is \$50,000 and roi_percent is 20%, then:
+    npv_3_years ≈ \$15,000–\$25,000
+    npv_5_years ≈ \$30,000–\$50,000
+    npv_10_years ≈ \$60,000–\$100,000
+- For physical/infrastructure projects, ROI should be lower (10%–25%) with
+  proportionally lower NPV values.
+- For digital/software projects, ROI can be higher (20%–60%) with
+  proportionally higher NPV values.
+- Total project ROI should be a weighted average of item ROIs, NOT a sum.
+- Vary costs, ROIs, and NPVs across items — do not use identical values.
 
 Rules:
 - Detect the project type per solution (physical construction/infrastructure, digital/software, or hybrid) and use domain-appropriate line items.
@@ -4634,8 +4664,68 @@ Domain guardrail: $guardrails
   double _clampCostValue(double value, _AiProjectScale scale) {
     final maxVal = _maxSingleItemCost(scale);
     if (value > maxVal) return maxVal;
-    if (value <= 0) return 0;
+    if (value <= 0) return 5000;
     return _normalizeEstimatedCost(value);
+  }
+
+  /// Clamp ROI to realistic ranges based on project type.
+  double _clampRoi(double roi, _AiProjectType projectType) {
+    if (roi.isNaN || roi < 0) return 10.0;
+    double maxRoi;
+    switch (projectType) {
+      case _AiProjectType.digital:
+        maxRoi = 60.0;
+        break;
+      case _AiProjectType.physical:
+        maxRoi = 30.0;
+        break;
+      case _AiProjectType.hybrid:
+        maxRoi = 45.0;
+        break;
+      default:
+        maxRoi = 45.0;
+    }
+    if (roi < 5.0) return 5.0;
+    if (roi > maxRoi) return maxRoi;
+    return roi;
+  }
+
+  /// Sanitize NPV values to ensure mathematical consistency.
+  Map<int, double> _sanitizeNpv(
+      Map<int, double> npvByYear, double estimatedCost, double roi) {
+    if (npvByYear.isEmpty || estimatedCost <= 0) {
+      final roiDecimal = (roi.isNaN || roi <= 0) ? 0.15 : roi / 100.0;
+      return {
+        3: estimatedCost * roiDecimal * 1.5,
+        5: estimatedCost * roiDecimal * 2.5,
+        10: estimatedCost * roiDecimal * 4.0,
+      };
+    }
+
+    final sanitized = <int, double>{};
+    final sortedYears = npvByYear.keys.toList()..sort();
+
+    double prevNpv = 0;
+    for (final year in sortedYears) {
+      var npv = npvByYear[year]!;
+      if (npv.isNaN || npv < 0) {
+        npv = estimatedCost * 0.3 * (year / 5.0);
+      }
+      if (npv < prevNpv) {
+        npv = prevNpv * 1.15;
+      }
+      if (year == 5) {
+        final roiDecimal = (roi.isNaN || roi <= 0) ? 0.15 : roi / 100.0;
+        final minNpv = estimatedCost * roiDecimal * 1.5;
+        final maxNpv = estimatedCost * roiDecimal * 4.0;
+        if (npv < minNpv) npv = minNpv;
+        if (npv > maxNpv) npv = maxNpv;
+      }
+      sanitized[year] = npv;
+      prevNpv = npv;
+    }
+
+    return sanitized;
   }
 
   /// Clamp a monthly staffing cost to the scale-appropriate range.
