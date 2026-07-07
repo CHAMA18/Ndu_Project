@@ -134,7 +134,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  const SizedBox(height: 12),
  _buildMetricsRow(),
- const SizedBox(height: 20),
+ const SizedBox(height: 16),
+            LaunchNotesSection(
+              controller: _notesController,
+              onChanged: (v) {},
+            ),
+            const SizedBox(height: 20),
  if (_selectedView == _CloseOutView.longForm) ...[
  _buildChecklistPanel(),
  const SizedBox(height: 16),
