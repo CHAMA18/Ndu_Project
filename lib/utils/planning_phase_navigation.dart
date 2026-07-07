@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/screens/organization_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/team_training_building_screen.dart';
@@ -70,7 +70,7 @@ class PlanningPhaseNavigation {
     PlanningPage(
       id: 'work_breakdown_structure',
       title: 'Work Breakdown Structure',
-      builder: (_) => const WorkBreakdownStructureScreen(),
+      builder: (_) => const WBSModuleScreen(),
     ),
     PlanningPage(
       id: 'project_goals_milestones',

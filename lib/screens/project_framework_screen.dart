@@ -10,7 +10,7 @@ import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'project_framework_next_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
@@ -657,11 +657,11 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
  if (nextItem?.checkpoint == 'project_goals_milestones') {
  nextScreen = const ProjectFrameworkNextScreen();
  } else if (nextItem?.checkpoint == 'work_breakdown_structure') {
- nextScreen = const WorkBreakdownStructureScreen();
+ nextScreen = const WBSModuleScreen();
  } else if (nextItem?.checkpoint == 'ssher') {
  nextScreen = const SsherStackedScreen();
  } else {
- nextScreen = const WorkBreakdownStructureScreen();
+ nextScreen = const WBSModuleScreen();
  }
 
  if (projectGoals.isEmpty) {

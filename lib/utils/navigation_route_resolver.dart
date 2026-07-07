@@ -21,7 +21,7 @@ import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/change_management_screen.dart';
@@ -291,7 +291,7 @@ class NavigationRouteResolver {
       case 'project_goals_milestones':
         return const ProjectFrameworkNextScreen();
       case 'work_breakdown_structure':
-        return const WorkBreakdownStructureScreen();
+        return const WBSModuleScreen();
       case 'requirements':
         return const PlanningRequirementsScreen();
       case 'ssher':

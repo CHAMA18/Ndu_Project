@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/staffing_row.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/widgets/content_text.dart';
@@ -427,7 +427,7 @@ class _FrontEndPlanningPersonnelScreenState
  ],
  ),
  _BottomOverlays(
- onSubmit: () => WorkBreakdownStructureScreen.open(context),
+ onSubmit: () => WBSModuleScreen.open(context),
  ),
  const KazAiChatBubble(),
  ],

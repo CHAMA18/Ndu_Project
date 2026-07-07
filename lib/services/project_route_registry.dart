@@ -5,7 +5,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 // Screen Imports
 import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
+import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/screens/organization_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/team_training_building_screen.dart';
@@ -47,7 +47,7 @@ class ProjectRouteRegistry {
   static final Map<String, Widget Function()> _screens = {
     'project_framework': () => const ProjectFrameworkScreen(),
     'project_goals_milestones': () => const ProjectFrameworkNextScreen(),
-    'work_breakdown_structure': () => const WorkBreakdownStructureScreen(),
+    'work_breakdown_structure': () => const WBSModuleScreen(),
     'requirements': () => const PlanningRequirementsScreen(),
     'organization_roles_responsibilities': () =>
         const OrganizationRolesResponsibilitiesScreen(),

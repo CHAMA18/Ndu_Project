@@ -52,7 +52,6 @@ import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/project_decision_summary_screen.dart';
 import 'package:ndu_project/screens/progress_tracking_screen.dart';
-import 'package:ndu_project/screens/work_breakdown_structure_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
 import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
