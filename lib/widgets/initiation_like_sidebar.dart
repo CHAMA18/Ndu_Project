@@ -44,7 +44,7 @@ import 'package:ndu_project/screens/execution_plan_interface_management_plan_scr
 import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
-import 'package:ndu_project/screens/change_management_screen.dart';
+import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
@@ -1153,7 +1153,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   }
 
   void _openChangeManagement() {
-    _navigateWithCheckpoint('change_management', ChangeManagementScreen());
+    _navigateWithCheckpoint('change_management', const ChangeManagementModuleScreen());
   }
 
   void _openProjectPlan() {

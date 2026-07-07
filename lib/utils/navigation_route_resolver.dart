@@ -24,7 +24,7 @@ import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
 import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
-import 'package:ndu_project/screens/change_management_screen.dart';
+import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
 import 'package:ndu_project/screens/issue_management_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
 import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
@@ -297,7 +297,7 @@ class NavigationRouteResolver {
       case 'ssher':
         return const SsherStackedScreen();
       case 'change_management':
-        return ChangeManagementScreen();
+        return const ChangeManagementModuleScreen();
       case 'issue_management':
         return const IssueManagementScreen();
       case 'cost_estimate':

@@ -35,7 +35,7 @@ import 'package:ndu_project/screens/planning_procurement_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
 import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
-import 'package:ndu_project/screens/change_management_screen.dart';
+import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
 import 'package:ndu_project/screens/issue_management_screen.dart';
 import 'package:ndu_project/screens/lessons_learned_screen.dart';
 import 'package:ndu_project/screens/startup_planning_screen.dart';
@@ -310,7 +310,7 @@ class PlanningPhaseNavigation {
     PlanningPage(
       id: 'change_management',
       title: 'Change Management',
-      builder: (_) => ChangeManagementScreen(),
+      builder: (_) => const ChangeManagementModuleScreen(),
     ),
     PlanningPage(
       id: 'issue_management',

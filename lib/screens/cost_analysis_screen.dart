@@ -13,7 +13,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
-import 'package:ndu_project/screens/change_management_screen.dart';
+import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/screens/lessons_learned_screen.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
@@ -1538,7 +1538,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  Navigator.push(
  context,
  MaterialPageRoute(
- builder: (context) => ChangeManagementScreen()));
+ builder: (context) => const ChangeManagementModuleScreen()));
  } else if (title == 'Lessons Learned') {
  LessonsLearnedScreen.open(context);
  }

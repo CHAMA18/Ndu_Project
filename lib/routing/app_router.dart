@@ -68,7 +68,6 @@ import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/risk_assessment_screen.dart';
 import 'package:ndu_project/screens/risk_identification_screen.dart';
 import 'package:ndu_project/screens/issue_management_screen.dart';
-import 'package:ndu_project/screens/change_management_screen.dart';
 import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/contract_details_dashboard_screen.dart';
 import 'package:ndu_project/screens/schedule_management_board_screen.dart';
@@ -645,7 +644,7 @@ class AppRouter {
       GoRoute(
           name: AppRoutes.changeManagement,
           path: '/${AppRoutes.changeManagement}',
-          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: ChangeManagementScreen())),
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const ChangeManagementModuleScreen())),
       GoRoute(
           name: AppRoutes.schedule,
           path: '/${AppRoutes.schedule}',
