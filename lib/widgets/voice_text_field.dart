@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:ndu_project/services/voice_input_service.dart';
 import 'package:ndu_project/services/docx_import_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 /// A drop-in replacement for [TextField] that adds a microphone button
 /// for voice-to-text input.
@@ -63,6 +65,9 @@ class VoiceTextField extends StatefulWidget {
     this.enableDocxImport = false,
     this.docxImportIconColor,
     this.docxImportTooltip = 'Import from .docx / .doc',
+    this.enableKazAi = true,
+    this.kazAiLabel,
+    this.enableTextFormatting = true,
   });
 
   final TextEditingController? controller;
@@ -126,6 +131,15 @@ class VoiceTextField extends StatefulWidget {
   /// Tooltip shown on the import icon.
   final String docxImportTooltip;
 
+  /// Whether to show the KAZ AI button. Defaults to true.
+  final bool enableKazAi;
+
+  /// Optional label for AI context.
+  final String? kazAiLabel;
+
+  /// Whether to show the text formatting toolbar for multi-line fields.
+  final bool enableTextFormatting;
+
   @override
   State<VoiceTextField> createState() => _VoiceTextFieldState();
 }
@@ -138,6 +152,38 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
   bool _isListening = false;
   bool _voiceAvailable = true;
   bool _isImportingDoc = false;
+  bool _isGeneratingAi = false;
+
+  /// Generates AI content for this field using OpenAiServiceSecure.
+  Future<void> _generateWithKazAi() async {
+    if (_isGeneratingAi) return;
+    setState(() => _isGeneratingAi = true);
+    try {
+      final openai = OpenAiServiceSecure();
+      final label = widget.kazAiLabel ?? 'this field';
+      final result = await openai.generateCompletion(
+        'Suggest a concise, realistic value for the "$label" field in a '
+        'project management application. Return ONLY the text value '
+        '(no JSON, no markdown, no explanation).',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty && mounted) {
+        _controller.text = cleaned;
+        widget.onChanged?.call(cleaned);
+        setState(() {});
+      }
+    } catch (e) {
+      debugPrint('[VoiceTextField] KAZ AI failed: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _isGeneratingAi = false);
+  }
 
   /// Picks a .docx/.doc/.txt/.md/.csv/.rtf file and fills the field with its
   /// extracted plain-text content. Shows a loading spinner on the import
@@ -282,9 +328,16 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
     // message instead of silently failing.
     final voiceEnabled = widget.enableVoice && !widget.obscureText;
     final docxEnabled = widget.enableDocxImport && !widget.obscureText;
-    final effectiveDecoration = _buildDecoration(voiceEnabled, docxEnabled);
+    final kazAiEnabled = widget.enableKazAi && !widget.obscureText && !widget.readOnly;
+    final effectiveDecoration = _buildDecoration(voiceEnabled, docxEnabled, kazAiEnabled);
 
-    return TextField(
+    // Show text formatting toolbar only for multi-line fields
+    final showToolbar = widget.enableTextFormatting &&
+        !widget.obscureText &&
+        !widget.readOnly &&
+        (widget.maxLines == null || widget.maxLines! > 1);
+
+    final textField = TextField(
       controller: _controller,
       focusNode: widget.focusNode,
       decoration: effectiveDecoration,
@@ -328,14 +381,29 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
       scrollPhysics: widget.scrollPhysics,
       autofillHints: widget.autofillHints,
     );
+
+    if (showToolbar) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormattingToolbar(controller: _controller),
+          const SizedBox(height: 2),
+          textField,
+        ],
+      );
+    }
+    return textField;
   }
 
-  InputDecoration _buildDecoration(bool voiceEnabled, bool docxEnabled) {
+  InputDecoration _buildDecoration(bool voiceEnabled, bool docxEnabled, bool kazAiEnabled) {
     final base = widget.decoration ?? const InputDecoration();
 
     final icons = <Widget>[];
     if (docxEnabled) icons.add(_buildDocxImportIcon());
     if (voiceEnabled) icons.add(_buildMicIcon());
+    if (kazAiEnabled) icons.add(_buildKazAiIcon());
+    if (kazAiEnabled && _controller.text.isNotEmpty) icons.add(_buildClearIcon());
 
     if (icons.isEmpty) return base;
 
@@ -355,6 +423,38 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
     }
 
     return base.copyWith(suffixIcon: suffixWidget);
+  }
+
+  Widget _buildKazAiIcon() {
+    if (_isGeneratingAi) {
+      return const Padding(
+        padding: EdgeInsets.all(8),
+        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return IconButton(
+      icon: const Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 18),
+      tooltip: 'KAZ AI',
+      onPressed: _generateWithKazAi,
+      padding: const EdgeInsets.all(4),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      splashRadius: 16,
+    );
+  }
+
+  Widget _buildClearIcon() {
+    return IconButton(
+      icon: const Icon(Icons.delete_sweep, color: Color(0xFFEF4444), size: 18),
+      tooltip: 'Clear all content',
+      onPressed: () {
+        _controller.clear();
+        widget.onChanged?.call('');
+        setState(() {});
+      },
+      padding: const EdgeInsets.all(4),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      splashRadius: 16,
+    );
   }
 
   Widget _buildDocxImportIcon() {
@@ -496,6 +596,9 @@ class VoiceTextFormField extends StatefulWidget {
     this.enableDocxImport = false,
     this.docxImportIconColor,
     this.docxImportTooltip = 'Import from .docx / .doc',
+    this.enableKazAi = true,
+    this.kazAiLabel,
+    this.enableTextFormatting = true,
   });
 
   final TextEditingController? controller;
@@ -566,6 +669,15 @@ class VoiceTextFormField extends StatefulWidget {
   /// Tooltip shown on the import icon.
   final String docxImportTooltip;
 
+  /// Whether to show the KAZ AI button. Defaults to true.
+  final bool enableKazAi;
+
+  /// Optional label for AI context.
+  final String? kazAiLabel;
+
+  /// Whether to show the text formatting toolbar for multi-line fields.
+  final bool enableTextFormatting;
+
   @override
   State<VoiceTextFormField> createState() => _VoiceTextFormFieldState();
 }
@@ -578,6 +690,35 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
   bool _isListening = false;
   bool _voiceAvailable = true;
   bool _isImportingDoc = false;
+  bool _isGeneratingAi = false;
+
+  Future<void> _generateWithKazAi() async {
+    if (_isGeneratingAi) return;
+    setState(() => _isGeneratingAi = true);
+    try {
+      final openai = OpenAiServiceSecure();
+      final label = widget.kazAiLabel ?? 'this field';
+      final result = await openai.generateCompletion(
+        'Suggest a concise, realistic value for the "$label" field in a '
+        'project management application. Return ONLY the text value '
+        '(no JSON, no markdown, no explanation).',
+        maxTokens: 200,
+        temperature: 0.6,
+      );
+      final cleaned = result.trim();
+      if (cleaned.isNotEmpty && mounted) {
+        _controller.text = cleaned;
+        setState(() {});
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('KAZ AI failed: $e')),
+        );
+      }
+    }
+    if (mounted) setState(() => _isGeneratingAi = false);
+  }
 
   /// Picks a .docx/.doc/.txt/.md/.csv/.rtf file and fills the field with its
   /// extracted plain-text content. Shows a loading spinner on the import
@@ -726,10 +867,17 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
     // message instead of silently failing.
     final voiceEnabled = widget.enableVoice && !widget.obscureText;
     final docxEnabled = widget.enableDocxImport && !widget.obscureText;
+    final kazAiEnabled = widget.enableKazAi && !widget.obscureText && !widget.readOnly;
     final effectiveDecoration =
-        _buildDecoration(voiceEnabled, docxEnabled);
+        _buildDecoration(voiceEnabled, docxEnabled, kazAiEnabled);
 
-    return TextFormField(
+    // Show text formatting toolbar only for multi-line fields
+    final showToolbar = widget.enableTextFormatting &&
+        !widget.obscureText &&
+        !widget.readOnly &&
+        (widget.maxLines == null || widget.maxLines! > 1);
+
+    final textField = TextFormField(
       controller: _controller,
       focusNode: widget.focusNode,
       decoration: effectiveDecoration,
@@ -779,14 +927,29 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
       scrollController: widget.scrollController,
       restorationId: widget.restorationId,
     );
+
+    if (showToolbar) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextFormattingToolbar(controller: _controller),
+          const SizedBox(height: 2),
+          textField,
+        ],
+      );
+    }
+    return textField;
   }
 
-  InputDecoration _buildDecoration(bool voiceEnabled, bool docxEnabled) {
+  InputDecoration _buildDecoration(bool voiceEnabled, bool docxEnabled, bool kazAiEnabled) {
     final base = widget.decoration ?? const InputDecoration();
 
     final icons = <Widget>[];
     if (docxEnabled) icons.add(_buildDocxImportIcon());
     if (voiceEnabled) icons.add(_buildMicIcon());
+    if (kazAiEnabled) icons.add(_buildKazAiIcon());
+    if (kazAiEnabled && _controller.text.isNotEmpty) icons.add(_buildClearIcon());
 
     if (icons.isEmpty) return base;
 
@@ -806,6 +969,38 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
     }
 
     return base.copyWith(suffixIcon: suffixWidget);
+  }
+
+
+  Widget _buildKazAiIcon() {
+    if (_isGeneratingAi) {
+      return const Padding(
+        padding: EdgeInsets.all(8),
+        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    return IconButton(
+      icon: const Icon(Icons.auto_awesome, color: Color(0xFFF59E0B), size: 18),
+      tooltip: 'KAZ AI',
+      onPressed: _generateWithKazAi,
+      padding: const EdgeInsets.all(4),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      splashRadius: 16,
+    );
+  }
+
+  Widget _buildClearIcon() {
+    return IconButton(
+      icon: const Icon(Icons.delete_sweep, color: Color(0xFFEF4444), size: 18),
+      tooltip: 'Clear all content',
+      onPressed: () {
+        _controller.clear();
+        setState(() {});
+      },
+      padding: const EdgeInsets.all(4),
+      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+      splashRadius: 16,
+    );
   }
 
   Widget _buildDocxImportIcon() {

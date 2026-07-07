@@ -238,6 +238,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
  mainAxisSize: MainAxisSize.min,
  children: [
  VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: emailController,
  keyboardType: TextInputType.emailAddress,
  decoration: InputDecoration(
@@ -250,6 +252,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
  ),
  const SizedBox(height: 16),
  VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: passwordController,
  obscureText: !isPasswordVisible,
  decoration: InputDecoration(
@@ -471,6 +475,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
  SizedBox(
  height: 52,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: _companyController,
  style: const TextStyle(fontSize: 15),
  decoration: InputDecoration(
@@ -513,6 +519,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
  SizedBox(
  height: 52,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: _emailController,
  keyboardType: TextInputType.emailAddress,
  style: const TextStyle(fontSize: 15),
@@ -556,6 +564,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
  SizedBox(
  height: 52,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: _passwordController,
  obscureText: !_isPasswordVisible,
  style: const TextStyle(fontSize: 15),
@@ -609,6 +619,8 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
  SizedBox(
  height: 52,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: _confirmPasswordController,
  obscureText: !_isConfirmPasswordVisible,
  style: const TextStyle(fontSize: 15),
@@ -786,6 +798,8 @@ class _NameField extends StatelessWidget {
  SizedBox(
  height: 52,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: controller,
  style: const TextStyle(fontSize: 15),
  decoration: InputDecoration(

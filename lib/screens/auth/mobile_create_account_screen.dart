@@ -265,6 +265,8 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
                   children: [
                     Expanded(
                       child: VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                         controller: _firstNameController,
                         decoration: InputDecoration(
                           labelText: 'First Name',
@@ -286,6 +288,8 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                         controller: _lastNameController,
                         decoration: InputDecoration(
                           labelText: 'Last Name',
@@ -311,6 +315,8 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
 
                 // Company Name
                 VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                   controller: _companyController,
                   decoration: InputDecoration(
                     labelText: 'Company Name',
@@ -327,6 +333,8 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
 
                 // Email
                 VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
@@ -353,6 +361,8 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
 
                 // Password
                 VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(
@@ -389,6 +399,8 @@ class _MobileCreateAccountScreenState extends State<MobileCreateAccountScreen> {
 
                 // Confirm Password
                 VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                   controller: _confirmPasswordController,
                   obscureText: _obscureConfirmPassword,
                   decoration: InputDecoration(

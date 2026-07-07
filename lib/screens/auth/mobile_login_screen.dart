@@ -256,6 +256,8 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
 
                 // Email
                 VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
@@ -282,6 +284,8 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
 
                 // Password
                 VoiceTextFormField(
+        enableKazAi: false,
+        enableTextFormatting: false,
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   decoration: InputDecoration(

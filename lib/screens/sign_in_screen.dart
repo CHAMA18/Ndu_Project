@@ -350,6 +350,8 @@ class _SignInScreenState extends State<SignInScreen> {
  SizedBox(
  height: 54,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: _emailController,
  keyboardType: TextInputType.emailAddress,
  style: const TextStyle(fontSize: 15),
@@ -366,6 +368,8 @@ class _SignInScreenState extends State<SignInScreen> {
  SizedBox(
  height: 54,
  child: VoiceTextField(
+        enableKazAi: false,
+        enableTextFormatting: false,
  controller: _passwordController,
  obscureText: !_isPasswordVisible,
  style: const TextStyle(fontSize: 15),
