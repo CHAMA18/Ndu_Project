@@ -643,11 +643,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
 
  Widget _buildNavigation() {
-            LaunchNotesSection(
-              controller: _notesController,
-              onChanged: (v) {},
-            ),
-            const SizedBox(height: 16),
  return LaunchPhaseNavigation(
  backLabel: 'Back: Actual vs Planned Gap Analysis',
  nextLabel: 'Next: Demobilize Team',

@@ -40,6 +40,12 @@ class DeliverProjectClosureScreen extends StatefulWidget {
 
 class _DeliverProjectClosureScreenState
  extends State<DeliverProjectClosureScreen> {
+  @override
+  void dispose() {
+    _notesController.dispose();
+    super.dispose();
+  }
+  final TextEditingController _notesController = TextEditingController();
  List<LaunchScopeItem> _scopeItems = [];
  List<LaunchMilestone> _milestones = [];
  List<LaunchFollowUpItem> _outstandingItems = [];
@@ -1356,7 +1362,6 @@ class _ScopeEditDialog extends StatefulWidget {
 
 class _ScopeEditDialogState extends State<_ScopeEditDialog> {
  late final TextEditingController _deliverableCtrl;
-  final TextEditingController _notesController = TextEditingController();
  late final TextEditingController _criteriaCtrl;
  late final TextEditingController _dateCtrl;
  late String _status;
@@ -1374,7 +1379,6 @@ class _ScopeEditDialogState extends State<_ScopeEditDialog> {
 
  @override
  void dispose() {
-    _notesController.dispose();
  _deliverableCtrl.dispose();
  _criteriaCtrl.dispose();
  _dateCtrl.dispose();

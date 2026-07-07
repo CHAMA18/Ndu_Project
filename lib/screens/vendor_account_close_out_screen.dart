@@ -37,9 +37,8 @@ class VendorAccountCloseOutScreen extends StatefulWidget {
  _VendorAccountCloseOutScreenState();
 }
 
-class _VendorAccountCloseOutScreenState
+class _VendorAccountCloseOutScreenState extends State<VendorAccountCloseOutScreen> {
   final TextEditingController _notesController = TextEditingController();
- extends State<VendorAccountCloseOutScreen> {
  List<LaunchVendorItem> _vendors = [];
  List<LaunchAccessItem> _accessItems = [];
  List<LaunchFollowUpItem> _obligations = [];

@@ -37,9 +37,8 @@ class TransitionToProdTeamScreen extends StatefulWidget {
  _TransitionToProdTeamScreenState();
 }
 
-class _TransitionToProdTeamScreenState
+class _TransitionToProdTeamScreenState extends State<TransitionToProdTeamScreen> {
   final TextEditingController _notesController = TextEditingController();
- extends State<TransitionToProdTeamScreen> {
  List<LaunchTeamMember> _teamRoster = [];
  List<LaunchHandoverItem> _handoverChecklist = [];
  List<LaunchKnowledgeTransfer> _knowledgeTransfers = [];

@@ -87,7 +87,6 @@ class LaunchNotesSection extends StatelessWidget {
             controller: controller,
             maxLines: 6,
             minLines: 3,
-            kazAiLabel: label,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
