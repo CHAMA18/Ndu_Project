@@ -555,6 +555,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(width: 4),
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16), onPressed: onEdit, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: onDelete, padding: EdgeInsets.zero, constraints: const BoxConstraints()),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ]));
  }
 

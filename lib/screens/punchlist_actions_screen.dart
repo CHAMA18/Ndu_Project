@@ -1040,6 +1040,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showDistributionDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteDistributionRow(idx), splashRadius: 18, tooltip: 'Delete'),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  )),
  ]);
@@ -1224,6 +1235,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showVelocityDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteVelocityRow(idx), splashRadius: 18, tooltip: 'Delete'),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  )),
  ]);
@@ -1435,6 +1457,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showCapacityHealthDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteCapacityHealthRow(idx), splashRadius: 18, tooltip: 'Delete'),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  )),
  ]);
@@ -1620,6 +1653,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showShiftCoverageDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteShiftCoverageRow(idx), splashRadius: 18, tooltip: 'Delete'),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  )),
  ]);

@@ -1097,6 +1097,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)), onPressed: () => _openEnvDialog(existing: item), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete('environment', item.id, () { setState(() => _envItems.removeWhere((e) => e.id == item.id)); _scheduleSave(); }), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -1215,6 +1226,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)), onPressed: () => _openCicdDialog(existing: item), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete('pipeline stage', item.id, () { setState(() => _cicdItems.removeWhere((e) => e.id == item.id)); _scheduleSave(); }), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -1332,6 +1354,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)), onPressed: () => _openToolDialog(existing: item), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete('tool', item.id, () { setState(() => _toolItems.removeWhere((e) => e.id == item.id)); _scheduleSave(); }), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -1450,6 +1483,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)), onPressed: () => _openQualityDialog(existing: item), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete('quality gate', item.id, () { setState(() => _qualityItems.removeWhere((e) => e.id == item.id)); _scheduleSave(); }), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -1646,6 +1690,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  children: [
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)), onPressed: () => _openSecurityDialog(existing: item), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete('security control', item.id, () { setState(() => _securityItems.removeWhere((e) => e.id == item.id)); _scheduleSave(); }), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 28, minHeight: 28)),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -1760,6 +1815,17 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  const SizedBox(width: 8),
  IconButton(icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF64748B)), onPressed: () => _openApprovalDialog(existing: gate), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32)),
  IconButton(icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)), onPressed: () => _confirmDelete('approval gate', gate.id, () { setState(() => _approvalGates.removeWhere((e) => e.id == gate.id)); _scheduleSave(); }), padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32)),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  const SizedBox(height: 10),

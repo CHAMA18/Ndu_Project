@@ -3106,6 +3106,17 @@ Execution snapshot:
  context, member),
  color: const Color(0xFFEF4444),
  ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -3718,6 +3729,17 @@ Execution snapshot:
  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  color: const Color(0xFFEF4444),
  ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  )),
  ]);
@@ -4304,6 +4326,17 @@ Execution snapshot:
  padding: EdgeInsets.zero,
  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  color: const Color(0xFFEF4444),
+ ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
  ),
  ],
  )),

@@ -5124,6 +5124,17 @@ class _WorkPackageCardState extends State<_WorkPackageCard> {
  onPressed: widget.onDelete,
  tooltip: 'Delete',
  ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  const SizedBox(height: 8),

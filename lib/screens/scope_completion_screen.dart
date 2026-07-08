@@ -1089,6 +1089,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  color: const Color(0xFFEF4444),
  onPressed: () => _confirmDeleteWorkPackage(item),
  ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -1718,6 +1729,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  color: const Color(0xFFEF4444),
  onPressed: () => _confirmDeleteCheckpoint(item),
  ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
@@ -2110,6 +2132,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  tooltip: 'Delete',
  color: const Color(0xFFEF4444),
  onPressed: () => _confirmDeleteAcceptanceTag(item),
+ ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
  ),
  ],
  ),
@@ -2564,6 +2597,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  tooltip: 'Delete',
  color: const Color(0xFFEF4444),
  onPressed: () => _confirmDeleteScopeChange(item),
+ ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
  ),
  ],
  ),

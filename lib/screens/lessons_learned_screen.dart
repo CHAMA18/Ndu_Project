@@ -863,6 +863,17 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
  constraints: const BoxConstraints(
  minWidth: 32, minHeight: 32),
  ),
+ IconButton(
+   onPressed: () {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+     );
+   },
+   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+   tooltip: 'KAZ AI',
+   padding: EdgeInsets.zero,
+   constraints: const BoxConstraints(minWidth: 28),
+ ),
  ],
  ),
  ),
