@@ -577,8 +577,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
  const SizedBox(height: 20),
  _buildMainContentRow(context, isMobile),
  const SizedBox(height: 24),
- _buildFooterNavigation(context),
- const SizedBox(height: 12),
  _buildTipRow(context),
  const SizedBox(height: 24),
  LaunchPhaseNavigation(
@@ -595,7 +593,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
  ],
  ),
  ),
- const _AiHelperButton(),
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
  activeItemLabel: 'Scope Completion',
@@ -3127,93 +3124,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
 
  String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
 
- Widget _buildFooterNavigation(BuildContext context) {
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(12),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: LayoutBuilder(
- builder: (context, constraints) {
- final compact = constraints.maxWidth < 820;
- final backButton = TextButton.icon(
- onPressed: () => context.pop(),
- icon: const Icon(Icons.arrow_back,
- size: 18, color: Color(0xFF374151)),
- label: const Text(
- 'Back to risk tracking',
- overflow: TextOverflow.ellipsis,
- style: TextStyle(
- fontSize: 14,
- fontWeight: FontWeight.w500,
- color: Color(0xFF374151)),
- ),
- );
- final scopeLabel = const Text(
- 'Execution wrap-up · Scope view',
- overflow: TextOverflow.ellipsis,
- style: TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
- );
- final downloadButton = OutlinedButton.icon(
- onPressed: () {},
- icon: const Icon(Icons.description_outlined, size: 18),
- label: const Text('Download scope report'),
- style: OutlinedButton.styleFrom(
- foregroundColor: const Color(0xFF374151),
- side: const BorderSide(color: Color(0xFFE5E7EB)),
- padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
- ),
- );
- final finalizeButton = FilledButton.icon(
- onPressed: () {},
- icon: const Icon(Icons.check_circle_outline, size: 18),
- label: const Text('Finalize execution scope'),
- style: FilledButton.styleFrom(
- backgroundColor: const Color(0xFFFFC812),
- foregroundColor: Colors.black,
- padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
- ),
- );
-
- if (compact) {
- return Column(
- crossAxisAlignment: CrossAxisAlignment.stretch,
- children: [
- Row(
- children: [
- Flexible(child: backButton),
- const SizedBox(width: 8),
- Flexible(child: scopeLabel),
- ],
- ),
- const SizedBox(height: 12),
- Wrap(
- alignment: WrapAlignment.end,
- spacing: 10,
- runSpacing: 10,
- children: [downloadButton, finalizeButton],
- ),
- ],
- );
- }
-
- return Row(
- children: [
- backButton,
- const SizedBox(width: 12),
- Flexible(child: scopeLabel),
- const Spacer(),
- downloadButton,
- const SizedBox(width: 12),
- finalizeButton,
- ],
- );
- },
- ),
- );
- }
 
  Widget _buildTipRow(BuildContext context) {
  return Row(
@@ -3271,54 +3181,6 @@ class _ContentCard extends StatelessWidget {
  }
 }
 
-class _AiHelperButton extends StatelessWidget {
- const _AiHelperButton();
-
- @override
- Widget build(BuildContext context) {
- return Positioned(
- bottom: 90,
- right: 100,
- child: Material(
- color: Colors.transparent,
- child: InkWell(
- onTap: () {},
- borderRadius: BorderRadius.circular(24),
- child: Container(
- padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(24),
- boxShadow: [
- BoxShadow(
- color: Colors.black.withOpacity(0.1),
- blurRadius: 10,
- offset: const Offset(0, 4),
- ),
- ],
- ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: const [
- Text(
- 'Help me summarize scope',
- style: TextStyle(
- fontSize: 14,
- fontWeight: FontWeight.w500,
- color: Color(0xFF374151),
- ),
- ),
- SizedBox(width: 6),
- Icon(Icons.arrow_forward_ios,
- size: 14, color: Color(0xFF374151)),
- ],
- ),
- ),
- ),
- ),
- );
- }
-}
 
 enum _ReadinessTone { success, warning, danger }
 
