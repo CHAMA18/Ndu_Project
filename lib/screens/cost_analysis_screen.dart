@@ -4195,27 +4195,27 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Category',
  width: _benefitCategoryColumnWidth,
- alignment: Alignment.centerLeft),
+ alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Benefit Title',
  width: _benefitTitleColumnWidth,
- alignment: Alignment.centerLeft),
+ alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Unit Value',
  width: _benefitUnitValueColumnWidth,
- alignment: Alignment.centerRight),
+ alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Total Units',
  width: _benefitTotalUnitsColumnWidth,
- alignment: Alignment.centerRight),
+ alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Total Value',
  width: _benefitTotalValueColumnWidth,
- alignment: Alignment.centerRight),
+ alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Basis',
  width: _benefitNotesColumnWidth,
- alignment: Alignment.centerLeft),
+ alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Actions',
  width: _benefitActionsColumnWidth,
@@ -4317,7 +4317,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  width: _benefitCategoryColumnWidth,
  child: const Text(
  'TOTAL benefits',
- textAlign: TextAlign.left,
+ textAlign: TextAlign.center,
  style: TextStyle(
  fontSize: 13,
  fontWeight: FontWeight.w700,
@@ -4332,7 +4332,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitTotalUnitsColumnWidth,
  child: Align(
- alignment: Alignment.centerRight,
+ alignment: Alignment.center,
  child: Text(
  _benefitTotalUnits().toStringAsFixed(1),
  style: const TextStyle(
@@ -4344,7 +4344,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitTotalValueColumnWidth,
  child: Align(
- alignment: Alignment.centerRight,
+ alignment: Alignment.center,
  child: Text(
  _formatCurrencyValue(
  _calculateTotalBenefitsWithFrequency()),
@@ -4454,7 +4454,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  width: _benefitCategoryColumnWidth,
  child: Text(
  _benefitCategoryLabel(entry.categoryKey),
- textAlign: TextAlign.left,
+ textAlign: TextAlign.center,
  style: const TextStyle(fontSize: 12, color: Color(0xFF111827)),
  maxLines: 2,
  overflow: TextOverflow.ellipsis,
@@ -4467,7 +4467,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  entry.titleController.text.trim().isEmpty
  ? 'Benefit item'
  : entry.titleController.text.trim(),
- textAlign: TextAlign.left,
+ textAlign: TextAlign.center,
  style: const TextStyle(fontSize: 12),
  maxLines: 2,
  overflow: TextOverflow.ellipsis,
@@ -4477,7 +4477,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitUnitValueColumnWidth,
  child: Align(
- alignment: Alignment.centerRight,
+ alignment: Alignment.center,
  child: Text(
  _formatCurrencyValue(
  _parseCurrencyInput(entry.unitValueController.text),
@@ -4490,7 +4490,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitTotalUnitsColumnWidth,
  child: Align(
- alignment: Alignment.centerRight,
+ alignment: Alignment.center,
  child: Text(
  entry.unitsController.text.trim().isEmpty
  ? '0'
@@ -4503,7 +4503,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitTotalValueColumnWidth,
  child: Align(
- alignment: Alignment.centerRight,
+ alignment: Alignment.center,
  child: Text(
  _formatCurrencyValue(entry.totalValue),
  style: const TextStyle(
@@ -4520,7 +4520,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  entry.notesController.text.trim().isEmpty
  ? 'No basis provided'
  : entry.notesController.text.trim(),
- textAlign: TextAlign.left,
+ textAlign: TextAlign.center,
  style: const TextStyle(fontSize: 12),
  maxLines: 2,
  overflow: TextOverflow.ellipsis,
