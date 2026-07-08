@@ -4141,27 +4141,27 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Category',
  width: _benefitCategoryColumnWidth,
- alignment: Alignment.center),
+ alignment: Alignment.centerLeft),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Benefit Title',
  width: _benefitTitleColumnWidth,
- alignment: Alignment.center),
+ alignment: Alignment.centerLeft),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Unit Value',
  width: _benefitUnitValueColumnWidth,
- alignment: Alignment.center),
+ alignment: Alignment.centerRight),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Total Units',
  width: _benefitTotalUnitsColumnWidth,
- alignment: Alignment.center),
+ alignment: Alignment.centerRight),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Total Value',
  width: _benefitTotalValueColumnWidth,
- alignment: Alignment.center),
+ alignment: Alignment.centerRight),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Basis',
  width: _benefitNotesColumnWidth,
- alignment: Alignment.center),
+ alignment: Alignment.centerLeft),
  const SizedBox(width: _benefitColumnGap),
  _benefitHeaderCell('Actions',
  width: _benefitActionsColumnWidth,
@@ -4277,24 +4277,28 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  const SizedBox(width: _benefitColumnGap),
  SizedBox(
  width: _benefitTotalUnitsColumnWidth,
+ child: Align(
+ alignment: Alignment.centerRight,
  child: Text(
  _benefitTotalUnits().toStringAsFixed(1),
- textAlign: TextAlign.left,
  style: const TextStyle(
  fontSize: 12, fontWeight: FontWeight.w600),
+ ),
  ),
  ),
  const SizedBox(width: _benefitColumnGap),
  SizedBox(
  width: _benefitTotalValueColumnWidth,
+ child: Align(
+ alignment: Alignment.centerRight,
  child: Text(
  _formatCurrencyValue(
  _calculateTotalBenefitsWithFrequency()),
- textAlign: TextAlign.left,
  style: const TextStyle(
  fontSize: 13,
  fontWeight: FontWeight.w700,
  color: Color(0xFF1B5E20)),
+ ),
  ),
  ),
  const SizedBox(width: _benefitColumnGap),
@@ -4380,7 +4384,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitIndexColumnWidth,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.center,
  child: Text(
  '${index + 1}.',
  style: TextStyle(
@@ -4418,30 +4422,34 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  const SizedBox(width: _benefitColumnGap),
  SizedBox(
  width: _benefitUnitValueColumnWidth,
+ child: Align(
+ alignment: Alignment.centerRight,
  child: Text(
  _formatCurrencyValue(
  _parseCurrencyInput(entry.unitValueController.text),
  ),
- textAlign: TextAlign.left,
  style: const TextStyle(fontSize: 12),
+ ),
  ),
  ),
  const SizedBox(width: _benefitColumnGap),
  SizedBox(
  width: _benefitTotalUnitsColumnWidth,
+ child: Align(
+ alignment: Alignment.centerRight,
  child: Text(
  entry.unitsController.text.trim().isEmpty
  ? '0'
  : entry.unitsController.text.trim(),
- textAlign: TextAlign.left,
  style: const TextStyle(fontSize: 12),
+ ),
  ),
  ),
  const SizedBox(width: _benefitColumnGap),
  SizedBox(
  width: _benefitTotalValueColumnWidth,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.centerRight,
  child: Text(
  _formatCurrencyValue(entry.totalValue),
  style: const TextStyle(
@@ -4468,7 +4476,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(
  width: _benefitActionsColumnWidth,
  child: Row(
- mainAxisAlignment: MainAxisAlignment.start,
+ mainAxisAlignment: MainAxisAlignment.center,
  children: [
  IconButton(
  tooltip: 'View item',
