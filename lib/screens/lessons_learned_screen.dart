@@ -254,14 +254,15 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
 
  Widget _buildMainContent(BuildContext context) {
  final isMobile = AppBreakpoints.isMobile(context);
- return SingleChildScrollView(
+ return Column(
+ children: [
+ Expanded(
+ child: SingleChildScrollView(
  padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  PlanningPhaseHeader(title: 'Lessons Learned', onExportPdf: _exportPdf),
- const SizedBox(height: 16),
- _buildHeader(isMobile),
  const SizedBox(height: 24),
  const PlanningAiNotesCard(
  title: 'Notes',
@@ -276,8 +277,24 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
  const SizedBox(height: 24),
  _buildLessonsCard(isMobile),
  const SizedBox(height: 24),
- Padding(
- padding: const EdgeInsets.only(bottom: 80),
+ ],
+ ),
+ ),
+ ),
+ // ── Pinned footer navigation ──
+ Container(
+ padding: EdgeInsets.symmetric(
+ horizontal: AppBreakpoints.pagePadding(context),
+ vertical: 16,
+ ),
+ decoration: const BoxDecoration(
+ color: Colors.white,
+ border: Border(
+ top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+ ),
+ ),
+ child: Padding(
+ padding: const EdgeInsets.only(right: 72),
  child: Row(
  mainAxisAlignment: MainAxisAlignment.spaceBetween,
  children: [
@@ -315,64 +332,11 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
  ],
  ),
  ),
- ],
  ),
+ ],
  );
  }
 
- Widget _buildHeader(bool isMobile) {
- return Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Row(
- children: [
- _circularIconButton(Icons.arrow_back_ios_new_outlined,
- onTap: () => PlanningPhaseNavigation.goToPrevious(
- context, 'lessons_learned')),
- const SizedBox(width: 12),
- _circularIconButton(Icons.arrow_forward_ios,
- onTap: () => PlanningPhaseNavigation.goToNext(
- context, 'lessons_learned')),
- const SizedBox(width: 16),
- const Expanded(
- child: Center(
- child: Text(
- 'Lessons Learned',
- style: TextStyle(
- fontSize: 26,
- fontWeight: FontWeight.w700,
- color: Colors.black,
- ),
- ),
- ),
- ),
- const SizedBox(width: 8),
- _profileChip(),
- ],
- ),
- const SizedBox(height: 16),
- Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(
- child: Padding(
- padding: EdgeInsets.only(left: isMobile ? 0 : 8),
- child: const Text(
- 'Capture and implement knowledge from project experiences',
- style: TextStyle(
- fontSize: 16,
- color: Colors.black87,
- ),
- ),
- ),
- ),
- if (!isMobile) const SizedBox.shrink(),
- ],
- ),
- if (isMobile) const SizedBox.shrink(),
- ],
- );
- }
 
  Widget _buildSummaryCard(bool isMobile) {
  final data = ProjectDataHelper.getDataListening(context);

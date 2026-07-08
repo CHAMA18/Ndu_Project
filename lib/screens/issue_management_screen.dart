@@ -207,8 +207,6 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
  'Summarize key issues, escalation paths, and resolution priorities.',
  ),
  const SizedBox(height: 24),
- const _PageTitle(),
- const SizedBox(height: 24),
  _IssuesOverviewCard(metrics: _metrics),
  const SizedBox(height: 24),
  _IssuesByMilestoneCard(
@@ -339,30 +337,6 @@ class _TopUtilityBar extends StatelessWidget {
  }
 }
 
-class _PageTitle extends StatelessWidget {
- const _PageTitle();
-
- @override
- Widget build(BuildContext context) {
- return Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: const [
- Text(
- 'Issues Management',
- style: TextStyle(
- fontSize: 32,
- fontWeight: FontWeight.w600,
- color: Color(0xFF111827)),
- ),
- SizedBox(height: 8),
- Text(
- 'Trace, manage, and resolve project issues',
- style: TextStyle(fontSize: 15, color: Color(0xFF6B7280)),
- ),
- ],
- );
- }
-}
 
 class _IssuesOverviewCard extends StatelessWidget {
  const _IssuesOverviewCard({required this.metrics});

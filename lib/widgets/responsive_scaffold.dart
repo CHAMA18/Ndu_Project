@@ -145,12 +145,9 @@ class _MobileScaffold extends StatelessWidget {
             Positioned.fill(
               child: body,
             ),
-            // Universal activity-log button, top-right, on mobile screens too.
-            const Positioned(
-              top: 8,
-              right: 12,
-              child: ActivityLogAppBarButton(compact: true),
-            ),
+            // NOTE: Activity Log button removed from here — it's already
+            // rendered by PlanningPhaseHeader/UnifiedPhaseHeader. Having
+            // both caused a duplicate Activity Log button on every screen.
             if (floatingActionButton != null)
               Positioned(
                 bottom: 24,
@@ -199,15 +196,10 @@ class _DesktopScaffold extends StatelessWidget {
                   Positioned.fill(
                     child: body,
                   ),
-                  // Universal activity-log button, top-right, on every screen
-                  // that uses ResponsiveScaffold. Ensures the log is always
-                  // reachable without each screen having to wire it into its
-                  // own AppBar. Sits above the body but below any FAB.
-                  const Positioned(
-                    top: 12,
-                    right: 16,
-                    child: ActivityLogAppBarButton(compact: true),
-                  ),
+                  // NOTE: Activity Log button removed from here — it's
+                  // already rendered by PlanningPhaseHeader/
+                  // UnifiedPhaseHeader. Having both caused a duplicate
+                  // Activity Log button on every screen.
                   if (floatingActionButton != null)
                     Positioned(
                       bottom: 24,

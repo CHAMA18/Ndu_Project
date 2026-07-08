@@ -84,12 +84,17 @@ class LaunchPhaseNavigation extends StatelessWidget {
           );
         }
 
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            backButton,
-            nextButton,
-          ],
+        return Padding(
+          // Right padding prevents the Next button from overlapping with
+          // the KAZ AI chat bubble (positioned at bottom-right ~64px wide).
+          padding: const EdgeInsets.only(right: 72),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              backButton,
+              nextButton,
+            ],
+          ),
         );
       },
     );

@@ -574,7 +574,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
  if (_isLoading)
  const LinearProgressIndicator(minHeight: 2),
  if (_isLoading) const SizedBox(height: 16),
- _buildPageHeader(context),
  const SizedBox(height: 20),
  _buildFilterChips(context),
  const SizedBox(height: 24),
@@ -615,51 +614,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
  ),
  ),
  ),
- );
- }
-
- Widget _buildPageHeader(BuildContext context) {
- return Column(
- crossAxisAlignment: CrossAxisAlignment.center,
- children: [
- Container(
- padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
- decoration: BoxDecoration(
- color: const Color(0xFFFFC812),
- borderRadius: BorderRadius.circular(4),
- ),
- child: const Text(
- 'SCOPE WRAP-UP',
- style: TextStyle(
- fontSize: 11,
- fontWeight: FontWeight.w700,
- color: Colors.black,
- letterSpacing: 0.5,
- ),
- ),
- ),
- const SizedBox(height: 12),
- Text(
- 'Scope Completion',
- textAlign: TextAlign.center,
- style: Theme.of(context).textTheme.headlineLarge?.copyWith(
- fontSize: 26,
- fontWeight: FontWeight.w700,
- color: const Color(0xFF111827),
- ),
- ),
- const SizedBox(height: 8),
- Text(
- 'Confirm what was delivered, what changed, and that sponsors agree the project scope is formally complete.',
- textAlign: TextAlign.center,
- style: Theme.of(context).textTheme.bodyMedium?.copyWith(
- color: const Color(0xFF6B7280),
- fontWeight: FontWeight.w400,
- height: 1.5,
- fontSize: 14,
- ),
- ),
- ],
  );
  }
 
