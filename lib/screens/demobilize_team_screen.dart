@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/project_close_out_screen.dart';
+import 'package:ndu_project/screens/gap_analysis_scope_reconcillation_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/download_helper.dart' as download_helper;
@@ -67,7 +68,10 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
  activeItemLabel: 'Demobilize Team',
  backgroundColor: Colors.white,
  floatingActionButton: const KazAiChatBubble(positioned: false),
- body: SingleChildScrollView(
+ body: Column(
+ children: [
+ Expanded(
+ child: SingleChildScrollView(
  padding: EdgeInsets.symmetric(
  horizontal: isMobile ? 16 : 32,
  vertical: isMobile ? 16 : 28,
@@ -133,23 +137,31 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 16),
  _buildCommunicationsPanel(),
  const SizedBox(height: 24),
- LaunchPhaseNavigation(
- backLabel: 'Back: Project Close Out',
- nextLabel: 'Project Complete',
- onBack: () => ProjectCloseOutScreen.open(context),
- onNext: () {
- ScaffoldMessenger.of(context).showSnackBar(
- const SnackBar(
- content: Text(
- 'Project launch phase complete! All steps finished.'),
- duration: Duration(seconds: 4),
- ),
- );
- },
- ),
- const SizedBox(height: 48),
  ],
  ),
+ ),
+ ),
+ // ── Bottom navigation bar (pinned to bottom of screen) ──
+ Container(
+ padding: EdgeInsets.symmetric(
+ horizontal: isMobile ? 16 : 32,
+ vertical: 16,
+ ),
+ decoration: BoxDecoration(
+ color: Colors.white,
+ border: Border(
+ top: BorderSide(color: const Color(0xFFE2E8F0), width: 1),
+ ),
+ ),
+ child: LaunchPhaseNavigation(
+ backLabel: 'Back: Scope Reconcillation',
+ nextLabel: 'Project Close Out',
+ onBack: () => GapAnalysisScopeReconcillationScreen.open(context,
+ activeItemLabel: 'Project Financial Review - Scope Reconcillation'),
+ onNext: () => ProjectCloseOutScreen.open(context),
+ ),
+ ),
+ ],
  ),
  );
  }

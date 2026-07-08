@@ -85,11 +85,10 @@ class LaunchPhaseNavigation extends StatelessWidget {
         }
 
         return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Flexible(child: backButton),
-            const SizedBox(width: 16),
-            const Spacer(),
-            Flexible(child: nextButton),
+            backButton,
+            nextButton,
           ],
         );
       },
