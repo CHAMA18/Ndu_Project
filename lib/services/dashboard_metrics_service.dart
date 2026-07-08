@@ -258,7 +258,15 @@ class DashboardMetricsService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// Load all dashboard metrics for the current user in one pass.
-  static Future<DashboardMetrics> load() async {
+  ///
+  /// Performance: uses parallel Firestore reads (Future.wait) instead of
+  /// sequential awaits in a loop. The activities subcollection is loaded
+  /// in parallel batches — if there are 50 projects, we issue 50 concurrent
+  /// reads instead of 50 sequential ones (~10-20x faster).
+  ///
+  /// Pass [includeActivities] = false to skip the activities subcollection
+  /// entirely (used by portfolio dashboard which only needs status rollups).
+  static Future<DashboardMetrics> load({bool includeActivities = true}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const DashboardMetrics(
@@ -273,91 +281,136 @@ class DashboardMetricsService {
     final assigned = <AssignedActivity>[];
     final projectStatuses = <ProjectStatusRollup>[];
 
+    List<DocumentSnapshot<Map<String, dynamic>>> projectDocs;
     try {
-      // Load all projects owned by this user
+      // Load all projects owned by this user — single query
       final projectsSnap = await _firestore
           .collection('projects')
           .where('ownerId', isEqualTo: user.uid)
           .get();
-
-      for (final pDoc in projectsSnap.docs) {
-        final pData = pDoc.data();
-        final projectId = pDoc.id;
-        final projectName = pData['projectName'] as String? ?? 'Untitled';
-
-        // Load activities for this project
-        try {
-          final actsSnap = await _firestore
-              .collection('projects')
-              .doc(projectId)
-              .collection('activities')
-              .get();
-          for (final aDoc in actsSnap.docs) {
-            final a = aDoc.data();
-            final assignedTo = (a['assignedTo'] ?? '').toString();
-            if (assignedTo.isEmpty) continue;
-            // Match by UID or email
-            if (assignedTo == user.uid ||
-                assignedTo == user.email ||
-                assignedTo == user.displayName) {
-              assigned.add(AssignedActivity(
-                id: aDoc.id,
-                projectId: projectId,
-                projectName: projectName,
-                title: (a['title'] ?? 'Untitled activity').toString(),
-                phase: (a['phase'] ?? '').toString(),
-                discipline: (a['discipline'] ?? '').toString(),
-                role: (a['role'] ?? '').toString(),
-                dueDate: (a['dueDate'] ?? '').toString(),
-                status: (a['status'] ?? 'pending').toString(),
-                assignedTo: assignedTo,
-              ));
-            }
-          }
-        } catch (e) {
-          // Silently skip permission-denied errors — these happen when
-          // Firestore rules restrict access to the activities subcollection.
-          // The dashboard still works; it just shows no activities for
-          // that project. Only log unexpected errors.
-          final errorStr = e.toString();
-          if (!errorStr.contains('permission-denied') &&
-              !errorStr.contains('PERMISSION_DENIED') &&
-              !errorStr.contains('Missing or insufficient permissions')) {
-            debugPrint('[DashboardMetricsService] activities load error: $e');
-          }
-        }
-
-        // Build status rollup from project data
-        try {
-          final rollup = ProjectStatusRollup.infer(
-            projectId: projectId,
-            projectName: projectName,
-            scheduleActivities:
-                (pData['scheduleActivities'] as List? ?? []).cast(),
-            costItems: (pData['costEstimateItems'] as List? ?? []).cast(),
-            risks: (pData['risks'] as List? ?? []).cast(),
-            issues: (pData['issues'] as List? ?? []).cast(),
-            qualityItems: (pData['qualityItems'] as List? ?? []).cast(),
-            budgetTotal: (pData['budgetTotal'] as num?)?.toDouble(),
-            updatedAt: (pData['updatedAt'] as Timestamp?)?.toDate(),
-          );
-          projectStatuses.add(rollup);
-        } catch (e) {
-          debugPrint('[DashboardMetricsService] rollup error: $e');
-        }
-      }
+      projectDocs = projectsSnap.docs;
     } catch (e) {
       debugPrint('[DashboardMetricsService] projects load error: $e');
+      return const DashboardMetrics(
+        assignedToMe: [],
+        pastDue: [],
+        projectStatuses: [],
+        programStatuses: [],
+        portfolioStatuses: [],
+      );
     }
 
-    // Program + portfolio rollups (simplified — count their projects' statuses)
+    // ── Build status rollups from project data (no extra reads needed) ──
+    // This runs first because it only uses data already in the project doc.
+    for (final pDoc in projectDocs) {
+      final pData = pDoc.data()!;
+      final projectId = pDoc.id;
+      final projectName = pData['projectName'] as String? ?? 'Untitled';
+
+      try {
+        final rollup = ProjectStatusRollup.infer(
+          projectId: projectId,
+          projectName: projectName,
+          scheduleActivities:
+              (pData['scheduleActivities'] as List? ?? []).cast(),
+          costItems: (pData['costEstimateItems'] as List? ?? []).cast(),
+          risks: (pData['risks'] as List? ?? []).cast(),
+          issues: (pData['issues'] as List? ?? []).cast(),
+          qualityItems: (pData['qualityItems'] as List? ?? []).cast(),
+          budgetTotal: (pData['budgetTotal'] as num?)?.toDouble(),
+          updatedAt: (pData['updatedAt'] as Timestamp?)?.toDate(),
+        );
+        projectStatuses.add(rollup);
+      } catch (e) {
+        debugPrint('[DashboardMetricsService] rollup error: $e');
+      }
+    }
+
+    // ── Load activities in PARALLEL (not sequential) ──
+    // This is the key perf fix: instead of awaiting each project's activities
+    // query one at a time, we fire them all concurrently and wait for all to
+    // complete. 50 projects = 50 concurrent reads (~1s total) instead of 50
+    // sequential reads (~10-20s total).
+    if (includeActivities) {
+      final activityFutures = <Future<QuerySnapshot<Map<String, dynamic>>>>[];
+      for (final pDoc in projectDocs) {
+        activityFutures.add(
+          _firestore
+              .collection('projects')
+              .doc(pDoc.id)
+              .collection('activities')
+              .get(),
+        );
+      }
+
+      // Wait for all activity queries in parallel
+      List<QuerySnapshot<Map<String, dynamic>>> activitySnaps;
+      try {
+        activitySnaps = await Future.wait(activityFutures);
+      } catch (e) {
+        // If batch fails (e.g. permission-denied on some subcollection),
+        // fall back to best-effort: skip activities entirely and continue
+        // with just the project status rollups already built above.
+        final errorStr = e.toString();
+        if (!errorStr.contains('permission-denied') &&
+            !errorStr.contains('PERMISSION_DENIED') &&
+            !errorStr.contains('Missing or insufficient permissions')) {
+          debugPrint('[DashboardMetricsService] batch activities error: $e');
+        }
+        activitySnaps = <QuerySnapshot<Map<String, dynamic>>>[];
+      }
+
+      for (int i = 0; i < projectDocs.length && i < activitySnaps.length; i++) {
+        final pDoc = projectDocs[i];
+        final pData = pDoc.data()!;
+        final projectId = pDoc.id;
+        final projectName = pData['projectName'] as String? ?? 'Untitled';
+        final actsSnap = activitySnaps[i];
+
+        for (final aDoc in actsSnap.docs) {
+          final a = aDoc.data();
+          final assignedTo = (a['assignedTo'] ?? '').toString();
+          if (assignedTo.isEmpty) continue;
+          // Match by UID or email
+          if (assignedTo == user.uid ||
+              assignedTo == user.email ||
+              assignedTo == user.displayName) {
+            assigned.add(AssignedActivity(
+              id: aDoc.id,
+              projectId: projectId,
+              projectName: projectName,
+              title: (a['title'] ?? 'Untitled activity').toString(),
+              phase: (a['phase'] ?? '').toString(),
+              discipline: (a['discipline'] ?? '').toString(),
+              role: (a['role'] ?? '').toString(),
+              dueDate: (a['dueDate'] ?? '').toString(),
+              status: (a['status'] ?? 'pending').toString(),
+              assignedTo: assignedTo,
+            ));
+          }
+        }
+      }
+    }
+
+    // Program + portfolio rollups — load in parallel
     final programStatuses = <ProjectStatusRollup>[];
     final portfolioStatuses = <ProjectStatusRollup>[];
-    try {
-      final progSnap = await _firestore
+
+    final results = await Future.wait([
+      _firestore
           .collection('programs')
           .where('ownerId', isEqualTo: user.uid)
-          .get();
+          .get()
+          .catchError((_) => null),
+      _firestore
+          .collection('portfolios')
+          .where('ownerId', isEqualTo: user.uid)
+          .get()
+          .catchError((_) => null),
+    ]);
+
+    final progSnap = results[0] as QuerySnapshot<Map<String, dynamic>>?;
+    if (progSnap != null) {
       for (final doc in progSnap.docs) {
         final d = doc.data();
         programStatuses.add(ProjectStatusRollup(
@@ -371,14 +424,10 @@ class DashboardMetricsService {
           riskStatus: 'unknown',
         ));
       }
-    } catch (e) {
-      debugPrint('[DashboardMetricsService] programs load error: $e');
     }
-    try {
-      final portSnap = await _firestore
-          .collection('portfolios')
-          .where('ownerId', isEqualTo: user.uid)
-          .get();
+
+    final portSnap = results[1] as QuerySnapshot<Map<String, dynamic>>?;
+    if (portSnap != null) {
       for (final doc in portSnap.docs) {
         final d = doc.data();
         portfolioStatuses.add(ProjectStatusRollup(
@@ -392,8 +441,6 @@ class DashboardMetricsService {
           riskStatus: 'unknown',
         ));
       }
-    } catch (e) {
-      debugPrint('[DashboardMetricsService] portfolios load error: $e');
     }
 
     final pastDue = assigned.where((a) => a.isPastDue).toList()

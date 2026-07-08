@@ -4,6 +4,7 @@
 /// Shows project statuses, budget, risks, phases, milestones — all live.
 library;
 
+import 'dart:async';
 import 'dart:ui';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +18,7 @@ import 'package:ndu_project/services/portfolio_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/compact_action_button.dart';
+import 'package:ndu_project/widgets/shimmer_loading.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
 
@@ -67,6 +69,9 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   DashboardMetrics? _metrics;
   List<ProjectRecord> _projects = [];
   bool _loading = true;
+  String? _loadError;
+  bool _loadTimedOut = false;
+  static const _loadTimeout = Duration(seconds: 8);
 
   // ── Search state ──
   final TextEditingController _searchController = TextEditingController();
@@ -256,27 +261,67 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   }
 
   Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+        _loadTimedOut = false;
+      });
+    }
+
     try {
       final user = FirebaseAuth.instance.currentUser;
-      final metrics = await DashboardMetricsService.load();
 
-      // Stream projects for the user
-      final projectsSnap = await ProjectService.streamProjects(
-        ownerId: user?.uid,
-        limit: 200,
-        filterByOwner: true,
-      ).first;
+      // ── Parallelize the two independent data loads ──
+      // Previously these ran sequentially (metrics first, then projects),
+      // doubling the wall-clock time. Now they run concurrently.
+      // Also: pass includeActivities=false because the portfolio dashboard
+      // only displays project status rollups, not individual activities —
+      // skipping the activities subcollection saves N extra Firestore reads.
+      final results = await Future.wait([
+        DashboardMetricsService.load(includeActivities: false)
+            .timeout(_loadTimeout, onTimeout: () => throw TimeoutException(
+                'Dashboard metrics took longer than ${_loadTimeout.inSeconds}s')),
+        ProjectService.streamProjects(
+          ownerId: user?.uid,
+          limit: 200,
+          filterByOwner: true,
+        ).first.timeout(_loadTimeout, onTimeout: () => throw TimeoutException(
+            'Project stream took longer than ${_loadTimeout.inSeconds}s')),
+      ]);
+
+      final metrics = results[0] as DashboardMetrics;
+      final projectsSnap = results[1] as List<ProjectRecord>;
 
       if (mounted) {
         setState(() {
           _metrics = metrics;
           _projects = projectsSnap;
           _loading = false;
+          _loadError = null;
+          _loadTimedOut = false;
+        });
+      }
+    } on TimeoutException catch (e) {
+      debugPrint('[PortfolioDashboard] load timeout: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadTimedOut = true;
+          _loadError = 'Loading is taking longer than expected. '
+              'This usually happens when you have many projects. '
+              'Pull to refresh, or try again in a moment.';
         });
       }
     } catch (e) {
       debugPrint('[PortfolioDashboard] load error: $e');
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _loadError = 'Could not load dashboard data. '
+              'Check your connection and pull to refresh.';
+        });
+      }
     }
   }
 
@@ -378,38 +423,89 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: _loading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                              color: _blue, strokeWidth: 3))
-                      : RefreshIndicator(
-                          onRefresh: _loadData,
-                          color: _blue,
-                          backgroundColor: Colors.white,
-                          strokeWidth: 3,
-                          child: SingleChildScrollView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding, vertical: 28),                              child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildHeader(),
-                                const SizedBox(height: 28),
-                                _buildSearchBar(),
-                                const SizedBox(height: 20),
-                                _buildGroupPortfolioSection(context),
-                                const SizedBox(height: 28),
-                                _buildKpis(context),
-                                const SizedBox(height: 28),
-                                _buildBento(context),
-                                const SizedBox(height: 72),
-                              ],
-                            ),
-                          ),
-                        ),
+                      ? const PageShimmerSkeleton()
+                      : (_loadError != null
+                          ? _buildErrorState()
+                          : RefreshIndicator(
+                              onRefresh: _loadData,
+                              color: _blue,
+                              backgroundColor: Colors.white,
+                              strokeWidth: 3,
+                              child: SingleChildScrollView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: horizontalPadding, vertical: 28),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildHeader(),
+                                    const SizedBox(height: 28),
+                                    _buildSearchBar(),
+                                    const SizedBox(height: 20),
+                                    _buildGroupPortfolioSection(context),
+                                    const SizedBox(height: 28),
+                                    _buildKpis(context),
+                                    const SizedBox(height: 28),
+                                    _buildBento(context),
+                                    const SizedBox(height: 72),
+                                  ],
+                                ),
+                              ),
+                            )),
                 ),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+
+  // ── Error / timeout state ──
+  Widget _buildErrorState() {
+    final isTimeout = _loadTimedOut;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isTimeout ? Icons.schedule_outlined : Icons.cloud_off_outlined,
+              size: 56,
+              color: _muted,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isTimeout ? 'Taking longer than expected' : 'Could not load data',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: _onSurface,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _loadError ?? '',
+              style: TextStyle(fontSize: 14, color: _muted, height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
