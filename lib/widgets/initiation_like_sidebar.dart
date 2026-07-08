@@ -3661,18 +3661,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           onTap: () => context.push('/project-controls'),
           isActive: widget.activeItemLabel == 'Project Controls'));
     }
-    if ('change management'.contains(query) ||
-        'change request'.contains(query) ||
-        'change'.contains(query) ||
-        'moc'.contains(query) ||
-        'baseline'.contains(query) ||
-        'contingency'.contains(query) ||
-        'reserve'.contains(query)) {
-      results.add(_buildMenuItem(
-          Icons.change_circle_outlined, 'Change Management',
-          onTap: () => context.push('/change-management-module'),
-          isActive: widget.activeItemLabel == 'Change Management'));
-    }
+    // NOTE: 'Change Management' search entry removed from this block — it
+    // was duplicating the Change Management entry in the Planning Phase
+    // search block (line ~2987). The Planning Phase entry is the canonical
+    // one; this second entry pointed to the Project Controls module route
+    // which is a different screen, causing confusion with two identical
+    // "Change Management" items in search results.
     if ('settings'.contains(query)) {
       results.add(_buildMenuItem(Icons.settings_outlined, 'Settings',
           onTap: () => SettingsScreen.open(context),

@@ -18,7 +18,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
-const Color _kBackground = Color(0xFFF7F8FC);
+const Color _kBackground = Colors.white;
 const Color _kAccent = Color(0xFFFFC812);
 const Color _kHeadline = Color(0xFF1A1D1F);
 const Color _kMuted = Color(0xFF6B7280);
@@ -363,8 +363,6 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  context, 'deliverables_roadmap'),
  onForward: () =>
  PlanningPhaseNavigation.goToNext(context, 'deliverables_roadmap'), onExportPdf: _exportPdf),
- const SizedBox(height: 16),
- _buildHeader(context, displayName, subtitle, initials),
  const SizedBox(height: 24),
  _buildStatsRow(),
  const SizedBox(height: 16),
@@ -393,104 +391,6 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  onNext: () => PlanningPhaseNavigation.goToNext(
  context, 'deliverables_roadmap'),
  ),
- ],
- ),
- );
- }
-
- Widget _buildHeader(
- BuildContext context, String name, String subtitle, String initials) {
- return Row(
- crossAxisAlignment: CrossAxisAlignment.center,
- children: [
- _buildCircleButton(
- icon: Icons.arrow_back_ios_new,
- onTap: () => PlanningPhaseNavigation.goToPrevious(
- context, 'deliverables_roadmap'),
- ),
- const SizedBox(width: 10),
- _buildCircleButton(
- icon: Icons.arrow_forward_ios,
- onTap: () =>
- PlanningPhaseNavigation.goToNext(context, 'deliverables_roadmap'),
- ),
- const SizedBox(width: 24),
- const Expanded(
- child: Center(
- child: Text(
- 'Deliverables Roadmap',
- style: TextStyle(
- fontSize: 24, fontWeight: FontWeight.w800, color: _kHeadline),
- ),
- ),
- ),
- const SizedBox(width: 8),
- _buildUserChip(initials, name, subtitle),
- ],
- );
- }
-
- Widget _buildCircleButton({required IconData icon, VoidCallback? onTap}) {
- return GestureDetector(
- onTap: onTap,
- child: Container(
- width: 44,
- height: 44,
- decoration: BoxDecoration(
- color: Colors.white,
- shape: BoxShape.circle,
- border: Border.all(color: _kCardBorder),
- boxShadow: [
- BoxShadow(
- color: Colors.black.withOpacity(0.05),
- blurRadius: 10,
- offset: const Offset(0, 4),
- ),
- ],
- ),
- child: Icon(icon, size: 20, color: _kHeadline),
- ),
- );
- }
-
- Widget _buildUserChip(String initials, String name, String subtitle) {
- return Container(
- height: 48,
- padding: const EdgeInsets.symmetric(horizontal: 18),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(18),
- border: Border.all(color: _kCardBorder),
- ),
- child: Row(
- children: [
- CircleAvatar(
- radius: 16,
- backgroundColor: _kAccent,
- child: Text(initials,
- style: const TextStyle(
- fontWeight: FontWeight.w800, color: _kHeadline)),
- ),
- const SizedBox(width: 12),
- Column(
- mainAxisAlignment: MainAxisAlignment.center,
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(name,
- style: const TextStyle(
- fontSize: 13,
- fontWeight: FontWeight.w700,
- color: _kHeadline)),
- const SizedBox(height: 2),
- Text(subtitle,
- style: const TextStyle(
- fontSize: 11,
- fontWeight: FontWeight.w600,
- color: _kMuted)),
- ],
- ),
- const SizedBox(width: 12),
- const Icon(Icons.keyboard_arrow_down_rounded, color: _kMuted),
  ],
  ),
  );

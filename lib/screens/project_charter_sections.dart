@@ -356,36 +356,45 @@ class CharterDashboardStats extends StatelessWidget {
 
 // ─── 3. Meta Info Horizontal Scroll ───
 
-class CharterMetaInfoScroll extends StatelessWidget {
+class CharterMetaInfoScroll extends StatefulWidget {
  final ProjectDataModel? data;
 
  const CharterMetaInfoScroll({super.key, required this.data});
 
  @override
+ State<CharterMetaInfoScroll> createState() => _CharterMetaInfoScrollState();
+}
+
+class _CharterMetaInfoScrollState extends State<CharterMetaInfoScroll> {
+ @override
  Widget build(BuildContext context) {
- if (data == null) return const SizedBox();
+ if (widget.data == null) return const SizedBox();
+
+ final data = widget.data!;
+ final hasManager = data.charterProjectManagerName.isNotEmpty;
 
  final items = [
  _MetaInfoItem(
  icon: Icons.person_outline,
  label: 'Project Manager',
- value: data!.charterProjectManagerName.isNotEmpty
- ? data!.charterProjectManagerName
+ value: hasManager
+ ? data.charterProjectManagerName
  : 'Assign Manager',
  iconBgColor: BrandColors.secondaryContainer,
- iconFgColor: const Color(0xFF636262), // on-secondary-container
+ iconFgColor: const Color(0xFF636262),
+ onTap: hasManager ? null : () => _showAssignManagerDialog(data),
  ),
  _MetaInfoItem(
  icon: Icons.badge_outlined,
  label: 'Ref ID',
- value: data!.projectId ?? 'Draft',
+ value: data.projectId ?? 'Draft',
  iconBgColor: BrandColors.primaryFixed,
  iconFgColor: BrandColors.onPrimaryFixedVariant,
  ),
  _MetaInfoItem(
  icon: Icons.calendar_today_outlined,
  label: 'Start Date',
- value: _formatDate(data!.createdAt),
+ value: _formatDate(data.createdAt),
  iconBgColor: BrandColors.tertiaryFixed,
  iconFgColor: BrandColors.onTertiaryFixedVariant,
  ),
@@ -408,6 +417,147 @@ class CharterMetaInfoScroll extends StatelessWidget {
  if (date == null) return 'Not Provided';
  return DateFormat('MMM d, yyyy').format(date);
  }
+
+ Future<void> _showAssignManagerDialog(ProjectDataModel data) async {
+ final nameController = TextEditingController();
+ final emailController = TextEditingController();
+ final formKey = GlobalKey<FormState>();
+
+ final result = await showDialog<Map<String, String>>(
+ context: context,
+ builder: (dialogContext) {
+ return AlertDialog(
+ shape: RoundedRectangleBorder(
+ borderRadius: BorderRadius.circular(20)),
+ title: Row(
+ children: [
+ Container(
+ padding: const EdgeInsets.all(8),
+ decoration: BoxDecoration(
+ color: const Color(0xFFFEF3C7),
+ borderRadius: BorderRadius.circular(10),
+ ),
+ child: const Icon(Icons.person_add_outlined,
+ color: Color(0xFFB45309), size: 24),
+ ),
+ const SizedBox(width: 12),
+ const Text('Assign Project Manager'),
+ ],
+ ),
+ content: SizedBox(
+ width: 400,
+ child: Form(
+ key: formKey,
+ child: Column(
+ mainAxisSize: MainAxisSize.min,
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ const Text(
+ 'Assign a project manager to this project. '
+ 'A manager must be assigned before proceeding to the next step.',
+ style: TextStyle(color: Colors.grey, fontSize: 13),
+ ),
+ const SizedBox(height: 20),
+ TextFormField(
+ controller: nameController,
+ autofocus: true,
+ decoration: InputDecoration(
+ labelText: 'Manager Name',
+ hintText: 'e.g. John Doe',
+ border: OutlineInputBorder(
+ borderRadius: BorderRadius.circular(12)),
+ filled: true,
+ fillColor: Colors.grey[50],
+ ),
+ validator: (value) {
+ if (value == null || value.trim().isEmpty) {
+ return 'Please enter a manager name';
+ }
+ if (value.trim().length < 2) {
+ return 'Name must be at least 2 characters';
+ }
+ return null;
+ },
+ ),
+ const SizedBox(height: 12),
+ TextFormField(
+ controller: emailController,
+ decoration: InputDecoration(
+ labelText: 'Email (optional)',
+ hintText: 'e.g. john.doe@company.com',
+ border: OutlineInputBorder(
+ borderRadius: BorderRadius.circular(12)),
+ filled: true,
+ fillColor: Colors.grey[50],
+ ),
+ ),
+ ],
+ ),
+ ),
+ ),
+ actions: [
+ TextButton(
+ onPressed: () => Navigator.of(dialogContext).pop(),
+ child: const Text('Cancel'),
+ ),
+ ElevatedButton(
+ onPressed: () {
+ if (formKey.currentState?.validate() ?? false) {
+ Navigator.of(dialogContext).pop({
+ 'name': nameController.text.trim(),
+ 'email': emailController.text.trim(),
+ });
+ }
+ },
+ style: ElevatedButton.styleFrom(
+ backgroundColor: const Color(0xFFFFC812),
+ foregroundColor: Colors.black,
+ shape: RoundedRectangleBorder(
+ borderRadius: BorderRadius.circular(12)),
+ ),
+ child: const Text('Assign'),
+ ),
+ ],
+ );
+ },
+ );
+
+ if (result == null) return;
+
+ // Persist the manager assignment to Firestore via ProjectDataHelper
+ try {
+ await ProjectDataHelper.updateAndSave(
+ context: context,
+ checkpoint: 'project_charter',
+ dataUpdater: (current) => current.copyWith(
+ charterProjectManagerName: result['name']!,
+ ),
+ showSnackbar: false,
+ );
+
+ if (mounted) {
+ setState(() {});
+ ScaffoldMessenger.of(context).showSnackBar(
+ SnackBar(
+ content: Text('${result['name']} assigned as Project Manager'),
+ backgroundColor: Colors.green,
+ ),
+ );
+ }
+ } catch (e) {
+ if (mounted) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ SnackBar(
+ content: Text('Failed to assign manager: $e'),
+ backgroundColor: Colors.red,
+ ),
+ );
+ }
+ } finally {
+ nameController.dispose();
+ emailController.dispose();
+ }
+ }
 }
 
 class _MetaInfoItem {
@@ -416,6 +566,7 @@ class _MetaInfoItem {
  final String value;
  final Color iconBgColor;
  final Color iconFgColor;
+ final VoidCallback? onTap;
 
  const _MetaInfoItem({
  required this.icon,
@@ -423,6 +574,7 @@ class _MetaInfoItem {
  required this.value,
  required this.iconBgColor,
  required this.iconFgColor,
+ this.onTap,
  });
 }
 
@@ -433,7 +585,7 @@ class _MetaInfoCard extends StatelessWidget {
 
  @override
  Widget build(BuildContext context) {
- return Container(
+ final card = Container(
  width: 200,
  padding: const EdgeInsets.all(16),
  decoration: kCardBorderDecoration,
@@ -479,6 +631,17 @@ class _MetaInfoCard extends StatelessWidget {
  ],
  ),
  );
+
+ if (item.onTap != null) {
+ return GestureDetector(
+ onTap: item.onTap,
+ child: MouseRegion(
+ cursor: SystemMouseCursors.click,
+ child: card,
+ ),
+ );
+ }
+ return card;
  }
 }
 

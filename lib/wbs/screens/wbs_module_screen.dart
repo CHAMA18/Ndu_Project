@@ -67,17 +67,28 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
 
   /// Automatically creates the WBS from the project's existing data
   /// (project name + deliverable-based framework) so the user never
-  /// sees the setup wizard.
+  /// sees the setup wizard. Also syncs the WBS root node to the current
+  /// project name whenever the screen is opened.
   void _autoSetupIfNeeded() {
     final provider = context.read<WBSProvider>();
-    if (provider.wbs != null && provider.setupComplete) return;
     final projectProvider = context.read<ProjectDataProvider>();
-    final projectName = (projectProvider.projectData.projectName).trim().isNotEmpty
-        ? projectProvider.projectData.projectName.trim()
+    final projectData = projectProvider.projectData;
+    final projectName = (projectData.projectName).trim().isNotEmpty
+        ? projectData.projectName.trim()
         : 'Project';
+    final projectId = projectData.projectId ?? 'default';
+
+    if (provider.wbs != null && provider.setupComplete) {
+      // WBS already exists — sync its root node to the current project
+      // so it always reflects the active project context.
+      provider.syncToProject(projectId, projectName);
+      return;
+    }
+
     provider.setup(
       projectName: projectName,
       framework: WBSFramework.waterfallDeliverable,
+      projectId: projectId,
     );
   }
 

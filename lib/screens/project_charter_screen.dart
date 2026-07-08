@@ -434,11 +434,28 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
  LaunchPhaseNavigation(
  backLabel: 'Back',
  nextLabel: 'Next',
+ nextEnabled: _projectData?.charterProjectManagerName.isNotEmpty == true,
  onBack: () => FrontEndPlanningNavigation.goToPrevious(
  context,
  'project_charter',
  ),
- onNext: () => ProjectFrameworkScreen.open(context),
+ onNext: () {
+ // Block navigation if no manager is assigned
+ if (_projectData == null ||
+ _projectData!.charterProjectManagerName.trim().isEmpty) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text(
+ 'Please assign a Project Manager before proceeding. '
+ 'Tap "Assign Manager" in the Project Manager card.'),
+ backgroundColor: Color(0xFFDC2626),
+ duration: Duration(seconds: 4),
+ ),
+ );
+ return;
+ }
+ ProjectFrameworkScreen.open(context);
+ },
  ),
  ],
  ),

@@ -189,14 +189,6 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  PlanningPhaseHeader(title: 'Issue Management', onExportPdf: _exportPdf),
- const SizedBox(height: 16),
- _TopUtilityBar(
- onBack: () => PlanningPhaseNavigation.goToPrevious(
- context, 'issue_management'),
- onForward: () => PlanningPhaseNavigation.goToNext(
- context, 'issue_management'),
- onAddIssue: _handleNewIssue,
- ),
  const SizedBox(height: 24),
  const PlanningAiNotesCard(
  title: 'Notes',
@@ -271,68 +263,6 @@ class _IssueManagementScreenState extends State<IssueManagementScreen> {
  ]),
  PdfSection.text('Notes', projectData.planningNotes['planning_issue_management_notes'] ?? 'No data recorded.'),
  ],
- );
- }
-}
-
-class _TopUtilityBar extends StatelessWidget {
- const _TopUtilityBar({
- required this.onBack,
- required this.onForward,
- required this.onAddIssue,
- });
-
- final VoidCallback onBack;
- final VoidCallback onForward;
- final VoidCallback onAddIssue;
-
- @override
- Widget build(BuildContext context) {
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(18),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Row(
- children: [
- _circleButton(icon: Icons.arrow_back_ios_new_rounded, onTap: onBack),
- const SizedBox(width: 12),
- _circleButton(
- icon: Icons.arrow_forward_ios_rounded, onTap: onForward),
- const SizedBox(width: 20),
- const Text(
- 'Issues Management',
- style: TextStyle(
- fontSize: 18,
- fontWeight: FontWeight.w600,
- color: Color(0xFF111827)),
- ),
- const Spacer(),
- const SizedBox(width: 8),
- const _UserChip(name: '', role: ''),
- const SizedBox(width: 12),
- _YellowButton(label: 'New Issue', onPressed: onAddIssue),
- ],
- ),
- );
- }
-
- Widget _circleButton({required IconData icon, VoidCallback? onTap}) {
- return InkWell(
- onTap: onTap,
- borderRadius: BorderRadius.circular(999),
- child: Container(
- width: 42,
- height: 42,
- decoration: BoxDecoration(
- color: Colors.white,
- shape: BoxShape.circle,
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Icon(icon, size: 18, color: const Color(0xFF6B7280)),
- ),
  );
  }
 }

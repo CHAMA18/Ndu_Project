@@ -138,9 +138,10 @@ class WBSProvider extends ChangeNotifier {
     required String projectName,
     required WBSFramework framework,
     ProjectMethodology methodology = ProjectMethodology.waterfall,
+    String projectId = 'default',
   }) {
     _wbs = createEmptyWBS(
-      projectId: 'default',
+      projectId: projectId,
       projectName: projectName,
       framework: framework,
       methodology: methodology,
@@ -148,6 +149,35 @@ class WBSProvider extends ChangeNotifier {
     _setupComplete = true;
     notifyListeners();
     _saveToStorage();
+  }
+
+  /// Updates the WBS root node name to match the current project name.
+  /// Called when the user switches projects so the WBS tree always reflects
+  /// the active project, not a stale project from a previous session.
+  void syncToProject(String projectId, String projectName) {
+    if (_wbs == null) return;
+
+    // If the project ID changed, the old WBS data belongs to a different
+    // project — reset so _autoSetupIfNeeded creates a fresh WBS for the
+    // new project.
+    if (_wbs!.projectId != projectId && _wbs!.projectId != 'default') {
+      _wbs = null;
+      _setupComplete = false;
+      notifyListeners();
+      _saveToStorage();
+      return;
+    }
+
+    // Update the root node name to match the current project name
+    if (_wbs!.projectName != projectName && projectName.isNotEmpty) {
+      _wbs = _wbs!.copyWith(
+        projectId: projectId,
+        projectName: projectName,
+        level0: _wbs!.level0.copyWith(name: projectName),
+      );
+      notifyListeners();
+      _saveToStorage();
+    }
   }
 
   void resetWBS() {
