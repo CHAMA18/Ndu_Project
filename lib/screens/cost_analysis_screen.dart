@@ -6448,29 +6448,30 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  border: Border(
  top: BorderSide(
  color: Colors.grey.withOpacity(index == 0 ? 0 : 0.2)))),
- child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+ child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
  Expanded(
  flex: 4,
- child: Text(solutionLabel, style: const TextStyle(fontSize: 13))),
+ child: Center(
+ child: Text(solutionLabel, style: const TextStyle(fontSize: 13)))),
  Expanded(
  flex: 2,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.center,
  child: Text(_formatPercentValue(roiPct),
- textAlign: TextAlign.left))),
+ textAlign: TextAlign.center))),
  const SizedBox(width: 16),
  Expanded(
  flex: 2,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.center,
  child: Text(_formatCurrencyValue(npv)))),
  const SizedBox(width: 16),
  Expanded(
  flex: 2,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.center,
  child: Text(_formatPercentValue(irrPercent),
- textAlign: TextAlign.left))),
+ textAlign: TextAlign.center))),
  ]),
  );
  }
