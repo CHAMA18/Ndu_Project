@@ -14,12 +14,11 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/dashboard_metrics_service.dart';
 import 'package:ndu_project/services/project_service.dart';
-import 'package:ndu_project/services/portfolio_service.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/compact_action_button.dart';
 import 'package:ndu_project/widgets/shimmer_loading.dart';
-import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/screens/group_into_portfolio_screen.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
 
 class PortfolioDashboardScreen extends StatefulWidget {
@@ -90,157 +89,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   bool _showAllProjects = false;
   bool _showAllInSnapshot = false;
 
-  // ── Portfolio Grouping state (up to 7 projects) ──
-  final TextEditingController _groupSearchController = TextEditingController();
-  String _groupSearchQuery = '';
-  Set<String> _selectedPortfolioIds = {};
-
-  List<ProjectRecord> get _filteredGroupProjects {
-    if (_groupSearchQuery.isEmpty) return _projects;
-    final q = _groupSearchQuery.toLowerCase();
-    return _projects.where((p) {
-      return p.name.toLowerCase().contains(q) ||
-          p.progressSnapshot.currentPhase.toLowerCase().contains(q);
-    }).toList();
-  }
-
-  void _togglePortfolioSelection(String id) {
-    setState(() {
-      if (_selectedPortfolioIds.contains(id)) {
-        _selectedPortfolioIds.remove(id);
-      } else {
-        if (_selectedPortfolioIds.length >= 7) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('You can select up to 7 projects for a portfolio.'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          return;
-        }
-        _selectedPortfolioIds.add(id);
-      }
-    });
-  }
-
-  void _clearPortfolioSelection() {
-    setState(() => _selectedPortfolioIds = {});
-  }
-
-  Future<void> _handleCreatePortfolio() async {
-    final nameController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final portfolioName = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.pie_chart_outline_rounded,
-                    color: Color(0xFF4338CA), size: 24),
-              ),
-              const SizedBox(width: 12),
-              const Text('Name Your Portfolio'),
-            ],
-          ),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Give a name to your new portfolio of ${_selectedPortfolioIds.length} projects.',
-                  style: TextStyle(color: Colors.grey[700], fontSize: 14),
-                ),
-                const SizedBox(height: 20),
-                VoiceTextFormField(
-                  controller: nameController,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: 'Portfolio Name',
-                    hintText: 'e.g., Infrastructure Portfolio',
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter a name';
-                    }
-                    if (value.trim().length < 3) {
-                      return 'Name must be at least 3 characters';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState?.validate() ?? false) {
-                  Navigator.of(dialogContext).pop(nameController.text.trim());
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF4338CA),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Create Portfolio'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (portfolioName == null || !mounted) return;
-
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      await PortfolioService.createPortfolio(
-        name: portfolioName,
-        projectIds: _selectedPortfolioIds.toList(),
-        ownerId: user.uid,
-      );
-
-      if (!mounted) return;
-      _clearPortfolioSelection();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Portfolio created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error creating portfolio: $e'), backgroundColor: Colors.red),
-      );
-    } finally {
-      nameController.dispose();
-    }
-  }
 
  @override
  void initState() {
@@ -256,7 +104,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   void dispose() {
     _fadeController.dispose();
     _searchController.dispose();
-    _groupSearchController.dispose();
     super.dispose();
   }
 
@@ -1137,8 +984,8 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
                icon: Icons.pie_chart_outline_rounded,
                accent: const Color(0xFF4338CA),
                onTap: () {
-                 // Scroll to the grouping card below
-                 // For mobile, the card is already visible inline
+                 // Open the expanded full-page Group Into Portfolio view
+                 GroupIntoPortfolioScreen.open(context, _projects);
                },
              ),
              CompactActionButton(
@@ -1177,292 +1024,13 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
            );
          },
        ),
-       const SizedBox(height: 24),
-       // ── Group Into Portfolio inline card ──
-       _buildGroupPortfolioCard(context),
+       // NOTE: The inline "Group Projects Into A Portfolio" card has been
+       // moved to a dedicated expanded full-page view (GroupIntoPortfolioScreen).
+       // It is now only rendered when the user taps "Group Into Portfolio".
      ],
    );
  }
 
- // ═══════════════════════════════════════════════════════════════════════
- // GROUP PORTFOLIO CARD — selectable project rows + Create Portfolio
- // ═══════════════════════════════════════════════════════════════════════
- Widget _buildGroupPortfolioCard(BuildContext context) {
-   final selectedCount = _selectedPortfolioIds.length;
-   final groupProjects = _filteredGroupProjects;
-
-   return _glassCard(
-     child: Padding(
-       padding: const EdgeInsets.all(24),
-       child: Column(
-         crossAxisAlignment: CrossAxisAlignment.start,
-         children: [
-           // Heading
-           Row(
-             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-             children: [
-               Expanded(
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text(
-                       'Group Projects Into A Portfolio',
-                       style: TextStyle(
-                         color: _onSurface,
-                         fontSize: 18,
-                         fontWeight: FontWeight.w700,
-                         letterSpacing: -0.3,
-                         fontFamily: appFontFamily,
-                       ),
-                     ),
-                     const SizedBox(height: 6),
-                     Text(
-                       'When you have multiple projects, select up to seven that share a strategic outcome to create a new portfolio.',
-                       style: TextStyle(
-                         color: _muted,
-                         fontSize: 13,
-                         fontFamily: appFontFamily,
-                         height: 1.4,
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-               const SizedBox(width: 12),
-               Container(
-                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                 decoration: BoxDecoration(
-                   color: _surface.withValues(alpha: 0.6),
-                   borderRadius: BorderRadius.circular(20),
-                   border: Border.all(color: _outline.withValues(alpha: 0.3)),
-                 ),
-                 child: Row(
-                   mainAxisSize: MainAxisSize.min,
-                   children: [
-                     Icon(Icons.filter_alt_outlined, size: 16, color: _muted),
-                     const SizedBox(width: 6),
-                     Text(
-                       'Up to 7 projects',
-                       style: TextStyle(
-                         fontSize: 12,
-                         fontWeight: FontWeight.w600,
-                         color: _muted,
-                         fontFamily: appFontFamily,
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-             ],
-           ),
-           const SizedBox(height: 20),
-           // Search bar
-           Container(
-             decoration: BoxDecoration(
-               color: _surface.withValues(alpha: 0.4),
-               borderRadius: BorderRadius.circular(12),
-               border: Border.all(color: _outline.withValues(alpha: 0.2)),
-             ),
-             child: TextField(
-               controller: _groupSearchController,
-               onChanged: (v) => setState(() => _groupSearchQuery = v),
-               style: TextStyle(
-                 fontSize: 14,
-                 color: _onSurface,
-                 fontFamily: appFontFamily,
-               ),
-               decoration: InputDecoration(
-                 hintText: 'Search projects to group...',
-                 hintStyle: TextStyle(
-                   fontSize: 14,
-                   color: _muted.withValues(alpha: 0.6),
-                   fontFamily: appFontFamily,
-                 ),
-                 prefixIcon: Icon(Icons.search, size: 20, color: _muted),
-                 suffixIcon: _groupSearchQuery.isNotEmpty
-                     ? IconButton(
-                         onPressed: () {
-                           _groupSearchController.clear();
-                           setState(() => _groupSearchQuery = '');
-                         },
-                         icon: Icon(Icons.close_rounded, size: 18, color: _muted),
-                       )
-                     : null,
-                 border: InputBorder.none,
-                 contentPadding: const EdgeInsets.symmetric(vertical: 12),
-               ),
-             ),
-           ),
-           const SizedBox(height: 20),
-           // Selectable project rows
-           if (groupProjects.isEmpty)
-             Padding(
-               padding: const EdgeInsets.symmetric(vertical: 24),
-               child: Center(
-                 child: Text(
-                   'No projects available to group',
-                   style: TextStyle(color: _muted, fontFamily: appFontFamily),
-                 ),
-               ),
-             )
-           else
-             ...groupProjects.map((p) {
-               final isSelected = _selectedPortfolioIds.contains(p.id);
-               return Padding(
-                 padding: const EdgeInsets.only(bottom: 10),
-                 child: InkWell(
-                   onTap: () => _togglePortfolioSelection(p.id),
-                   borderRadius: BorderRadius.circular(14),
-                   child: Container(
-                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                     decoration: BoxDecoration(
-                       color: isSelected
-                           ? const Color(0xFFEEF2FF)
-                           : _surface.withValues(alpha: 0.3),
-                       borderRadius: BorderRadius.circular(14),
-                       border: Border.all(
-                         color: isSelected
-                             ? const Color(0xFFA5B4FC)
-                             : _outline.withValues(alpha: 0.15),
-                         width: isSelected ? 2 : 1,
-                       ),
-                     ),
-                     child: Row(
-                       children: [
-                         Container(
-                           width: 10,
-                           height: 10,
-                           decoration: BoxDecoration(
-                             shape: BoxShape.circle,
-                             color: isSelected ? _blue : _surfaceHighest,
-                           ),
-                         ),
-                         const SizedBox(width: 14),
-                         Expanded(
-                           child: Column(
-                             crossAxisAlignment: CrossAxisAlignment.start,
-                             children: [
-                               Text(
-                                 p.name.isEmpty ? 'Untitled Project' : p.name,
-                                 style: TextStyle(
-                                   fontWeight: FontWeight.w600,
-                                   fontSize: 14,
-                                   color: _onSurface,
-                                   fontFamily: appFontFamily,
-                                 ),
-                                 maxLines: 1,
-                                 overflow: TextOverflow.ellipsis,
-                               ),
-                               Text(
-                                 p.progressSnapshot.currentPhase,
-                                 style: TextStyle(
-                                   fontSize: 12,
-                                   color: _muted,
-                                   fontFamily: appFontFamily,
-                                 ),
-                                 maxLines: 1,
-                                 overflow: TextOverflow.ellipsis,
-                               ),
-                             ],
-                           ),
-                         ),
-                         Container(
-                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                           decoration: BoxDecoration(
-                             color: isSelected ? _blue : Colors.white,
-                             borderRadius: BorderRadius.circular(10),
-                             border: Border.all(
-                               color: isSelected ? _blue : _outline.withValues(alpha: 0.3),
-                             ),
-                           ),
-                           child: Text(
-                             isSelected ? 'Selected' : 'Tap to include',
-                             style: TextStyle(
-                               fontSize: 12,
-                               fontWeight: FontWeight.w600,
-                               color: isSelected ? Colors.white : _muted,
-                               fontFamily: appFontFamily,
-                             ),
-                           ),
-                         ),
-                       ],
-                     ),
-                   ),
-                 ),
-               );
-             }),
-           const SizedBox(height: 20),
-           // Divider
-           Divider(color: _outline.withValues(alpha: 0.2), height: 1),
-           const SizedBox(height: 20),
-           // Selection count + Create Portfolio button
-           Row(
-             children: [
-               Expanded(
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     Text(
-                       '$selectedCount/7 projects selected. Select up to seven to create a portfolio.',
-                       style: TextStyle(
-                         color: _onSurface,
-                         fontSize: 14,
-                         fontWeight: FontWeight.w600,
-                         fontFamily: appFontFamily,
-                       ),
-                     ),
-                     const SizedBox(height: 4),
-                     if (selectedCount > 0)
-                       Text(
-                         selectedCount == 7
-                             ? 'Maximum number of projects selected.'
-                             : '${7 - selectedCount} more project${7 - selectedCount == 1 ? '' : 's'} can be added.',
-                         style: TextStyle(
-                           color: _muted,
-                           fontSize: 12,
-                           fontFamily: appFontFamily,
-                         ),
-                       ),
-                   ],
-                 ),
-               ),
-               const SizedBox(width: 16),
-               if (selectedCount > 0)
-                 TextButton(
-                   onPressed: _clearPortfolioSelection,
-                   child: Text(
-                     'Clear all',
-                     style: TextStyle(
-                       color: _muted,
-                       fontFamily: appFontFamily,
-                     ),
-                   ),
-                 ),
-               ElevatedButton.icon(
-                 onPressed: selectedCount >= 1 ? _handleCreatePortfolio : null,
-                 icon: const Icon(Icons.pie_chart_outline_rounded, size: 18),
-                 label: Text(
-                   selectedCount >= 1 ? 'Create Portfolio' : 'Select projects',
-                   style: const TextStyle(fontWeight: FontWeight.w700),
-                 ),
-                 style: ElevatedButton.styleFrom(
-                   backgroundColor: _blue,
-                   foregroundColor: Colors.white,
-                   disabledBackgroundColor: _surfaceHighest.withValues(alpha: 0.5),
-                   disabledForegroundColor: _muted,
-                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                   shape: RoundedRectangleBorder(
-                     borderRadius: BorderRadius.circular(12),
-                   ),
-                 ),
-               ),
-             ],
-           ),
-         ],
-       ),
-     ),
-   );
- }
 
  // ═══════════════════════════════════════════════════════════════════════
  // FINALIZATION SNAPSHOT TABLE — world-class close-out readiness view
