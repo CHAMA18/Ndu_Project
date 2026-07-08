@@ -314,6 +314,60 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  );
  }
 
+ /// AI Assist — generates cost breakdown + benefit suggestions for all
+ /// solutions using the project context. Shows a loading SnackBar while
+ /// generating and a success SnackBar when complete.
+ Future<void> _aiAssist() async {
+ if (_isGenerating) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('AI Assist is already generating. Please wait...'),
+ duration: Duration(seconds: 2),
+ ),
+ );
+ return;
+ }
+
+ if (!mounted) return;
+
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Row(
+ children: [
+ SizedBox(
+ width: 16,
+ height: 16,
+ child: CircularProgressIndicator(
+ strokeWidth: 2,
+ color: Colors.white,
+ ),
+ ),
+ SizedBox(width: 12),
+ Text('KAZ AI is generating cost benefit analysis...'),
+ ],
+ ),
+ duration: Duration(seconds: 3),
+ ),
+ );
+
+ // Generate cost breakdown for all solutions
+ await _populateCategoriesFromAi();
+
+ // Generate project value if not already populated
+ if (_projectValueAmountController.text.trim().isEmpty) {
+ await _generateProjectValue();
+ }
+
+ if (!mounted) return;
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('KAZ AI: Cost benefit analysis generated successfully!'),
+ backgroundColor: Color(0xFF059669),
+ duration: Duration(seconds: 3),
+ ),
+ );
+ }
+
  @override
  void initState() {
  super.initState();
@@ -1296,7 +1350,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  ),
  Expanded(
  child: Column(children: [
- BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+ BusinessCaseHeader(scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf, onAiAssist: _aiAssist),
  Expanded(child: _buildMainContent()),
  ])),
  ]),
