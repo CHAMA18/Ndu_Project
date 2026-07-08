@@ -126,12 +126,6 @@ showNavigationButtons: false,
  emphasisColor: const Color(0xFF2563EB),
  ),
  ExecutionMetricData(
- label: 'Open / In Progress',
- value: '$open / $inProgress',
- icon: Icons.pending_outlined,
- emphasisColor: const Color(0xFFF59E0B),
- ),
- ExecutionMetricData(
  label: 'Open',
  value: '$open',
  icon: Icons.pending_outlined,
