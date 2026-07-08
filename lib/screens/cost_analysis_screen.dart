@@ -5150,9 +5150,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  child: Row(children: const [
  Expanded(
  flex: 3,
+ child: Center(
  child: Text('Item',
  style:
- TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+ TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
  SizedBox(width: 12),
  Expanded(
  flex: 2,
@@ -5164,9 +5165,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  SizedBox(width: 12),
  Expanded(
  flex: 4,
+ child: Center(
  child: Text('Comments',
  style:
- TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
+ TextStyle(fontSize: 12, fontWeight: FontWeight.w600)))),
  SizedBox(width: 8),
  SizedBox(width: 36),
  ]),
@@ -5247,9 +5249,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
  decoration: BoxDecoration(
  border: Border(top: BorderSide(color: Colors.grey.withOpacity(0.2)))),
- child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
- SizedBox(
- width: 300,
+ child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+ Expanded(
+ flex: 3,
+ child: Center(
  child: Text(
  row.itemController.text.trim().isEmpty ||
  row.itemController.text.trim().toLowerCase() == 'name'
@@ -5260,21 +5263,23 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  overflow: TextOverflow.ellipsis,
  ),
  ),
+ ),
  const SizedBox(width: 12),
- SizedBox(
- width: 150,
+ Expanded(
+ flex: 2,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.center,
  child: Text(
  _formatCurrencyValue(row.currentCost()),
  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
- textAlign: TextAlign.left,
+ textAlign: TextAlign.center,
  ),
  ),
  ),
  const SizedBox(width: 12),
- SizedBox(
- width: 300,
+ Expanded(
+ flex: 4,
+ child: Center(
  child: Text(
  row.assumptionsController.text.trim().isEmpty
  ? (row.descriptionController.text.trim().isEmpty
@@ -5286,11 +5291,12 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  overflow: TextOverflow.ellipsis,
  ),
  ),
+ ),
  const SizedBox(width: 8),
  SizedBox(
  width: _initialCostActionsColumnWidth,
  child: Row(
- mainAxisAlignment: MainAxisAlignment.start,
+ mainAxisAlignment: MainAxisAlignment.center,
  children: [
  IconButton(
  tooltip: 'View details',
@@ -5939,21 +5945,20 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  color:
  Colors.grey.withOpacity(0.2)))),
  child: Row(children: [
- SizedBox(
- width: 300,
- child: const Align(
- alignment: Alignment.centerLeft,
+ Expanded(
+ flex: 3,
+ child: Center(
  child: Text('Total',
- style: TextStyle(
+ style: const TextStyle(
  fontSize: 12,
  fontWeight: FontWeight.w700)),
  ),
  ),
  const SizedBox(width: 12),
- SizedBox(
- width: 150,
+ Expanded(
+ flex: 2,
  child: Align(
- alignment: Alignment.centerLeft,
+ alignment: Alignment.center,
  child: Text(
  _formatCurrencyValue(
  _solutionTotalCost(solutionIndex)),
@@ -5964,7 +5969,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  ),
  ),
  const SizedBox(width: 12),
- SizedBox(width: 300, child: const SizedBox()),
+ Expanded(flex: 4, child: const SizedBox()),
  const SizedBox(width: 8),
  SizedBox(
  width: _initialCostActionsColumnWidth,
