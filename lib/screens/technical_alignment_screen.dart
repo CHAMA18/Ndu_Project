@@ -812,19 +812,146 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  bool _isGeneratingModelAi = false;
 
  void _addMethodologyStandard() {
- setState(() {
- _methodologyStandards.add(
- _MethodologyStandard(
- model: '',
- bestFit: '',
- evidence: '',
- controls: '',
- exitStandard: '',
+ _showAddModelDialog();
+ }
+
+ void _showAddModelDialog() {
+ final modelController = TextEditingController();
+ final bestFitController = TextEditingController();
+ final evidenceController = TextEditingController();
+ final controlsController = TextEditingController();
+ final exitStandardController = TextEditingController();
+ final formKey = GlobalKey<FormState>();
+
+ showDialog<void>(
+ context: context,
+ barrierDismissible: false,
+ builder: (dialogContext) {
+ bool isGenerating = false;
+ return StatefulBuilder(
+ builder: (ctx, setDialogState) {
+ return AlertDialog(
+ shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+ contentPadding: EdgeInsets.zero,
+ content: Container(
+ width: 600,
+ constraints: const BoxConstraints(maxHeight: 700),
+ child: Form(
+ key: formKey,
+ child: Column(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Container(
+ padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+ decoration: const BoxDecoration(
+ gradient: LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF5B21B6)]),
+ borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24)),
+ ),
+ child: Row(
+ children: [
+ Container(width: 48, height: 48, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(14)), child: const Icon(Icons.delivery_dining_outlined, color: Colors.white, size: 26)),
+ const SizedBox(width: 16),
+ const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Add Delivery Model', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)), SizedBox(height: 4), Text('Define a new delivery model with alignment evidence and exit standards', style: TextStyle(fontSize: 13, color: Colors.white70))])),
+ IconButton(onPressed: () => Navigator.of(dialogContext).pop(), icon: const Icon(Icons.close, color: Colors.white, size: 22)),
+ ],
+ ),
+ ),
+ Flexible(
+ child: SingleChildScrollView(
+ padding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ _buildDialogField(controller: modelController, label: 'Model Name *', hint: 'e.g. Waterfall / Predictive', icon: Icons.delivery_dining_outlined, validator: (v) { if (v == null || v.trim().isEmpty) return 'Please enter a model name'; if (v.trim().length < 2) return 'Name must be at least 2 characters'; return null; }),
+ const SizedBox(height: 16),
+ _buildDialogField(controller: bestFitController, label: 'Best-Fit Use Case', hint: 'e.g. Predictable, well-defined projects', icon: Icons.flag_outlined, maxLines: 2),
+ const SizedBox(height: 16),
+ _buildDialogField(controller: evidenceController, label: 'Required Alignment Evidence', hint: 'e.g. Charter approval, traceability matrix', icon: Icons.fact_check_outlined, maxLines: 2),
+ const SizedBox(height: 16),
+ _buildDialogField(controller: controlsController, label: 'Technical Control Focus', hint: 'e.g. Phase-gate reviews, change control board', icon: Icons.security_outlined, maxLines: 2),
+ const SizedBox(height: 16),
+ _buildDialogField(controller: exitStandardController, label: 'Exit Standard', hint: 'e.g. All phase-gate criteria met, sign-off', icon: Icons.task_alt_outlined, maxLines: 2),
+ const SizedBox(height: 12),
+ Container(
+ padding: const EdgeInsets.all(14),
+ decoration: BoxDecoration(color: const Color(0xFFFFFBEB), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFFCD34D).withOpacity(0.4))),
+ child: Row(children: [
+ const Icon(Icons.auto_awesome, size: 18, color: Color(0xFFD97706)),
+ const SizedBox(width: 10),
+ const Expanded(child: Text('KAZ AI can generate model suggestions from your project context', style: TextStyle(fontSize: 12, color: Color(0xFF92400E)))),
+ TextButton.icon(
+ onPressed: isGenerating ? null : () async {
+ setDialogState(() => isGenerating = true);
+ await Future.delayed(const Duration(seconds: 1));
+ if (modelController.text.isEmpty) modelController.text = 'Hybrid Agile-Waterfall';
+ if (bestFitController.text.isEmpty) bestFitController.text = 'Projects with evolving requirements that still need governance gates';
+ if (evidenceController.text.isEmpty) evidenceController.text = 'Sprint demos, retrospective action items, change requests';
+ if (controlsController.text.isEmpty) controlsController.text = 'Sprint reviews, backlog refinement, CI/CD pipeline';
+ if (exitStandardController.text.isEmpty) exitStandardController.text = 'Definition of Done met, product owner acceptance';
+ setDialogState(() => isGenerating = false);
+ },
+ icon: isGenerating ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFD97706))) : const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFD97706)),
+ label: Text(isGenerating ? 'Generating...' : 'Generate', style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
+ ),
+ ]),
+ ),
+ ],
+ ),
+ ),
+ ),
+ Container(
+ padding: const EdgeInsets.fromLTRB(28, 12, 28, 20),
+ decoration: BoxDecoration(color: const Color(0xFFF9FAFB), borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)), border: Border(top: BorderSide(color: const Color(0xFFE5E7EB), width: 1))),
+ child: Row(
+ mainAxisAlignment: MainAxisAlignment.end,
+ children: [
+ TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w600))),
+ const SizedBox(width: 12),
+ ElevatedButton.icon(
+ onPressed: () {
+ if (formKey.currentState?.validate() ?? false) {
+ final newModel = _MethodologyStandard(model: modelController.text.trim(), bestFit: bestFitController.text.trim(), evidence: evidenceController.text.trim(), controls: controlsController.text.trim(), exitStandard: exitStandardController.text.trim());
+ Navigator.of(dialogContext).pop();
+ setState(() { _methodologyStandards.add(newModel); _editingMethodologyRows.add(_methodologyStandards.length - 1); _scheduleSave(); });
+ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${newModel.model} added to delivery models'), backgroundColor: const Color(0xFF059669), duration: const Duration(seconds: 2)));
+ }
+ },
+ icon: const Icon(Icons.add_rounded, size: 18),
+ label: const Text('Add Model', style: TextStyle(fontWeight: FontWeight.w700)),
+ style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7C3AED), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
+ ),
+ ],
+ ),
+ ),
+ ],
+ ),
+ ),
  ),
  );
- _editingMethodologyRows.add(_methodologyStandards.length - 1);
- _scheduleSave();
- });
+ },
+ );
+ },
+ );
+ }
+
+ Widget _buildDialogField({required TextEditingController controller, required String label, required String hint, required IconData icon, int maxLines = 1, String? Function(String?)? validator}) {
+ return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+ Row(children: [Icon(icon, size: 14, color: const Color(0xFF7C3AED)), const SizedBox(width: 6), Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)))]),
+ const SizedBox(height: 6),
+ TextFormField(
+ controller: controller,
+ maxLines: maxLines,
+ validator: validator,
+ decoration: InputDecoration(
+ hintText: hint,
+ filled: true,
+ fillColor: const Color(0xFFF9FAFB),
+ border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+ focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF7C3AED), width: 2)),
+ contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+ ),
+ ),
+ ]);
  }
 
  void _addReadinessGateItem() {
