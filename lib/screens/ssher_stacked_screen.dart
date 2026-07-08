@@ -569,7 +569,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
  return Scaffold(
  key: _scaffoldKey,
- backgroundColor: _Palette.surface,
+ backgroundColor: Colors.white,
  drawer: isMobile
  ? Drawer(
  width: AppBreakpoints.sidebarWidth(context),
@@ -609,7 +609,21 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(activeItemLabel: 'SSHER'),
  ),
+ Expanded(
+ child: Column(
+ children: [
+ PlanningPhaseHeader(
+ title: 'SSHER',
+ breadcrumbPhase: 'Planning Phase',
+ breadcrumbTitle: 'SSHE Planning',
+ onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+ onForward: () => PlanningPhaseNavigation.goToNext(context, 'ssher'),
+ onExportPdf: _exportPdf,
+ ),
  Expanded(child: _buildMainContent(allowCsv)),
+ ],
+ ),
+ ),
  ],
  ),
  MobileSidebarHamburger(
