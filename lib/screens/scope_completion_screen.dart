@@ -34,8 +34,6 @@ class ScopeCompletionScreen extends StatefulWidget {
 }
 
 class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
- final Set<String> _selectedFilters = {'Clear view of delivered scope'};
-
  final TextEditingController _overviewController = TextEditingController();
  final TextEditingController _statusSummaryController =
  TextEditingController();
@@ -575,8 +573,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
  const LinearProgressIndicator(minHeight: 2),
  if (_isLoading) const SizedBox(height: 16),
  const SizedBox(height: 20),
- _buildFilterChips(context),
- const SizedBox(height: 24),
  _buildOverviewCard(context),
  const SizedBox(height: 20),
  _buildMainContentRow(context, isMobile),
@@ -613,50 +609,6 @@ class _ScopeCompletionScreenState extends State<ScopeCompletionScreen> {
  ),
  ),
  ),
- ),
- );
- }
-
- Widget _buildFilterChips(BuildContext context) {
- final List<String> filters = [
- 'Clear view of delivered scope',
- 'Changes captured and approved',
- 'Ready for handover',
- ];
-
- return Center(
- child: Wrap(
- alignment: WrapAlignment.center,
- spacing: 10,
- runSpacing: 10,
- children: filters.map((label) {
- final isSelected = _selectedFilters.contains(label);
- return GestureDetector(
- onTap: () => setState(() {
- if (isSelected) {
- _selectedFilters.remove(label);
- } else {
- _selectedFilters.add(label);
- }
- }),
- child: Container(
- padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
- decoration: BoxDecoration(
- color: isSelected ? const Color(0xFF1F2937) : Colors.white,
- borderRadius: BorderRadius.circular(20),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Text(
- label,
- style: TextStyle(
- fontSize: 13,
- fontWeight: FontWeight.w600,
- color: isSelected ? Colors.white : const Color(0xFF374151),
- ),
- ),
- ),
- );
- }).toList(),
  ),
  );
  }
