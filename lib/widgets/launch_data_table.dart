@@ -486,27 +486,30 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
         children: [
           ..._buildColumnSlots(
             columns,
-            (col, _) => Text(
-              col.label,
-              textAlign: TextAlign.left,
-              softWrap: true,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF374151),
+            (col, _) => Center(
+              child: Text(
+                col.label,
+                textAlign: TextAlign.center,
+                softWrap: true,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF374151),
+                ),
               ),
             ),
           ),
           if (hasRowActions)
             SizedBox(
               width: _actionColumnWidth,
-              child: const Text(
-                'Actions',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF374151),
+              child: const Center(
+                child: Text(
+                  'Actions',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF374151),
+                  ),
                 ),
               ),
             ),
@@ -693,7 +696,7 @@ class _CellSlot extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 44),
       child: Align(
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         child: child,
       ),
     );
@@ -758,7 +761,7 @@ class _LaunchEditableCellState extends State<LaunchEditableCell> {
 
     if (!isEditing) {
       return Align(
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         child:        Text(
           widget.value.isEmpty ? '—' : widget.value,
           softWrap: true,
@@ -858,7 +861,7 @@ class _LaunchDateCellState extends State<LaunchDateCell> {
 
     if (!isEditing) {
       return Align(
-        alignment: Alignment.centerLeft,
+        alignment: Alignment.center,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
