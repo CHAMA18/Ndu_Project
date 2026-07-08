@@ -1974,10 +1974,6 @@ class _PreferredSolutionAnalysisScreenState
  ),
  child: Column(
  children: [
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: _saveAnalysisData,
- ),
  VoiceTextField(
  controller: _notesController,
  keyboardType: TextInputType.multiline,

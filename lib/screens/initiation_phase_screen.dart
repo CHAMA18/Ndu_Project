@@ -1644,11 +1644,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  ),
  ),
  const SizedBox(height: 8),
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: _saveBeforeUndo,
- ),
- const SizedBox(height: 8),
  Container(
  decoration: BoxDecoration(
  color: Colors.white,
@@ -1684,11 +1679,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  fontSize: 12.5,
  color: Colors.grey.shade600,
  ),
- ),
- const SizedBox(height: 8),
- TextFormattingToolbar(
- controller: _businessCaseController,
- onBeforeUndo: _saveBeforeUndo,
  ),
  const SizedBox(height: 8),
  Container(
@@ -1752,11 +1742,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  Icon(Icons.info_outline_rounded,
  color: Color(0xFFCBD5E1), size: 18),
  ],
- ),
- const SizedBox(height: 8),
- TextFormattingToolbar(
- controller: _businessCaseController,
- onBeforeUndo: _saveBeforeUndo,
  ),
  const SizedBox(height: 8),
  VoiceTextField(
@@ -2041,11 +2026,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  ),
  ),
  const SizedBox(height: 8),
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: _saveBeforeUndo,
- ),
- const SizedBox(height: 8),
  Container(
  width: double.infinity,
  padding: const EdgeInsets.all(16),
@@ -2113,11 +2093,6 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  ),
  ),
  SizedBox(height: AppBreakpoints.fieldGap(context)),
- TextFormattingToolbar(
- controller: _businessCaseController,
- onBeforeUndo: _saveBeforeUndo,
- ),
- const SizedBox(height: 8),
  Container(
  width: double.infinity,
  padding: const EdgeInsets.all(16),

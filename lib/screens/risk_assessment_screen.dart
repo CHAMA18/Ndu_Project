@@ -1592,7 +1592,6 @@ class _MitigationPlanCard extends StatelessWidget {
  ),
  ],
  ),
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 4),
  VoiceTextField(
  controller: controller,

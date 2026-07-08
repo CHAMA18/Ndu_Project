@@ -2105,7 +2105,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ),
  const SizedBox(height: 12),
- TextFormattingToolbar(controller: notesController),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: notesController,

@@ -431,11 +431,6 @@ class _InfrastructureConsiderationsScreenState
  ),
  ),
  const SizedBox(height: 6),
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: _saveInfrastructureConsiderationsData,
- ),
- const SizedBox(height: 6),
  Container(
  padding: const EdgeInsets.all(10),
  decoration: BoxDecoration(
@@ -1836,11 +1831,6 @@ class _InfrastructureConsiderationsScreenState
  mainAxisSize: MainAxisSize.min,
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(
- controller: controller,
- onBeforeUndo: () => _saveInfrastructureConsiderationsData(),
- ),
- const SizedBox(height: 8),
  Container(
  constraints: const BoxConstraints(minHeight: 108),
  width: double.infinity,

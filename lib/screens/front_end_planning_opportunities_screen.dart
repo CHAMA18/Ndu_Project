@@ -2215,7 +2215,6 @@ Widget _roundedField(
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,

@@ -1355,7 +1355,6 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
  textCapitalization: TextCapitalization.sentences,
  ),
  const SizedBox(height: 16),
- TextFormattingToolbar(controller: descController),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: descController,
@@ -1674,7 +1673,6 @@ Widget _formattedNotesEditor(
  ),
  ),
  ),
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,

@@ -677,7 +677,6 @@ class _FrontEndPlanningWorkspaceScreenState
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,
@@ -883,7 +882,6 @@ class _ListEditorCard extends StatelessWidget {
  mainAxisSize: MainAxisSize.min,
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,
@@ -929,7 +927,6 @@ class _ListEditorCard extends StatelessWidget {
  mainAxisSize: MainAxisSize.min,
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,

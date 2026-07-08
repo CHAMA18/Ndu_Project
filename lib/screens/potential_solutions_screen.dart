@@ -888,7 +888,6 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  ),
  ),
  const SizedBox(height: 4),
- TextFormattingToolbar(controller: solution.descriptionController),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: solution.descriptionController,
@@ -1525,13 +1524,6 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: () {
- _saveSolutions();
- },
- ),
- const SizedBox(height: 12),
  HoverableFieldControls(
  isAiGenerated: true,
  isLoading: false,
@@ -2081,7 +2073,6 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  crossAxisAlignment: CrossAxisAlignment.stretch,
  mainAxisSize: MainAxisSize.min,
  children: [
- TextFormattingToolbar(controller: solution.descriptionController),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: solution.descriptionController,
@@ -2531,7 +2522,6 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  ? Column(
  crossAxisAlignment: CrossAxisAlignment.stretch,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 6),
  if (isMobile)
  VoiceTextField(

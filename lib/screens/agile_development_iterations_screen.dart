@@ -657,7 +657,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onChanged: (value) => selectedStatus = value ?? 'To-Do',
  ),
  const SizedBox(height: 12),
- TextFormattingToolbar(controller: taskDescriptionController),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: taskDescriptionController,
@@ -666,17 +665,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  maxLines: 3,
  ),
  const SizedBox(height: 12),
- TextFormattingToolbar(
- controller: acceptanceCriteriaController),
- const SizedBox(height: 6),
- VoiceTextField(
- controller: acceptanceCriteriaController,
- decoration: const InputDecoration(
- labelText: 'Acceptance Criteria (use "." bullets)'),
- maxLines: 4,
- ),
- const SizedBox(height: 12),
- TextFormattingToolbar(controller: iterationNotesController),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: iterationNotesController,

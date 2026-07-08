@@ -1333,7 +1333,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: _notesController),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: _notesController,
@@ -1926,7 +1925,6 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.stretch,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,

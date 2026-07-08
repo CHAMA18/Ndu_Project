@@ -451,11 +451,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
  ),
  ),
  const SizedBox(height: 6),
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: _saveITConsiderationsData,
- ),
- const SizedBox(height: 6),
  Container(
  padding: const EdgeInsets.all(10),
  decoration: BoxDecoration(
@@ -1522,11 +1517,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
  fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
  ),
  const SizedBox(height: 8),
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: () => _saveITConsiderationsData(),
- ),
- const SizedBox(height: 8),
  Container(
  width: double.infinity,
  padding: const EdgeInsets.all(16),
@@ -1815,11 +1805,6 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(
- controller: controller,
- onBeforeUndo: () => _saveITConsiderationsData(),
- ),
- const SizedBox(height: 6),
  Container(
  padding: const EdgeInsets.all(10),
  decoration: BoxDecoration(

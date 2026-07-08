@@ -1337,7 +1337,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  decoration: const InputDecoration(
  labelText: 'Cost Adherence (0.0-1.0) *')),
  const SizedBox(height: 12),
- TextFormattingToolbar(controller: notesController),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: notesController,

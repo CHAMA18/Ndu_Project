@@ -456,8 +456,6 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  const SizedBox(height: 8),
 
  // ── Text formatting toolbar ──────────────────────────────
- TextFormattingToolbar(controller: controller!),
-
  const SizedBox(height: 6),
 
  // ── Hoverable field with AI controls ─────────────────────

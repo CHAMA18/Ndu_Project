@@ -889,7 +889,6 @@ onBack: () =>
  ),
  ),
  const SizedBox(height: 8),
- TextFormattingToolbar(controller: _approvalNotesController),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: _approvalNotesController,
@@ -1489,7 +1488,6 @@ class _RichTextCard extends StatelessWidget {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  VoiceTextField(
  controller: controller,

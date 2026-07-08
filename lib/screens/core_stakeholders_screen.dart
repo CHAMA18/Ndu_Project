@@ -888,12 +888,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  ),
  const Spacer(),
  // Format button
- TextFormattingToolbar(
- controller: _notesController,
- onBeforeUndo: () {
- _saveCoreStakeholdersData();
- },
- ),
  ],
  ),
  const SizedBox(height: 12),
@@ -1783,7 +1777,6 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 8),
  // Build bullet list with yellow dots from controller text
  VoiceTextField(

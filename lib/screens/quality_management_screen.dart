@@ -1002,9 +1002,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  int minLines = 3,
  int maxLines = 6,
  }) {
- final isRegenerating = _fieldIsRegenerating[key] ?? false;
  final isAiGenerated = _fieldIsAiGenerated[key] ?? false;
- final hasContent = controller.text.isNotEmpty;
 
  return Column(
  crossAxisAlignment: CrossAxisAlignment.start,
@@ -1040,72 +1038,19 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  ),
  const SizedBox(height: 6),
 
- // ── Text formatting toolbar ──────────────────────────────
- TextFormattingToolbar(controller: controller),
- const SizedBox(height: 4),
-
- // ── Hoverable field with AI controls ─────────────────────
- HoverableFieldControls(
- isAiGenerated: isAiGenerated,
- isLoading: isRegenerating,
- canUndo: _canUndoField(key),
- canRedo: _canRedoField(key),
- onUndo: () => _undoField(key, controller),
- onRedo: () => _redoField(key, controller),
- onRegenerate: () => _regenerateField(key, label),
- child: VoiceTextField(
+ // ── VoiceTextField (already includes TextFormattingToolbar +
+ //    KAZ AI button + Clear button + mic + docx import) ──
+ VoiceTextField(
  controller: controller,
  minLines: minLines,
  maxLines: maxLines,
+ kazAiLabel: label,
  onChanged: (value) {
  _recordFieldHistory(key, value);
  _onFieldChanged();
  setState(() {});
  },
- decoration: _inputDecoration(context, hint).copyWith(
- // ── KAZ AI button + Clear button inside the text field ──
- suffixIcon: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- // KAZ AI button
- IconButton(
- tooltip: 'KAZ AI',
- icon: isRegenerating
- ? const SizedBox(
- width: 16,
- height: 16,
- child:
- CircularProgressIndicator(strokeWidth: 2),
- )
- : const Icon(Icons.auto_awesome,
- color: Color(0xFFF59E0B), size: 18),
- onPressed: isRegenerating
- ? null
- : () => _regenerateField(key, label),
- padding: const EdgeInsets.all(4),
- constraints: const BoxConstraints(
- minWidth: 32, minHeight: 32),
- ),
- // Clear-all button
- if (hasContent)
- IconButton(
- tooltip: 'Clear all content',
- icon: const Icon(Icons.delete_sweep,
- color: Color(0xFFEF4444), size: 18),
- onPressed: () {
- controller.clear();
- _recordFieldHistory(key, '');
- _onFieldChanged();
- setState(() {});
- },
- padding: const EdgeInsets.all(4),
- constraints: const BoxConstraints(
- minWidth: 32, minHeight: 32),
- ),
- ],
- ),
- ),
- ),
+ decoration: _inputDecoration(context, hint),
  ),
  ],
  );

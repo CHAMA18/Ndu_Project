@@ -1376,11 +1376,6 @@ Consider typical project timelines and ensure end date is after start date.''';
  Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- TextFormattingToolbar(
- controller:
- _milestoneCommentControllers[index],
- ),
- const SizedBox(height: 8),
  VoiceTextFormField(
  controller:
  _milestoneCommentControllers[index],

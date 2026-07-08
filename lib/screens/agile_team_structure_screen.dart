@@ -277,7 +277,6 @@ class _AgileTeamStructureScreenState
  const SizedBox(height: 4),
 
  // ── Text formatting toolbar ──────────────────────────────
- TextFormattingToolbar(controller: controller),
  const SizedBox(height: 2),
 
  // ── Hoverable field with AI controls ─────────────────────

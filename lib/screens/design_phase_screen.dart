@@ -1822,7 +1822,6 @@ Future<void> _loadProgress(String projectId) async {
  ),
  const SizedBox(height: 16),
  // Formatting toolbar
- TextFormattingToolbar(controller: _richTextController),
  const SizedBox(height: 12),
  // Text area
  Container(
@@ -2585,7 +2584,6 @@ Future<void> _loadProgress(String projectId) async {
  ),
  ),
  const SizedBox(height: 18),
- TextFormattingToolbar(controller: _richTextController),
  const SizedBox(height: 12),
  Container(
  constraints: const BoxConstraints(minHeight: 320),

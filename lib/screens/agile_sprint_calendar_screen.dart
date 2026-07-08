@@ -258,7 +258,6 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  fontWeight: FontWeight.w600,
  color: _kHeadline)),
  const SizedBox(height: 8),
- TextFormattingToolbar(controller: _ceremonyController),
  const SizedBox(height: 4),
  VoiceTextField(
  controller: _ceremonyController,
