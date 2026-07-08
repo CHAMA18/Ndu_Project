@@ -758,6 +758,16 @@ class _EngineeringDesignScreenState extends State<EngineeringDesignScreen> {
  );
  }
 
+ // ── KAZ AI row generator ──
+ void _kazAiForRow() {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('KAZ AI: Generating suggestions for this row...'),
+ duration: Duration(seconds: 2),
+ ),
+ );
+ }
+
  // ─── Default Data ──────────────────────────────────────────────────────────
 
  List<_StructuralItem> _defaultStructuralItems() => [
@@ -2234,7 +2244,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  textAlign: TextAlign.center),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -2259,6 +2269,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  constraints:
  const BoxConstraints(minWidth: 28),
  ),
+IconButton(
+                                    onPressed: () => _kazAiForRow(),
+                                    icon: const Icon(Icons.auto_awesome,
+                                        size: 16, color: Color(0xFFF59E0B)),
+                                    tooltip: 'KAZ AI',
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints(minWidth: 28),
+                                  ),
  ],
  ),
  ),
@@ -2404,7 +2423,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  textAlign: TextAlign.center),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -2429,6 +2448,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  constraints:
  const BoxConstraints(minWidth: 28),
  ),
+IconButton(
+                                    onPressed: () => _kazAiForRow(),
+                                    icon: const Icon(Icons.auto_awesome,
+                                        size: 16, color: Color(0xFFF59E0B)),
+                                    tooltip: 'KAZ AI',
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints(minWidth: 28),
+                                  ),
  ],
  ),
  ),
@@ -2586,7 +2614,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  textAlign: TextAlign.center),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -2611,6 +2639,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  constraints:
  const BoxConstraints(minWidth: 28),
  ),
+IconButton(
+                                    onPressed: () => _kazAiForRow(),
+                                    icon: const Icon(Icons.auto_awesome,
+                                        size: 16, color: Color(0xFFF59E0B)),
+                                    tooltip: 'KAZ AI',
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints(minWidth: 28),
+                                  ),
  ],
  ),
  ),
@@ -2765,7 +2802,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  textAlign: TextAlign.center),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -2790,6 +2827,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  constraints:
  const BoxConstraints(minWidth: 28),
  ),
+IconButton(
+                                    onPressed: () => _kazAiForRow(),
+                                    icon: const Icon(Icons.auto_awesome,
+                                        size: 16, color: Color(0xFFF59E0B)),
+                                    tooltip: 'KAZ AI',
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints(minWidth: 28),
+                                  ),
  ],
  ),
  ),
@@ -2952,7 +2998,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  color: Color(0xFF64748B))),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -2976,6 +3022,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  constraints:
  const BoxConstraints(minWidth: 28),
  ),
+IconButton(
+                                    onPressed: () => _kazAiForRow(),
+                                    icon: const Icon(Icons.auto_awesome,
+                                        size: 16, color: Color(0xFFF59E0B)),
+                                    tooltip: 'KAZ AI',
+                                    padding: EdgeInsets.zero,
+                                    constraints:
+                                        const BoxConstraints(minWidth: 28),
+                                  ),
  ],
  ),
  ),

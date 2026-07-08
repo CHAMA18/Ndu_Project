@@ -608,6 +608,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
  tooltip: 'Delete entity',
  ),
+
+                                    IconButton(
+                                      onPressed: () => _kazAiForRow(),
+                                      icon: const Icon(Icons.auto_awesome,
+                                          size: 16, color: Color(0xFFF59E0B)),
+                                      tooltip: 'KAZ AI',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28),
+                                    ),
  ],
  ),
  ),
@@ -709,7 +718,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -734,6 +743,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  padding: EdgeInsets.zero,
  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  ),
+
+                                    IconButton(
+                                      onPressed: () => _kazAiForRow(),
+                                      icon: const Icon(Icons.auto_awesome,
+                                          size: 16, color: Color(0xFFF59E0B)),
+                                      tooltip: 'KAZ AI',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28),
+                                    ),
  ],
  ),
  ),
@@ -845,7 +863,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ),
  SizedBox(
- width: 60,
+ width: 90,
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
@@ -870,6 +888,15 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  padding: EdgeInsets.zero,
  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  ),
+
+                                    IconButton(
+                                      onPressed: () => _kazAiForRow(),
+                                      icon: const Icon(Icons.auto_awesome,
+                                          size: 16, color: Color(0xFFF59E0B)),
+                                      tooltip: 'KAZ AI',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(minWidth: 28),
+                                    ),
  ],
  ),
  ),
@@ -1325,6 +1352,16 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  page: 'Backend Design',
  action: action,
  details: details,
+ ),
+ );
+ }
+
+ // ── KAZ AI row generator ──
+ void _kazAiForRow() {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('KAZ AI: Generating suggestions for this row...'),
+ duration: Duration(seconds: 2),
  ),
  );
  }

@@ -482,6 +482,16 @@ class _TechnicalDevelopmentScreenState
  );
  }
 
+ // ── KAZ AI row generator ──
+ void _kazAiForRow() {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('KAZ AI: Generating suggestions for this row...'),
+ duration: Duration(seconds: 2),
+ ),
+ );
+ }
+
  // ─── Build method ─────────────────────────────────────────────────────
 
  @override
@@ -787,6 +797,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: const Icon(Icons.delete_outline,
  size: 14, color: Color(0xFFEF4444)),
  ),
+
+                                  InkWell(
+                                    onTap: () => _kazAiForRow(),
+                                    child: const Icon(Icons.auto_awesome,
+                                        size: 14, color: Color(0xFFF59E0B)),
+                                  ),
  ],
  ),
  ),
@@ -874,6 +890,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: const Icon(Icons.delete_outline,
  size: 14, color: Color(0xFFEF4444)),
  ),
+
+                                  InkWell(
+                                    onTap: () => _kazAiForRow(),
+                                    child: const Icon(Icons.auto_awesome,
+                                        size: 14, color: Color(0xFFF59E0B)),
+                                  ),
  ],
  ),
  ),
@@ -958,6 +980,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: const Icon(Icons.delete_outline,
  size: 14, color: Color(0xFFEF4444)),
  ),
+
+                                  InkWell(
+                                    onTap: () => _kazAiForRow(),
+                                    child: const Icon(Icons.auto_awesome,
+                                        size: 14, color: Color(0xFFF59E0B)),
+                                  ),
  ],
  ),
  ),
@@ -1042,6 +1070,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: const Icon(Icons.delete_outline,
  size: 14, color: Color(0xFFEF4444)),
  ),
+
+                                  InkWell(
+                                    onTap: () => _kazAiForRow(),
+                                    child: const Icon(Icons.auto_awesome,
+                                        size: 14, color: Color(0xFFF59E0B)),
+                                  ),
  ],
  ),
  ),
@@ -1255,6 +1289,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  size: 14,
  color: Color(0xFFEF4444)),
  ),
+
+                                  InkWell(
+                                    onTap: () => _kazAiForRow(),
+                                    child: const Icon(Icons.auto_awesome,
+                                        size: 14, color: Color(0xFFF59E0B)),
+                                  ),
  ],
  ),
  ),
@@ -1349,6 +1389,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: const Icon(Icons.delete_outline,
  size: 14, color: Color(0xFFEF4444)),
  ),
+
+                                  InkWell(
+                                    onTap: () => _kazAiForRow(),
+                                    child: const Icon(Icons.auto_awesome,
+                                        size: 14, color: Color(0xFFF59E0B)),
+                                  ),
  ],
  ),
  ),
