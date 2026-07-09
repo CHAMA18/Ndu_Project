@@ -556,7 +556,6 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                       maxLines: 5,
                     ),
                     const SizedBox(height: 12),
-                    TextFormattingToolbar(controller: notesController),
                     const SizedBox(height: 6),
                     VoiceTextField(
                       controller: notesController,

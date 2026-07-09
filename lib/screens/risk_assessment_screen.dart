@@ -860,11 +860,6 @@ class _RiskNotesCard extends StatelessWidget {
  ],
  ),
  ),
- // Formatting toolbar
- Padding(
- padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
- child: TextFormattingToolbar(controller: controller),
- ),
  // Body: transparent textarea
  Padding(
  padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),

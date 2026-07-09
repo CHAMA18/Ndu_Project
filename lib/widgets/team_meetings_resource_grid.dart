@@ -668,7 +668,6 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   // Meeting Objective
-                  TextFormattingToolbar(controller: objectiveController),
                   const SizedBox(height: 6),
                   VoiceTextField(
                     controller: objectiveController,
@@ -681,7 +680,6 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   // Action Items
-                  TextFormattingToolbar(controller: actionItemsController),
                   const SizedBox(height: 6),
                   VoiceTextField(
                     controller: actionItemsController,
@@ -695,7 +693,6 @@ class _MeetingRowWidgetState extends State<_MeetingRowWidget> {
                   ),
                   const SizedBox(height: 12),
                   // Notes
-                  TextFormattingToolbar(controller: notesController),
                   const SizedBox(height: 6),
                   VoiceTextField(
                     controller: notesController,

@@ -391,7 +391,6 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  TextFormattingToolbar(controller: descriptionController),
                   const SizedBox(height: 6),
                   VoiceTextField(
                     controller: descriptionController,
@@ -476,7 +475,6 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
                     maxLines: 3,
                   ),
                   const SizedBox(height: 12),
-                  TextFormattingToolbar(controller: notesController),
                   const SizedBox(height: 6),
                   VoiceTextField(
                     controller: notesController,

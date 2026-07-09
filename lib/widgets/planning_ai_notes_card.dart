@@ -263,13 +263,6 @@ class _PlanningAiNotesCardState extends State<PlanningAiNotesCard> {
             ),
           ],
           const SizedBox(height: 16),
-          TextFormattingToolbar(
-            controller: _controller,
-            onBeforeUndo: () {
-              _saveNow();
-            },
-          ),
-          const SizedBox(height: 10),
           VoiceTextField(
             controller: _controller,
             onChanged: _handleChanged,

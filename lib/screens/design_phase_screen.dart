@@ -2131,7 +2131,6 @@ Future<void> _loadProgress(String projectId) async {
  ),
  ),
  const SizedBox(width: 8),
- Expanded(child: TextFormattingToolbar(controller: _richTextController)),
  ],
  ),
  const SizedBox(height: 12),
@@ -4330,10 +4329,6 @@ Future<void> _loadProgress(String projectId) async {
  fontWeight: FontWeight.w700, color: Colors.grey[800])),
  ],
  ),
- ),
- Padding(
- padding: const EdgeInsets.symmetric(horizontal: 16),
- child: TextFormattingToolbar(controller: _richTextController),
  ),
  const SizedBox(height: 12),
  Expanded(
