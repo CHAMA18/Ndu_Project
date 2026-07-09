@@ -288,34 +288,6 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  PlanningPhaseHeader(title: 'Team Management', onExportPdf: _exportPdf),
- const SizedBox(height: 16),
- Row(
- children: [
- _CircleIconButton(
- icon: Icons.arrow_back_ios_new_rounded,
- onTap: () => PlanningPhaseNavigation.goToPrevious(
- context,
- 'team_management',
- ),
- ),
- const SizedBox(width: 12),
- _CircleIconButton(
- icon: Icons.arrow_forward_ios_rounded,
- onTap: () => PlanningPhaseNavigation.goToNext(
- context,
- 'team_management',
- ),
- ),
- const SizedBox(width: 16),
- const Text(
- 'Team Management',
- style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
- ),
- const Spacer(),
- const SizedBox(width: 12),
- const _UserChip(),
- ],
- ),
  const SizedBox(height: 20),
  Row(
  children: [
@@ -416,85 +388,6 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
  }
 }
 
-class _CircleIconButton extends StatelessWidget {
- const _CircleIconButton({required this.icon, this.onTap});
-
- final IconData icon;
- final VoidCallback? onTap;
-
- @override
- Widget build(BuildContext context) {
- return InkWell(
- onTap: onTap,
- borderRadius: BorderRadius.circular(18),
- child: Container(
- width: 36,
- height: 36,
- decoration: BoxDecoration(
- color: Colors.white,
- shape: BoxShape.circle,
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Icon(icon, size: 16, color: const Color(0xFF6B7280)),
- ),
- );
- }
-}
-
-class _UserChip extends StatelessWidget {
- const _UserChip();
-
- @override
- Widget build(BuildContext context) {
- final user = FirebaseAuth.instance.currentUser;
- final displayName = user?.displayName ?? user?.email ?? 'User';
- final email = user?.email ?? '';
-
- return StreamBuilder<bool>(
- stream: UserService.watchAdminStatus(),
- builder: (context, snapshot) {
- final isAdmin = snapshot.data ?? UserService.isAdminEmail(email);
- final role = isAdmin ? 'Admin' : 'Member';
-
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(18),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- CircleAvatar(
- radius: 16,
- backgroundColor: const Color(0xFFE5E7EB),
- backgroundImage: user?.photoURL != null ? NetworkImage(user!.photoURL!) : null,
- child: user?.photoURL == null
- ? Text(
- displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
- style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
- )
- : null,
- ),
- const SizedBox(width: 8),
- Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- mainAxisSize: MainAxisSize.min,
- children: [
- Text(displayName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
- Text(role, style: const TextStyle(fontSize: 10, color: Color(0xFF6B7280))),
- ],
- ),
- const SizedBox(width: 6),
- const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF9CA3AF)),
- ],
- ),
- );
- },
- );
- }
-}
 
 class _TeamRoleCard extends StatelessWidget {
  const _TeamRoleCard({required this.member});
