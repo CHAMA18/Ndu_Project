@@ -23,6 +23,8 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/program_service.dart';
 import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/widgets/compact_action_button.dart';
+import 'package:ndu_project/screens/project_activities_log_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 
@@ -272,6 +274,8 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  _buildHeader(metrics: metrics),
+ const SizedBox(height: 24),
+ _buildActionButtons(context),
  const SizedBox(height: 24),
  _buildHeroBento(context, metrics: metrics),
  const SizedBox(height: 24),
@@ -758,7 +762,68 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
  );
  }
 
-  // ─── Hero Bento Grid ─────────────────────────────────────────────────────
+ // ─── Action Buttons (Group Into Program + Project Logs) ─────────────────
+ Widget _buildActionButtons(BuildContext context) {
+ final screenWidth = MediaQuery.sizeOf(context).width;
+ final useColumn = screenWidth < 500;
+
+ final buttons = [
+ CompactActionButton(
+ label: 'Group Into A Program',
+ subtitle: 'Select up to 3 projects to combine',
+ icon: Icons.account_tree_outlined,
+ accent: const Color(0xFF4338CA),
+ onTap: () {
+ _showGroupIntoProgramDialog(context);
+ },
+ ),
+ CompactActionButton(
+ label: 'Project Logs',
+ subtitle: 'Activity across all projects',
+ icon: Icons.fact_check_outlined,
+ accent: const Color(0xFFFCD34D),
+ onTap: () {
+ Navigator.of(context).push(
+ MaterialPageRoute(
+ builder: (_) => const ProjectActivitiesLogScreen(),
+ ),
+ );
+ },
+ ),
+ ];
+
+ if (useColumn) {
+ return Column(
+ children: [
+ for (int i = 0; i < buttons.length; i++) ...[
+ if (i > 0) const SizedBox(height: 12),
+ buttons[i],
+ ],
+ ],
+ );
+ }
+
+ return Row(
+ children: [
+ for (int i = 0; i < buttons.length; i++) ...[
+ if (i > 0) const SizedBox(width: 16),
+ Expanded(child: buttons[i]),
+ ],
+ ],
+ );
+ }
+
+ /// Dialog for grouping projects into a program (up to 3 projects).
+ void _showGroupIntoProgramDialog(BuildContext context) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('Group Into A Program: Select up to 3 projects to combine into a program.'),
+ duration: Duration(seconds: 3),
+ ),
+ );
+ }
+
+ // ─── Hero Bento Grid ─────────────────────────────────────────────────────
   Widget _buildHeroBento(BuildContext context, {_ProgramMetrics? metrics}) {
     final width = MediaQuery.sizeOf(context).width;
     // Desktop (>1180): 3-column hero bento
