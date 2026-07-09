@@ -1744,7 +1744,7 @@ $requirementsList
  _scheduleAutoSave(showSnack: false);
  },
  style: OutlinedButton.styleFrom(
- backgroundColor: const Color(0xFFF2F4F7),
+ backgroundColor: Colors.white,
  foregroundColor: const Color(0xFF111827),
  side: const BorderSide(color: Color(0xFFE5E7EB)),
  shape: RoundedRectangleBorder(

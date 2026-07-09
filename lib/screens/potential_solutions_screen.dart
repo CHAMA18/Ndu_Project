@@ -551,7 +551,7 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  final sidebarWidth = AppBreakpoints.sidebarWidth(context);
  return Scaffold(
  key: _scaffoldKey,
- backgroundColor: const Color(0xFFF8F9FB),
+ backgroundColor: Colors.white,
  body: SafeArea(
  top: true,
  child: Stack(

@@ -461,7 +461,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
  onPressed: () => Navigator.of(context).pop(),
  style: IconButton.styleFrom(
- backgroundColor: const Color(0xFFF3F4F6),
+ backgroundColor: Colors.white,
  foregroundColor: const Color(0xFF111827),
  padding: const EdgeInsets.all(12),
  ),
@@ -612,7 +612,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  });
  },
  selectedColor: const Color(0xFF6366F1),
- backgroundColor: const Color(0xFFF3F4F6),
+ backgroundColor: Colors.white,
  checkmarkColor: Colors.white,
  shape: RoundedRectangleBorder(
  borderRadius: BorderRadius.circular(8),
