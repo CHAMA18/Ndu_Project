@@ -106,33 +106,66 @@ class _OrganizationRolesResponsibilitiesScreenState
 
  void _showPredefinedRolesDialog(BuildContext context) {
  final rootContext = context;
+ // ── Standard roles from the Role-Based Access spreadsheet (June 2022) ──
+ // All 48 roles are organized by Framework category (Both / Waterfall / Agile)
+ // and mapped to user-friendly workstream labels.
  final List<RoleDefinition> predefined = [
- RoleDefinition(
- title: 'Project Manager',
- description: 'Overall project leadership and coordination.',
- workstream: 'Management',
- isPredefined: true),
- RoleDefinition(
- title: 'Product Engineer',
- description:
- 'Responsible for product design and technical specifications.',
- workstream: 'Engineering',
- isPredefined: true),
- RoleDefinition(
- title: 'Cost Person',
- description: 'Financial planning, budgeting, and cost control.',
- workstream: 'Finance',
- isPredefined: true),
- RoleDefinition(
- title: 'Developer',
- description: 'Software development and implementation.',
- workstream: 'Development',
- isPredefined: true),
- RoleDefinition(
- title: 'Tester',
- description: 'Quality assurance and testing of deliverables.',
- workstream: 'QA',
- isPredefined: true),
+ // ── Management ──
+ RoleDefinition(title: 'Project Sponsor (Owner)', description: 'Executive sponsor and project owner. Provides strategic direction and funding approval.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Project Manager', description: 'Overall project leadership, planning, and coordination across all phases.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'PMO Manager', description: 'Project Management Office oversight, governance, and standards.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Program Manager', description: 'Multi-project program coordination and strategic alignment.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Product Owner', description: 'Agile product owner — backlog prioritization and stakeholder representation.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Project Controls Manager', description: 'Cost, schedule, and performance baseline management.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Interface Manager', description: 'Cross-project interface coordination and conflict resolution.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Business Manager', description: 'Business operations and stakeholder relationship management.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Contracts Manager', description: 'Contract administration, negotiation, and compliance.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Procurement Manager', description: 'Procurement strategy, vendor selection, and supply chain.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Release Manager', description: 'Agile release planning, deployment coordination, and go-live governance.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Startup Manager', description: 'Commissioning and startup planning for waterfall projects.', workstream: 'Management', isPredefined: true),
+ RoleDefinition(title: 'Construction Manager', description: 'On-site construction execution and field coordination.', workstream: 'Management', isPredefined: true),
+ // ── Engineering ──
+ RoleDefinition(title: 'Project Engineer', description: 'Technical engineering across all project phases.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Engineering Manager', description: 'Engineering team leadership and technical deliverable ownership.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Technical Manager', description: 'Agile technical team management and architecture oversight.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Change Manager', description: 'Change control process ownership and impact assessment.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Quality Lead', description: 'Quality assurance leadership and compliance oversight.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Lead Designer', description: 'Agile design leadership and UX direction.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Design Lead', description: 'Waterfall design team leadership and technical drawing ownership.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Lead Developer', description: 'Agile development team leadership and code quality.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Schedule Lead', description: 'Schedule planning, critical path analysis, and progress tracking.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Cost Lead', description: 'Cost estimation leadership and budget control.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Test Lead', description: 'Testing strategy, test plan ownership, and QA execution.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Change Lead', description: 'Change request analysis and implementation coordination.', workstream: 'Engineering', isPredefined: true),
+ RoleDefinition(title: 'Scrum Master', description: 'Agile ceremony facilitation and team coaching.', workstream: 'Engineering', isPredefined: true),
+ // ── Specialists ──
+ RoleDefinition(title: 'Cost Estimator', description: 'Detailed cost estimation and quantity takeoff.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Scheduler', description: 'Schedule development, updates, and milestone tracking.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Business Analyst', description: 'Requirements elicitation, analysis, and documentation.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Technical Architect', description: 'System architecture design and technology selection.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Solutions Architect', description: 'End-to-end solution design and integration architecture.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Design Engineer', description: 'Engineering design and technical drawing development.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Engineer', description: 'General engineering support across disciplines.', workstream: 'Specialist', isPredefined: true),
+ RoleDefinition(title: 'Data Specialist', description: 'Data modeling, migration, and analytics.', workstream: 'Specialist', isPredefined: true),
+ // ── Development ──
+ RoleDefinition(title: 'Developer - Backend', description: 'Server-side development and API implementation.', workstream: 'Development', isPredefined: true),
+ RoleDefinition(title: 'Developer - Frontend', description: 'Client-side UI development and user experience.', workstream: 'Development', isPredefined: true),
+ RoleDefinition(title: 'Developer - Fullstack', description: 'End-to-end development across frontend and backend.', workstream: 'Development', isPredefined: true),
+ RoleDefinition(title: 'DevOps Engineer', description: 'CI/CD pipelines, infrastructure automation, and deployment.', workstream: 'Development', isPredefined: true),
+ RoleDefinition(title: 'Automation', description: 'Test automation and process scripting.', workstream: 'Development', isPredefined: true),
+ // ── Design ──
+ RoleDefinition(title: 'Designer - UX', description: 'User experience research, wireframing, and prototyping.', workstream: 'Design', isPredefined: true),
+ RoleDefinition(title: 'Designer - UI', description: 'Visual design, component styling, and design system.', workstream: 'Design', isPredefined: true),
+ // ── QA ──
+ RoleDefinition(title: 'Tester', description: 'Quality assurance and testing of deliverables.', workstream: 'QA', isPredefined: true),
+ RoleDefinition(title: 'Quality Control', description: 'Quality inspection, defect tracking, and compliance verification.', workstream: 'QA', isPredefined: true),
+ // ── Operations ──
+ RoleDefinition(title: 'Procurement', description: 'Purchase order processing and vendor coordination.', workstream: 'Operations', isPredefined: true),
+ RoleDefinition(title: 'Interface', description: 'Interface management and cross-team coordination.', workstream: 'Operations', isPredefined: true),
+ RoleDefinition(title: 'Operations Liason', description: 'Operational handover and production support coordination.', workstream: 'Operations', isPredefined: true),
+ RoleDefinition(title: 'Hypercare', description: 'Post-go-live hypercare support and issue resolution.', workstream: 'Operations', isPredefined: true),
+ // ── Custom ──
+ RoleDefinition(title: 'Create Role', description: 'Define a custom role not listed above.', workstream: 'Custom', isPredefined: true),
  ];
 
  final currentRoles =
