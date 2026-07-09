@@ -114,13 +114,6 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- PlanningPhaseHeader(
- title: 'Interface Management',
-onBack: () =>
- PlanningPhaseNavigation.goToPrevious(
- context, 'interface_management'),
- onForward: () => PlanningPhaseNavigation.goToNext(
- context, 'interface_management'), onExportPdf: _exportPdf),
  const SizedBox(height: 20),
  const PlanningAiNotesCard(
  title: 'Notes',
