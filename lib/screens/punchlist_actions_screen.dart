@@ -207,8 +207,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  if (_isLoading) const SizedBox(height: 16),
  _buildContextHeader(context),
  const SizedBox(height: 18),
- _buildPageHeader(context),
- const SizedBox(height: 26),
  _buildSummaryGrid(context),
  const SizedBox(height: 26),
  _buildMiddleInsights(context),
@@ -507,88 +505,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ],
  ),
- );
- }
-
- Widget _buildPageHeader(BuildContext context) {
- final theme = Theme.of(context);
- return LayoutBuilder(
- builder: (context, constraints) {
- final bool stack = constraints.maxWidth < 780;
- final header = Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(
- 'Punchlist Actions & Technical Debt Resolution',
- style: theme.textTheme.headlineSmall?.copyWith(
- fontWeight: FontWeight.w800,
- fontSize: 28,
- color: const Color(0xFF0F172A),
- ),
- ),
- const SizedBox(height: 10),
- Text(
- 'Stay ahead of closure blockers, prioritize cross-team remediation, and track acceptance readiness in one workspace.',
- style: theme.textTheme.bodyMedium?.copyWith(
- color: const Color(0xFF475569),
- fontWeight: FontWeight.w600,
- ),
- ),
- ],
- );
-
- final actions = Wrap(
- spacing: 12,
- runSpacing: 12,
- alignment: stack ? WrapAlignment.start : WrapAlignment.end,
- children: [
- OutlinedButton.icon(
- onPressed: () => _showActionSnack(
- 'Tracker export is queued while export templates are finalized.'),
- icon: const Icon(Icons.file_download_outlined, size: 18),
- label: const Text('Export tracker'),
- style: OutlinedButton.styleFrom(
- padding:
- const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(18)),
- ),
- ),
- FilledButton.icon(
- onPressed: () => _showActionSnack(
- 'Launch status shared. Keep item owners and due dates updated before the next sync.'),
- icon: const Icon(Icons.auto_graph_outlined, size: 18),
- label: const Text('Share launch status'),
- style: FilledButton.styleFrom(
- padding:
- const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(18)),
- ),
- ),
- ],
- );
-
- if (stack) {
- return Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- header,
- const SizedBox(height: 18),
- actions,
- ],
- );
- }
-
- return Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(child: header),
- const SizedBox(width: 24),
- actions,
- ],
- );
- },
  );
  }
 
