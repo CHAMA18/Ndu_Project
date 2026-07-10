@@ -154,12 +154,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ],
  ),
  ),
- if (!isNarrow) _buildHeaderActions(),
+ if (!isNarrow) const SizedBox.shrink(),
  ],
  ),
  if (isNarrow) ...[
  const SizedBox(height: 12),
- _buildHeaderActions(),
  ],
  ],
  );
