@@ -31,7 +31,7 @@ class _Tokens {
  _Tokens._();
 
  // Surface
- static const surface = Color(0xFFF7F9FB);
+ static const surface = Colors.white;
  static const surfaceDim = Color(0xFFD8DADC);
  static const surfaceBright = Color(0xFFFFFFFF);
  static const surfaceContainerLowest = Color(0xFFFFFFFF);
