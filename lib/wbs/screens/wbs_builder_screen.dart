@@ -49,9 +49,6 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
             children: [
               // ── World-class Header ──────────────────────────────────
               _buildHeader(context, provider, wbs, fm, counts, totalNodes, treeDepthActual),
-              const SizedBox(height: 16),
-              // ── Methodology + Depth info banner ─────────────────────
-              _buildInfoBanner(context, provider, wbs, fm, treeDepthActual),
               const SizedBox(height: 24),
               // ── Recursive Tree ──────────────────────────────────────
               _buildRecursiveTree(context, provider, costProvider, wbs.level0, fm, 0),
@@ -267,60 +264,6 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     );
   }
 
-  // ───────────────────────────────────────────────────────────────────────
-  // INFO BANNER
-  // ───────────────────────────────────────────────────────────────────────
-
-  Widget _buildInfoBanner(
-    BuildContext context,
-    WBSProvider provider,
-    WBS wbs,
-    WBSFramework fm,
-    int treeDepthActual,
-  ) {
-    // Build the level chain
-    final levelChain = <String>['Project'];
-    for (int i = 1; i <= fm.maxDepth; i++) {
-      levelChain.add(fm.levelLabel(i));
-    }
-    final maxDepth = fm.maxDepth;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: wbs.methodology.color.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: wbs.methodology.color.withValues(alpha: 0.15)),
-      ),
-      child: Row(
-        children: [
-          Icon(wbs.methodology.icon, size: 16, color: wbs.methodology.color.withValues(alpha: 0.7)),
-          const SizedBox(width: 8),
-          Expanded(
-            child: RichText(
-              text: TextSpan(
-                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12, height: 1.4),
-                children: [
-                  TextSpan(text: '${wbs.methodology.label} project · '),
-                  TextSpan(
-                    text: levelChain.join(' → '),
-                    style: TextStyle(
-                      color: wbs.methodology.color.withValues(alpha: 0.8),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  TextSpan(text: ' · Max depth: $maxDepth · Current depth: $treeDepthActual'),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ───────────────────────────────────────────────────────────────────────
-  // RECURSIVE TREE
   // ───────────────────────────────────────────────────────────────────────
 
   Widget _buildRecursiveTree(
