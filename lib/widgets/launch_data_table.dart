@@ -1385,6 +1385,7 @@ class _AddItemDialogState extends State<_AddItemDialog>
           controller: _controllers[col.label],
           focusNode: _focusNodes[col.label],
           enableDocxImport: false,
+          enableKazAi: false,
           style: const TextStyle(fontSize: 13, color: Color(0xFF1A1D1F)),
           decoration: _modalInputDecoration(
             hint: col.hint,
