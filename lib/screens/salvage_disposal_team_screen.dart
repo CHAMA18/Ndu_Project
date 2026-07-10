@@ -15,6 +15,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/theme.dart';
 class SalvageDisposalTeamScreen extends StatefulWidget {
  const SalvageDisposalTeamScreen({super.key});
@@ -1296,7 +1298,24 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  const SizedBox(width: 8),
  OutlinedButton.icon(
- onPressed: () {},
+ onPressed: () async {
+ final rows = await showCsvImportDialog(context, tableTitle: 'Asset Inventory', columns: [
+ CsvColumnSpec(key: 'assetId', label: 'Asset ID', sampleValue: 'SVG-001'),
+ CsvColumnSpec(key: 'name', label: 'Asset Name', sampleValue: 'Server Rack'),
+ CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Physical Infrastructure'),
+ CsvColumnSpec(key: 'condition', label: 'Condition', sampleValue: 'Good', allowedValues: ['Excellent', 'Good', 'Fair', 'Needs Review']),
+ CsvColumnSpec(key: 'location', label: 'Location', sampleValue: 'Main Site'),
+ CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Ready', allowedValues: ['Ready', 'Pending', 'Flagged']),
+ CsvColumnSpec(key: 'estimatedValue', label: 'Est. Value', sampleValue: '5200'),
+ ]);
+ if (rows == null || !mounted) return;
+ final pid = _getProjectId();
+ if (pid == null) return;
+ for (final row in rows) {
+ await SalvageService.createInventoryItem(projectId: pid, assetId: row['assetId'] ?? '', name: row['name'] ?? '', category: row['category'] ?? '', condition: row['condition'] ?? 'Good', location: row['location'] ?? '', status: row['status'] ?? 'Ready', estimatedValue: row['estimatedValue'] ?? '0');
+ }
+ if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows.length} items imported'), backgroundColor: Colors.green));
+ },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
  style: OutlinedButton.styleFrom(
@@ -2689,7 +2708,28 @@ Execution snapshot:
  ),
  const SizedBox(width: 8),
  OutlinedButton.icon(
- onPressed: () {},
+ onPressed: () async {
+ final rows = await showCsvImportDialog(context, tableTitle: 'Team Allocation', columns: [
+ CsvColumnSpec(key: 'name', label: 'Member Name', sampleValue: 'John Doe'),
+ CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Product Owner'),
+ CsvColumnSpec(key: 'focus', label: 'Focus Area', sampleValue: 'Operations Support'),
+ CsvColumnSpec(key: 'workload', label: 'Workload %', sampleValue: '48'),
+ CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Active', allowedValues: ['Active', 'On Leave']),
+ ]);
+ if (rows == null || !mounted) return;
+ setState(() {
+ for (final row in rows) {
+ _allocationItems.add(_AllocationItem(
+ row['name'] ?? '',
+ row['role'] ?? '',
+ row['focus'] ?? '',
+ int.tryParse(row['workload'] ?? '0') ?? 0,
+ row['status'] ?? 'Active',
+ ));
+ }
+ });
+ if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows.length} members imported'), backgroundColor: Colors.green));
+ },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
  style: OutlinedButton.styleFrom(
