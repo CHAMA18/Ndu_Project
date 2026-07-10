@@ -1044,18 +1044,9 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _buildStatsRow(isNarrow, _inventoryStats),
  const SizedBox(height: 24),
  if (isNarrow)
- Column(
- children: [
- _buildInventoryTable(),
- ],
- )
+ _buildInventoryTable()
  else
- Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(flex: 3, child: _buildInventoryTable()),
- ],
- ),
+ _buildInventoryTable(),
  ],
  );
  }
@@ -1360,8 +1351,14 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
 
  final items = snapshot.data ?? [];
 
- return SingleChildScrollView(
+ return LayoutBuilder(
+ builder: (context, constraints) {
+ return ConstrainedBox(
+ constraints: BoxConstraints(minWidth: constraints.maxWidth),
+ child: SingleChildScrollView(
  scrollDirection: Axis.horizontal,
+ child: ConstrainedBox(
+ constraints: BoxConstraints(minWidth: constraints.maxWidth),
  child: DataTable(
  headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
  columnSpacing: 24,
@@ -1474,6 +1471,10 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  );
  }).toList(),
  ),
+ ),
+ ),
+ );
+ },
  );
  },
  );
