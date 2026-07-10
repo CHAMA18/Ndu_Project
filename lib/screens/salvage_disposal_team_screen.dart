@@ -1049,8 +1049,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  Column(
  children: [
  _buildInventoryTable(),
- const SizedBox(height: 24),
- _buildInventorySignalsPanel(),
  ],
  )
  else
@@ -1058,8 +1056,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  Expanded(flex: 3, child: _buildInventoryTable()),
- const SizedBox(width: 24),
- Expanded(child: _buildInventorySignalsPanel()),
  ],
  ),
  ],
