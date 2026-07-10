@@ -490,34 +490,40 @@ String newWBSId([String prefix = 'wbs']) {
   return '${prefix}_${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
 }
 
-/// Determine [WBSLevel] from a dotted-code like "1.2.3" → level3 (2 dots).
+/// Determine [WBSLevel] from a dotted-code like "G1.2.3" → level3 (2 dots + 1).
+/// G-prefixed nomenclature: G1 = level1, G1.1 = level2, G1.1.1 = level3
 WBSLevel _codeDepthToLevel(String code) {
-  final depth = code.split('.').length - 1;
-  return WBSLevelMeta.fromInt(depth);
+ final depth = code.split('.').length;
+ return WBSLevelMeta.fromInt(depth);
 }
 
 /// Recompute node codes based on tree position for arbitrary depth.
+/// Uses G-prefixed nomenclature that cascades from Goals:
+///   Level 1: G1, G2, G3
+///   Level 2: G1.1, G1.2, G1.3
+///   Level 3: G1.1.1, G1.1.2, G1.1.3
+/// The root (Level 0) keeps its project name as the code.
 WBSNode recalcCodes(WBSNode node) {
-  if (node.level == WBSLevel.level0) {
-    return node.copyWith(
-      code: '0',
-      children: node.children.asMap().entries.map((e) {
-        return _recalcCodesRecursive(e.value, '${e.key + 1}');
-      }).toList(),
-    );
-  }
-  return node;
+ if (node.level == WBSLevel.level0) {
+ return node.copyWith(
+ code: '0',
+ children: node.children.asMap().entries.map((e) {
+ return _recalcCodesRecursive(e.value, 'G${e.key + 1}');
+ }).toList(),
+ );
+ }
+ return node;
 }
 
 WBSNode _recalcCodesRecursive(WBSNode node, String parentCode) {
-  final level = _codeDepthToLevel(parentCode);
-  return node.copyWith(
-    code: parentCode,
-    level: level,
-    children: node.children.asMap().entries.map((e) {
-      return _recalcCodesRecursive(e.value, '$parentCode.${e.key + 1}');
-    }).toList(),
-  );
+ final level = _codeDepthToLevel(parentCode);
+ return node.copyWith(
+ code: parentCode,
+ level: level,
+ children: node.children.asMap().entries.map((e) {
+ return _recalcCodesRecursive(e.value, '$parentCode.${e.key + 1}');
+ }).toList(),
+ );
 }
 
 /// Get the effective depth of a WBS tree (0 = root only).
