@@ -1366,28 +1366,32 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  scrollDirection: Axis.horizontal,
  child: DataTable(
  headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
+ columnSpacing: 24,
+ horizontalMargin: 16,
+ dataRowMinHeight: 56,
+ dataRowMaxHeight: 72,
  columns: const [
  DataColumn(
  label: Text('Asset',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  DataColumn(
  label: Text('Category',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  DataColumn(
  label: Text('Condition',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  DataColumn(
  label: Text('Location',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  DataColumn(
  label: Text('Status',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  DataColumn(
  label: Text('Est. Value',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  DataColumn(
  label: Text('Actions',
- style: TextStyle(fontWeight: FontWeight.w600))),
+ style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white))),
  ],
  rows: items.isEmpty
  ? [
@@ -1431,11 +1435,18 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  fontSize: 12,
  color: Color(0xFF0EA5E9),
  fontWeight: FontWeight.w600)),
- Text(item.name,
- style: const TextStyle(fontSize: 13)),
+ ConstrainedBox(
+ constraints: const BoxConstraints(maxWidth: 180),
+ child: Text(item.name,
+ style: const TextStyle(fontSize: 13),
+ softWrap: true,
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis)),
  ],
  )),
- DataCell(_buildCategoryChip(item.category)),
+ DataCell(ConstrainedBox(
+ constraints: const BoxConstraints(maxWidth: 160),
+ child: _buildCategoryChip(item.category))),
  DataCell(Text(item.condition,
  style: const TextStyle(fontSize: 13))),
  DataCell(Text(item.location,
@@ -4925,7 +4936,10 @@ Execution snapshot:
  borderRadius: BorderRadius.circular(6),
  ),
  child: Text(category,
- style: const TextStyle(fontSize: 11, color: Color(0xFF475569))),
+ style: const TextStyle(fontSize: 11, color: Color(0xFF475569)),
+ softWrap: true,
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis),
  );
  }
 
