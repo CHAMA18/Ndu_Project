@@ -183,14 +183,14 @@ class _ProjectCharterTable extends StatelessWidget {
  );
 
  @override
- Widget build(BuildContext context) {
- return ConstrainedBox(
- constraints: const BoxConstraints(maxWidth: 880),
- child: Container(
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(18),
- border: Border.all(color: const Color(0xFFE2E6EF), width: 1.2),
+ Widget build(BuildContext context) {    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 880),
+      child: Container(
+        clipBehavior: Clip.hardEdge,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E6EF), width: 1.2),
  boxShadow: const [
  BoxShadow(
  color: Color(0x15000000),
@@ -325,21 +325,20 @@ class _TableRowCells extends StatelessWidget {
  ),
  );
  }
- }
-
- return Container(
- decoration: BoxDecoration(
- color: Colors.white,
- border: Border(
- bottom: showBottomBorder
- ? const BorderSide(color: _ProjectCharterTable._borderColor)
- : BorderSide.none,
- ),
- ),
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.stretch,
- children: children,
- ),
- );
+ }    return Container(
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: showBottomBorder
+              ? const BorderSide(color: _ProjectCharterTable._borderColor)
+              : BorderSide.none,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
  }
 }
