@@ -537,19 +537,55 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  title: 'Finalization Snapshot',
  subtitle: 'Summarize readiness signals for leadership review.',
  icon: Icons.dashboard_outlined,
- trailing: null, // Permanently read-only - no edit button
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- if (_snapshotMetrics.isEmpty)
- const _InlineEmptyState(
+ trailing: null,
+ child: _snapshotMetrics.isEmpty
+ ? const _InlineEmptyState(
  title: 'No snapshot metrics',
  message: 'Add the metrics that summarize project closeout.',
  )
- else
- ..._snapshotMetrics.map((metric) => _buildSnapshotReadOnlyRow(metric)),
+ : LayoutBuilder(builder: (context, constraints) {
+ return SingleChildScrollView(
+ scrollDirection: Axis.horizontal,
+ child: ConstrainedBox(
+ constraints: BoxConstraints(minWidth: constraints.maxWidth),
+ child: DataTable(
+ headingRowColor: WidgetStateProperty.all(const Color(0xFF0F172A)),
+ headingRowHeight: 48,
+ dataRowMinHeight: 56,
+ dataRowMaxHeight: 72,
+ columnSpacing: 24,
+ horizontalMargin: 16,
+ headingTextStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.5),
+ dataTextStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
+ columns: const [
+ DataColumn(label: Text('Metric')),
+ DataColumn(label: Text('Description')),
+ DataColumn(label: Text('Status')),
+ DataColumn(label: Text('Readiness')),
  ],
+ rows: _snapshotMetrics.asMap().entries.map((entry) {
+ final idx = entry.key;
+ final metric = entry.value;
+ final hasData = metric.title.isNotEmpty || metric.value.isNotEmpty;
+ return DataRow(
+ color: WidgetStateProperty.all(idx.isEven ? Colors.white : const Color(0xFFFAFBFC)),
+ cells: [
+ DataCell(Row(children: [
+ Container(width: 4, height: 32, decoration: BoxDecoration(color: metric.accent.withOpacity(0.8), borderRadius: BorderRadius.circular(2))),
+ const SizedBox(width: 12),
+ ConstrainedBox(constraints: const BoxConstraints(maxWidth: 200), child: Text(metric.title.isEmpty ? 'Untitled' : metric.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827)), softWrap: true, maxLines: 2, overflow: TextOverflow.ellipsis)),
+ ]),
  ),
+ DataCell(ConstrainedBox(constraints: const BoxConstraints(maxWidth: 300), child: Text(metric.subtitle.isEmpty ? '—' : metric.subtitle, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)), softWrap: true, maxLines: 2, overflow: TextOverflow.ellipsis))),
+ DataCell(Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: (metric.value.isEmpty ? const Color(0xFF9CA3AF) : const Color(0xFF22C55E)).withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: (metric.value.isEmpty ? const Color(0xFF9CA3AF) : const Color(0xFF22C55E)).withOpacity(0.3))), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(metric.value.isEmpty ? Icons.radio_button_unchecked : Icons.check_circle, size: 12, color: metric.value.isEmpty ? const Color(0xFF9CA3AF) : const Color(0xFF22C55E)), const SizedBox(width: 4), Text(metric.value.isEmpty ? 'Not set' : metric.value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: metric.value.isEmpty ? const Color(0xFF9CA3AF) : const Color(0xFF22C55E)))]))),
+ DataCell(Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: (hasData ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF)).withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: (hasData ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF)).withOpacity(0.3))), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(hasData ? Icons.lock : Icons.lock_outline, size: 12, color: hasData ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF)), const SizedBox(width: 4), Text(hasData ? 'Saved' : 'Empty', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: hasData ? const Color(0xFF22C55E) : const Color(0xFF9CA3AF)))]))),
+ ],
+ );
+ }).toList(),
+ ),
+ ),
+ );
+ }),
  );
  }
 
