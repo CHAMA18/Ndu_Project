@@ -302,7 +302,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
  onPressed: () => PlanningPhaseNavigation.goToPrevious(
  context, 'lessons_learned'),
  icon: const Icon(Icons.arrow_back, size: 16),
- label: const Text('Back'),
+ label: Text(PlanningPhaseNavigation.backLabel('lessons_learned')),
  style: ElevatedButton.styleFrom(
  backgroundColor: Colors.white,
  foregroundColor: const Color(0xFF374151),
@@ -318,7 +318,7 @@ class _LessonsLearnedScreenState extends State<LessonsLearnedScreen> {
  onPressed: () => PlanningPhaseNavigation.goToNext(
  context, 'lessons_learned'),
  icon: const Icon(Icons.arrow_forward, size: 16),
- label: const Text('Next'),
+ label: Text(PlanningPhaseNavigation.nextLabel('lessons_learned')),
  style: ElevatedButton.styleFrom(
  backgroundColor: const Color(0xFFFFC044),
  foregroundColor: const Color(0xFF111827),
