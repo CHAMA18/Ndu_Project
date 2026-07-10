@@ -960,13 +960,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  if (!isNarrow) ...[
  const SizedBox(width: 16),
- _buildActionButtons(),
  ],
  ],
  ),
  if (isNarrow) ...[
  const SizedBox(height: 16),
- _buildActionButtons(),
  ],
  ],
  );
