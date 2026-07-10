@@ -555,254 +555,299 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
   // ───────────────────────────────────────────────────────────────────────
 
   Widget _buildNodeCard(
-    BuildContext context,
-    WBSProvider provider,
-    CostEstimateProvider costProvider,
-    WBSNode node,
-    WBSFramework fm,
-    int depth, {
-    bool isRoot = false,
-  }) {
-    final levelLabel = nodeLevelLabel(node, fm);
-    final linkedLines = _linkedCostLinesFor(node, costProvider);
-    final linkedCount = linkedLines.length;
-    final methodology = node.methodology;
-    final isHybrid = methodology != null && methodology.isNotEmpty;
+ BuildContext context,
+ WBSProvider provider,
+ CostEstimateProvider costProvider,
+ WBSNode node,
+ WBSFramework fm,
+ int depth, {
+ bool isRoot = false,
+ }) {
+ final levelLabel = nodeLevelLabel(node, fm);
+ final linkedLines = _linkedCostLinesFor(node, costProvider);
+ final linkedCount = linkedLines.length;
+ final methodology = node.methodology;
+ final isHybrid = methodology != null && methodology.isNotEmpty;
+ final childCount = node.children.length;
+ final accentColor = isRoot
+ ? LightModeColors.accent
+ : levelColor(depth, LightModeColors.accent);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE4E7EC)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top row: level indicator + code + name + badges
-          Row(
-            children: [
-              // Level indicator bar (colored by depth)
-              Container(
-                width: 3,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isRoot
-                      ? LightModeColors.accent
-                      : levelColor(depth, LightModeColors.accent),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Code badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: levelColor(depth, LightModeColors.accent).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                      color: levelColor(depth, LightModeColors.accent).withValues(alpha: 0.25)),
-                ),
-                child: Text(node.code,
-                    style: TextStyle(
-                        color: levelColor(depth, LightModeColors.accent).withValues(alpha: 0.9),
-                        fontSize: 10,
-                        fontFamily: appFontFamily,
-                        fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 8),
-              // Name
-              Flexible(
-                child: Text(
-                  node.name,
-                  style: TextStyle(
-                    color: const Color(0xFF1A1D1F),
-                    fontSize: isRoot ? 15 : 13,
-                    fontWeight: isRoot ? FontWeight.w700 : FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ),
-              // Badges
-              if (isRoot) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text('L0',
-                      style: const TextStyle(
-                          color: Color(0xFF495057), fontSize: 9, fontWeight: FontWeight.w700)),
-                ),
-              ],
-              if (node.aiGenerated) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text('AI',
-                      style: TextStyle(
-                          color: Color(0xFF3B82F6), fontSize: 8, fontWeight: FontWeight.bold)),
-                ),
-              ],
-              if (node.isWorkPackage == true && !isRoot) ...[
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF16A34A).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text('WP',
-                      style: TextStyle(
-                          color: Color(0xFF16A34A), fontSize: 8, fontWeight: FontWeight.bold)),
-                ),
-              ],
-              if (isHybrid) ...[
-                const SizedBox(width: 4),
-                _buildSmallMethodologyBadge(methodology, fm),
-              ],
-              if (linkedCount > 0) ...[
-                const SizedBox(width: 4),
-                Tooltip(
-                  message: '$linkedCount cost line${linkedCount == 1 ? '' : 's'} linked',
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
-                    ),
-                    child: Text('$linkedCount \$',
-                        style: const TextStyle(
-                            color: Color(0xFF2563EB),
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          // Description
-          if (node.description != null && node.description!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
-              node.description!,
-              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-          // Bottom row: level label + estimation method + actions
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              // Level label
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: const Color(0xFFE4E7EC)),
-                ),
-                child: Text(
-                  isRoot ? 'PROJECT' : levelLabel.toUpperCase(),
-                  style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5),
-                ),
-              ),
-              // Estimation method
-              if (node.estimationMethod != null) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FDF4),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: const Color(0xFFBBF7D0)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(node.estimationMethod!.icon,
-                          size: 10, color: const Color(0xFF16A34A)),
-                      const SizedBox(width: 3),
-                      Text(node.estimationMethod!.label,
-                          style: const TextStyle(
-                              color: Color(0xFF16A34A),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-              ],
-              const Spacer(),
-              // Action buttons
-              if (!isRoot) ...[
-                _smallIconButton(
-                  icon: Icons.arrow_upward,
-                  onPressed: () => provider.moveNode(node.id, true),
-                  tooltip: 'Move up',
-                ),
-                _smallIconButton(
-                  icon: Icons.arrow_downward,
-                  onPressed: () => provider.moveNode(node.id, false),
-                  tooltip: 'Move down',
-                ),
-                _smallIconButton(
-                  icon: Icons.edit_outlined,
-                  onPressed: () => _showEditNodeDialog(context, provider, node, fm),
-                  tooltip: 'Edit',
-                  color: const Color(0xFF6B7280),
-                ),
-                _smallIconButton(
-                  icon: Icons.delete_outline,
-                  onPressed: () => provider.removeNode(node.id),
-                  tooltip: 'Delete',
-                  color: const Color(0xFFEF4444),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+ return Container(
+ padding: const EdgeInsets.all(14),
+ decoration: BoxDecoration(
+ color: Colors.white,
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(
+ color: isRoot
+ ? accentColor.withValues(alpha: 0.3)
+ : const Color(0xFFE4E7EC),
+ width: isRoot ? 1.5 : 1),
+ boxShadow: [
+ BoxShadow(
+ color: isRoot
+ ? accentColor.withValues(alpha: 0.06)
+ : Colors.black.withValues(alpha: 0.03),
+ blurRadius: isRoot ? 12 : 6,
+ offset: const Offset(0, 3),
+ ),
+ ],
+ ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ // Top row: code badge + name + badges
+ Row(
+ children: [
+ // Code badge (larger, more prominent)
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+ decoration: BoxDecoration(
+ gradient: LinearGradient(
+ colors: [
+ accentColor.withValues(alpha: 0.15),
+ accentColor.withValues(alpha: 0.05),
+ ],
+ begin: Alignment.topLeft,
+ end: Alignment.bottomRight,
+ ),
+ borderRadius: BorderRadius.circular(6),
+ border: Border.all(
+ color: accentColor.withValues(alpha: 0.3),
+ width: 1),
+ ),
+ child: Text(
+ isRoot ? 'ROOT' : node.code,
+ style: TextStyle(
+ color: accentColor.withValues(alpha: 0.9),
+ fontSize: 11,
+ fontFamily: appFontFamily,
+ fontWeight: FontWeight.w800,
+ letterSpacing: 0.3),
+ ),
+ ),
+ const SizedBox(width: 10),
+ // Name
+ Flexible(
+ child: Text(
+ node.name,
+ style: TextStyle(
+ color: const Color(0xFF1A1D1F),
+ fontSize: isRoot ? 16 : 14,
+ fontWeight: isRoot ? FontWeight.w800 : FontWeight.w700,
+ letterSpacing: -0.2,
+ ),
+ overflow: TextOverflow.ellipsis,
+ maxLines: 1,
+ ),
+ ),
+ // Badges row
+ if (node.aiGenerated) ...[
+ const SizedBox(width: 6),
+ _buildBadge('AI', const Color(0xFF3B82F6), 8),
+ ],
+ if (node.isWorkPackage == true && !isRoot) ...[
+ const SizedBox(width: 4),
+ _buildBadge('WP', const Color(0xFF16A34A), 8),
+ ],
+ if (isHybrid) ...[
+ const SizedBox(width: 4),
+ _buildSmallMethodologyBadge(methodology, fm),
+ ],
+ if (linkedCount > 0) ...[
+ const SizedBox(width: 4),
+ Tooltip(
+ message: '$linkedCount cost line${linkedCount == 1 ? '' : 's'} linked',
+ child: Container(
+ padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+ decoration: BoxDecoration(
+ color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+ borderRadius: BorderRadius.circular(4),
+ border: Border.all(
+ color: const Color(0xFF2563EB).withValues(alpha: 0.25)),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ const Icon(Icons.attach_money, size: 10, color: Color(0xFF2563EB)),
+ const SizedBox(width: 2),
+ Text('$linkedCount',
+ style: const TextStyle(
+ color: Color(0xFF2563EB),
+ fontSize: 9,
+ fontWeight: FontWeight.w700)),
+ ],
+ ),
+ ),
+ ),
+ ],
+ if (childCount > 0) ...[
+ const SizedBox(width: 4),
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+ decoration: BoxDecoration(
+ color: const Color(0xFFF3F4F6),
+ borderRadius: BorderRadius.circular(10),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ const Icon(Icons.account_tree, size: 10, color: Color(0xFF6B7280)),
+ const SizedBox(width: 3),
+ Text('$childCount',
+ style: const TextStyle(
+ color: Color(0xFF4B5563),
+ fontSize: 9,
+ fontWeight: FontWeight.w700)),
+ ],
+ ),
+ ),
+ ],
+ ],
+ ),
+ // Description
+ if (node.description != null && node.description!.isNotEmpty) ...[
+ const SizedBox(height: 8),
+ Container(
+ padding: const EdgeInsets.only(left: 8),
+ decoration: BoxDecoration(
+ border: Border(
+ left: BorderSide(color: accentColor.withValues(alpha: 0.2), width: 2),
+ ),
+ ),
+ child: Text(
+ node.description!,
+ style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12, height: 1.4),
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis,
+ ),
+ ),
+ ],
+ // Bottom row: level label + estimation + actions
+ const SizedBox(height: 10),
+ Row(
+ children: [
+ // Level label
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+ decoration: BoxDecoration(
+ color: isRoot
+ ? accentColor.withValues(alpha: 0.08)
+ : const Color(0xFFF9FAFB),
+ borderRadius: BorderRadius.circular(6),
+ border: Border.all(
+ color: isRoot
+ ? accentColor.withValues(alpha: 0.2)
+ : const Color(0xFFE4E7EC)),
+ ),
+ child: Text(
+ isRoot ? 'PROJECT ROOT' : levelLabel.toUpperCase(),
+ style: TextStyle(
+ color: isRoot
+ ? accentColor.withValues(alpha: 0.7)
+ : const Color(0xFF9CA3AF),
+ fontSize: 9,
+ fontWeight: FontWeight.w800,
+ letterSpacing: 0.6),
+ ),
+ ),
+ // Estimation method
+ if (node.estimationMethod != null) ...[
+ const SizedBox(width: 6),
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+ decoration: BoxDecoration(
+ color: const Color(0xFFF0FDF4),
+ borderRadius: BorderRadius.circular(6),
+ border: Border.all(color: const Color(0xFFBBF7D0)),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Icon(node.estimationMethod!.icon,
+ size: 11, color: const Color(0xFF16A34A)),
+ const SizedBox(width: 3),
+ Text(node.estimationMethod!.label,
+ style: const TextStyle(
+ color: Color(0xFF16A34A),
+ fontSize: 9,
+ fontWeight: FontWeight.w600)),
+ ],
+ ),
+ ),
+ ],
+ const Spacer(),
+ // Action buttons (larger, more touchable)
+ if (!isRoot) ...[
+ _actionButton(
+ icon: Icons.arrow_upward,
+ onPressed: () => provider.moveNode(node.id, true),
+ tooltip: 'Move up',
+ ),
+ const SizedBox(width: 2),
+ _actionButton(
+ icon: Icons.arrow_downward,
+ onPressed: () => provider.moveNode(node.id, false),
+ tooltip: 'Move down',
+ ),
+ const SizedBox(width: 2),
+ _actionButton(
+ icon: Icons.edit_outlined,
+ onPressed: () => _showEditNodeDialog(context, provider, node, fm),
+ tooltip: 'Edit',
+ color: const Color(0xFF6B7280),
+ ),
+ const SizedBox(width: 2),
+ _actionButton(
+ icon: Icons.delete_outline,
+ onPressed: () => provider.removeNode(node.id),
+ tooltip: 'Delete',
+ color: const Color(0xFFEF4444),
+ ),
+ ],
+ ],
+ ),
+ ],
+ ),
+ );
+ }
 
-  Widget _smallIconButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    String? tooltip,
-    Color color = const Color(0xFF6B7280),
-  }) {
-    final btn = InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(icon, size: 13, color: color),
-      ),
-    );
-    if (tooltip != null) return Tooltip(message: tooltip, child: btn);
-    return btn;
-  }
+ Widget _buildBadge(String text, Color color, double fontSize) {
+ return Container(
+ padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+ decoration: BoxDecoration(
+ color: color.withValues(alpha: 0.12),
+ borderRadius: BorderRadius.circular(4),
+ border: Border.all(color: color.withValues(alpha: 0.25)),
+ ),
+ child: Text(text,
+ style: TextStyle(
+ color: color, fontSize: fontSize, fontWeight: FontWeight.w800)),
+ );
+ }
+
+ Widget _actionButton({
+ required IconData icon,
+ required VoidCallback onPressed,
+ String? tooltip,
+ Color color = const Color(0xFF6B7280),
+ }) {
+ final btn = InkWell(
+ onTap: onPressed,
+ borderRadius: BorderRadius.circular(6),
+ child: Container(
+ padding: const EdgeInsets.all(6),
+ decoration: BoxDecoration(
+ color: const Color(0xFFF9FAFB),
+ borderRadius: BorderRadius.circular(6),
+ border: Border.all(color: const Color(0xFFE4E7EC)),
+ ),
+ child: Icon(icon, size: 14, color: color),
+ ),
+ );
+ if (tooltip != null) return Tooltip(message: tooltip, child: btn);
+ return btn;
+ }
 
   // ───────────────────────────────────────────────────────────────────────
   // ADD CHILD BUTTON
