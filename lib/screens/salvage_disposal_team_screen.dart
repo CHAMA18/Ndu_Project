@@ -2715,6 +2715,10 @@ Execution snapshot:
  child: DataTable(
  headingRowColor:
  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+ columnSpacing: 24,
+ horizontalMargin: 16,
+ dataRowMinHeight: 56,
+ dataRowMaxHeight: 72,
  columns: const [
  DataColumn(
  label: Text('Name',
@@ -2740,13 +2744,28 @@ Execution snapshot:
  ? Colors.green
  : Colors.orange;
  return DataRow(cells: [
- DataCell(Text(item.name,
- style: const TextStyle(fontSize: 13))),
- DataCell(Text(item.role,
- style: const TextStyle(fontSize: 13))),
- DataCell(Text(item.focus,
+ DataCell(ConstrainedBox(
+ constraints: const BoxConstraints(maxWidth: 200),
+ child: Text(item.name,
+ style: const TextStyle(fontSize: 13),
+ softWrap: true,
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis))),
+ DataCell(ConstrainedBox(
+ constraints: const BoxConstraints(maxWidth: 140),
+ child: Text(item.role,
+ style: const TextStyle(fontSize: 13),
+ softWrap: true,
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis))),
+ DataCell(ConstrainedBox(
+ constraints: const BoxConstraints(maxWidth: 160),
+ child: Text(item.focus,
  style: const TextStyle(
- fontSize: 13, color: Color(0xFF64748B)))),
+ fontSize: 13, color: Color(0xFF64748B)),
+ softWrap: true,
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis))),
  DataCell(_buildWorkloadChip(item.workload)),
  DataCell(_buildStatusBadge(item.status, statusColor)),
  DataCell(Row(
@@ -3025,6 +3044,10 @@ Execution snapshot:
  child: DataTable(
  headingRowColor:
  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
+ columnSpacing: 24,
+ horizontalMargin: 16,
+ dataRowMinHeight: 56,
+ dataRowMaxHeight: 72,
  columns: const [
  DataColumn(
  label: Text('Name',
@@ -3083,8 +3106,13 @@ Execution snapshot:
  ],
  ),
  ),
- DataCell(Text(member.role,
- style: const TextStyle(fontSize: 13))),
+ DataCell(ConstrainedBox(
+ constraints: const BoxConstraints(maxWidth: 140),
+ child: Text(member.role,
+ style: const TextStyle(fontSize: 13),
+ softWrap: true,
+ maxLines: 2,
+ overflow: TextOverflow.ellipsis))),
  DataCell(
  Text(
  member.email,
@@ -3616,15 +3644,15 @@ Execution snapshot:
  constraints: BoxConstraints(minWidth: constraints.maxWidth),
  child: DataTable(
  headingRowColor: WidgetStateProperty.all(const Color(0xFFF1F5F9)),
- headingRowHeight: 30,
- dataRowMinHeight: 22,
- dataRowMaxHeight: 28,
+ headingRowHeight: 36,
+ dataRowMinHeight: 32,
+ dataRowMaxHeight: 48,
  headingTextStyle: const TextStyle(
  fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569), letterSpacing: 0.4,
  ),
  dataTextStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Color(0xFF1E293B)),
- columnSpacing: 8,
- horizontalMargin: 8,
+ columnSpacing: 16,
+ horizontalMargin: 12,
  columns: const [
  DataColumn(label: Text('Regulation/Standard')),
  DataColumn(label: Text('Category')),
