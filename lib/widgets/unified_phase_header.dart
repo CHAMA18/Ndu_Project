@@ -275,11 +275,12 @@ class UnifiedPhaseHeader extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: Color(0xFF2D3748),
               ),
               overflow: TextOverflow.ellipsis,
+              maxLines: 2,
               textAlign: TextAlign.center,
             ),
           ),
