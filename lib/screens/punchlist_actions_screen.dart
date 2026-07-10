@@ -179,7 +179,7 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
  final double horizontalPadding = isMobile ? 18 : 32;
 
  return Scaffold(
- backgroundColor: const Color(0xFFF4F7FB),
+ backgroundColor: Colors.white,
  body: SafeArea(
  child: Row(
  crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,12 +201,10 @@ class _PunchlistActionsScreenState extends State<PunchlistActionsScreen> {
  PlanningPhaseHeader(
  title: 'Punchlist Actions',
 showNavigationButtons: false, onExportPdf: _exportPdf),
- const SizedBox(height: 16),
+ const SizedBox(height: 20),
  if (_isLoading)
  const LinearProgressIndicator(minHeight: 2),
  if (_isLoading) const SizedBox(height: 16),
- _buildContextHeader(context),
- const SizedBox(height: 18),
  _buildSummaryGrid(context),
  const SizedBox(height: 26),
  _buildMiddleInsights(context),
@@ -430,82 +428,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  if (lower.contains('high')) return _PunchlistSeverity.high;
  if (lower.contains('low')) return _PunchlistSeverity.low;
  return _PunchlistSeverity.medium;
- }
-
- Widget _buildContextHeader(BuildContext context) {
- final projectData = ProjectDataHelper.getData(context);
- final projectName = projectData.projectName.trim().isNotEmpty
- ? projectData.projectName.trim()
- : projectData.solutionTitle.trim();
- final items = [
- const _ContextChip(
- icon: Icons.cases_outlined, label: 'Program', value: 'Execution Hub'),
- _ContextChip(
- icon: Icons.local_airport_outlined,
- label: 'Project',
- value: projectName.isNotEmpty ? projectName : 'Active project'),
- const _ContextChip(
- icon: Icons.flag_circle_outlined, label: 'Phase', value: 'Execution'),
- const _ContextChip(
- icon: Icons.timeline_outlined,
- label: 'Sprint',
- value: 'Sprint 42 • 3 days remaining'),
- ];
-
- return Wrap(
- spacing: 14,
- runSpacing: 14,
- children: items.map(_buildContextChip).toList(),
- );
- }
-
- Widget _buildContextChip(_ContextChip chip) {
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(22),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- boxShadow: [
- BoxShadow(
- color: Colors.black.withOpacity(0.03),
- blurRadius: 16,
- offset: const Offset(0, 10),
- ),
- ],
- ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- Icon(chip.icon, size: 18, color: const Color(0xFF3B82F6)),
- const SizedBox(width: 12),
- Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- mainAxisSize: MainAxisSize.min,
- children: [
- Text(
- chip.label,
- style: const TextStyle(
- fontSize: 11,
- fontWeight: FontWeight.w600,
- letterSpacing: 0.2,
- color: Color(0xFF6B7280),
- ),
- ),
- const SizedBox(height: 4),
- Text(
- chip.value,
- style: const TextStyle(
- fontSize: 13,
- fontWeight: FontWeight.w700,
- color: Color(0xFF111827),
- ),
- ),
- ],
- ),
- ],
- ),
- );
  }
 
  Widget _buildSummaryGrid(BuildContext context) {
@@ -2506,14 +2428,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
 }
 
-class _ContextChip {
- const _ContextChip(
- {required this.icon, required this.label, required this.value});
-
- final IconData icon;
- final String label;
- final String value;
-}
 
 class _PunchlistInsight {
  const _PunchlistInsight({
