@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:ndu_project/theme.dart';
 
 /// Reusable helper for table-level CSV/Excel import + template download.
 ///
@@ -274,7 +275,7 @@ class TableImportHelper {
                   child: Text(
                     '${headers.join(",")}\n${sampleRows.map((r) => r.join(",")).join("\n")}',
                     style: const TextStyle(
-                        fontSize: 11, fontFamily: 'monospace', color: Color(0xFF374151)),
+                        fontSize: 11, fontFamily: appFontFamily, color: Color(0xFF374151)),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -291,7 +292,7 @@ class TableImportHelper {
                   maxLines: 6,
                   decoration: InputDecoration(
                     hintText: '${headers.join(",")}\n...',
-                    hintStyle: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                    hintStyle: const TextStyle(fontSize: 11, fontFamily: appFontFamily),
                     border: const OutlineInputBorder(),
                     contentPadding: const EdgeInsets.all(12),
                   ),

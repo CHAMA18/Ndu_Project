@@ -444,7 +444,7 @@ class _ExportAndLinkTab extends StatelessWidget {
                         color: Color(0xFF1A1D1F),
                         fontSize: 12,
                         height: 1.5,
-                        fontFamily: 'monospace',
+                        fontFamily: appFontFamily,
                       ),
                     ),
                   ],
@@ -792,7 +792,7 @@ class _ExportAndLinkTab extends StatelessWidget {
                             style: const TextStyle(
                                 color: Color(0xFF495057),
                                 fontSize: 11,
-                                fontFamily: 'monospace',
+                                fontFamily: appFontFamily,
                                 fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 8),

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:ndu_project/theme.dart';
 
 import '../models/program_model.dart';
 import '../models/portfolio_model.dart';
@@ -2963,10 +2964,9 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
  ),
  child: Text(
  e.toString(),
- style: TextStyle(
- color: Colors.grey.shade800,
- fontSize: 13,
- fontFamily: 'Satoshi',
+ style: TextStyle(                  color: Colors.grey.shade800,
+                  fontSize: 13,
+                  fontFamily: appFontFamily,
  ),
  ),
  ),

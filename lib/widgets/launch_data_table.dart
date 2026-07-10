@@ -12,7 +12,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 const double _defaultColumnWidth = 160;
 const double _tableHorizontalPadding = 20;
 const double _columnGap = 12;
-const double _actionColumnWidth = 80;
+const double _actionColumnWidth = 96;
 
 class _TableLayoutInherited extends InheritedWidget {
   final double tableWidth;
@@ -149,6 +149,7 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),

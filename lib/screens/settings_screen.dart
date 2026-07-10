@@ -21,6 +21,8 @@ import 'package:ndu_project/routing/app_router.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/utils/web_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/providers/theme_provider.dart';
 import 'package:ndu_project/services/hint_service.dart';
 import 'package:ndu_project/services/auth_nav.dart';
 import 'package:ndu_project/services/security_services.dart';
@@ -72,7 +74,6 @@ class _SettingsScreenState extends State<SettingsScreen>
  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // ── SharedPreferences keys ──
-  static const _prefThemeMode = 'pref_theme_mode';
   static const _prefLanguage = 'pref_language';
   static const _prefTimezone = 'pref_timezone';
   static const _prefDateFormat = 'pref_date_format';
@@ -86,7 +87,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   static const _prefReduceAnimations = 'pref_reduce_animations';
 
   // ── Preference state ──
-  String _themeMode = 'system'; // 'light', 'dark', 'system'
   String _language = 'English';
   String _timezone = 'UTC';
   String _dateFormat = 'MM/dd/yyyy';
@@ -105,7 +105,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _themeMode = prefs.getString(_prefThemeMode) ?? 'system';
       _language = prefs.getString(_prefLanguage) ?? 'English';
       _timezone = prefs.getString(_prefTimezone) ?? 'UTC';
       _dateFormat = prefs.getString(_prefDateFormat) ?? 'MM/dd/yyyy';
@@ -415,41 +414,43 @@ class _SettingsScreenState extends State<SettingsScreen>
                 children: [
                   const Text('Theme mode', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _ThemeModeOption(
-                        label: 'Light',
-                        icon: Icons.light_mode,
-                        selected: _themeMode == 'light',
-                        accent: accent,
-                        onTap: () {
-                          setState(() => _themeMode = 'light');
-                          _setPref(_prefThemeMode, 'light');
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      _ThemeModeOption(
-                        label: 'Dark',
-                        icon: Icons.dark_mode,
-                        selected: _themeMode == 'dark',
-                        accent: accent,
-                        onTap: () {
-                          setState(() => _themeMode = 'dark');
-                          _setPref(_prefThemeMode, 'dark');
-                        },
-                      ),
-                      const SizedBox(width: 12),
-                      _ThemeModeOption(
-                        label: 'System',
-                        icon: Icons.settings_suggest,
-                        selected: _themeMode == 'system',
-                        accent: accent,
-                        onTap: () {
-                          setState(() => _themeMode = 'system');
-                          _setPref(_prefThemeMode, 'system');
-                        },
-                      ),
-                    ],
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, _) {
+                      final currentLabel = themeProvider.themeModeLabel;
+                      return Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        children: [
+                          _ThemeModeOption(
+                            label: 'Light',
+                            icon: Icons.light_mode,
+                            selected: currentLabel == 'light',
+                            accent: accent,
+                            onTap: () {
+                              themeProvider.setThemeMode(ThemeMode.light);
+                            },
+                          ),
+                          _ThemeModeOption(
+                            label: 'Dark',
+                            icon: Icons.dark_mode,
+                            selected: currentLabel == 'dark',
+                            accent: accent,
+                            onTap: () {
+                              themeProvider.setThemeMode(ThemeMode.dark);
+                            },
+                          ),
+                          _ThemeModeOption(
+                            label: 'System',
+                            icon: Icons.settings_suggest,
+                            selected: currentLabel == 'system',
+                            accent: accent,
+                            onTap: () {
+                              themeProvider.setThemeMode(ThemeMode.system);
+                            },
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1853,7 +1854,7 @@ class _SettingsScreenState extends State<SettingsScreen>
  child: SelectableText(
  OpenAiConfig.apiKeyValue,
  style: const TextStyle(
- fontFamily: 'Satoshi', fontSize: 13),
+ fontFamily: appFontFamily, fontSize: 13),
  ),
  ),
  ],
@@ -5337,8 +5338,7 @@ class _ThemeModeOption extends StatelessWidget {
 
  @override
  Widget build(BuildContext context) {
- return Expanded(
- child: GestureDetector(
+ return GestureDetector(
  onTap: onTap,
  child: AnimatedContainer(
  duration: const Duration(milliseconds: 200),
@@ -5362,7 +5362,6 @@ class _ThemeModeOption extends StatelessWidget {
  fontSize: 13,
  )),
  ],
- ),
  ),
  ),
  );

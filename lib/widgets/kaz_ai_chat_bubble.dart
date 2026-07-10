@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:http/http.dart' as http;
 import 'package:ndu_project/openai/openai_config.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -1537,7 +1538,7 @@ class _ChatBubble extends StatelessWidget {
       em: baseStyle?.copyWith(fontStyle: FontStyle.italic),
       listBullet: baseStyle,
       code: baseStyle?.copyWith(
-        fontFamily: 'Satoshi',
+        fontFamily: appFontFamily,
         backgroundColor: scheme.surfaceContainerHighest.withOpacity(0.6),
         fontSize: 12,
       ),

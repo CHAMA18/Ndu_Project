@@ -614,7 +614,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                     style: TextStyle(
                         color: levelColor(depth, LightModeColors.accent).withValues(alpha: 0.9),
                         fontSize: 10,
-                        fontFamily: 'monospace',
+                        fontFamily: appFontFamily,
                         fontWeight: FontWeight.bold)),
               ),
               const SizedBox(width: 8),

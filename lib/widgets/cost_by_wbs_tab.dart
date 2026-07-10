@@ -553,7 +553,7 @@ class CostByWBSTab extends StatelessWidget {
                         color: color,
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'monospace')),
+                        fontFamily: appFontFamily)),
               ),
               const SizedBox(width: 8),
               Expanded(

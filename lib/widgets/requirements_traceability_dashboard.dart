@@ -967,7 +967,9 @@ class RequirementsTraceabilityDashboard extends StatelessWidget {
                       color: const Color(0xFFF8FAFC),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: const Color(0xFFE2E8F0))),
-                  child: SwitchListTile.adaptive(
+                  child: Material(
+                    type: MaterialType.transparency,
+                    child: SwitchListTile.adaptive(
                     title: const Text('Mark as out of scope',
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
@@ -985,6 +987,7 @@ class RequirementsTraceabilityDashboard extends StatelessWidget {
                             designArtifactLabel: v ? '' : c.designArtifactLabel,
                             gapStatus: v ? 'Pending Approval' : c.gapStatus)),
                   ),
+                    ),
                 ),
               ]),
       );

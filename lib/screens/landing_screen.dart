@@ -492,6 +492,7 @@ class _LandingScreenState extends State<LandingScreen>
  child: ClipRRect(
  borderRadius: BorderRadius.circular(18),
  child: Container(
+ clipBehavior: Clip.hardEdge,
  padding: EdgeInsets.symmetric(
  horizontal: isDesktop
  ? 32

@@ -7,6 +7,7 @@ import 'package:ndu_project/widgets/expandable_text.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/theme.dart';
 class ContractsTable extends StatefulWidget {
   const ContractsTable({
     super.key,
@@ -740,7 +741,7 @@ class _PriceCell extends StatelessWidget {
       NumberFormat.currency(symbol: '\$', decimalDigits: 2).format(amount),
       textAlign: TextAlign.center,
       style:
-          const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600),
+          const TextStyle(fontFamily: appFontFamily, fontWeight: FontWeight.w600),
     );
   }
 }

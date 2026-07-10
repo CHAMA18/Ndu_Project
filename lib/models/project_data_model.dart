@@ -786,6 +786,7 @@ class ProjectDataModel {
       'frontEndPlanning': frontEndPlanning.toJson(),
       'ssherData': ssherData.toJson(),
       'teamMembers': teamMembers.map((m) => m.toJson()).toList(),
+      'teamMemberEmails': teamMembers.map((m) => m.email).where((e) => e.isNotEmpty).toList(),
       'launchChecklistItems':
           launchChecklistItems.map((item) => item.toJson()).toList(),
       if (costAnalysisData != null)

@@ -21,6 +21,7 @@ import 'package:ndu_project/project_controls/providers/project_controls_provider
 import 'package:ndu_project/project_controls/providers/change_management_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/providers/theme_provider.dart';
 import 'package:ndu_project/platform/webview_platform_setup.dart';
 import 'package:ndu_project/utils/browser_route_normalizer.dart';
 
@@ -206,11 +207,17 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => ProjectControlsProvider()),
         ChangeNotifierProvider(create: (_) => ChangeManagementProvider()),
+        ChangeNotifierProvider(create: (_) {
+          final tp = ThemeProvider();
+          tp.load();
+          return tp;
+        }),
       ],
       child: Builder(
         builder: (context) {
           final projectProvider =
               Provider.of<ProjectDataProvider>(context, listen: false);
+          final themeProvider = Provider.of<ThemeProvider>(context);
           return ProjectDataInherited(
             provider: projectProvider,
             child: Listener(
@@ -218,25 +225,30 @@ class MyApp extends StatelessWidget {
               onPointerDown: (_) => SessionManager.instance.resetTimer(),
               onPointerMove: (_) => SessionManager.instance.resetTimer(),
               onPointerUp: (_) => SessionManager.instance.resetTimer(),
-              child: MaterialApp.router(
-              title: AppStrings.appName,
-              debugShowCheckedModeBanner: false,
-              theme: lightTheme,
-              themeMode: ThemeMode.light,
-              routerConfig: AppRouter.main,
-              // Performance optimizations
-              builder: (context, child) {
-                final media = MediaQuery.of(context).copyWith(boldText: false);
-                return MediaQuery(
-                  // Disable unnecessary animations and transitions on slow devices
-                  data: media,
-                  child: child ?? const SizedBox.shrink(),
-                );
-              },
-              // Reduce checkerboard opacity for better performance
-              checkerboardRasterCacheImages: false,
-              checkerboardOffscreenLayers: false,
-            ),
+              child:
+                MaterialApp.router(
+                  title: AppStrings.appName,
+                  debugShowCheckedModeBanner: false,
+                  theme: lightTheme,
+                  darkTheme: darkTheme,
+                  themeMode: themeProvider.themeMode,
+                  routerConfig: AppRouter.main,
+                  // Smooth cross-fade when toggling themes
+                  themeAnimationDuration: const Duration(milliseconds: 300),
+                  themeAnimationCurve: Curves.easeInOut,
+                  // Performance optimizations
+                  builder: (context, child) {
+                    final media = MediaQuery.of(context).copyWith(boldText: false);
+                    return MediaQuery(
+                      // Disable unnecessary animations and transitions on slow devices
+                      data: media,
+                      child: child ?? const SizedBox.shrink(),
+                    );
+                  },
+                  // Reduce checkerboard opacity for better performance
+                  checkerboardRasterCacheImages: false,
+                  checkerboardOffscreenLayers: false,
+                ),
             ),
           );
         },

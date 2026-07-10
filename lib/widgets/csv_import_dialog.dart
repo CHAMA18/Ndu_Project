@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart' as fp;
 import 'package:excel/excel.dart' hide Border;
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as dl;
+import 'package:ndu_project/theme.dart';
 
 /// World-class CSV / XLSX Import Dialog
 ///
@@ -601,7 +602,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
           maxLines: 6,
           style: const TextStyle(
             fontSize: 12,
-            fontFamily: 'monospace',
+            fontFamily: appFontFamily,
             color: Color(0xFF374151),
           ),
           decoration: InputDecoration(
@@ -609,7 +610,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
                 'Paste your CSV content here...\nColumn1,Column2,Column3\nvalue1,value2,value3',
             hintStyle: const TextStyle(
               color: Color(0xFFD1D5DB),
-              fontFamily: 'monospace',
+              fontFamily: appFontFamily,
               fontSize: 12,
             ),
             filled: true,

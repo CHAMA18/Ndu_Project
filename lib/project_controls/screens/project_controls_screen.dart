@@ -379,7 +379,7 @@ class _DashboardTab extends StatelessWidget {
               ),
               child: Text(
                 aiContext.length > 400 ? '${aiContext.substring(0, 400)}...' : aiContext,
-                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontFamily: 'monospace'),
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontFamily: appFontFamily),
               ),
             ),
           ],

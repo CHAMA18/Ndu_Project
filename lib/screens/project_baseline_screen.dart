@@ -16,6 +16,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/theme.dart';
 class ProjectBaselineScreen extends StatefulWidget {
  const ProjectBaselineScreen({super.key});
 
@@ -2139,9 +2140,8 @@ onBack: () =>
  SelectableText(
  content,
  style: const TextStyle(
- fontSize: 12,
- fontFamily: 'monospace',
- color: Color(0xFF374151),
+ fontSize: 12,fontFamily: appFontFamily,
+            color: Color(0xFF374151),
  height: 1.4,
  ),
  ),

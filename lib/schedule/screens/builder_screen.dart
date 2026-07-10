@@ -762,7 +762,7 @@ class _ActivityNode extends StatelessWidget {
                 style: const TextStyle(
                     color: Color(0xFF495057),
                     fontSize: 11,
-                    fontFamily: 'monospace',
+                    fontFamily: appFontFamily,
                     fontWeight: FontWeight.bold)),
           ),
           const SizedBox(width: 8),
@@ -1180,7 +1180,7 @@ class _SampleActivityTableState extends State<_SampleActivityTable> {
                           style: const TextStyle(
                               color: Color(0xFF495057),
                               fontSize: 11,
-                              fontFamily: 'monospace',
+                              fontFamily: appFontFamily,
                               fontWeight: FontWeight.bold))),
                       DataCell(Row(
                         children: [
@@ -1212,7 +1212,7 @@ class _SampleActivityTableState extends State<_SampleActivityTable> {
                           style: const TextStyle(
                               color: Color(0xFF495057),
                               fontSize: 11,
-                              fontFamily: 'monospace'))),
+                              fontFamily: appFontFamily))),
                       DataCell(Text(r.resources,
                           style: const TextStyle(
                               color: Color(0xFF495057), fontSize: 12))),
@@ -1243,7 +1243,7 @@ class _SampleActivityTableState extends State<_SampleActivityTable> {
                           style: const TextStyle(
                               color: Color(0xFF9CA3AF),
                               fontSize: 11,
-                              fontFamily: 'monospace',
+                              fontFamily: appFontFamily,
                               fontWeight: FontWeight.bold),
                         ),
                       ),
@@ -1692,7 +1692,7 @@ class _TimelineVisualizationState extends State<_TimelineVisualization> {
                                 children: [
                                   Text(
                                     a.code,
-                                    style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 9, fontFamily: 'monospace'),
+                                    style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 9, fontFamily: appFontFamily),
                                   ),
                                   Text(
                                     a.name,

@@ -363,30 +363,47 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
  void _scheduleSave() {
  _saveDebounce?.cancel();
  _saveDebounce = Timer(const Duration(milliseconds: 1000), _saveToFirestore);
- }
+ }  Future<void> _saveToFirestore() async {
+    if (!_canCreateAlignment && !_canEditAlignment) return;
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId;
+    if (projectId == null || projectId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cannot save: No active project found.'),
+            backgroundColor: Color(0xFFB91C1C),
+          ),
+        );
+      }
+      return;
+    }
 
- Future<void> _saveToFirestore() async {
- if (!_canCreateAlignment && !_canEditAlignment) return;
- final provider = ProjectDataInherited.maybeOf(context);
- final projectId = provider?.projectData.projectId;
- if (projectId == null || projectId.isEmpty) return;
-
- try {
- await DesignPhaseService.instance.saveTechnicalAlignment(
- projectId,
- notes: _notesController.text,
- constraints: _constraints,
- mappings: _mappings,
- dependencies: _dependencies,
- methodologyStandards:
- _methodologyStandards.map((e) => e.toMap()).toList(),
- readinessGateItems: _readinessGateItems.map((e) => e.toMap()).toList(),
- traceabilityItems: _traceabilityItems.map((e) => e.toMap()).toList(),
- );
- } catch (e) {
- debugPrint('Error saving technical alignment: $e');
- }
- }
+    try {
+      await DesignPhaseService.instance.saveTechnicalAlignment(
+        projectId,
+        notes: _notesController.text,
+        constraints: _constraints,
+        mappings: _mappings,
+        dependencies: _dependencies,
+        methodologyStandards:
+            _methodologyStandards.map((e) => e.toMap()).toList(),
+        readinessGateItems: _readinessGateItems.map((e) => e.toMap()).toList(),
+        traceabilityItems: _traceabilityItems.map((e) => e.toMap()).toList(),
+      );
+    } catch (e) {
+      debugPrint('Error saving technical alignment: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Failed to save. Please check your permissions and try again.'),
+            backgroundColor: const Color(0xFFB91C1C),
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
 
  bool _isGenerating = false;
  final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
@@ -1050,12 +1067,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
 
  // ── Delivery Model Alignment Standard (Action-plan style panel) ──────
 
- static const _dmHeaderStyle = TextStyle(
- fontSize: 10,
- fontWeight: FontWeight.w700,
- color: Color(0xFFD1D5DB),
- letterSpacing: 0.5,
- );
+  static const _dmHeaderStyle = TextStyle(
+    fontSize: 10,
+    fontWeight: FontWeight.w700,
+    color: Color(0xFFD1D5DB),
+    letterSpacing: 0.5,
+  );
 
  Widget _buildStableMethodologyMatrix() {
  return _DeliveryModelPanelShell(
@@ -1109,17 +1126,16 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  borderRadius: BorderRadius.only(
  topLeft: Radius.circular(8),
  topRight: Radius.circular(8)),
- ),
- child: const Row(
- children: [
- Expanded(flex: 2, child: Text('Model', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('Best-fit Use', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('Required Alignment Evidence', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('Technical Control Focus', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('Exit Standard', style: _dmHeaderStyle)),
- Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
- ],
- ),
+ ), child: const Row(
+              children: [
+                Expanded(flex: 2, child: Text('Model', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('Best-fit Use', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('Required Alignment Evidence', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('Technical Control Focus', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('Exit Standard', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 1, child: Text('', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+              ],
+            ),
  ),
  // Data rows
  ..._methodologyStandards.asMap().entries.map((entry) {
@@ -1136,55 +1152,59 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  borderRadius: BorderRadius.circular(6),
  border:
  Border.all(color: const Color(0xFFF3F4F6)),
- ),
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(
- flex: 2,
- child: Text(row.model,
- style: const TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600),
- maxLines: 2,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.bestFit,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.evidence,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.controls,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.exitStandard,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
+ ),          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Text(row.model,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.bestFit,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.evidence,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.controls,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.exitStandard,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
  Expanded(
  flex: 1,
  child: Row(
@@ -1616,17 +1636,16 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  borderRadius: BorderRadius.only(
  topLeft: Radius.circular(8),
  topRight: Radius.circular(8)),
- ),
- child: const Row(
- children: [
- Expanded(flex: 2, child: Text('Control Domain', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('What Must Be True', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('Evidence To Attach', style: _dmHeaderStyle)),
- Expanded(flex: 2, child: Text('Owner', style: _dmHeaderStyle)),
- Expanded(flex: 1, child: Text('Decision', style: _dmHeaderStyle)),
- Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
- ],
- ),
+ ), child: const Row(
+              children: [
+                Expanded(flex: 2, child: Text('Control Domain', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('What Must Be True', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('Evidence To Attach', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text('Owner', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 1, child: Text('Decision', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 1, child: Text('', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+              ],
+            ),
  ),
  // Data rows
  ..._readinessGateItems.asMap().entries.map((entry) {
@@ -1646,59 +1665,62 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  border:
  Border.all(color: const Color(0xFFF3F4F6)),
  ),
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(
- flex: 2,
- child: Text(row.domain,
- style: const TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600),
- maxLines: 2,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.standard,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.evidence,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 2,
- child: Text(row.owner,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF6B7280))),
- ),
- Expanded(
- flex: 1,
- child: Container(
- padding: const EdgeInsets.symmetric(
- horizontal: 5, vertical: 3),
- decoration: BoxDecoration(
- color: decisionColor.withOpacity(0.1),
- borderRadius: BorderRadius.circular(4)),
- child: Text(row.decision,
- style: TextStyle(
- fontSize: 10,
- fontWeight: FontWeight.w700,
- color: decisionColor),
- textAlign: TextAlign.center),
- ),
- ),
+ child: Row(crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Text(row.domain,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.standard,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.evidence,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(row.owner,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF6B7280)),
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: decisionColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4)),
+                  child: Text(row.decision,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: decisionColor),
+                    textAlign: TextAlign.center),
+                ),
+              ),
  Expanded(
  flex: 1,
  child: Row(
@@ -2028,17 +2050,16 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  borderRadius: BorderRadius.only(
  topLeft: Radius.circular(8),
  topRight: Radius.circular(8)),
- ),
- child: const Row(
- children: [
- Expanded(flex: 2, child: Text('Trace Object', style: _dmHeaderStyle)),
- Expanded(flex: 3, child: Text('Alignment Question', style: _dmHeaderStyle)),
- Expanded(flex: 2, child: Text('Verification', style: _dmHeaderStyle)),
- Expanded(flex: 2, child: Text('Waterfall Evidence', style: _dmHeaderStyle)),
- Expanded(flex: 2, child: Text('Agile / Hybrid Evidence', style: _dmHeaderStyle)),
- Expanded(flex: 1, child: Text('', style: _dmHeaderStyle)),
- ],
- ),
+ ), child: const Row(
+              children: [
+                Expanded(flex: 2, child: Text('Trace Object', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 3, child: Text('Alignment Question', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text('Verification', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text('Waterfall Evidence', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 2, child: Text('Agile / Hybrid Evidence', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+                Expanded(flex: 1, child: Text('', style: _dmHeaderStyle, textAlign: TextAlign.center)),
+              ],
+            ),
  ),
  // Data rows
  ..._traceabilityItems.asMap().entries.map((entry) {
@@ -2057,54 +2078,58 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  border:
  Border.all(color: const Color(0xFFF3F4F6)),
  ),
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Expanded(
- flex: 2,
- child: Text(row.object,
- style: const TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600),
- maxLines: 2,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 3,
- child: Text(row.question,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 3,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 2,
- child: Text(row.verification,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 2,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 2,
- child: Text(row.waterfallEvidence,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 2,
- overflow: TextOverflow.ellipsis),
- ),
- Expanded(
- flex: 2,
- child: Text(row.agileEvidence,
- style: const TextStyle(
- fontSize: 11,
- color: Color(0xFF374151)),
- maxLines: 2,
- overflow: TextOverflow.ellipsis),
- ),
+ child: Row(crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Text(row.object,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(row.question,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(row.verification,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(row.waterfallEvidence,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(row.agileEvidence,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF374151)),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center),
+              ),
  Expanded(
  flex: 1,
  child: Row(
@@ -4436,7 +4461,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  maxLines: 2,
  overflow: TextOverflow.ellipsis,
- textAlign: TextAlign.center,
  ),
  ),
  ),
@@ -4727,8 +4751,8 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  enabled: enabled,
  minLines: minLines,
  maxLines: maxLines,
- textAlign: TextAlign.start,
- textAlignVertical: TextAlignVertical.top,
+ textAlignVertical: TextAlignVertical.center,
+ textAlign: TextAlign.center,
  keyboardType: TextInputType.multiline,
  style: TextStyle(
  fontSize: 14,

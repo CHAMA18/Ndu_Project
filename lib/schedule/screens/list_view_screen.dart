@@ -269,7 +269,7 @@ class _ListViewScreenState extends State<ListViewScreen> {
                                         style: const TextStyle(
                                             color: Color(0xFF495057),
                                             fontSize: 11,
-                                            fontFamily: 'monospace',
+                                            fontFamily: appFontFamily,
                                             fontWeight: FontWeight.bold))),
                                     DataCell(Row(
                                       children: [

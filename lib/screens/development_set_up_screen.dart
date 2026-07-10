@@ -1,4 +1,5 @@
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/theme.dart';
 // ignore_for_file: unused_element
 
 import 'dart:async';
@@ -1088,7 +1089,7 @@ class _DevelopmentSetUpScreenState extends State<DevelopmentSetUpScreen> {
  Expanded(flex: 4, child: Text(item.environment, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)))),
  SizedBox(width: 110, child: Text(item.type, style: const TextStyle(fontSize: 12, color: Color(0xFF475569)))),
  SizedBox(width: 120, child: _buildStatusTag(item.status, color)),
- Expanded(flex: 3, child: Text(item.accessUrl, style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF2563EB)), overflow: TextOverflow.ellipsis)),
+ Expanded(flex: 3, child: Text(item.accessUrl, style: const TextStyle(fontSize: 11, fontFamily: appFontFamily, color: Color(0xFF2563EB)), overflow: TextOverflow.ellipsis)),
  SizedBox(width: 120, child: Text(item.owner, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)))),
  SizedBox(width: 110, child: Text(item.targetDate, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)))),
  SizedBox(

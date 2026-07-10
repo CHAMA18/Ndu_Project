@@ -263,7 +263,7 @@ class WorkPackageDetailView extends StatelessWidget {
                                   id,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    fontFamily: 'monospace',
+                                    fontFamily: appFontFamily,
                                     color: Color(0xFF374151),
                                   ),
                                 ),

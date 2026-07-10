@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/screens/home_screen.dart';
 import 'package:ndu_project/services/auth_nav.dart';
@@ -121,9 +122,8 @@ class _SectionErrorCard extends StatelessWidget {
  borderRadius: BorderRadius.circular(6)),
  child: SelectableText(details,
  style: const TextStyle(
- fontSize: 11,
- fontFamily: 'monospace',
- color: Color(0xFF475467)),
+ fontSize: 11,fontFamily: appFontFamily,
+            color: Color(0xFF475467)),
  maxLines: 4),
  ),
  ],

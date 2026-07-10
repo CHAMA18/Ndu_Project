@@ -290,7 +290,7 @@ class _GanttHeaderRow extends StatelessWidget {
                   style: const TextStyle(
                       color: Color(0xFF6B7280),
                       fontSize: 10,
-                      fontFamily: 'monospace')),
+                      fontFamily: appFontFamily)),
             )),
       ],
     );
@@ -340,7 +340,7 @@ class _GanttRow extends StatelessWidget {
                       style: const TextStyle(
                           color: Color(0xFF495057),
                           fontSize: 10,
-                          fontFamily: 'monospace',
+                          fontFamily: appFontFamily,
                           fontWeight: FontWeight.bold)),
                   const SizedBox(width: 6),
                   Flexible(

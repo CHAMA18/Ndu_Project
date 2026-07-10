@@ -69,7 +69,7 @@ service cloud.firestore {
         return exists(/databases/$(database)/documents/projects/$(projectId))
           && (
             request.auth.uid == get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId
-            || request.auth.uid in get(/databases/$(database)/documents/projects/$(projectId)).data.get('teamMembers', [])
+            || request.auth.token.email in get(/databases/$(database)/documents/projects/$(projectId)).data.get('teamMemberEmails', [])
           )
           || isAdmin();
       }

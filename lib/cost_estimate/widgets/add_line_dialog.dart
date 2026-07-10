@@ -715,7 +715,7 @@ class _AddLineDialogState extends State<AddLineDialog> {
                                               style: const TextStyle(
                                                   color: Color(0xFF495057),
                                                   fontSize: 11,
-                                                  fontFamily: 'monospace',
+                                                  fontFamily: appFontFamily,
                                                   fontWeight:
                                                       FontWeight.bold)),
                                         ),

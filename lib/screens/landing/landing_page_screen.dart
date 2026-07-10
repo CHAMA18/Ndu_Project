@@ -98,46 +98,49 @@ class LandingPageScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: _bg.withValues(alpha: 0.85),
               border: Border(bottom: BorderSide(color: _border, width: 1)),
-            ),
-            child: SafeArea(
+            ),              child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 48),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Logo
-                    Row(children: [
-                      Container(width: 32, height: 32, decoration: BoxDecoration(gradient: LinearGradient(colors: [_gold, _goldDeep]), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.trending_up, color: Color(0xFF0A0E1A), size: 18)),
-                      const SizedBox(width: 10),
-                      Text('NDU', style: TextStyle(color: _textPrimary, fontSize: 18, fontWeight: FontWeight.w800, fontFamily: appFontFamily)),
-                      Text(' Project', style: TextStyle(color: _gold, fontSize: 18, fontWeight: FontWeight.w800, fontFamily: appFontFamily)),
-                    ]),
-                    // Nav items (desktop)
-                    if (MediaQuery.sizeOf(context).width > 900)
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Logo
                       Row(children: [
-                        _navLink('Why Ndu', () => _scrollTo(context, 'why')),
-                        _navLink('How It Works', () => _scrollTo(context, 'how')),
-                        _navLink('Differentiator', () => _scrollTo(context, 'diff')),
-                        _navLink('Pricing', () => _scrollTo(context, 'pricing')),
-                        _navLink('KAZ AI', () => _scrollTo(context, 'kaz')),
-                        _navLink('Services', () => _scrollTo(context, 'services')),
-                        _navLink('Resources', () => _scrollTo(context, 'footer')),
-                        _navLink('Media', () => _launchUrl('https://nduproject.tech')),
+                        Container(width: 32, height: 32, decoration: BoxDecoration(gradient: LinearGradient(colors: [_gold, _goldDeep]), borderRadius: BorderRadius.circular(8)), child: const Icon(Icons.trending_up, color: Color(0xFF0A0E1A), size: 18)),
+                        const SizedBox(width: 10),
+                        Text('NDU', style: TextStyle(color: _textPrimary, fontSize: 18, fontWeight: FontWeight.w800, fontFamily: appFontFamily)),
+                        Text(' Project', style: TextStyle(color: _gold, fontSize: 18, fontWeight: FontWeight.w800, fontFamily: appFontFamily)),
                       ]),
-                    // Right side
-                    Row(children: [
-                      // Social icons
-                      _socialIcon(Icons.facebook, 'https://facebook.com/nduproject'),
-                      _socialIcon(Icons.camera_alt_outlined, 'https://instagram.com/nduproject'),
-                      _socialIcon(Icons.business, 'https://linkedin.com/company/nduproject'),
-                      _socialIcon(Icons.play_circle_outline, 'https://youtube.com/@nduproject'),
-                      _socialIcon(Icons.music_note, 'https://tiktok.com/@nduproject'),
-                      const SizedBox(width: 12),
-                      TextButton(onPressed: () => context.go('/sign-in'), child: Text('Sign In', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w600, fontFamily: appFontFamily))),
-                      const SizedBox(width: 8),
-                      _gradientButton('Start Your Project', () => context.go('/create-account')),
-                    ]),
-                  ],
+                      // Nav items (desktop)
+                      if (MediaQuery.sizeOf(context).width > 900)
+                        Row(children: [
+                          _navLink('Why Ndu', () => _scrollTo(context, 'why')),
+                          _navLink('How It Works', () => _scrollTo(context, 'how')),
+                          _navLink('Differentiator', () => _scrollTo(context, 'diff')),
+                          _navLink('Pricing', () => _scrollTo(context, 'pricing')),
+                          _navLink('KAZ AI', () => _scrollTo(context, 'kaz')),
+                          _navLink('Services', () => _scrollTo(context, 'services')),
+                          _navLink('Resources', () => _scrollTo(context, 'footer')),
+                          _navLink('Media', () => _launchUrl('https://nduproject.tech')),
+                        ]),
+                      // Right side
+                      Row(children: [
+                        // Social icons
+                        _socialIcon(Icons.facebook, 'https://facebook.com/nduproject'),
+                        _socialIcon(Icons.camera_alt_outlined, 'https://instagram.com/nduproject'),
+                        _socialIcon(Icons.business, 'https://linkedin.com/company/nduproject'),
+                        _socialIcon(Icons.play_circle_outline, 'https://youtube.com/@nduproject'),
+                        _socialIcon(Icons.music_note, 'https://tiktok.com/@nduproject'),
+                        const SizedBox(width: 12),
+                        TextButton(onPressed: () => context.go('/sign-in'), child: Text('Sign In', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w600, fontFamily: appFontFamily))),
+                        const SizedBox(width: 8),
+                        _gradientButton('Start Your Project', () => context.go('/create-account')),
+                      ]),
+                    ],
+                  ),
                 ),
               ),
             ),
