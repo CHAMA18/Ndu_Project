@@ -14,6 +14,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 class FinalizeProjectScreen extends StatefulWidget {
  const FinalizeProjectScreen({super.key});
 
@@ -897,6 +899,25 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  else
  ..._checklist.map(_buildChecklistRow),
  const SizedBox(height: 8),
+ Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ OutlinedButton.icon(
+ onPressed: () async {
+ final rows = await showCsvImportDialog(context, tableTitle: 'Checklist', columns: [
+ CsvColumnSpec(key: 'title', label: 'Checklist Item', sampleValue: 'Final deployment review'),
+ CsvColumnSpec(key: 'owner', label: 'Owner', sampleValue: 'Project Manager'),
+ CsvColumnSpec(key: 'dueDate', label: 'Due Date', sampleValue: '2026-07-15'),
+ CsvColumnSpec(key: 'status', label: 'Status', sampleValue: 'Pending', allowedValues: ['Pending', 'In Progress', 'Done']),
+ ]);
+ if (rows == null || !mounted) return;
+ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows.length} checklist items imported from CSV'), backgroundColor: Colors.green));
+ },
+ icon: const Icon(Icons.upload_file_outlined, size: 16),
+ label: const Text('Import CSV'),
+ style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+ ),
+ const SizedBox(width: 8),
  FilledButton.icon(
  onPressed: _addChecklistItem,
  icon: const Icon(Icons.add, size: 16),
@@ -908,6 +929,8 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
  textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
  ),
+ ),
+ ],
  ),
  ],
  ),

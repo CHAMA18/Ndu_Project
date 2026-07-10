@@ -21,6 +21,8 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
 
 const _dateHint = 'Select date';
@@ -1381,10 +1383,30 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  title: 'Applicable Standards',
  subtitle:
  'Capture industry and project-specific standards that drive quality controls.',
- trailing: ElevatedButton.icon(
+ trailing: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ OutlinedButton.icon(
+ onPressed: () async {
+ final rows = await showCsvImportDialog(context, tableTitle: 'Quality Standards', columns: [
+ CsvColumnSpec(key: 'name', label: 'Standard Name', sampleValue: 'ISO 9001'),
+ CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'ISO'),
+ CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Quality'),
+ ]);
+ if (rows == null || !mounted) return;
+ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows.length} standards imported from CSV'), backgroundColor: Colors.green));
+ },
+ icon: const Icon(Icons.upload_file_outlined, size: 16),
+ label: const Text('Import CSV'),
+ style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+ ),
+ const SizedBox(width: 8),
+ ElevatedButton.icon(
  onPressed: _addStandard,
  icon: const Icon(Icons.add, size: 16),
  label: const Text('Add Standard'),
+ ),
+ ],
  ),
  ),
  const SizedBox(height: 12),

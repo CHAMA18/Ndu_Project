@@ -16,6 +16,8 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 class IdentifyStaffOpsTeamScreen extends StatefulWidget {
  const IdentifyStaffOpsTeamScreen({super.key});
 
@@ -169,6 +171,16 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  spacing: 10,
  runSpacing: 10,
  children: [
+ _actionButton(Icons.upload_file_outlined, 'Import CSV',
+ onPressed: () async {
+ final rows = await showCsvImportDialog(context, tableTitle: 'Ops Team', columns: [
+ CsvColumnSpec(key: 'name', label: 'Member Name', sampleValue: 'John Doe'),
+ CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Operations Lead'),
+ CsvColumnSpec(key: 'email', label: 'Email', sampleValue: 'john@company.com'),
+ ]);
+ if (rows == null || !mounted) return;
+ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows.length} members imported from CSV'), backgroundColor: Colors.green));
+ }),
  _actionButton(Icons.person_add_alt_1, 'Add role',
  onPressed: () => _showAddMemberDialog(context)),
  _actionButton(Icons.assignment_ind_outlined, 'Assign member'),

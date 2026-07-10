@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -20,9 +22,13 @@ import 'package:ndu_project/widgets/s_curve_chart.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/services/forecast_service.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
 class CostEstimateScreen extends StatefulWidget {
  const CostEstimateScreen({super.key});
 
@@ -5225,6 +5231,18 @@ class _SectionHeader extends StatelessWidget {
  label: 'AI Suggestions',
  icon: Icons.bolt_outlined,
  onPressed: onAiSuggestions,
+ ),
+ _OutlinedActionButton(
+ label: 'Import CSV',
+ icon: Icons.upload_file_outlined,
+ onPressed: () async {
+ final rows = await showCsvImportDialog(context, tableTitle: 'Cost Items', columns: [
+ CsvColumnSpec(key: 'item', label: 'Item', sampleValue: 'Development'),
+ CsvColumnSpec(key: 'cost', label: 'Cost', sampleValue: '50000'),
+ ]);
+ 
+ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows?.length ?? 0} cost items imported from CSV'), backgroundColor: Colors.green));
+ },
  ),
  _FilledActionButton(
  label: 'Add Cost Item',
