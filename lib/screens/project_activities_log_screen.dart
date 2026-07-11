@@ -748,16 +748,6 @@ class _ProjectActivitiesLogScreenState
  return Scaffold(
  backgroundColor: Colors.white,
  body: SafeArea(
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- DraggableSidebar(
- openWidth: AppBreakpoints.sidebarWidth(context),
- child: const InitiationLikeSidebar(
- activeItemLabel: 'Project Activities Log',
- ),
- ),
- Expanded(
  child: Stack(
  children: [
  const AdminEditToggle(),
@@ -1070,15 +1060,7 @@ class _ProjectActivitiesLogScreenState
  ),
  ],
  ),
- MobileSidebarHamburger(
- sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Project Activities Log',
- ),
- ),
  const KazAiChatBubble(),
- ],
- ),
- ),
  ],
  ),
  ),
