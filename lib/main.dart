@@ -11,6 +11,7 @@ import 'package:ndu_project/services/api_config_secure.dart' show SecureAPIConfi
 import 'package:ndu_project/services/env_config_loader.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
+import 'package:ndu_project/services/currency_service.dart';
 import 'package:ndu_project/services/security_services.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
@@ -211,6 +212,11 @@ class MyApp extends StatelessWidget {
           final tp = ThemeProvider();
           tp.load();
           return tp;
+        }),
+        ChangeNotifierProvider(create: (_) {
+          final cs = CurrencyService.instance;
+          cs.load();
+          return cs;
         }),
       ],
       child: Builder(

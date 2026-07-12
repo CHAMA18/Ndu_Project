@@ -18,6 +18,7 @@ import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/compact_action_button.dart';
 import 'package:ndu_project/widgets/shimmer_loading.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/screens/group_into_portfolio_screen.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
 
@@ -223,6 +224,7 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
 
     return Scaffold(
       backgroundColor: _bg,
+      floatingActionButton: const KazAiChatBubble(positioned: false),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {

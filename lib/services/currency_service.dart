@@ -1,257 +1,121 @@
-import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Service for handling multi-currency formatting and conversion
-class CurrencyService {
-  CurrencyService._();
+/// Manages the default currency for the entire application.
+///
+/// The selected currency is persisted in SharedPreferences and can be
+/// read by any screen via [CurrencyService.instance.defaultCurrency] or
+/// [CurrencyService.instance.formatAmount].
+class CurrencyService extends ChangeNotifier {
+  static const String _prefKey = 'pref_default_currency';
 
-  /// Currency symbol lookup table
-  static const Map<String, String> _currencySymbols = {
-    'USD': '\$',
-    'EUR': '€',
-    'GBP': '£',
-    'JPY': '¥',
-    'CNY': '¥',
-    'CAD': 'C\$',
-    'AUD': 'A\$',
-    'CHF': 'CHF ',
-    'INR': '₹',
-    'KRW': '₩',
-    'BRL': 'R\$',
-    'MXN': 'MX\$',
-    'ZAR': 'R ',
-    'SGD': 'S\$',
-    'HKD': 'HK\$',
-    'NOK': 'kr ',
-    'SEK': 'kr ',
-    'DKK': 'kr ',
-    'PLN': 'zł ',
-    'RUB': '₽',
-    'TRY': '₺',
-    'AED': 'د.إ ',
-    'SAR': '﷼ ',
-    'THB': '฿ ',
-    'IDR': 'Rp ',
-    'MYR': 'RM ',
-    'PHP': '₱ ',
-    'VND': '₫ ',
-    'NGN': '₦ ',
-    'EGP': 'E£ ',
-    'ILS': '₪ ',
-    'CZK': 'Kč ',
-    'HUF': 'Ft ',
-    'RON': 'lei ',
-    'BGN': 'лв ',
-    'HRK': 'kn ',
-    'NZD': 'NZ\$ ',
-    'CLP': 'CL\$ ',
-    'COP': 'COL\$ ',
-    'PEN': 'S/ ',
-    'ARS': '\$ ',
-    'TWD': 'NT\$ ',
-    'PKR': '₨ ',
-  };
+  static final CurrencyService _instance = CurrencyService._internal();
+  static CurrencyService get instance => _instance;
+  CurrencyService._internal();
 
-  /// Currency name lookup table (optional, for display)
-  static const Map<String, String> _currencyNames = {
-    'USD': 'US Dollar',
-    'EUR': 'Euro',
-    'GBP': 'British Pound',
-    'JPY': 'Japanese Yen',
-    'CNY': 'Chinese Yuan',
-    'CAD': 'Canadian Dollar',
-    'AUD': 'Australian Dollar',
-    'CHF': 'Swiss Franc',
-    'INR': 'Indian Rupee',
-    'KRW': 'South Korean Won',
-    'BRL': 'Brazilian Real',
-    'MXN': 'Mexican Peso',
-    'ZAR': 'South African Rand',
-    'SGD': 'Singapore Dollar',
-    'HKD': 'Hong Kong Dollar',
-    'NOK': 'Norwegian Krone',
-    'SEK': 'Swedish Krona',
-    'DKK': 'Danish Krone',
-    'PLN': 'Polish Złoty',
-    'RUB': 'Russian Ruble',
-    'TRY': 'Turkish Lira',
-    'AED': 'UAE Dirham',
-    'SAR': 'Saudi Riyal',
-    'THB': 'Thai Baht',
-    'IDR': 'Indonesian Rupiah',
-    'MYR': 'Malaysian Ringgit',
-    'PHP': 'Philippine Peso',
-    'VND': 'Vietnamese Dong',
-    'NGN': 'Nigerian Naira',
-    'EGP': 'Egyptian Pound',
-    'ILS': 'Israeli Shekel',
-    'CZK': 'Czech Koruna',
-    'HUF': 'Hungarian Forint',
-    'RON': 'Romanian Leu',
-    'BGN': 'Bulgarian Lev',
-    'HRK': 'Croatian Kuna',
-    'NZD': 'New Zealand Dollar',
-    'CLP': 'Chilean Peso',
-    'COP': 'Colombian Peso',
-    'PEN': 'Peruvian Sol',
-    'ARS': 'Argentine Peso',
-    'TWD': 'Taiwan Dollar',
-    'PKR': 'Pakistani Rupee',
-  };
+  String _defaultCurrencyCode = 'USD';
 
-  /// Commonly used currencies (for dropdowns)
-  static const List<String> commonCurrencies = [
-    'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY', 'INR',
+  /// The current default currency code (e.g. 'USD', 'ZMW', 'EUR').
+  String get defaultCurrencyCode => _defaultCurrencyCode;
+
+  /// The symbol for the current default currency (e.g. '$', 'ZK', '€').
+  String get defaultCurrencySymbol => getSymbol(_defaultCurrencyCode);
+
+  /// Load the persisted currency choice (or default to 'USD').
+  Future<void> load() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_prefKey) ?? 'USD';
+      _defaultCurrencyCode = raw;
+    } catch (_) {
+      _defaultCurrencyCode = 'USD';
+    }
+    notifyListeners();
+  }
+
+  /// Set the default currency and persist the choice.
+  Future<void> setDefaultCurrency(String code) async {
+    if (_defaultCurrencyCode == code) return;
+    _defaultCurrencyCode = code;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_prefKey, code);
+    } catch (_) {
+      // Silently ignore persistence failures.
+    }
+  }
+
+  /// Format a monetary amount with the default currency symbol.
+  String formatAmount(double amount, {int decimals = 2}) {
+    return '$defaultCurrencySymbol${amount.toStringAsFixed(decimals)}';
+  }
+
+  /// Get the symbol for a given currency code.
+  static String getSymbol(String code) {
+    return _currencySymbols[code] ?? code;
+  }
+
+  /// All supported currencies with their codes, symbols, and names.
+  static const List<CurrencyOption> supportedCurrencies = [
+    CurrencyOption(code: 'USD', symbol: '\$', name: 'US Dollar'),
+    CurrencyOption(code: 'ZMW', symbol: 'ZK', name: 'Zambian Kwacha'),
+    CurrencyOption(code: 'EUR', symbol: '€', name: 'Euro'),
+    CurrencyOption(code: 'GBP', symbol: '£', name: 'British Pound'),
+    CurrencyOption(code: 'ZAR', symbol: 'R', name: 'South African Rand'),
+    CurrencyOption(code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling'),
+    CurrencyOption(code: 'NGN', symbol: '₦', name: 'Nigerian Naira'),
+    CurrencyOption(code: 'GHS', symbol: '₵', name: 'Ghanaian Cedi'),
+    CurrencyOption(code: 'EGP', symbol: 'E£', name: 'Egyptian Pound'),
+    CurrencyOption(code: 'RWF', symbol: 'RF', name: 'Rwandan Franc'),
+    CurrencyOption(code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling'),
+    CurrencyOption(code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling'),
+    CurrencyOption(code: 'CNY', symbol: '¥', name: 'Chinese Yuan'),
+    CurrencyOption(code: 'JPY', symbol: '¥', name: 'Japanese Yen'),
+    CurrencyOption(code: 'INR', symbol: '₹', name: 'Indian Rupee'),
+    CurrencyOption(code: 'AUD', symbol: 'A\$', name: 'Australian Dollar'),
+    CurrencyOption(code: 'CAD', symbol: 'C\$', name: 'Canadian Dollar'),
+    CurrencyOption(code: 'CHF', symbol: 'CHF', name: 'Swiss Franc'),
+    CurrencyOption(code: 'BRL', symbol: 'R\$', name: 'Brazilian Real'),
+    CurrencyOption(code: 'AED', symbol: 'AED', name: 'UAE Dirham'),
   ];
 
-  /// Get currency symbol for a given currency code
-  static String getSymbol(String currencyCode) {
-    final upperCode = currencyCode.toUpperCase();
-    return _currencySymbols[upperCode] ?? currencyCode;
-  }
-
-  /// Get currency name for a given currency code
-  static String getName(String currencyCode) {
-    final upperCode = currencyCode.toUpperCase();
-    return _currencyNames[upperCode] ?? currencyCode;
-  }
-
-  /// Format an amount with currency symbol
-  static String format(
-    double amount, {
-    String currencyCode = 'USD',
-    int decimalDigits = 0,
-    bool showSymbol = true,
-  }) {
-    final upperCode = currencyCode.toUpperCase();
-    final symbol = showSymbol ? getSymbol(upperCode) : '';
-
-    final formatter = NumberFormat.currency(
-      symbol: symbol,
-      decimalDigits: decimalDigits,
-      name: upperCode,
-      locale: _getLocaleForCurrency(upperCode),
-    );
-
-    return formatter.format(amount);
-  }
-
-  /// Format without symbol (code only)
-  static String formatWithCode(
-    double amount, {
-    String currencyCode = 'USD',
-    int decimalDigits = 0,
-  }) {
-    final upperCode = currencyCode.toUpperCase();
-    final formatter = NumberFormat.currency(
-      symbol: '',
-      decimalDigits: decimalDigits,
-      name: upperCode,
-    );
-    return '${formatter.format(amount)} $upperCode';
-  }
-
-  /// Compact format for large numbers (e.g., $1.2M, $450K)
-  static String formatCompact(
-    double amount, {
-    String currencyCode = 'USD',
-  }) {
-    final upperCode = currencyCode.toUpperCase();
-    final symbol = getSymbol(upperCode);
-
-    if (amount.abs() >= 1000000) {
-      return '$symbol${(amount / 1000000).toStringAsFixed(1)}M';
-    } else if (amount.abs() >= 1000) {
-      return '$symbol${(amount / 1000).toStringAsFixed(0)}K';
-    }
-    return format(amount, currencyCode: currencyCode);
-  }
-
-  /// Get locale for a given currency code (for proper number formatting)
-  static String _getLocaleForCurrency(String currencyCode) {
-    const localeMap = {
-      'USD': 'en_US',
-      'EUR': 'de_DE',
-      'GBP': 'en_GB',
-      'JPY': 'ja_JP',
-      'CNY': 'zh_CN',
-      'CAD': 'en_CA',
-      'AUD': 'en_AU',
-      'CHF': 'de_CH',
-      'INR': 'en_IN',
-      'KRW': 'ko_KR',
-      'BRL': 'pt_BR',
-      'MXN': 'es_MX',
-      'ZAR': 'en_ZA',
-      'SGD': 'en_SG',
-      'HKD': 'zh_HK',
-      'NOK': 'nb_NO',
-      'SEK': 'sv_SE',
-      'DKK': 'da_DK',
-      'PLN': 'pl_PL',
-      'RUB': 'ru_RU',
-      'TRY': 'tr_TR',
-      'AED': 'ar_AE',
-      'SAR': 'ar_SA',
-      'THB': 'th_TH',
-      'IDR': 'id_ID',
-      'MYR': 'ms_MY',
-      'PHP': 'en_PH',
-      'VND': 'vi_VN',
-      'NGN': 'en_NG',
-      'EGP': 'ar_EG',
-      'ILS': 'he_IL',
-      'CZK': 'cs_CZ',
-      'HUF': 'hu_HU',
-      'RON': 'ro_RO',
-      'BGN': 'bg_BG',
-      'HRK': 'hr_HR',
-      'NZD': 'en_NZ',
-      'CLP': 'es_CL',
-      'COP': 'es_CO',
-      'PEN': 'es_PE',
-      'ARS': 'es_AR',
-      'TWD': 'zh_TW',
-      'PKR': 'ur_PK',
-    };
-    return localeMap[currencyCode] ?? 'en_US';
-  }
-
-  /// Validate if a currency code is supported
-  static bool isValidCurrency(String currencyCode) {
-    return _currencySymbols.containsKey(currencyCode.toUpperCase());
-  }
-
-  /// Get all supported currency codes
-  static List<String> getAllCurrencies() {
-    return _currencySymbols.keys.toList()..sort();
-  }
-
-  /// Parse amount from formatted string (basic implementation)
-  static double? parse(String formattedAmount) {
-    // Remove currency symbols and spaces, then parse
-    final cleaned = formattedAmount
-        .replaceAll(RegExp(r'[\$\€\£\¥\₹\₩\₽\₺\฿\₱\₫\₦\£\₪\₡\₢]'), '')
-        .replaceAll(RegExp(r'[a-zA-Z]'), '')
-        .replaceAll(',', '')
-        .trim();
-    return double.tryParse(cleaned);
-  }
+  static const Map<String, String> _currencySymbols = {
+    'USD': '\$',
+    'ZMW': 'ZK',
+    'EUR': '€',
+    'GBP': '£',
+    'ZAR': 'R',
+    'KES': 'KSh',
+    'NGN': '₦',
+    'GHS': '₵',
+    'EGP': 'E£',
+    'RWF': 'RF',
+    'TZS': 'TSh',
+    'UGX': 'USh',
+    'CNY': '¥',
+    'JPY': '¥',
+    'INR': '₹',
+    'AUD': 'A\$',
+    'CAD': 'C\$',
+    'CHF': 'CHF',
+    'BRL': 'R\$',
+    'AED': 'AED',
+  };
 }
 
-/// Extension for double to easily format as currency
-extension CurrencyFormat on double {
-  String toCurrency({String currencyCode = 'USD', int decimalDigits = 0}) {
-    return CurrencyService.format(
-      this,
-      currencyCode: currencyCode,
-      decimalDigits: decimalDigits,
-    );
-  }
+/// A supported currency option for the settings dropdown.
+class CurrencyOption {
+  final String code;
+  final String symbol;
+  final String name;
 
-  String toCompactCurrency({String currencyCode = 'USD'}) {
-    return CurrencyService.formatCompact(
-      this,
-      currencyCode: currencyCode,
-    );
-  }
+  const CurrencyOption({
+    required this.code,
+    required this.symbol,
+    required this.name,
+  });
+
+  @override
+  String toString() => '$code ($symbol) — $name';
 }

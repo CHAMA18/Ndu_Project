@@ -46,7 +46,7 @@ class _TechnicalAlignmentScreenState extends State<TechnicalAlignmentScreen> {
  Timer? _saveDebounce;
  bool _isLoading = false;
  bool _suspendSave = false;
- bool _registersExpanded = false;
+
  final Set<int> _editingMethodologyRows = <int>{};
  final Set<int> _editingReadinessRows = <int>{};
  final Set<int> _editingTraceabilityRows = <int>{};
@@ -616,6 +616,8 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  const SizedBox(height: 24),
+ _buildDetailedRegistersPanel(ownerOptions),
+ const SizedBox(height: 24),
  _buildEngineeringHubHeader(
  isMobile: isMobile,
  snapshot: snapshot,
@@ -626,8 +628,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _buildEnvironmentSection(snapshot, isMobile),
  const SizedBox(height: 20),
  _buildGovernanceGrid(snapshot),
- const SizedBox(height: 20),
- _buildDetailedRegistersPanel(ownerOptions),
  const SizedBox(height: 24),
  LaunchPhaseNavigation(
  backLabel: 'Back: Requirements Implementation',
@@ -673,6 +673,8 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: ListView(
  padding: EdgeInsets.all(padding),
  children: [
+ _buildDetailedRegistersPanel(ownerOptions),
+ const SizedBox(height: 24),
  _buildStableMethodologyMatrix(),
  const SizedBox(height: 24),
  _buildStableReadinessGateTable(),
@@ -740,8 +742,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ],
  ),
  ),
- const SizedBox(height: 24),
- _buildDetailedRegistersPanel(ownerOptions),
  ],
  ),
  );
@@ -1161,8 +1161,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1171,8 +1170,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1181,8 +1179,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1191,8 +1188,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1201,8 +1197,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
  Expanded(
@@ -1485,7 +1480,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: bestFitCtl,
- maxLines: 3,
  minLines: 2,
  decoration: const InputDecoration(
  labelText: 'Best-fit use',
@@ -1502,7 +1496,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: evidenceCtl,
- maxLines: 3,
  minLines: 2,
  decoration: const InputDecoration(
  labelText: 'Required alignment evidence',
@@ -1519,7 +1512,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: controlsCtl,
- maxLines: 3,
  minLines: 2,
  decoration: const InputDecoration(
  labelText: 'Technical control focus',
@@ -1536,7 +1528,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 6),
  VoiceTextField(
  controller: exitCtl,
- maxLines: 3,
  minLines: 2,
  decoration: const InputDecoration(
  labelText: 'Exit standard',
@@ -1673,8 +1664,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1683,8 +1673,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1693,8 +1682,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -1840,7 +1828,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 12),
  VoiceTextField(
  controller: standardCtl,
- maxLines: 3,
  decoration: const InputDecoration(
  labelText: 'What Must Be True',
  isDense: true,
@@ -1850,7 +1837,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 12),
  VoiceTextField(
  controller: evidenceCtl,
- maxLines: 3,
  decoration: const InputDecoration(
  labelText: 'Evidence To Attach',
  isDense: true,
@@ -2086,8 +2072,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -2096,8 +2081,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -2106,8 +2090,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -2116,8 +2099,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
               Expanded(
@@ -2126,8 +2108,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
                   style: const TextStyle(
                     fontSize: 11,
                     color: Color(0xFF374151)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  
                   textAlign: TextAlign.center),
               ),
  Expanded(
@@ -2233,7 +2214,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 12),
  VoiceTextField(
  controller: questionCtl,
- maxLines: 3,
  decoration: const InputDecoration(
  labelText: 'Technical Alignment Question',
  isDense: true,
@@ -2243,7 +2223,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 12),
  VoiceTextField(
  controller: verificationCtl,
- maxLines: 2,
  decoration: const InputDecoration(
  labelText: 'Verification Method',
  isDense: true,
@@ -2253,7 +2232,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 12),
  VoiceTextField(
  controller: waterfallCtl,
- maxLines: 2,
  decoration: const InputDecoration(
  labelText: 'Waterfall Evidence',
  isDense: true,
@@ -2263,7 +2241,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  const SizedBox(height: 12),
  VoiceTextField(
  controller: agileCtl,
- maxLines: 2,
  decoration: const InputDecoration(
  labelText: 'Agile / Hybrid Evidence',
  isDense: true,
@@ -2701,8 +2678,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  child: Text(
  _notesController.text.trim(),
- maxLines: 3,
- overflow: TextOverflow.ellipsis,
+ 
  style: TextStyle(
  fontSize: 12.5,
  color: Colors.white.withOpacity(0.82),
@@ -2829,16 +2805,20 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ],
  ),
- child: Theme(
- data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
- child: ExpansionTile(
- initiallyExpanded: _registersExpanded,
- onExpansionChanged: (value) {
- setState(() => _registersExpanded = value);
- },
- tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
- childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
- title: const Text(
+ child: Padding(
+ padding: const EdgeInsets.all(20),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ const Row(
+ children: [
+ Icon(Icons.folder_open_outlined, size: 20, color: Color(0xFF475569)),
+ SizedBox(width: 8),
+ Expanded(
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ Text(
  'Detailed Registers',
  style: TextStyle(
  fontSize: 17,
@@ -2846,11 +2826,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  color: Color(0xFF111827),
  ),
  ),
- subtitle: const Text(
+ SizedBox(height: 4),
+ Text(
  'Edit the working notes, constraints, mappings, and dependencies feeding the dashboard above.',
  style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
  ),
- children: [
+ ],
+ ),
+ ),
+ ],
+ ),
+ const SizedBox(height: 20),
  ResponsiveGrid(
  desktopColumns: 1,
  tabletColumns: 1,
@@ -4005,14 +3991,14 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onAction: _addConstraintRow,
  ),
  const SizedBox(height: 16),
- _buildTableHeaderRow(
+ _buildScrollableTableHeader(
  columns: const [
- _TableColumn(label: 'Constraint', flex: 3),
- _TableColumn(label: 'Guardrail', flex: 5),
- _TableColumn(label: 'Owner', flex: 2),
- _TableColumn(label: 'Status', flex: 2),
+ _TableColumn(label: 'Constraint', flex: 3, minWidth: 260, alignment: Alignment.center),
+ _TableColumn(label: 'Guardrail', flex: 5, minWidth: 400, alignment: Alignment.center),
+ _TableColumn(label: 'Owner', flex: 2, minWidth: 150, alignment: Alignment.center),
+ _TableColumn(label: 'Status', flex: 2, minWidth: 140, alignment: Alignment.center),
  _TableColumn(
- label: 'Actions', flex: 2, alignment: Alignment.center),
+ label: 'Actions', flex: 2, minWidth: _technicalAlignmentActionColumnWidth, alignment: Alignment.center),
  ],
  ),
  const SizedBox(height: 10),
@@ -4023,15 +4009,23 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onAction: _addConstraintRow,
  )
  else
- for (int i = 0; i < _constraints.length; i++) ...[
- _buildConstraintRow(
+ _buildScrollableTableBody(
+ columns: const [
+ _TableColumn(label: 'Constraint', flex: 3, minWidth: 260, alignment: Alignment.center),
+ _TableColumn(label: 'Guardrail', flex: 5, minWidth: 400, alignment: Alignment.center),
+ _TableColumn(label: 'Owner', flex: 2, minWidth: 150, alignment: Alignment.center),
+ _TableColumn(label: 'Status', flex: 2, minWidth: 140, alignment: Alignment.center),
+ _TableColumn(
+ label: 'Actions', flex: 2, minWidth: _technicalAlignmentActionColumnWidth, alignment: Alignment.center),
+ ],
+ rowCount: _constraints.length,
+ rowBuilder: (i) => _buildConstraintRow(
  _constraints[i],
  index: i,
  isStriped: i.isOdd,
  ownerOptions: ownerOptions,
  ),
- if (i != _constraints.length - 1) const SizedBox(height: 8),
- ],
+ ),
  ],
  ),
  );
@@ -4065,13 +4059,13 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onAction: _addMappingRow,
  ),
  const SizedBox(height: 16),
- _buildTableHeaderRow(
+ _buildScrollableTableHeader(
  columns: const [
- _TableColumn(label: 'Requirement', flex: 3),
- _TableColumn(label: 'Technical approach', flex: 5),
- _TableColumn(label: 'Status', flex: 2),
+ _TableColumn(label: 'Requirement', flex: 3, minWidth: 260, alignment: Alignment.center),
+ _TableColumn(label: 'Technical approach', flex: 5, minWidth: 460, alignment: Alignment.center),
+ _TableColumn(label: 'Status', flex: 2, minWidth: 140, alignment: Alignment.center),
  _TableColumn(
- label: 'Actions', flex: 2, alignment: Alignment.center),
+ label: 'Actions', flex: 2, minWidth: _technicalAlignmentActionColumnWidth, alignment: Alignment.center),
  ],
  ),
  const SizedBox(height: 10),
@@ -4083,10 +4077,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onAction: _addMappingRow,
  )
  else
- for (int i = 0; i < _mappings.length; i++) ...[
- _buildMappingRow(_mappings[i], index: i, isStriped: i.isOdd),
- if (i != _mappings.length - 1) const SizedBox(height: 8),
+ _buildScrollableTableBody(
+ columns: const [
+ _TableColumn(label: 'Requirement', flex: 3, minWidth: 260, alignment: Alignment.center),
+ _TableColumn(label: 'Technical approach', flex: 5, minWidth: 460, alignment: Alignment.center),
+ _TableColumn(label: 'Status', flex: 2, minWidth: 140, alignment: Alignment.center),
+ _TableColumn(
+ label: 'Actions', flex: 2, minWidth: _technicalAlignmentActionColumnWidth, alignment: Alignment.center),
  ],
+ rowCount: _mappings.length,
+ rowBuilder: (i) => _buildMappingRow(_mappings[i], index: i, isStriped: i.isOdd),
+ ),
  const SizedBox(height: 16),
  Text(
  'Use this table to call out any requirement that needs a specific design pattern or infrastructure choice.',
@@ -4125,14 +4126,14 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onAction: _addDependencyRow,
  ),
  const SizedBox(height: 16),
- _buildTableHeaderRow(
+ _buildScrollableTableHeader(
  columns: const [
- _TableColumn(label: 'Dependency or decision', flex: 4),
- _TableColumn(label: 'Detail', flex: 5),
- _TableColumn(label: 'Owner', flex: 2),
- _TableColumn(label: 'Status', flex: 2),
+ _TableColumn(label: 'Dependency or decision', flex: 4, minWidth: 260, alignment: Alignment.center),
+ _TableColumn(label: 'Detail', flex: 5, minWidth: 380, alignment: Alignment.center),
+ _TableColumn(label: 'Owner', flex: 2, minWidth: 150, alignment: Alignment.center),
+ _TableColumn(label: 'Status', flex: 2, minWidth: 140, alignment: Alignment.center),
  _TableColumn(
- label: 'Actions', flex: 2, alignment: Alignment.center),
+ label: 'Actions', flex: 2, minWidth: _technicalAlignmentActionColumnWidth, alignment: Alignment.center),
  ],
  ),
  const SizedBox(height: 10),
@@ -4144,15 +4145,23 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  onAction: _addDependencyRow,
  )
  else
- for (int i = 0; i < _dependencies.length; i++) ...[
- _buildDependencyRow(
+ _buildScrollableTableBody(
+ columns: const [
+ _TableColumn(label: 'Dependency or decision', flex: 4, minWidth: 260, alignment: Alignment.center),
+ _TableColumn(label: 'Detail', flex: 5, minWidth: 380, alignment: Alignment.center),
+ _TableColumn(label: 'Owner', flex: 2, minWidth: 150, alignment: Alignment.center),
+ _TableColumn(label: 'Status', flex: 2, minWidth: 140, alignment: Alignment.center),
+ _TableColumn(
+ label: 'Actions', flex: 2, minWidth: _technicalAlignmentActionColumnWidth, alignment: Alignment.center),
+ ],
+ rowCount: _dependencies.length,
+ rowBuilder: (i) => _buildDependencyRow(
  _dependencies[i],
  index: i,
  isStriped: i.isOdd,
  ownerOptions: ownerOptions,
  ),
- if (i != _dependencies.length - 1) const SizedBox(height: 8),
- ],
+ ),
  const SizedBox(height: 16),
  // Export button
  SizedBox(
@@ -4459,8 +4468,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  letterSpacing: 0,
  color: Color(0xFF475467),
  ),
- maxLines: 2,
- overflow: TextOverflow.ellipsis,
+ 
  ),
  ),
  ),

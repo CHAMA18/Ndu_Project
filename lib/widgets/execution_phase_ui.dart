@@ -446,8 +446,9 @@ class ExecutionMetricCard extends StatelessWidget {
               color: Color(0xFF64748B),
               letterSpacing: 0.2,
             ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 1,
+            softWrap: true,
+            maxLines: 2,
+            overflow: TextOverflow.visible,
           ),
           const SizedBox(height: 8),
           Row(
@@ -489,8 +490,9 @@ class ExecutionMetricCard extends StatelessWidget {
                             color: Color(0xFF6B7280),
                             height: 1.3,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
+                          softWrap: true,
+                          maxLines: 3,
+                          overflow: TextOverflow.visible,
                         ),
                       )
                     else

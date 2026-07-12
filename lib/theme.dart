@@ -47,6 +47,32 @@ class DarkModeColors {
   static const darkOnSurface = Color(0xFFE5E7EB);
   static const darkAppBarBackground = Color(0xFF0F1115);
   static const accent = Color(0xFFFFC107); // Yellow/Gold accent color
+
+  // Extended dark mode palette for adaptive UI elements
+  static const cardBackground = Color(0xFF1A1D24);
+  static const surfaceVariant = Color(0xFF242830);
+  static const border = Color(0xFF2D3139);
+  static const subtleBackground = Color(0xFF161922);
+  static const textPrimary = Color(0xFFF1F5F9);
+  static const textSecondary = Color(0xFF94A3B8);
+  static const textMuted = Color(0xFF64748B);
+  static const successColor = Color(0xFF34D399);
+  static const warningColor = Color(0xFFFBBF24);
+  static const infoColor = Color(0xFF60A5FA);
+  static const aiColor = Color(0xFFA78BFA);
+}
+
+/// Extension on BuildContext for easy access to adaptive colors
+extension AdaptiveColors on BuildContext {
+  bool get isDarkMode => Theme.of(this).brightness == Brightness.dark;
+  Color get adaptiveSurface => isDarkMode ? DarkModeColors.cardBackground : Colors.white;
+  Color get adaptiveBackground => isDarkMode ? DarkModeColors.darkSurface : Colors.white;
+  Color get adaptiveTextPrimary => isDarkMode ? DarkModeColors.textPrimary : const Color(0xFF0F172A);
+  Color get adaptiveTextSecondary => isDarkMode ? DarkModeColors.textSecondary : const Color(0xFF64748B);
+  Color get adaptiveBorder => isDarkMode ? DarkModeColors.border : const Color(0xFFE5E7EB);
+  Color get adaptiveSubtle => isDarkMode ? DarkModeColors.subtleBackground : const Color(0xFFF8FAFC);
+  Color get adaptiveAccent => isDarkMode ? DarkModeColors.accent : LightModeColors.accent;
+  Color get adaptiveCard => isDarkMode ? DarkModeColors.cardBackground : Colors.white;
 }
 
 /// Semantic colors shared across light and dark themes

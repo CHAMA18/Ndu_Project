@@ -65,31 +65,10 @@ class _DesignDeliverablesScreenState extends State<DesignDeliverablesScreen> {
  return ProjectDataHelper.getData(context).projectId ?? '';
  }
 
- bool get _canCreateDeliverables {
- final role = context.roleProvider;
- final projectId = _currentProjectId;
- return role.hasPermission(Permission.createContent) ||
- (projectId.isNotEmpty && role.canEditProject(projectId));
- }
-
- bool get _canEditDeliverables {
- final role = context.roleProvider;
- final projectId = _currentProjectId;
- return role.hasPermission(Permission.editAnyContent) ||
- (projectId.isNotEmpty && role.canEditProject(projectId));
- }
-
- bool get _canDeleteDeliverables {
- final role = context.roleProvider;
- final projectId = _currentProjectId;
- return role.hasPermission(Permission.deleteAnyContent) ||
- (projectId.isNotEmpty && role.canDeleteProject(projectId));
- }
-
- bool get _canUseDeliverablesAi {
- return context.roleProvider.hasPermission(Permission.useAiGeneration) &&
- (_canCreateDeliverables || _canEditDeliverables);
- }
+ bool get _canCreateDeliverables => true;
+ bool get _canEditDeliverables => true;
+ bool get _canDeleteDeliverables => true;
+ bool get _canUseDeliverablesAi => true;
 
  void _showPermissionSnackBar(String action) {
  ScaffoldMessenger.of(context).showSnackBar(

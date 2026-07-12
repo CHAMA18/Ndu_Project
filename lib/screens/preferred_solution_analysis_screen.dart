@@ -1181,12 +1181,16 @@ class _PreferredSolutionAnalysisScreenState
  children: [
  const Icon(Icons.chevron_left, size: 18, color: Color(0xFF6B7280)),
  const SizedBox(width: 4),
- Text(
+ Expanded(
+ child: Text(
  'Preferred Solution - $projectName',
+ maxLines: 1,
+ overflow: TextOverflow.ellipsis,
  style: const TextStyle(
  fontSize: 13,
  fontWeight: FontWeight.w500,
  color: Color(0xFF6B7280),
+ ),
  ),
  ),
  ],

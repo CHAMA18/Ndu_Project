@@ -24,6 +24,7 @@ import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/program_service.dart';
 import 'package:ndu_project/services/project_service.dart';
 import 'package:ndu_project/widgets/compact_action_button.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
@@ -224,13 +225,21 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
 
  return Scaffold(
  backgroundColor: _bg,
- floatingActionButton: FloatingActionButton(
+ floatingActionButton: Column(
+ mainAxisAlignment: MainAxisAlignment.end,
+ crossAxisAlignment: CrossAxisAlignment.end,
+ children: [
+ const KazAiChatBubble(positioned: false),
+ const SizedBox(height: 12),
+ FloatingActionButton(
  onPressed: () {},
  backgroundColor: _tertiary,
  foregroundColor: _onTertiary,
  elevation: 4,
  shape: const CircleBorder(),
  child: const Icon(Icons.add, size: 28),
+ ),
+ ],
  ),
  body: SafeArea(
  child: StreamBuilder<List<ProgramModel>>(

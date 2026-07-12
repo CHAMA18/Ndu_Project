@@ -398,8 +398,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _buildMethodologySelector(),
  const SizedBox(height: 20),
  _buildMetricsGrid(),
- const SizedBox(height: 20),
- _buildFilterChips(),
  const SizedBox(height: 24),
  // ── Collapsible Sections ──
  _buildArchitectureSection(),
@@ -643,56 +641,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  return ExecutionMetricsGrid(metrics: metrics, minTileWidth: 140);
  }
 
- // ── FILTER CHIPS ──────────────────────────────────────────────
-
- Widget _buildFilterChips() {
- const filters = [
- 'All',
- 'Draft',
- 'In Review',
- 'Reviewed',
- 'Approved',
- 'Baseline',
- 'Must Have',
- ];
- return Wrap(
- spacing: 8,
- runSpacing: 8,
- children: filters.map((filter) {
- final selected = _selectedFilters.contains(filter);
- return GestureDetector(
- onTap: () {
- setState(() {
- _selectedFilters.clear();
- _selectedFilters.add(filter);
- });
- },
- child: AnimatedContainer(
- duration: const Duration(milliseconds: 180),
- padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
- decoration: BoxDecoration(
- color: selected ? const Color(0xFF111827) : Colors.white,
- borderRadius: BorderRadius.circular(20),
- border: Border.all(
- color: selected
- ? const Color(0xFF111827)
- : const Color(0xFFE5E7EB),
- ),
- ),
- child: Text(
- filter,
- style: TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600,
- color: selected ? Colors.white : const Color(0xFF475569),
- ),
- ),
- ),
- );
- }).toList(),
- );
- }
-
  // ── ARCHITECTURE & SYSTEM DESIGN SECTION ──────────────────────
 
  Widget _buildArchitectureSection() {
@@ -701,7 +649,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  'Decomposition view per IEEE 1016 — architectural patterns, service boundaries, and integration topology',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.account_tree_outlined,
  headerIconColor: const Color(0xFF7C3AED),
  trailing: Row(
@@ -916,7 +864,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  'Traceable specifications with MoSCoW prioritization, methodology phasing, and requirements traceability',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.folder_special_outlined,
  headerIconColor: const Color(0xFF2563EB),
  child: const Center(
@@ -935,7 +883,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  'Traceable specifications with MoSCoW prioritization, methodology phasing, and requirements traceability',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.folder_special_outlined,
  headerIconColor: const Color(0xFF2563EB),
  trailing: Row(
@@ -1057,7 +1005,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  'Controls mapped to ISO 27001, NIST Cybersecurity Framework, OWASP, and SOC 2 trust criteria',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.shield_outlined,
  headerIconColor: const Color(0xFFDC2626),
  child: Column(
@@ -1076,7 +1024,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  'Quantifiable quality attributes — performance, scalability, availability, recoverability, and maintainability targets',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.speed_outlined,
  headerIconColor: const Color(0xFFD97706),
  child: Column(
@@ -1095,7 +1043,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  'Architecture Decision Records documenting context, rationale, and consequences of key design choices',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.gavel_outlined,
  headerIconColor: const Color(0xFF6366F1),
  child: Column(
@@ -1115,7 +1063,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  subtitle:
  '$readyCount/${_artifacts.length} design assets staged for build handoff and construction readiness gate',
  collapsible: true,
- initiallyExpanded: false,
+ initiallyExpanded: true,
  headerIcon: Icons.inventory_2_outlined,
  headerIconColor: const Color(0xFF0891B2),
  child: Column(

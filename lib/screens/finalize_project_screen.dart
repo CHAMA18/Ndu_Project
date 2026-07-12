@@ -297,7 +297,6 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  children: [
  Column(
  children: [
- _buildWorldClassHeader(context),
  Expanded(
  child: SingleChildScrollView(
  padding: EdgeInsets.symmetric(
@@ -346,87 +345,6 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  ),
  ],
  ),
- ),
- );
- }
-
- Widget _buildWorldClassHeader(BuildContext context) {
- return Container(
- padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
- decoration: const BoxDecoration(
- color: Colors.white,
- border: Border(
- bottom: BorderSide(color: Color(0xFFE5E7EB), width: 1),
- ),
- ),
- child: Row(
- children: [
- IconButton(
- icon: const Icon(Icons.arrow_back_ios_new_rounded),
- onPressed: () => Navigator.of(context).pop(),
- splashRadius: 20,
- ),
- const SizedBox(width: 8),
- Expanded(
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- const Text(
- 'Finalize Project',
- style: TextStyle(
- fontSize: 24,
- fontWeight: FontWeight.w700,
- color: Color(0xFF111827),
- letterSpacing: -0.5,
- ),
- ),
- const SizedBox(height: 4),
- Text(
- 'Lock scope, validate handoffs, and close out the project with confidence.',
- style: TextStyle(
- fontSize: 14,
- fontWeight: FontWeight.w500,
- color: const Color(0xFF6B7280),
- height: 1.4,
- ),
- ),
- ],
- ),
- ),
- const SizedBox(width: 16),
- Container(
- padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
- decoration: BoxDecoration(
- color: const Color(0xFFF0FDF4),
- borderRadius: BorderRadius.circular(24),
- border: Border.all(color: const Color(0xFFBBF7D0)),
- ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- Container(
- width: 8,
- height: 8,
- decoration: const BoxDecoration(
- color: Color(0xFF16A34A),
- shape: BoxShape.circle,
- ),
- ),
- const SizedBox(width: 8),
- Text(
- _finalizationStatus,
- style: const TextStyle(
- fontSize: 13,
- fontWeight: FontWeight.w600,
- color: Color(0xFF15803D),
- ),
- ),
- ],
- ),
- ),
- const SizedBox(width: 16),
- const _CurrentUserProfileChip(),
- ],
  ),
  );
  }
@@ -1011,8 +929,8 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  _buildTableHeader(
- const ['Stakeholder', 'Role', 'Status', 'Decision date', ''],
- columnWidths: const [3, 3, 2, 2, 1],
+ const ['Stakeholder', 'Role', 'Status', 'Decision date', 'Actions'],
+ columnWidths: const [3, 3, 2, 2, 2],
  ),
  const SizedBox(height: 12),
  if (_signOffs.isEmpty)
@@ -1094,9 +1012,30 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  ),
  ),
  const SizedBox(width: 8),
+ Expanded(
+ flex: 2,
+ child: Row(
+ mainAxisAlignment: MainAxisAlignment.center,
+ children: [
+ IconButton(
+ icon: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB)),
+ tooltip: 'Edit',
+ onPressed: () {
+ ScaffoldMessenger.of(context).showSnackBar(
+ SnackBar(
+ content: Text('Editing ${item.name.isEmpty ? "sign-off" : item.name}…'),
+ behavior: SnackBarBehavior.floating,
+ ),
+ );
+ },
+ ),
  IconButton(
  icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444)),
+ tooltip: 'Delete',
  onPressed: () => _deleteSignOffItem(item.id),
+ ),
+ ],
+ ),
  ),
  ],
  ),
@@ -1457,6 +1396,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  flex: widths[index],
  child: Text(
  labels[index],
+ textAlign: TextAlign.center,
  style: const TextStyle(
  fontSize: 12,
  fontWeight: FontWeight.w600,

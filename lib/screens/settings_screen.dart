@@ -12,6 +12,7 @@ import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/services/currency_service.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:ndu_project/providers/app_content_provider.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
@@ -146,6 +147,10 @@ class _SettingsScreenState extends State<SettingsScreen>
  });
  // Load saved preferences
  _loadPreferences();
+ // Load default currency
+ CurrencyService.instance.load().then((_) {
+ if (mounted) setState(() {});
+ });
  // Ensure user-specific OpenAI key is loaded from Firestore if present
  WidgetsBinding.instance.addPostFrameCallback((_) async {
  await ApiKeyManager.ensureLoadedForSignedInUser();
@@ -354,6 +359,65 @@ class _SettingsScreenState extends State<SettingsScreen>
  );
  }
 
+ Widget _buildDefaultCurrencyRow() {
+ final currencyService = CurrencyService.instance;
+ final currentCode = currencyService.defaultCurrencyCode;
+ final currencies = CurrencyService.supportedCurrencies;
+ return Padding(
+ padding: const EdgeInsets.symmetric(vertical: 8),
+ child: Row(
+ children: [
+ const Icon(Icons.attach_money, size: 20, color: Colors.black54),
+ const SizedBox(width: 12),
+ Expanded(
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ const Text('Default Currency',
+ style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+ const SizedBox(height: 2),
+ Text('Used across all cost estimates and financial displays',
+ style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+ ],
+ ),
+ ),
+ const SizedBox(width: 12),
+ Container(
+ decoration: BoxDecoration(
+ border: Border.all(color: Colors.grey.withOpacity(0.25)),
+ borderRadius: BorderRadius.circular(12),
+ ),
+ padding: const EdgeInsets.symmetric(horizontal: 12),
+ child: DropdownButton<String>(
+ value: currentCode,
+ underline: const SizedBox(),
+ borderRadius: BorderRadius.circular(12),
+ items: currencies
+ .map((c) => DropdownMenuItem(
+ value: c.code,
+ child: Text('${c.code} (${c.symbol})',
+ style: const TextStyle(fontSize: 14)),
+ ))
+ .toList(),
+ onChanged: (code) async {
+ if (code == null) return;
+ await currencyService.setDefaultCurrency(code);
+ setState(() {});
+ ScaffoldMessenger.of(context).showSnackBar(
+ SnackBar(
+ content: Text('Default currency set to $code'),
+ behavior: SnackBarBehavior.floating,
+ backgroundColor: const Color(0xFF10B981),
+ ),
+ );
+ },
+ ),
+ ),
+ ],
+ ),
+ );
+ }
+
  return LayoutBuilder(
  builder: (context, constraints) {
  final isWide = constraints.maxWidth >= 860;
@@ -480,6 +544,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                               ['MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'dd MMM yyyy', 'MMM dd, yyyy'],
                               (v) { if (v != null) { setState(() => _dateFormat = v); _setPref(_prefDateFormat, v); } },
                               icon: Icons.calendar_today),
+                          const SizedBox(height: 8),
+                          _buildDefaultCurrencyRow(),
                         ],
                       ),
                     ),
@@ -518,6 +584,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                         ['MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd', 'dd MMM yyyy', 'MMM dd, yyyy'],
                         (v) { if (v != null) { setState(() => _dateFormat = v); _setPref(_prefDateFormat, v); } },
                         icon: Icons.calendar_today),
+                    const SizedBox(height: 8),
+                    _buildDefaultCurrencyRow(),
                   ],
                 ),
                 const SizedBox(height: 20),

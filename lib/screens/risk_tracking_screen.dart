@@ -408,7 +408,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  'Risk report export is queued while report templates are finalized.')),
  );
  }),
- _primaryButton('Run weekly review'),
+ _actionButton(Icons.play_arrow, 'Run weekly review', onPressed: () {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(content: Text('Weekly review started.')),
+ );
+ }),
  ],
  );
  }
@@ -425,27 +429,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  style: OutlinedButton.styleFrom(
  side: const BorderSide(color: Color(0xFFE2E8F0)),
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
- shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
- ),
- );
- }
-
- Widget _primaryButton(String label) {
- return ElevatedButton.icon(
- onPressed: () {
- ScaffoldMessenger.of(context).showSnackBar(
- const SnackBar(
- content: Text(
- 'Weekly review started.')),
- );
- },
- icon: const Icon(Icons.play_arrow, size: 18),
- label: Text(label,
- style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF0EA5E9),
- foregroundColor: Colors.white,
- padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
  ),
  );
