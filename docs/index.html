@@ -43,7 +43,7 @@
 
   <!-- Loading spinner — shown immediately on first paint, before Flutter's
        engine has booted. Provides visual feedback during the ~1-2s it takes
-       for main.dart.js to download and initialize. Once Flutter renders its
+       for main.dart.js?v=1783860559 to download and initialize. Once Flutter renders its
        first frame, this loader is removed by Flutter's host. -->
   <style>
     body {
@@ -127,7 +127,7 @@
        block effectively re-runs on every new deploy:
 
        1. Kills ALL existing service workers (prevents stale SW from serving
-          old cached main.dart.js).
+          old cached main.dart.js?v=1783860559).
        2. Nukes ALL Cache API entries (clears any cached assets).
        3. Prevents any new service worker from registering during this boot.
        4. If the page was loaded WITHOUT a cache-busting `_ndu` query param,
