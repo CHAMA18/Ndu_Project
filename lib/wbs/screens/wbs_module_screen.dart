@@ -32,6 +32,8 @@ import 'package:ndu_project/wbs/screens/wbs_ai_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_validator_screen.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 
@@ -155,28 +157,6 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
                   onChanged: (index) => setState(() {}),
                 ),
               ),
-              // ── Context banner (drawn from Initiation Phase) ──────────
-              ContextBanner(
-                storageKey: 'wbs_module_context_banner',
-                items: [
-                  ContextBannerItem(
-                    label: 'Project',
-                    value: projectName,
-                    icon: Icons.flag_outlined,
-                  ),
-                  ContextBannerItem(
-                    label: 'Solutions',
-                    value: '$solutionsCount potential',
-                    icon: Icons.lightbulb_outline,
-                  ),
-                  if (businessCasePreview.isNotEmpty)
-                    ContextBannerItem(
-                      label: 'Business case',
-                      value: businessCasePreview,
-                      icon: Icons.description_outlined,
-                    ),
-                ],
-              ),
               // Tab content
               Expanded(
                 child: TabBarView(
@@ -188,6 +168,16 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
                     const WBSValidatorScreen(),
                     const _ExportAndLinkTab(),
                   ],
+                ),
+              ),
+              // Navigation footer
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                child: LaunchPhaseNavigation(
+                  backLabel: PlanningPhaseNavigation.backLabel('work_breakdown_structure'),
+                  nextLabel: PlanningPhaseNavigation.nextLabel('work_breakdown_structure'),
+                  onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'work_breakdown_structure'),
+                  onNext: () => PlanningPhaseNavigation.goToNext(context, 'work_breakdown_structure'),
                 ),
               ),
             ],

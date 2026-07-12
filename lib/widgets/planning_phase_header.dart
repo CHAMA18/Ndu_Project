@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/ai_assist_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/unified_phase_header.dart';
 
@@ -91,12 +92,7 @@ class PlanningPhaseHeader extends StatelessWidget {
   }
 
   void _defaultAiAssist(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('AI Assist will generate content for this section.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    AiAssistHelper.generateForSection(context, sectionLabel: title);
   }
 }
 

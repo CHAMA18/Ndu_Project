@@ -5029,7 +5029,14 @@ class _ReconciliationWorkflowCardState
  subtitle:
  'Track the lifecycle of gap discovery through launch readiness.',
  trailing: TextButton.icon(
- onPressed: () {},
+ onPressed: () {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('Workflow board is shown below in the Reconciliation workflow section.'),
+ behavior: SnackBarBehavior.floating,
+ ),
+ );
+ },
  icon: const Icon(Icons.view_kanban_outlined),
  label: const Text('Open workflow board'),
  ),
@@ -5360,7 +5367,9 @@ class _LessonsLearnedCard extends StatelessWidget {
  subtitle:
  'Document leading indicators and preventative practices for future launches.',
  trailing: TextButton.icon(
- onPressed: () {},
+ onPressed: () {
+ onLessonsUpdated([...lessons, 'New follow-up insight — click to edit']);
+ },
  icon: const Icon(Icons.history_edu_outlined),
  label: const Text('Log follow-up insight'),
  ),

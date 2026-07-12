@@ -121,38 +121,45 @@ class StakeholderAlignmentTableWidget extends StatelessWidget {
               ],
               rows: items.map((item) {
                 return DataRow(
+                  key: ValueKey(item.id),
                   cells: [
                     DataCell(_StakeholderAlignmentRowWidget(
+                      key: ValueKey('${item.id}_name'),
                       item: item,
                       column: _StakeholderAlignmentColumn.stakeholderName,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
                     DataCell(_StakeholderAlignmentRowWidget(
+                      key: ValueKey('${item.id}_status'),
                       item: item,
                       column: _StakeholderAlignmentColumn.alignmentStatus,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
                     DataCell(_StakeholderAlignmentRowWidget(
+                      key: ValueKey('${item.id}_interest'),
                       item: item,
                       column: _StakeholderAlignmentColumn.keyInterest,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
                     DataCell(_StakeholderAlignmentRowWidget(
+                      key: ValueKey('${item.id}_feedback'),
                       item: item,
                       column: _StakeholderAlignmentColumn.feedbackSummary,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
                     DataCell(_StakeholderAlignmentRowWidget(
+                      key: ValueKey('${item.id}_date'),
                       item: item,
                       column: _StakeholderAlignmentColumn.lastEngagementDate,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
                     DataCell(_StakeholderAlignmentRowWidget(
+                      key: ValueKey('${item.id}_actions'),
                       item: item,
                       column: _StakeholderAlignmentColumn.actions,
                       onUpdated: onUpdated,
@@ -180,6 +187,7 @@ enum _StakeholderAlignmentColumn {
 
 class _StakeholderAlignmentRowWidget extends StatefulWidget {
   const _StakeholderAlignmentRowWidget({
+    super.key,
     required this.item,
     required this.column,
     required this.onUpdated,

@@ -125,7 +125,13 @@ class _ProjectFrameworkNextScreenState
  }
 
  ProjectDataHelper.getProvider(context).updateField(
- (data) => data.copyWith(planningGoals: planningGoals),
+ (data) => data.copyWith(
+ planningGoals: planningGoals,
+ planningNotes: {
+ ...data.planningNotes,
+ 'planning_project_framework_next_notes': _notesController.text.trim(),
+ },
+ ),
  );
  }
 
@@ -219,6 +225,9 @@ class _ProjectFrameworkNextScreenState
  if (!_yearFocusNodes[i].hasFocus) _saveData();
  });
  }
+
+ // Load saved notes
+ _notesController.text = projectData.planningNotes['planning_project_framework_next_notes'] ?? '';
 
  // Setup notes controller auto-save
  _notesController.addListener(_onFieldChanged);

@@ -4814,6 +4814,10 @@ class _PreferredSolutionAnalysisScreenState
 
  setState(() {
  _selectedSolutionIndex = index;
+ // Sync the tab controller so the detail view (IT considerations, Benefits, etc.) updates
+ if (_tabController.index != index && index < _tabController.length) {
+ _tabController.animateTo(index);
+ }
  if (_projectNameController.text.trim().isEmpty) {
  _projectNameController
  ..text = _analysis[index].solution.title

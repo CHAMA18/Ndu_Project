@@ -31,6 +31,7 @@ class VoiceInputService {
   bool _intentionalStop = false;
   String _currentText = '';
   String _previousText = '';
+  String _lastErrorMessage = '';
 
   final StreamController<VoiceResult> _resultController =
       StreamController<VoiceResult>.broadcast();
@@ -42,6 +43,7 @@ class VoiceInputService {
   bool get isAvailable => _isAvailable;
   bool get isListening => _isListening;
   String get currentText => _currentText;
+  String get lastErrorMessage => _lastErrorMessage;
   String get previousText => _previousText;
   Stream<VoiceResult> get onResult => _resultController.stream;
   Stream<VoiceStatus> get onStatusChanged => _statusController.stream;
@@ -105,6 +107,7 @@ class VoiceInputService {
     // The recognition may auto-restart via onWebEnd.
     if (error == 'no-speech' || error == 'aborted') return;
 
+    _lastErrorMessage = _humanizeWebError(error);
     _isListening = false;
     _intentionalStop = true;
     final fullText = _buildFullText();
@@ -113,6 +116,24 @@ class VoiceInputService {
     }
     if (!_statusController.isClosed) {
       _statusController.add(VoiceStatus.error);
+    }
+  }
+
+  /// Converts a raw Web Speech API error code into a user-friendly message.
+  String _humanizeWebError(String error) {
+    switch (error) {
+      case 'not-allowed':
+      case 'service-not-allowed':
+        return 'Microphone access was blocked. Please allow mic access in your browser settings (click the lock icon in the address bar → Site settings → Microphone → Allow).';
+      case 'audio-capture':
+        return 'No microphone was found on your device. Please connect a microphone and try again.';
+      case 'network':
+        return 'Network error during speech recognition. Please check your internet connection and try again.';
+      case 'bad-grammar':
+      case 'language-not-supported':
+        return 'Speech recognition language is not supported. Try using English (US).';
+      default:
+        return 'Voice input error: $error. Try again, or type manually.';
     }
   }
 

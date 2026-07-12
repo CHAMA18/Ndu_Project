@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:html' as html;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -680,37 +682,50 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
     _transformationController.value = next;
   }
 
-  // D7 — Export diagram as PNG (saves to temp directory)
+  // D7 — Export diagram as PNG (web-compatible download)
   Future<void> _exportAsPng() async {
     try {
       final boundary = _repaintBoundaryKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
-      if (boundary == null) return;
+      if (boundary == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Diagram not ready yet. Please try again.'),
+              backgroundColor: Color(0xFFDC2626),
+            ),
+          );
+        }
+        return;
+      }
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
 
       final bytes = byteData.buffer.asUint8List();
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final file = File(
-        '${Directory.systemTemp.path}/diagram_${widget.sectionLabel.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png',
-      );
-      await file.writeAsBytes(bytes);
+      final fileName = 'diagram_${widget.sectionLabel.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png';
+
+      // Web: trigger browser download via blob URL
+      final blob = html.Blob([bytes], 'image/png');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..style.display = 'none';
+      html.document.body?.append(anchor);
+      anchor.click();
+      anchor.remove();
+      html.Url.revokeObjectUrl(url);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Saved (${(bytes.length / 1024).round()} KB) — ${file.path}',
+              'Diagram downloaded (${(bytes.length / 1024).round()} KB) — $fileName',
             ),
             backgroundColor: const Color(0xFF059669),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 4),
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {},
-            ),
           ),
         );
       }

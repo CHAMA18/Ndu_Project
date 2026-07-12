@@ -273,7 +273,7 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(kIsWeb
-                  ? 'Voice input unavailable. Use Chrome/Edge/Safari and allow mic access.'
+                  ? 'Voice input unavailable. Use Chrome/Edge/Safari over HTTPS and allow mic access. Firefox is not supported.'
                   : 'Speech recognition is not available on this device.'),
               duration: const Duration(seconds: 3),
             ),
@@ -301,6 +301,20 @@ class _VoiceTextFieldState extends State<VoiceTextField> {
         if (status == VoiceStatus.stopped || status == VoiceStatus.error) {
           if (mounted) setState(() => _isListening = false);
           _cleanupSubscriptions();
+          // Show user-facing error message when voice input fails
+          if (status == VoiceStatus.error && mounted) {
+            final errorMsg = _voiceService.lastErrorMessage;
+            if (errorMsg.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(errorMsg),
+                  duration: const Duration(seconds: 5),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: const Color(0xFFEF4444),
+                ),
+              );
+            }
+          }
         }
       });
 
@@ -1020,7 +1034,7 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(kIsWeb
-                  ? 'Voice input unavailable. Use Chrome/Edge/Safari and allow mic access.'
+                  ? 'Voice input unavailable. Use Chrome/Edge/Safari over HTTPS and allow mic access. Firefox is not supported.'
                   : 'Speech recognition is not available on this device.'),
               duration: const Duration(seconds: 3),
             ),
@@ -1048,6 +1062,20 @@ class _VoiceTextFormFieldState extends State<VoiceTextFormField> {
         if (status == VoiceStatus.stopped || status == VoiceStatus.error) {
           if (mounted) setState(() => _isListening = false);
           _cleanupSubscriptions();
+          // Show user-facing error message when voice input fails
+          if (status == VoiceStatus.error && mounted) {
+            final errorMsg = _voiceService.lastErrorMessage;
+            if (errorMsg.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(errorMsg),
+                  duration: const Duration(seconds: 5),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: const Color(0xFFEF4444),
+                ),
+              );
+            }
+          }
         }
       });
 

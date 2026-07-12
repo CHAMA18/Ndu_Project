@@ -39,7 +39,14 @@ bool webVoiceInit(VoiceInputService service) {
     // Configure recognition
     recognition['continuous'] = true.toJS;
     recognition['interimResults'] = true.toJS;
-    recognition['lang'] = 'en-US'.toJS;
+    // Use browser locale, fallback to en-US
+    String locale = 'en-US';
+    try {
+      final nav = globalThis['navigator'] as JSObject;
+      final lang = (nav['language'] as JSString).toDart;
+      if (lang.isNotEmpty) locale = lang;
+    } catch (_) {}
+    recognition['lang'] = locale.toJS;
 
     // Wire up onresult handler
     recognition['onresult'] = ((JSObject event) {

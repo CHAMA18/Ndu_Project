@@ -11,6 +11,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 Future<void> _exportInterfaceManagementPlanPdf(BuildContext context) async {
  final projectData = ProjectDataHelper.getData(context);
@@ -52,7 +53,8 @@ class ExecutionPlanInterfaceManagementPlanScreen extends StatelessWidget {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  ExecutionPlanHeader(
- onBack: () => Navigator.maybePop(context), onExportPdf: () => _exportInterfaceManagementPlanPdf(context)),
+ onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_plan_interface_management_plan'),
+ onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_plan_interface_management_plan'), onExportPdf: () => _exportInterfaceManagementPlanPdf(context)),
  const SizedBox(height: 32),
  const SectionIntro(
  title: 'Execution Interface Management Plan'),

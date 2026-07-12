@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:ndu_project/models/launch_phase_models.dart';
 import 'package:ndu_project/screens/project_close_out_screen.dart';
-import 'package:ndu_project/screens/gap_analysis_scope_reconcillation_screen.dart';
+import 'package:ndu_project/screens/finalize_project_screen.dart';
 import 'package:ndu_project/services/launch_phase_service.dart';
 import 'package:ndu_project/utils/launch_phase_ai_seed.dart';
 import 'package:ndu_project/utils/download_helper.dart' as download_helper;
@@ -82,46 +82,8 @@ class _DemobilizeTeamScreenState extends State<DemobilizeTeamScreen> {
  if (_isLoading) const LinearProgressIndicator(minHeight: 2),
  PlanningPhaseHeader(
  title: 'Demobilize Team',
-showNavigationButtons: false, onExportPdf: _exportPdf),
+showNavigationButtons: false, showExportPdf: false, showAiAssist: false),
  const SizedBox(height: 16),
- Row(
- children: [
- const Spacer(),
- ExecutionActionBar(
- actions: [
- ExecutionActionItem(
- label: 'Import Team',
- icon: Icons.download_outlined,
- tone: ExecutionActionTone.secondary,
- onPressed: _importTeam,
- ),
- ExecutionActionItem(
- label: _isExporting ? 'Exporting…' : 'Export PDF',
- icon: Icons.picture_as_pdf_outlined,
- tone: ExecutionActionTone.secondary,
- isLoading: _isExporting,
- onPressed: _isExporting ? null : _exportPdf,
- ),
- ExecutionActionItem(
- label: _selectedView == 'full' ? 'Summary View' : 'Full View',
- icon: _selectedView == 'full' ? Icons.summarize_outlined : Icons.list_alt,
- tone: ExecutionActionTone.secondary,
- onPressed: () => setState(() {
- _selectedView = _selectedView == 'full' ? 'summary' : 'full';
- }),
- ),
- ExecutionActionItem(
- label: _isGenerating ? 'Generating…' : 'AI Assist',
- icon: Icons.auto_awesome_outlined,
- tone: ExecutionActionTone.ai,
- isLoading: _isGenerating,
- onPressed: _isGenerating ? null : _populateFromAi,
- ),
- ],
- ),
- ],
- ),
- const SizedBox(height: 12),
  _buildMetricsRow(),
  const SizedBox(height: 16),
             LaunchNotesSection(
@@ -154,11 +116,10 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ),
  child: LaunchPhaseNavigation(
- backLabel: 'Back: Scope Reconcillation',
- nextLabel: 'Project Close Out',
- onBack: () => GapAnalysisScopeReconcillationScreen.open(context,
- activeItemLabel: 'Project Financial Review - Scope Reconcillation'),
- onNext: () => ProjectCloseOutScreen.open(context),
+ backLabel: 'Back: Project Close Out',
+ nextLabel: 'Finalize & Close Project',
+ onBack: () => ProjectCloseOutScreen.open(context),
+ onNext: () => FinalizeProjectScreen.open(context),
  ),
  ),
  ],

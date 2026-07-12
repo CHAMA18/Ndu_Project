@@ -200,8 +200,7 @@ showNavigationButtons: false,
  }
  _save();
  },
- importLabel: 'Import Vendors',
- onImport: _importVendors,
+
  emptyMessage:
  'No vendors yet. Import vendors from execution or add manually.',
  cellBuilder: (context, i) {

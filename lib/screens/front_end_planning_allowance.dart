@@ -1180,16 +1180,11 @@ class _BottomOverlay extends StatelessWidget {
 
  @override
  Widget build(BuildContext context) {
- return Positioned.fill(
- child: IgnorePointer(
- ignoring: true, // Only buttons interactive
- child: Stack(
+ return Stack(
  children: [
  Positioned(
  left: 24,
  bottom: 24,
- child: IgnorePointer(
- ignoring: false,
  child: Container(
  width: 48,
  height: 48,
@@ -1198,12 +1193,9 @@ class _BottomOverlay extends StatelessWidget {
  child: const Icon(Icons.info_outline, color: Colors.white),
  ),
  ),
- ),
  Positioned(
  right: 24,
  bottom: 24,
- child: IgnorePointer(
- ignoring: false,
  child: Row(
  children: [
  Container(
@@ -1267,10 +1259,7 @@ class _BottomOverlay extends StatelessWidget {
  ],
  ),
  ),
- ),
  ],
- ),
- ),
  );
  }
 }

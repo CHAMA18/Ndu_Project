@@ -14,6 +14,7 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/dashboard_metrics_service.dart';
 import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/compact_action_button.dart';
@@ -1118,7 +1119,7 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
  child: Row(
  mainAxisAlignment: MainAxisAlignment.spaceBetween,
  children: [
- Text('Portfolio Health Overview',
+ Text('Portfolio Overview',
  style: TextStyle(
  color: _onSurface,
  fontSize: 18,
@@ -1695,12 +1696,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
 
   /// Builds a single row for the Portfolio Health Overview table.
   Widget _buildPortfolioRow(ProjectRecord p, int index, int displayCount) {
-    final status = p.progressSnapshot.health;
-    final (String statusText, Color statusColor) = switch (status) {
-      ProjectProgressHealth.completed || ProjectProgressHealth.onTrack => ('On Track', _emerald),
-      ProjectProgressHealth.behind => ('Behind', _crimson),
-      ProjectProgressHealth.inProgress => ('In Progress', _amber),
-    };
     final phase = p.progressSnapshot.currentPhase;
     final progress = p.progressSnapshot.completionPercent;
     final overdue = p.progressSnapshot.overdueActivities;
@@ -1724,18 +1719,9 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       child: Row(
         children: [
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Row(
               children: [
-                Container(
-                  width: 4,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1765,23 +1751,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
               ],
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Row(
-              children: [
-                _dot(statusColor),
-                const SizedBox(width: 8),
-                Text(
-                  statusText,
-                  style: TextStyle(
-                    color: _muted,
-                    fontSize: 13,
-                    fontFamily: appFontFamily,
-                  ),
-                ),
-              ],
-            ),
-          ),
           Expanded(flex: 1, child: _badge('$progress%')),
           Expanded(
             flex: 1,
@@ -1798,9 +1767,64 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
               ),
             ),
           ),
+          Expanded(
+            flex: 1,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _openProject(p),
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text('Open'),
+                style: TextButton.styleFrom(
+                  foregroundColor: _blue,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: appFontFamily,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _openProject(ProjectRecord p) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final provider = ProjectDataInherited.read(context);
+      final success = await provider
+          .loadFromFirebase(p.id)
+          .timeout(const Duration(seconds: 35));
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+
+      if (success) {
+        context.go('/${AppRoutes.dashboard}');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open "${p.name}". Please try again.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening project: $e')),
+        );
+      }
+    }
   }
 
  // ═══════════════════════════════════════════════════════════════════════

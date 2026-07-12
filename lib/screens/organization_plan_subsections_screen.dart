@@ -1230,7 +1230,9 @@ class _StaffingTableRow extends StatelessWidget {
  '${requirement.headcount} x ${requirement.plannedMonths.toStringAsFixed(1)} mo',
  ),
  _StaffingTextCell(
- currency.format(requirement.estimatedTotal),
+ requirement.monthlyCost > 0 && requirement.plannedMonths > 0
+ ? currency.format(requirement.estimatedTotal)
+ : '—',
  fontWeight: FontWeight.w700,
  ),
  Center(

@@ -172,8 +172,18 @@ class _ScopeTrackingImplementationScreenState
       }
     } catch (e) {
       debugPrint('Error auto-generating scope items: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('AI generation failed: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFFEF4444),
+          ),
+        );
+      }
     } finally {
       _isAutoGenerating = false;
+      if (mounted) setState(() {});
     }
   }
 
@@ -420,6 +430,31 @@ class _ScopeTrackingImplementationScreenState
             ),
           ],
           onImport: _importScopeItemsFromCsv,
+        ),
+        const SizedBox(width: 10),
+        FilledButton.icon(
+          onPressed: _isAutoGenerating
+              ? null
+              : () {
+                  _autoGenerationTriggered = false;
+                  _autoGenerateScopeItemsFromAi();
+                },
+          icon: _isAutoGenerating
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.auto_awesome, size: 18),
+          label: const Text('Generate with AI',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFFFC812),
+            foregroundColor: Colors.black,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
         ),
         const SizedBox(width: 10),
         FilledButton.icon(

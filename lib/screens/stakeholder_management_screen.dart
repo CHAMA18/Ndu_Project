@@ -57,7 +57,7 @@ class _StakeholderManagementScreenState
  Widget build(BuildContext context) {
  final bool isMobile = AppBreakpoints.isMobile(context);
  final double horizontalPadding = isMobile ? 20 : 36;
- final projectData = ProjectDataHelper.getData(context);
+ final projectData = ProjectDataHelper.getDataListening(context);
 
  // Filter stakeholders and plans based on search
  final filteredStakeholders = projectData.stakeholderEntries.where((s) {
@@ -287,7 +287,7 @@ class _StakeholderManagementScreenState
  }
 
  void _updateEngagementPlan(EngagementPlanEntry updated) async {
- final projectData = ProjectDataHelper.getData(context);
+ final projectData = ProjectDataHelper.getDataListening(context);
  final entries =
  List<EngagementPlanEntry>.from(projectData.engagementPlanEntries);
  final index = entries.indexWhere((entry) => entry.id == updated.id);
@@ -427,7 +427,7 @@ class _StakeholderManagementScreenState
  }
 
  Future<void> _exportPdf() async {
- final projectData = ProjectDataHelper.getData(context);
+ final projectData = ProjectDataHelper.getDataListening(context);
  await PdfExportHelper.exportScreenPdf(
  context: context,
  screenTitle: 'Stakeholder Management',

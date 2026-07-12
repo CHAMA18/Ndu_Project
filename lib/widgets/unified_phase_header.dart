@@ -9,6 +9,7 @@ import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+import 'package:ndu_project/utils/ai_assist_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -306,13 +307,7 @@ class UnifiedPhaseHeader extends StatelessWidget {
               label: 'AI Assist',
               onTap: onAiAssist ??
                   () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'AI Assist will generate content for this section.'),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                    AiAssistHelper.generateForSection(context, sectionLabel: title);
                   },
             ),
           if (showAiAssist) const SizedBox(width: 8),

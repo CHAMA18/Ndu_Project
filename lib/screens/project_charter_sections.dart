@@ -2293,3 +2293,141 @@ class _CharterAssumptionsState extends State<CharterAssumptions> {
  );
  }
 }
+
+/// Beautiful visual walkthrough shown when no Project Manager is assigned.
+class AssignManagerWalkthrough extends StatefulWidget {
+ final VoidCallback onAssignTapped;
+ const AssignManagerWalkthrough({super.key, required this.onAssignTapped});
+
+ @override
+ State<AssignManagerWalkthrough> createState() => _AssignManagerWalkthroughState();
+}
+
+class _AssignManagerWalkthroughState extends State<AssignManagerWalkthrough>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bobController;
+
+  @override
+  void initState() {
+    super.initState();
+    _bobController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _bobController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFF8E1), Color(0xFFFFE8A3)],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF5C518), width: 1.2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFC812),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person_add_alt_1, color: Colors.black, size: 26),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text('Assign your Project Manager',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDC2626),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('Required',
+                          style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Before you can move forward in the Project Charter, you need to assign a Project Manager. Here\'s how:',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF5B4300)),
+                ),
+                const SizedBox(height: 12),
+                _walkthroughStep(1, 'Tap the "PROJECT MANAGER" card below', Icons.touch_app_outlined),
+                _walkthroughStep(2, 'Enter the manager\'s name in the dialog', Icons.edit_outlined),
+                _walkthroughStep(3, 'Click "Assign" — you\'re all set!', Icons.check_circle_outline),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: widget.onAssignTapped,
+                  icon: const Icon(Icons.person_add_outlined, size: 18),
+                  label: const Text('Assign Manager Now'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFC812),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AnimatedBuilder(
+            animation: _bobController,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _bobController.value * 6 - 3),
+                child: child,
+              );
+            },
+            child: const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Icon(Icons.south, color: Color(0xFFB45309), size: 22),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _walkthroughStep(int n, String text, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(color: Color(0xFF005BB3), shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text('$n', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(width: 8),
+          Icon(icon, size: 16, color: const Color(0xFF5B4300)),
+          const SizedBox(width: 6),
+          Expanded(child: Text(text, style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)))),
+        ],
+      ),
+    );
+  }
+}

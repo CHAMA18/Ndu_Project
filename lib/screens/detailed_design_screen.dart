@@ -258,6 +258,12 @@ Future<void> _loadComponents() async {
  _components = components;
  _isLoading = false;
  });
+ // Load saved methodology
+ final projectData = ProjectDataHelper.getData(context);
+ final savedMethodology = projectData.planningNotes['detailed_design_methodology'];
+ if (savedMethodology != null && savedMethodology.isNotEmpty && mounted) {
+ setState(() => _methodology = savedMethodology);
+ }
  }
  await _autoGenerateIfNeeded();
  } catch (e) {
@@ -523,6 +529,24 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  return GestureDetector(
  onTap: () {
  setState(() => _methodology = m.$1);
+ // Persist methodology selection
+ final projectData = ProjectDataHelper.getData(context);
+ ProjectDataHelper.getProvider(context).updateField(
+ (data) => data.copyWith(
+ planningNotes: {
+ ...data.planningNotes,
+ 'detailed_design_methodology': m.$1,
+ },
+ ),
+ );
+ // Show feedback
+ ScaffoldMessenger.of(context).showSnackBar(
+ SnackBar(
+ content: Text('Delivery model set to ${m.$1}. New components will use ${m.$1} phases.'),
+ duration: const Duration(seconds: 2),
+ behavior: SnackBarBehavior.floating,
+ ),
+ );
  },
  child: AnimatedContainer(
  duration: const Duration(milliseconds: 200),

@@ -155,6 +155,13 @@ class ProjectProgressSnapshot {
         if (!hasActivitySignal && normalizedProgress > completion) {
           completion = normalizedProgress;
         }
+        // Blend with checkpoint-based progress when activities are all pending
+        if (hasActivitySignal &&
+            implementedActivities == 0 &&
+            milestoneStats.achieved == 0 &&
+            normalizedProgress > completion) {
+          completion = (normalizedProgress * 0.6) + (completion * 0.4);
+        }
       }
     }
 

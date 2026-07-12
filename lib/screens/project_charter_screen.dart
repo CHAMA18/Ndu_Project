@@ -334,6 +334,24 @@ class _ProjectCharterScreenState extends State<ProjectCharterScreen> {
  CharterDashboardStats(data: _projectData),
  const SizedBox(height: 24),
 
+ // ─── 2b. Assign Manager Walkthrough (only when no PM) ───
+ if (_projectData != null &&
+ _projectData!.charterProjectManagerName.trim().isEmpty) ...[
+ AssignManagerWalkthrough(
+ onAssignTapped: () {
+ // Trigger the meta info scroll's assign dialog via a key or public method
+ // For simplicity, show a snackbar directing user to the card below
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('Tap the "PROJECT MANAGER" card below to assign a manager.'),
+ behavior: SnackBarBehavior.floating,
+ ),
+ );
+ },
+ ),
+ const SizedBox(height: 16),
+ ],
+
  // ─── 3. Meta Info Horizontal Scroll ───
  CharterMetaInfoScroll(data: _projectData),
  const SizedBox(height: 24),

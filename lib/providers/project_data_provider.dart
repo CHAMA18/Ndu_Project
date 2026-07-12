@@ -44,6 +44,104 @@ class ProjectDataProvider extends ChangeNotifier {
     });
   }
 
+  /// Computes a rough progress percentage from the current checkpoint.
+  static double _computeProgressFromCheckpoint(String checkpoint) {
+    const phaseProgress = {
+      'initiation': 0.05,
+      'preferred_solution_analysis': 0.10,
+      'project_charter': 0.15,
+      'front_end_planning': 0.20,
+      'fep_summary': 0.20,
+      'fep_requirements': 0.22,
+      'fep_risks': 0.24,
+      'fep_opportunities': 0.26,
+      'fep_contract_vendor_quotes': 0.28,
+      'fep_procurement': 0.30,
+      'fep_security': 0.32,
+      'fep_milestone': 0.34,
+      'fep_allowance': 0.36,
+      'project_framework': 0.38,
+      'project_goals_milestones': 0.40,
+      'work_breakdown_structure': 0.42,
+      'cost_estimate': 0.44,
+      'schedule': 0.46,
+      'technical_alignment': 0.48,
+      'detailed_design': 0.50,
+      'design_specifications': 0.52,
+      'agile_development_iterations': 0.55,
+      'scope_tracking_implementation': 0.58,
+      'stakeholder_alignment': 0.60,
+      'execution_plan': 0.62,
+      'execution_plan_strategy': 0.63,
+      'execution_plan_details': 0.64,
+      'execution_early_works': 0.65,
+      'execution_enabling_work_plan': 0.66,
+      'execution_issue_management': 0.67,
+      'execution_plan_construction_plan': 0.68,
+      'execution_plan_infrastructure_plan': 0.69,
+      'execution_plan_agile_delivery_plan': 0.70,
+      'execution_plan_lessons_learned': 0.72,
+      'execution_plan_best_practices': 0.74,
+      'execution_plan_interface_management': 0.76,
+      'execution_plan_communication_plan': 0.78,
+      'staff_team': 0.80,
+      'progress_tracking': 0.82,
+      'status_reports': 0.84,
+      'recurring_deliverables': 0.85,
+      'quality_management': 0.86,
+      'issue_management': 0.87,
+      'risk_tracking': 0.88,
+      'scope_completion': 0.89,
+      'gap_analysis_scope_reconcillation': 0.90,
+      'punchlist_actions': 0.91,
+      'technical_debt_management': 0.92,
+      'identify_staff_ops_team': 0.93,
+      'salvage_disposal_team': 0.94,
+      'launch_checklist': 0.95,
+      'deliver_project_closure': 0.96,
+      'transition_to_prod_team': 0.97,
+      'contract_close_out': 0.97,
+      'vendor_account_close_out': 0.98,
+      'summarize_account_risks': 0.98,
+      'commerce_viability': 0.99,
+      'actual_vs_planned_gap_analysis': 0.99,
+      'project_close_out': 0.99,
+      'demobilize_team': 1.0,
+      'finalize_project': 1.0,
+    };
+    return phaseProgress[checkpoint] ?? 0.1;
+  }
+
+  /// Resolves the project status from the current checkpoint.
+  static String _resolveStatusFromCheckpoint(String checkpoint) {
+    if (checkpoint.contains('finalize') || checkpoint.contains('demobilize')) {
+      return 'Completed';
+    }
+    if (checkpoint.contains('deliver_project') || checkpoint.contains('close_out') ||
+        checkpoint.contains('transition_to_prod') || checkpoint.contains('commerce_viability') ||
+        checkpoint.contains('summarize_account') || checkpoint.contains('actual_vs_planned')) {
+      return 'Launch';
+    }
+    if (checkpoint.contains('execution') || checkpoint.contains('staff_team') ||
+        checkpoint.contains('progress_tracking') || checkpoint.contains('status_reports') ||
+        checkpoint.contains('quality_management') || checkpoint.contains('issue_management') ||
+        checkpoint.contains('risk_tracking') || checkpoint.contains('scope_completion') ||
+        checkpoint.contains('gap_analysis') || checkpoint.contains('punchlist') ||
+        checkpoint.contains('technical_debt') || checkpoint.contains('salvage_disposal') ||
+        checkpoint.contains('launch_checklist') || checkpoint.contains('identify_staff_ops')) {
+      return 'Execution';
+    }
+    if (checkpoint.contains('fep_') || checkpoint.contains('project_framework') ||
+        checkpoint.contains('project_goals') || checkpoint.contains('work_breakdown') ||
+        checkpoint.contains('cost_estimate') || checkpoint.contains('schedule') ||
+        checkpoint.contains('technical_alignment') || checkpoint.contains('detailed_design') ||
+        checkpoint.contains('design_specifications') || checkpoint.contains('agile_development') ||
+        checkpoint.contains('scope_tracking_implementation') || checkpoint.contains('stakeholder_alignment')) {
+      return 'Planning';
+    }
+    return 'Initiation';
+  }
+
   /// Flush any pending auto-save immediately. Call before navigation so
   /// in-memory changes are persisted before the next screen loads.
   Future<void> flushAutoSave() async {
@@ -133,12 +231,17 @@ class ProjectDataProvider extends ChangeNotifier {
       final now = FieldValue.serverTimestamp();
 
       // Prepare data payload
+      final effectiveCheckpoint = checkpoint ?? _projectData.currentCheckpoint ?? 'initiation';
       final dataPayload = {
         ..._projectData.toJson(),
         'ownerId': user.uid,
         'ownerName': user.displayName ?? user.email ?? 'User',
         'ownerEmail': user.email,
         'updatedAt': now,
+        // Always update progress/status/milestone so the dashboard tracks correctly
+        'progress': _computeProgressFromCheckpoint(effectiveCheckpoint),
+        'status': _resolveStatusFromCheckpoint(effectiveCheckpoint),
+        'milestone': effectiveCheckpoint,
         if (checkpoint != null) 'checkpointRoute': checkpoint,
         if (checkpoint != null) 'checkpointAt': now,
       };

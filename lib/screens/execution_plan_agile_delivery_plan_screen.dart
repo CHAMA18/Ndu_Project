@@ -1,12 +1,13 @@
-import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
@@ -22,8 +23,44 @@ class ExecutionPlanAgileDeliveryPlanScreen extends StatelessWidget {
 
  @override
  Widget build(BuildContext context) {
- return const AgileDeliveryModelScreen();
+ final bool isMobile = AppBreakpoints.isMobile(context);
+ final double horizontalPadding = isMobile ? 20 : 40;
+
+ return ResponsiveScaffold(
+ activeItemLabel: 'Agile Delivery Plan',
+ backgroundColor: Colors.white,
+ floatingActionButton: const KazAiChatBubble(positioned: false),
+ body: SingleChildScrollView(
+ padding: EdgeInsets.symmetric(
+ horizontal: horizontalPadding, vertical: 32),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ ExecutionPlanHeader(
+ onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_plan_agile_delivery_plan'),
+ onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_plan_agile_delivery_plan'),
+ onExportPdf: () => _exportPdf(context)),
+ const SizedBox(height: 32),
+ const _AgileDeliveryPlanSection(),
+ const SizedBox(height: 56),
+ ],
+ ),
+ ),
+ );
  }
+}
+
+Future<void> _exportPdf(BuildContext context) async {
+ final projectData = ProjectDataHelper.getData(context);
+ await PdfExportHelper.exportScreenPdf(
+ context: context,
+ screenTitle: 'Agile Delivery Plan',
+ sections: [
+ PdfSection.keyValue('Project Info', [
+ {'Project Name': projectData.projectName ?? 'N/A'},
+ ]),
+ ],
+ );
 }
 
 class _AgileDeliveryPlanSection extends StatelessWidget {
@@ -107,20 +144,6 @@ class _AgileDeliveryPlanSection extends StatelessWidget {
  minLines: 2,
  maxLines: 4,
  fullWidth: true,
- ),
- ],
- ),
- const SizedBox(height: 24),
- Row(
- mainAxisAlignment:
- isMobile ? MainAxisAlignment.start : MainAxisAlignment.end,
- children: [
- const InfoBadge(),
- const SizedBox(width: 16),
- YellowActionButton(
- label: 'Next',
- onPressed: () => PlanningPhaseNavigation.goToNext(
- context, 'execution_plan_agile_delivery_plan'),
  ),
  ],
  ),
