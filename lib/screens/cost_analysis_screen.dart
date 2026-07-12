@@ -4205,7 +4205,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  width: _benefitUnitValueColumnWidth,
  alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
- _benefitHeaderCell('Total Units',
+ _benefitHeaderCell('Units',
  width: _benefitTotalUnitsColumnWidth,
  alignment: Alignment.center),
  const SizedBox(width: _benefitColumnGap),
@@ -4334,7 +4334,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  child: Align(
  alignment: Alignment.center,
  child: Text(
- _benefitTotalUnits().toStringAsFixed(1),
+ '${_benefitLineItems.length} items',
  style: const TextStyle(
  fontSize: 12, fontWeight: FontWeight.w600),
  ),
@@ -4666,10 +4666,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  Text('Items: ${summary.itemCount}',
  style: TextStyle(fontSize: 12, color: Colors.grey[700])),
  const SizedBox(height: 4),
- Text('Total units: ${summary.unitTotal.toStringAsFixed(1)}',
- style: TextStyle(fontSize: 12, color: Colors.grey[700])),
- const SizedBox(height: 4),
- Text('Monetised value: ${_formatCurrencyValue(summary.valueTotal)}',
+ Text('Total value: ${_formatCurrencyValue(summary.valueTotal)}',
  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
  ]),
  );
@@ -4725,9 +4722,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  icon: Icons.attach_money,
  ),
  _benefitSummaryCard(
- title: 'Total units',
- value: totalUnits.toStringAsFixed(1),
- helper: 'Sum of all unit drivers captured.',
+ title: 'Line items',
+ value: '${_benefitLineItems.length}',
+ helper: 'Number of benefit entries captured.',
  icon: Icons.stacked_line_chart,
  ),
  ];
