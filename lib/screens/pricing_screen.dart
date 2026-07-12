@@ -32,6 +32,56 @@ class _PricingScreenState extends State<PricingScreen> {
  bool _isCheckingSubscription = false;
  bool _isAnnual = false;
 
+ /// Admin-configured pricing (loaded from Firestore). Falls back to defaults.
+ SubscriptionPricingConfig _pricingConfig = SubscriptionPricingConfig.defaults;
+ Stream<SubscriptionPricingConfig>? _pricingStream;
+
+ @override
+ void initState() {
+ super.initState();
+ _pricingStream = SubscriptionPricingService.watch();
+ _pricingStream!.listen((config) {
+ if (mounted) setState(() => _pricingConfig = config);
+ });
+ }
+
+ /// Builds the plans list from the admin-configured pricing, falling back to
+ /// the hardcoded defaults if the config hasn't loaded yet.
+ List<_PricingPlan> get _dynamicPlans {
+ final tiers = _pricingConfig.tiers;
+ return [
+ _tierToPlan(tiers[PricingTierId.basicProject] ?? TierPricingConfig.defaultBasicProject),
+ _tierToPlan(tiers[PricingTierId.project] ?? TierPricingConfig.defaultProject),
+ _tierToPlan(tiers[PricingTierId.program] ?? TierPricingConfig.defaultProgram),
+ _tierToPlan(tiers[PricingTierId.portfolio] ?? TierPricingConfig.defaultPortfolio),
+ ];
+ }
+
+ _PricingPlan _tierToPlan(TierPricingConfig tier) {
+ return _PricingPlan(
+ tier: _convertTier(tier.id),
+ label: tier.label,
+ badgeColor: _themeColor,
+ subtitle: tier.subtitle,
+ monthlyPrice: tier.monthlyPrice.toDouble(),
+ monthlyOriginalPrice: tier.monthlyOriginalPrice.toDouble(),
+ features: tier.features,
+ );
+ }
+
+ _PlanTier _convertTier(PricingTierId id) {
+ switch (id) {
+ case PricingTierId.basicProject:
+ return _PlanTier.basicProject;
+ case PricingTierId.project:
+ return _PlanTier.project;
+ case PricingTierId.program:
+ return _PlanTier.program;
+ case PricingTierId.portfolio:
+ return _PlanTier.portfolio;
+ }
+ }
+
  Future<void> _handlePlanSelection(BuildContext context, _PricingPlan plan) async {
  setState(() => _isCheckingSubscription = true);
  final navigator = Navigator.of(context);
@@ -146,71 +196,6 @@ class _PricingScreenState extends State<PricingScreen> {
  note: note,
  );
  }
-
- static const List<_PricingPlan> _plans = [
- _PricingPlan(
- tier: _PlanTier.basicProject,
- label: 'Regular Project',
- badgeColor: _themeColor,
- subtitle: 'No Fuss routine project delivered at a fraction of the cost',
- monthlyPrice: 39,
- monthlyOriginalPrice: 79,
- features: [
- 'Free for the first month',
- '1 user',
- 'Full project delivery from initiation to Launch',
- 'Auto AI assist',
- 'One-time incremental AI assist per section',
- 'Limited Documentation features',
- 'Upgrade tier any time',
- ],
- ),
- _PricingPlan(
- tier: _PlanTier.project,
- label: 'Project',
- badgeColor: _themeColor,
- subtitle: 'Robust project delivered at an affordable rate',
- monthlyPrice: 129,
- monthlyOriginalPrice: 179,
- features: [
- 'Maximum 7 users',
- 'Robust project delivery with full features including organization planning, design, change management, work breakdown structure, and more',
- 'Auto AI assist',
- 'One-time incremental AI assist per section',
- 'Document print out feature',
- 'Upgrade tier anytime',
- ],
- ),
- _PricingPlan(
- tier: _PlanTier.program,
- label: 'Program',
- badgeColor: _themeColor,
- subtitle: 'Up to 3 projects at a discounted rate with interface management',
- monthlyPrice: 319,
- monthlyOriginalPrice: 1000,
- features: [
- 'Everything in Project',
- 'Maximum 12 users',
- 'Monthly. Annual at a discount.',
- 'Interface management',
- 'Project dependency tracking',
- 'Program level reports for cost, schedule, scope tracking',
- ],
- ),
- _PricingPlan(
- tier: _PlanTier.portfolio,
- label: 'Portfolio',
- badgeColor: _themeColor,
- subtitle: 'Up to 9 projects at a bulk rate with integrated stewarding',
- monthlyPrice: 750,
- monthlyOriginalPrice: 1400,
- features: [
- 'Everything in Program',
- 'Maximum 24 users',
- 'Portfolio level reports for cost, schedule, scope tracking',
- ],
- ),
- ];
 
  @override
  Widget build(BuildContext context) {
@@ -349,7 +334,7 @@ class _PricingScreenState extends State<PricingScreen> {
  return IntrinsicHeight(
  child: Row(
  crossAxisAlignment: CrossAxisAlignment.stretch,
- children: _plans.map((plan) => Expanded(
+ children: _dynamicPlans.map((plan) => Expanded(
  child: Padding(
  padding: const EdgeInsets.symmetric(horizontal: 8),
  child: _PlanColumn(
@@ -376,24 +361,24 @@ class _PricingScreenState extends State<PricingScreen> {
  Expanded(child: Padding(
  padding: const EdgeInsets.all(8),
  child: _PlanColumn(
- plan: _plans[0],
- isSelected: _selectedTier == _plans[0].tier,
- price: _priceForPlan(_plans[0]),
+ plan: _dynamicPlans[0],
+ isSelected: _selectedTier == _dynamicPlans[0].tier,
+ price: _priceForPlan(_dynamicPlans[0]),
  onSelect: () {
- setState(() => _selectedTier = _plans[0].tier);
- _handlePlanSelection(context, _plans[0]);
+ setState(() => _selectedTier = _dynamicPlans[0].tier);
+ _handlePlanSelection(context, _dynamicPlans[0]);
  },
  ),
  )),
  Expanded(child: Padding(
  padding: const EdgeInsets.all(8),
  child: _PlanColumn(
- plan: _plans[1],
- isSelected: _selectedTier == _plans[1].tier,
- price: _priceForPlan(_plans[1]),
+ plan: _dynamicPlans[1],
+ isSelected: _selectedTier == _dynamicPlans[1].tier,
+ price: _priceForPlan(_dynamicPlans[1]),
  onSelect: () {
- setState(() => _selectedTier = _plans[1].tier);
- _handlePlanSelection(context, _plans[1]);
+ setState(() => _selectedTier = _dynamicPlans[1].tier);
+ _handlePlanSelection(context, _dynamicPlans[1]);
  },
  ),
  )),
@@ -408,24 +393,24 @@ class _PricingScreenState extends State<PricingScreen> {
  Expanded(child: Padding(
  padding: const EdgeInsets.all(8),
  child: _PlanColumn(
- plan: _plans[2],
- isSelected: _selectedTier == _plans[2].tier,
- price: _priceForPlan(_plans[2]),
+ plan: _dynamicPlans[2],
+ isSelected: _selectedTier == _dynamicPlans[2].tier,
+ price: _priceForPlan(_dynamicPlans[2]),
  onSelect: () {
- setState(() => _selectedTier = _plans[2].tier);
- _handlePlanSelection(context, _plans[2]);
+ setState(() => _selectedTier = _dynamicPlans[2].tier);
+ _handlePlanSelection(context, _dynamicPlans[2]);
  },
  ),
  )),
  Expanded(child: Padding(
  padding: const EdgeInsets.all(8),
  child: _PlanColumn(
- plan: _plans[3],
- isSelected: _selectedTier == _plans[3].tier,
- price: _priceForPlan(_plans[3]),
+ plan: _dynamicPlans[3],
+ isSelected: _selectedTier == _dynamicPlans[3].tier,
+ price: _priceForPlan(_dynamicPlans[3]),
  onSelect: () {
- setState(() => _selectedTier = _plans[3].tier);
- _handlePlanSelection(context, _plans[3]);
+ setState(() => _selectedTier = _dynamicPlans[3].tier);
+ _handlePlanSelection(context, _dynamicPlans[3]);
  },
  ),
  )),
@@ -437,7 +422,7 @@ class _PricingScreenState extends State<PricingScreen> {
  } else {
  // Single column on mobile
  return Column(
- children: _plans.map((plan) => Padding(
+ children: _dynamicPlans.map((plan) => Padding(
  padding: const EdgeInsets.only(bottom: 24),
  child: _PlanColumn(
  plan: plan,
