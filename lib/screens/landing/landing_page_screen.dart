@@ -119,9 +119,9 @@ class LandingPageScreen extends StatelessWidget {
                         Row(children: [
                           _navLink('Why Ndu', () => _scrollTo(context, 'why')),
                           _buildSolutionsDropdown(context),
+                          _buildServicesDropdown(context),
                           _navLink('Pricing', () => _scrollTo(context, 'pricing')),
                           _navLink('KAZ AI', () => _scrollTo(context, 'kaz')),
-                          _navLink('Services', () => _scrollTo(context, 'services')),
                           _navLink('Resources', () => _scrollTo(context, 'footer')),
                           _navLink('Media', () => _launchUrl('https://nduproject.tech')),
                         ]),
@@ -202,6 +202,44 @@ class LandingPageScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Solutions', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily)),
+            const SizedBox(width: 2),
+            Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServicesDropdown(BuildContext context) {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        switch (value) {
+          case 'services':
+            _scrollTo(context, 'services');
+            break;
+          case 'delivery':
+            _scrollTo(context, 'services');
+            break;
+          case 'training':
+            _scrollTo(context, 'kaz');
+            break;
+          case 'consultation':
+            _scrollTo(context, 'footer');
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'services', child: Text('Services')),
+        PopupMenuItem(value: 'delivery', child: Text('Project Delivery')),
+        PopupMenuItem(value: 'training', child: Text('Training')),
+        PopupMenuItem(value: 'consultation', child: Text('Consultation')),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Services', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily)),
             const SizedBox(width: 2),
             Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 16),
           ],
