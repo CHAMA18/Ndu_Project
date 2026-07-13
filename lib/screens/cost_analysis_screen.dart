@@ -631,18 +631,71 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  for (int i = 0; i < itemsToSeed; i++) {
  // Vary unit values modestly around the base, not with aggressive multipliers
  final unitValue = baseUnitValue * (1 + (i * 0.15));
+ // Derive a simple, logical unit count based on the benefit title
+ final units = _deriveUnitsFromTitle(candidateTitles[i]);
  final entry = _BenefitLineItemEntry(
  id: 'benefit-seed-${DateTime.now().microsecondsSinceEpoch}-$i',
  categoryKey: categories[i % categories.length],
  title: candidateTitles[i],
  unitValue: unitValue,
- units: 12, // 12 months – standard annual basis
+ units: units,
  notes: 'Auto-seeded estimate based on project context; refine assumptions.',
  );
  entry.bind(_onBenefitEntryEdited);
  _benefitLineItems.add(entry);
  }
  });
+ }
+
+ /// Derives a simple, logical unit count from the benefit title.
+ ///
+ /// Instead of always using 12 (months), this method picks a sensible
+ /// unit based on keywords in the benefit title:
+ /// - Revenue/sales → number of transactions or customers
+ /// - Cost saving → number of cost centers or departments
+ /// - Efficiency/productivity → number of processes or workflows
+ /// - Compliance → number of regulatory items
+ /// - Default → 1 (single instance)
+ static double _deriveUnitsFromTitle(String title) {
+ final lower = title.toLowerCase();
+
+ // Revenue-related: units = number of sales/transactions/customers
+ if (lower.contains('revenue') || lower.contains('sales') ||
+ lower.contains('income') || lower.contains('uplift')) {
+ return 100; // 100 transactions/customers per period
+ }
+
+ // Cost saving: units = number of cost centers or departments
+ if (lower.contains('cost') || lower.contains('saving') ||
+ lower.contains('avoidance') || lower.contains('reduction')) {
+ return 5; // 5 cost centers or departments
+ }
+
+ // Efficiency/productivity: units = number of processes or workflows
+ if (lower.contains('efficiency') || lower.contains('productivity') ||
+ lower.contains('automation') || lower.contains('workflow')) {
+ return 10; // 10 processes or workflows improved
+ }
+
+ // Compliance: units = number of compliance items
+ if (lower.contains('compliance') || lower.contains('regulatory') ||
+ lower.contains('audit') || lower.contains('risk')) {
+ return 8; // 8 compliance items addressed
+ }
+
+ // Process improvement: units = number of processes
+ if (lower.contains('process') || lower.contains('improvement')) {
+ return 6; // 6 processes improved
+ }
+
+ // Staffing/HR: units = number of employees
+ if (lower.contains('staff') || lower.contains('employee') ||
+ lower.contains('hr') || lower.contains('training')) {
+ return 20; // 20 employees affected
+ }
+
+ // Default: single instance (1 unit)
+ return 1;
  }
 
  /// Detects whether the project context suggests a small-scale project
