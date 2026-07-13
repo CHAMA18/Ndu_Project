@@ -1044,12 +1044,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  );
  _projectValueContextHashesBySolution[i] = match.contextHash;
  for (final item in match.projectBenefits) {
+ final loadedUnits = double.tryParse(item.units) ?? 0;
+ // If units is the old hardcoded default of 12, re-derive from title
+ final effectiveUnits = loadedUnits == 12
+ ? _deriveUnitsFromTitle(item.title)
+ : loadedUnits;
  final entry = _BenefitLineItemEntry(
  id: item.id,
  categoryKey: _normalizeBenefitCategoryKey(item.categoryKey),
  title: item.title,
  unitValue: double.tryParse(item.unitValue) ?? 0,
- units: double.tryParse(item.units) ?? 0,
+ units: effectiveUnits,
  notes: item.notes,
  );
  entry.bind(_onBenefitEntryEdited);
@@ -1073,12 +1078,17 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  costAnalysisData.projectValueBenefits,
  );
  for (final item in costAnalysisData.benefitLineItems) {
+ final loadedUnits = double.tryParse(item.units) ?? 0;
+ // If units is the old hardcoded default of 12, re-derive from title
+ final effectiveUnits = loadedUnits == 12
+ ? _deriveUnitsFromTitle(item.title)
+ : loadedUnits;
  final entry = _BenefitLineItemEntry(
  id: item.id,
  categoryKey: _normalizeBenefitCategoryKey(item.categoryKey),
  title: item.title,
  unitValue: double.tryParse(item.unitValue) ?? 0,
- units: double.tryParse(item.units) ?? 0,
+ units: effectiveUnits,
  notes: item.notes,
  );
  entry.bind(_onBenefitEntryEdited);
