@@ -50,7 +50,15 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
   }
 
   Future<void> _runAction(String action) async {
-    final wbs = context.read<WBSProvider>().wbs!;
+    final wbs = context.read<WBSProvider>().wbs;
+    if (wbs == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('WBS not initialized yet. Please try again.')),
+        );
+      }
+      return;
+    }
     final frameworkMeta = wbs.framework;
 
     setState(() {
@@ -117,7 +125,8 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
 
   void _applySuggestion(Map<String, dynamic> s) {
     final provider = context.read<WBSProvider>();
-    final wbs = provider.wbs!;
+    final wbs = provider.wbs;
+    if (wbs == null) return;
     final l1Id = provider.addChildNode(
       wbs.level0.id,
       s['name'] as String? ?? '',

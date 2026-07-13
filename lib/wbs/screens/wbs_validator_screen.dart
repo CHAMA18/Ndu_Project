@@ -18,7 +18,10 @@ class WBSValidatorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<WBSProvider>(
       builder: (context, provider, _) {
-        final wbs = provider.wbs!;
+        final wbs = provider.wbs;
+        if (wbs == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final checks = WBSValidator.validate(wbs);
         final summary = WBSValidator.summarize(checks);
         final overallColor = switch (summary.overall) {

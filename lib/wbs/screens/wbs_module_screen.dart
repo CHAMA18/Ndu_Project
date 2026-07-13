@@ -203,7 +203,10 @@ class _ExportAndLinkTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer2<WBSProvider, CostEstimateProvider>(
       builder: (context, provider, costProvider, _) {
-        final wbs = provider.wbs!;
+        final wbs = provider.wbs;
+        if (wbs == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
         final counts = countNodes(wbs);
         final json = const JsonEncoder.withIndent('  ').convert({
           'id': wbs.id,

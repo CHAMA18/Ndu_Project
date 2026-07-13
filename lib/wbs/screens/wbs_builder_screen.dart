@@ -36,7 +36,24 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
   Widget build(BuildContext context) {
     return Consumer2<WBSProvider, CostEstimateProvider>(
       builder: (context, provider, costProvider, _) {
-        final wbs = provider.wbs!;
+        final wbs = provider.wbs;
+        if (wbs == null) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(48),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Loading Work Breakdown Structure...',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
         final fm = wbs.framework;
         final counts = countNodes(wbs);
         final totalNodes = countAllNodes(wbs.level0);
