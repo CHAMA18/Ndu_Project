@@ -1116,6 +1116,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  }
  if (costAnalysisData.trackerBasisFrequency.isNotEmpty &&
  (costAnalysisData.trackerBasisFrequency == 'Annual' ||
+ costAnalysisData.trackerBasisFrequency == 'Quarterly' ||
  costAnalysisData.trackerBasisFrequency == 'Monthly')) {
  _trackerBasisFrequency = costAnalysisData.trackerBasisFrequency;
  }
@@ -3436,7 +3437,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
  final bool usingLineItems = explicitValue <= 0;
  final trackerDescriptor =
- _trackerBasisFrequency == 'Monthly' ? 'annualized' : 'annual';
+ _trackerBasisFrequency == 'Monthly' || _trackerBasisFrequency == 'Quarterly' ? 'annualized' : 'annual';
  final double annualValue = usingLineItems
  ? _benefitTotalValueForSolution(_activeSolutionIndex())
  : explicitValue * frequencyMultiplier;
@@ -3893,6 +3894,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  double _effectiveBenefitValue(_BenefitLineItemEntry entry) {
  if (_trackerBasisFrequency == 'Monthly') {
  return entry.totalValue * 12;
+ }
+ if (_trackerBasisFrequency == 'Quarterly') {
+ return entry.totalValue * 4;
  }
  return entry.totalValue;
  }
@@ -4400,7 +4404,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  ),
  const SizedBox(height: 8),
  Text(
- 'Basis: $_trackerBasisFrequency${_trackerBasisFrequency == 'Monthly' ? ' (x12 annualized for roll-up)' : ''}',
+ 'Basis: $_trackerBasisFrequency${_trackerBasisFrequency == 'Monthly' ? ' (x12 annualized for roll-up)' : _trackerBasisFrequency == 'Quarterly' ? ' (x4 annualized for roll-up)' : ''}',
  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
  ]);
  }
@@ -8725,7 +8729,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  return null;
  }
 
- final annualMultiplier = _trackerBasisFrequency == 'Monthly' ? 12.0 : 1.0;
+ final annualMultiplier = _trackerBasisFrequency == 'Monthly' ? 12.0 : (_trackerBasisFrequency == 'Quarterly' ? 4.0 : 1.0);
  final projectedTotal = unitsValue > 0 ? suggestedValue * unitsValue : 0.0;
  if (baselineNumeric > 0 &&
  projectedTotal > 0 &&
@@ -9330,6 +9334,11 @@ class _BasisFrequencyToggle extends StatelessWidget {
  label: 'Annual',
  isSelected: value == 'Annual',
  onTap: () => onChanged('Annual'),
+ ),
+ _BasisFrequencyToggleButton(
+ label: 'Quarterly',
+ isSelected: value == 'Quarterly',
+ onTap: () => onChanged('Quarterly'),
  ),
  _BasisFrequencyToggleButton(
  label: 'Monthly',
