@@ -732,104 +732,103 @@ class _LandingScreenState extends State<LandingScreen>
  }
 
  Widget _buildHeroContent(BuildContext context, bool isDesktop) {
- const valueProps = [
- 'Define, plan, and execute in one continuous system',
- 'Predict risks, delays, and cost impacts before they happen',
- 'Align teams and decisions in real time',
+ const projectTypes = [
+ 'Project', 'Program', 'Portfolio',
+ 'Agile Project', 'Waterfall Project', 'Hybrid Project',
  ];
 
  return Column(
  crossAxisAlignment:
  isDesktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
  children: [
+ // NSF badge
  Container(
  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
  decoration: BoxDecoration(
- color: Colors.white.withValues(alpha: 0.08),
+ color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
  borderRadius: BorderRadius.circular(24),
- border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+ border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
  ),
  child: Row(
  mainAxisSize: MainAxisSize.min,
- children: [
- Icon(Icons.auto_awesome,
- size: 18,
- color: LightModeColors.accent.withValues(alpha: 0.95)),
- const SizedBox(width: 8),
- Text(
- 'Project Delivery Operating System (PDOS)',
- style: TextStyle(
- fontSize: 14,
- fontWeight: FontWeight.w600,
- color: Colors.white.withValues(alpha: 0.88),
- ),
- ),
+ children: const [
+ Icon(Icons.verified, color: Color(0xFF60A5FA), size: 16),
+ SizedBox(width: 8),
+ Text('Built from real-world delivery experience across global enterprises and high-growth organizations',
+ style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF93C5FD))),
  ],
  ),
  ),
- const SizedBox(height: 26),
+ const SizedBox(height: 16),
+ // NSF I-Corps button
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+ decoration: BoxDecoration(
+ color: const Color(0xFF3B82F6),
+ borderRadius: BorderRadius.circular(10),
+ ),
+ child: const Text('NSF I-Corps Validated', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+ ),
+ const SizedBox(height: 24),
+ // Headline
  Text(
- '42% of Projects Fail to meet original scope. Fix Project Failure Before It Starts',
- key: const Key('hero_tagline_text'),
+ 'Project Delivery Operating System (PDOS) powered by AI KAZ',
  textAlign: isDesktop ? TextAlign.left : TextAlign.center,
  style: TextStyle(
- fontSize: isDesktop ? 46.0 : 32.0,
+ fontSize: isDesktop ? 38.0 : 28.0,
  fontWeight: FontWeight.w800,
- height: 1.12,
- letterSpacing: -0.6,
+ height: 1.15,
+ letterSpacing: -0.4,
  color: const Color(0xFFFFF3C0),
  ),
  ),
- const SizedBox(height: 20),
+ const SizedBox(height: 16),
+ // 50% stat
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+ decoration: BoxDecoration(
+ color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
+ ),
+ child: Text(
+ '50% of projects fail to meet original scope due to skipped front-end phases, fragmented tools, and poor implementation of project delivery processes',
+ textAlign: isDesktop ? TextAlign.left : TextAlign.center,
+ style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFFCA5A5), height: 1.5),
+ ),
+ ),
+ const SizedBox(height: 16),
+ // Description
  Text(
- 'Ndu Project is a Project Delivery Operating System (PDOS)—a SaaS platform that integrates AI, analytics, and human decision making to deliver projects from initiation through completion.',
+ 'Ndu Project is an end-to-end Project Delivery Operating System (PDOS) that integrates AI, analytics, core project management processes, and human decision making to deliver projects from the crucial initiation phase through completion.',
  textAlign: isDesktop ? TextAlign.left : TextAlign.center,
  style: TextStyle(
- fontSize: isDesktop ? 19 : 17,
+ fontSize: isDesktop ? 16 : 14,
  height: 1.6,
  color: Colors.white.withValues(alpha: 0.72),
  ),
  ),
- const SizedBox(height: 24),
+ const SizedBox(height: 20),
+ // Project type pills
  Wrap(
  alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
- spacing: 10,
- runSpacing: 10,
- children: valueProps
- .map(
- (prop) => Container(
- padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+ spacing: 8,
+ runSpacing: 8,
+ children: projectTypes.map((type) => Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
  decoration: BoxDecoration(
- borderRadius: BorderRadius.circular(20),
- color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
- border: Border.all(
- color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
- width: 1),
+ color: Colors.white.withValues(alpha: 0.06),
+ borderRadius: BorderRadius.circular(10),
+ border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
  ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- const Icon(Icons.check_circle_rounded,
- color: Color(0xFF10B981), size: 16),
- const SizedBox(width: 8),
- Text(
- prop,
- style: const TextStyle(
- color: Colors.white,
- fontWeight: FontWeight.w600,
- fontSize: 13,
+ child: Text(type, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
+ )).toList(),
  ),
- ),
- ],
- ),
- ),
- )
- .toList(),
- ),
- const SizedBox(height: 32),
+ const SizedBox(height: 24),
+ // CTAs
  Wrap(
- spacing: 16,
- runSpacing: 16,
+ spacing: 14,
+ runSpacing: 14,
  alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
  children: [
  ElevatedButton(
@@ -837,39 +836,116 @@ class _LandingScreenState extends State<LandingScreen>
  style: ElevatedButton.styleFrom(
  backgroundColor: LightModeColors.accent,
  foregroundColor: const Color(0xFF151515),
- padding:
- const EdgeInsets.symmetric(horizontal: 34, vertical: 18),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(14)),
+ padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+ shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
  elevation: 0,
  ),
- child: const Text('Request a Demo',
- style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+ child: const Text('Start Your Project', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
  ),
- OutlinedButton(
+ OutlinedButton.icon(
  onPressed: _handleWorkflowTap,
  style: OutlinedButton.styleFrom(
- foregroundColor: Colors.white.withValues(alpha: 0.92),
- padding:
- const EdgeInsets.symmetric(horizontal: 32, vertical: 18),
- side: BorderSide(
- color: Colors.white.withValues(alpha: 0.26), width: 1.6),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(14)),
+ foregroundColor: Colors.white,
+ padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+ side: BorderSide(color: Colors.white.withValues(alpha: 0.3), width: 1.5),
+ shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+ ),
+ icon: const Icon(Icons.arrow_outward, size: 16),
+ label: const Text('Explore platform', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+ ),
+ ],
+ ),
+ const SizedBox(height: 28),
+ // Stats row
+ LayoutBuilder(builder: (context, c) {
+ final horizontal = c.maxWidth >= 600;
+ final stats = [
+ ('20 to 90%', 'Savings on budget'),
+ ('10 to 60%', 'Improvement to ROI'),
+ ('30 to 90%', 'Rework elimination'),
+ ];
+ if (horizontal) {
+ return Row(
+ children: stats.map((s) => Expanded(
+ child: Container(
+ margin: const EdgeInsets.only(right: 12),
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+ decoration: BoxDecoration(
+ color: const Color(0xFF10B981).withValues(alpha: 0.08),
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
+ ),
+ child: Column(
+ children: [
+ Text(s.$1, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF34D399))),
+ const SizedBox(height: 4),
+ Text(s.$2, style: const TextStyle(fontSize: 11, color: Colors.white60), textAlign: TextAlign.center),
+ ],
+ ),
+ ),
+ )).toList(),
+ );
+ }
+ return Column(
+ children: stats.map((s) => Container(
+ margin: const EdgeInsets.only(bottom: 10),
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+ decoration: BoxDecoration(
+ color: const Color(0xFF10B981).withValues(alpha: 0.08),
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
  ),
  child: Row(
- mainAxisSize: MainAxisSize.min,
- children: const [
- Text('See How It Works',
- style:
- TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
- SizedBox(width: 8),
- Icon(Icons.arrow_outward_rounded, size: 18),
+ children: [
+ Text(s.$1, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF34D399))),
+ const SizedBox(width: 12),
+ Text(s.$2, style: const TextStyle(fontSize: 12, color: Colors.white60)),
  ],
  ),
+ )).toList(),
+ );
+ }),
+ const SizedBox(height: 24),
+ // 3 feature cards
+ LayoutBuilder(builder: (context, c) {
+ final cols = c.maxWidth >= 700 ? 3 : 1;
+ final w = cols == 1 ? c.maxWidth : (c.maxWidth - 32) / cols;
+ final cards = [
+ ('End-to-end delivery', 'Govern projects from initiation through launch in one unified system.', ['Continuous lifecycle coverage', 'No gaps between phases', 'Single source of truth']),
+ ('Continuous lifecycle integration', 'Initiation → Planning → Execution → Launch—all connected seamlessly.', ['Phase transitions with readiness gates', 'Connected data flows', 'Automated handoff protocols']),
+ ('AI-driven recommendations', 'KAZ provides contextual guidance, summaries, and decision support.', ['Context-aware answers', 'Action acceleration', 'Guided decisioning']),
+ ];
+ return Wrap(
+ spacing: 16, runSpacing: 16,
+ children: cards.map((card) => SizedBox(width: w, child: Container(
+ padding: const EdgeInsets.all(16),
+ decoration: BoxDecoration(
+ color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
+ borderRadius: BorderRadius.circular(14),
+ border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2)),
  ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ Text(card.$1, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFC4B5FD))),
+ const SizedBox(height: 6),
+ Text(card.$2, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6), height: 1.4)),
+ const SizedBox(height: 8),
+ ...card.$3.map((b) => Padding(
+ padding: const EdgeInsets.only(bottom: 4),
+ child: Row(
+ children: [
+ const Icon(Icons.check, size: 12, color: Color(0xFF10B981)),
+ const SizedBox(width: 6),
+ Expanded(child: Text(b, style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7)))),
  ],
  ),
+ )),
+ ],
+ ),
+ ))).toList(),
+ );
+ }),
  ],
  );
  }
