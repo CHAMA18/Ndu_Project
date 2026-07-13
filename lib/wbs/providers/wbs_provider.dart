@@ -16,9 +16,11 @@ const String _storageKey = 'ndu_wbs_v2';
 class WBSProvider extends ChangeNotifier {
   WBS? _wbs;
   bool _setupComplete = false;
+  bool _isLoadingFromStorage = true;
 
   WBS? get wbs => _wbs;
   bool get setupComplete => _setupComplete;
+  bool get isLoadingFromStorage => _isLoadingFromStorage;
 
   WBSProvider() {
     _loadFromStorage();
@@ -35,10 +37,12 @@ class WBSProvider extends ChangeNotifier {
         if (state['wbs'] != null) {
           _wbs = _wbsFromJson(state['wbs'] as Map<String, dynamic>);
         }
-        notifyListeners();
       }
     } catch (e) {
       debugPrint('Error loading WBS: $e');
+    } finally {
+      _isLoadingFromStorage = false;
+      notifyListeners();
     }
   }
 
@@ -140,6 +144,13 @@ class WBSProvider extends ChangeNotifier {
     ProjectMethodology methodology = ProjectMethodology.waterfall,
     String projectId = 'default',
   }) {
+    // Don't overwrite if storage load hasn't completed yet
+    if (_isLoadingFromStorage) return;
+    // Don't overwrite if already set up
+    if (_wbs != null && _setupComplete) {
+      syncToProject(projectId, projectName);
+      return;
+    }
     _wbs = createEmptyWBS(
       projectId: projectId,
       projectName: projectName,

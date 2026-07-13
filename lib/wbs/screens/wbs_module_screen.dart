@@ -80,9 +80,16 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
         : 'Project';
     final projectId = projectData.projectId ?? 'default';
 
+    // Wait for storage to finish loading before deciding to setup
+    if (provider.isLoadingFromStorage) {
+      // Retry after a short delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) _autoSetupIfNeeded();
+      });
+      return;
+    }
+
     if (provider.wbs != null && provider.setupComplete) {
-      // WBS already exists — sync its root node to the current project
-      // so it always reflects the active project context.
       provider.syncToProject(projectId, projectName);
       return;
     }
