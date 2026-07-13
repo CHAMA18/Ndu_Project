@@ -1281,11 +1281,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  }
 
  double _currentProjectValueForSolution(int index) {
- final annualProjectValue = _projectBenefitTotalForSolution(index);
- if (annualProjectValue <= 0 || _npvHorizon <= 0) {
- return 0;
- }
- return annualProjectValue * _npvHorizon;
+ // ROI is computed on a single-year basis to avoid inflation.
+ // Multi-year horizon is only used for NPV/IRR cashflow calculations.
+ return _projectBenefitTotalForSolution(index);
  }
 
  double _solutionRoiPercent({
@@ -1295,7 +1293,11 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  if (currentProjectValue <= 0 || initialCost <= 0) {
  return 0;
  }
- return ((currentProjectValue - initialCost) / initialCost) * 100;
+ // ROI = (annual benefit - annualized cost) / annualized cost × 100
+ // Annualized cost = initialCost / horizon (spread over project lifetime)
+ final annualizedCost = initialCost / _npvHorizon;
+ if (annualizedCost <= 0) return 0;
+ return ((currentProjectValue - annualizedCost) / annualizedCost) * 100;
  }
 
  double _solutionNpv({
@@ -1319,7 +1321,10 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  if (currentProjectValue <= 0 || initialCost <= 0 || _npvHorizon <= 0) {
  return 0;
  }
- final ratio = currentProjectValue / initialCost;
+ // IRR uses annual benefit vs one-time initial cost over the horizon
+ // ratio = total benefits over horizon / initial cost
+ final totalBenefits = currentProjectValue * _npvHorizon;
+ final ratio = totalBenefits / initialCost;
  if (!ratio.isFinite || ratio <= 0) {
  return 0;
  }
@@ -2743,7 +2748,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  costRange:
  _CostRange(lower: estimatedCost * 0.85, upper: estimatedCost * 1.15),
  benefitLineItemCount: activeBenefitCount,
- totalBenefits: currentProjectValue,
+ totalBenefits: annualProjectValue,
  );
  }
 
