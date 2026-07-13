@@ -436,7 +436,8 @@ class _LandingScreenState extends State<LandingScreen>
  _buildWhyNduDropdown(),
  _buildSolutionsDropdown(),
  _buildServicesDropdown(),
- _navButton('Get Started', () => _scrollTo(_ctaKey)),
+ _navButton('Pricing', () => _scrollTo(_ctaKey)),
+ _buildResourcesDropdown(),
  ],
  const Spacer(),
  if (!isDesktop) ...[
@@ -683,6 +684,54 @@ class _LandingScreenState extends State<LandingScreen>
  children: [
  Text(
  'Services',
+ style: const TextStyle(
+ fontSize: 15,
+ fontWeight: FontWeight.w600,
+ color: Colors.white,
+ ),
+ ),
+ const SizedBox(width: 4),
+ const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
+ ],
+ ),
+ ),
+ ),
+ );
+ }
+
+ Widget _buildResourcesDropdown() {
+ return PopupMenuButton<String>(
+ onSelected: (value) {
+ switch (value) {
+ case 'contact':
+ _scrollTo(_newsBlogKey);
+ break;
+ case 'support':
+ _scrollTo(_reviewsKey);
+ break;
+ case 'media':
+ launchUrl(Uri.parse('https://nduproject.tech'), mode: LaunchMode.externalApplication);
+ break;
+ case 'announcements':
+ _scrollTo(_asSeenOnKey);
+ break;
+ }
+ },
+ itemBuilder: (context) => const [
+ PopupMenuItem(value: 'contact', child: Text('Contact Us')),
+ PopupMenuItem(value: 'support', child: Text('Support')),
+ PopupMenuItem(value: 'media', child: Text('Media')),
+ PopupMenuItem(value: 'announcements', child: Text('Announcements')),
+ ],
+ child: Padding(
+ padding: const EdgeInsets.symmetric(horizontal: 12),
+ child: Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Text(
+ 'Resources',
  style: const TextStyle(
  fontSize: 15,
  fontWeight: FontWeight.w600,

@@ -121,9 +121,8 @@ class LandingPageScreen extends StatelessWidget {
                           _buildSolutionsDropdown(context),
                           _buildServicesDropdown(context),
                           _navLink('Pricing', () => _scrollTo(context, 'pricing')),
+                          _buildResourcesDropdown(context),
                           _navLink('KAZ AI', () => _scrollTo(context, 'kaz')),
-                          _navLink('Resources', () => _scrollTo(context, 'footer')),
-                          _navLink('Media', () => _launchUrl('https://nduproject.tech')),
                         ]),
                       // Right side
                       Row(children: [
@@ -240,6 +239,44 @@ class LandingPageScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Services', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily)),
+            const SizedBox(width: 2),
+            Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildResourcesDropdown(BuildContext context) {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        switch (value) {
+          case 'contact':
+            _scrollTo(context, 'footer');
+            break;
+          case 'support':
+            _scrollTo(context, 'footer');
+            break;
+          case 'media':
+            _launchUrl('https://nduproject.tech');
+            break;
+          case 'announcements':
+            _scrollTo(context, 'footer');
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'contact', child: Text('Contact Us')),
+        PopupMenuItem(value: 'support', child: Text('Support')),
+        PopupMenuItem(value: 'media', child: Text('Media')),
+        PopupMenuItem(value: 'announcements', child: Text('Announcements')),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Resources', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily)),
             const SizedBox(width: 2),
             Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 16),
           ],
