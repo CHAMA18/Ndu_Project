@@ -226,11 +226,11 @@ class _LandingScreenState extends State<LandingScreen>
  final bool isTablet = size.width >= 900 && size.width < 1200;
 
  return Scaffold(
- backgroundColor: Colors.black,
+ backgroundColor: const Color(0xFFFFFBEB),
  body: SafeArea(
  child: Container(
  decoration: const BoxDecoration(
- color: Color(0xFF040404),
+ color: Color(0xFFFFF9E3),
  ),
  child: Stack(
  children: [
@@ -261,7 +261,7 @@ class _LandingScreenState extends State<LandingScreen>
  shape: BoxShape.circle,
  gradient: RadialGradient(
  colors: [
- Colors.white.withValues(alpha: 0.08),
+ const Color(0xFFF59E0B).withValues(alpha: 0.15),
  Colors.transparent,
  ],
  ),
@@ -437,9 +437,9 @@ class _LandingScreenState extends State<LandingScreen>
  child: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
- _buildWhyNduDropdown(),
  _buildSolutionsDropdown(),
  _buildServicesDropdown(),
+ _buildWhyNduDropdown(),
  _navButton('Pricing', () => _scrollTo(_ctaKey)),
  _buildResourcesDropdown(),
  ],
@@ -743,9 +743,9 @@ class _LandingScreenState extends State<LandingScreen>
  Container(
  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
  decoration: BoxDecoration(
- color: Colors.white.withValues(alpha: 0.08),
+ color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
  borderRadius: BorderRadius.circular(24),
- border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+ border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.3)),
  ),
  child: Row(
  mainAxisSize: MainAxisSize.min,
@@ -759,7 +759,7 @@ class _LandingScreenState extends State<LandingScreen>
  style: TextStyle(
  fontSize: 14,
  fontWeight: FontWeight.w600,
- color: Colors.white.withValues(alpha: 0.88),
+ color: const Color(0xFF92400E),
  ),
  ),
  ],
@@ -775,7 +775,7 @@ class _LandingScreenState extends State<LandingScreen>
  fontWeight: FontWeight.w800,
  height: 1.12,
  letterSpacing: -0.6,
- color: const Color(0xFFFFF3C0),
+ color: const Color(0xFF1A1A1A),
  ),
  ),
  const SizedBox(height: 20),
@@ -785,7 +785,7 @@ class _LandingScreenState extends State<LandingScreen>
  style: TextStyle(
  fontSize: isDesktop ? 19 : 17,
  height: 1.6,
- color: Colors.white.withValues(alpha: 0.72),
+ color: const Color(0xFF4A4A4A),
  ),
  ),
  const SizedBox(height: 24),
