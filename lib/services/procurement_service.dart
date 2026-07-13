@@ -229,6 +229,12 @@ class ProcurementService {
     return snap.docs.isNotEmpty;
   }
 
+  /// Returns the total count of RFQs for a project.
+  static Future<int> getRfqCount(String projectId) async {
+    final snap = await _rfqsCol(projectId).count().get();
+    return snap.count;
+  }
+
   static Future<void> updateRfq(
       String projectId, String rfqId, Map<String, dynamic> data) async {
     await _rfqsCol(projectId).doc(rfqId).update(data);
@@ -269,6 +275,12 @@ class ProcurementService {
     return snap.docs.isNotEmpty;
   }
 
+  /// Returns the total count of Purchase Orders for a project.
+  static Future<int> getPoCount(String projectId) async {
+    final snap = await _posCol(projectId).count().get();
+    return snap.count;
+  }
+
   static Future<void> updatePo(
       String projectId, String poId, Map<String, dynamic> data) async {
     await _posCol(projectId).doc(poId).update(data);
@@ -303,6 +315,12 @@ class ProcurementService {
   static Future<bool> hasAnyContracts(String projectId) async {
     final snap = await _contractsCol(projectId).limit(1).get();
     return snap.docs.isNotEmpty;
+  }
+
+  /// Returns the total count of Contracts for a project.
+  static Future<int> getContractCount(String projectId) async {
+    final snap = await _contractsCol(projectId).count().get();
+    return snap.count;
   }
 
   static Future<void> createContract(ContractModel contract) async {

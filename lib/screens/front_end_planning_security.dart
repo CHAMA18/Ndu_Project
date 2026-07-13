@@ -193,28 +193,41 @@ Future<void> _triggerAutoSecurityGenerationIfMissing() async {
  setState(() => _isGenerating = false);
  }
  }
- }
+ }  Future<void> _generateSecurityRolesPermissions() async {
+    if (_isGeneratingRolesPermissions || !mounted) return;
+    _isGeneratingRolesPermissions = true;
 
- Future<void> _generateSecurityRolesPermissions() async {
- if (_isGeneratingRolesPermissions || !mounted) return;
- _isGeneratingRolesPermissions = true;
+    try {
+      final data = ProjectDataHelper.getData(context);
+      var contextText =
+          ProjectDataHelper.buildFepContext(data, sectionLabel: 'Security');
+      if (contextText.trim().isEmpty) {
+        contextText = ProjectDataHelper.buildProjectContextScan(
+          data,
+          sectionLabel: 'Security',
+        );
+      }
 
- try {
- final data = ProjectDataHelper.getData(context);
- var contextText =
- ProjectDataHelper.buildFepContext(data, sectionLabel: 'Security');
- if (contextText.trim().isEmpty) {
- contextText = ProjectDataHelper.buildProjectContextScan(
- data,
- sectionLabel: 'Security',
- );
- }
+      // Enrich context with project type, size, and scope for better AI suggestions
+      final enrichedContext = StringBuffer(contextText);
+      if (data.projectType.isNotEmpty) {
+        enrichedContext.writeln('Project Type: ${data.projectType}');
+      }
+      if (data.projectSize.isNotEmpty) {
+        enrichedContext.writeln('Project Size: ${data.projectSize}');
+      }
+      if (data.projectScope.isNotEmpty) {
+        enrichedContext.writeln('Project Scope: ${data.projectScope}');
+      }
+      if (data.teamSize.isNotEmpty) {
+        enrichedContext.writeln('Team Size: ${data.teamSize}');
+      }
 
- final result = await _openAi.generateSecurityRolesAndPermissions(
- context: contextText,
- maxRoles: 4,
- maxPermissions: 5,
- );
+      final result = await _openAi.generateSecurityRolesAndPermissions(
+        context: enrichedContext.toString(),
+        maxRoles: 4,
+        maxPermissions: 5,
+      );
 
  final shouldUpdateRoles = _securityRoles.isEmpty;
  final shouldUpdatePermissions = _securityPermissions.isEmpty;
@@ -243,21 +256,24 @@ Future<void> _triggerAutoSecurityGenerationIfMissing() async {
  )
  .where((perm) => perm.resource.isNotEmpty)
  .toList()
- : const <PermissionItem>[];
+ : const <PermissionItem>[];    if ((shouldUpdateRoles && roles.isNotEmpty) ||
+        (shouldUpdatePermissions && permissions.isNotEmpty)) {
+      _persistSecurityLists(
+        roles: shouldUpdateRoles ? roles : null,
+        permissions: shouldUpdatePermissions ? permissions : null,
+      );
 
- if ((shouldUpdateRoles && roles.isNotEmpty) ||
- (shouldUpdatePermissions && permissions.isNotEmpty)) {
- _persistSecurityLists(
- roles: shouldUpdateRoles ? roles : null,
- permissions: shouldUpdatePermissions ? permissions : null,
- );
- }
- } catch (e) {
- debugPrint('Error generating security roles/permissions: $e');
- } finally {
- _isGeneratingRolesPermissions = false;
- }
- }
+      // Sync security roles to Team members
+      if (shouldUpdateRoles && roles.isNotEmpty) {
+        _syncSecurityRolesToTeam(roles);
+      }
+    }
+  } catch (e) {
+    debugPrint('Error generating security roles/permissions: $e');
+  } finally {
+    _isGeneratingRolesPermissions = false;
+  }
+}
 
  String _getFallbackSecurityContent(ProjectDataModel data) {
  return '''Security Considerations and Requirements
@@ -323,9 +339,46 @@ Security Training:
  ),
  );
  provider.saveToFirebase(checkpoint: 'fep_security');
- }
+ }  /// Syncs security roles to Team members in the project data model.
+  /// Each security role becomes a TeamMember entry with role-based responsibilities.
+  void _syncSecurityRolesToTeam(List<RoleItem> roles) {
+    if (!mounted) return;
+    final provider = ProjectDataHelper.getProvider(context);
+    final currentData = provider.projectData;
+    final existingTeamMembers = List<TeamMember>.from(currentData.teamMembers);
 
- void _persistSecurityLists({
+    // Build a set of existing team member names to avoid duplicates
+    final existingNames = existingTeamMembers
+        .map((m) => m.name.trim().toLowerCase())
+        .toSet();
+
+    // Add security roles that don't already exist as team members
+    final newMembers = <TeamMember>[];
+    for (final role in roles) {
+      final roleName = role.name.trim();
+      if (roleName.isEmpty) continue;
+      if (existingNames.contains(roleName.toLowerCase())) continue;
+
+      newMembers.add(TeamMember(
+        name: roleName,
+        role: 'Security - $roleName',
+        responsibilities: role.description.isNotEmpty
+            ? role.description
+            : 'Security responsibilities for $roleName role',
+      ));
+    }
+
+    if (newMembers.isNotEmpty) {
+      provider.updateField(
+        (data) => data.copyWith(
+          teamMembers: [...existingTeamMembers, ...newMembers],
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'fep_security_team_sync');
+    }
+  }
+
+  void _persistSecurityLists({
  List<RoleItem>? roles,
  List<PermissionItem>? permissions,
  List<SecuritySetting>? settings,

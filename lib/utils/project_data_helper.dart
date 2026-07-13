@@ -382,6 +382,12 @@ class ProjectDataHelper {
     w('Potential Solution', data.potentialSolution);
     w('Project Objective', data.projectObjective);
     w('Overall Framework', data.overallFramework);
+    w('Project Type', data.projectType);
+    w('Project Size', data.projectSize);
+    w('Project Scope', data.projectScope);
+    w('Estimated Budget', data.estimatedBudget);
+    w('Estimated Duration', data.estimatedDuration);
+    w('Team Size', data.teamSize);
 
     if (data.projectGoals.isNotEmpty) {
       buf.writeln('Project Goals:');

@@ -6,6 +6,7 @@ import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/vendor_service.dart';
+import 'package:ndu_project/services/procurement_service.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class ProcurementAssignableMemberOption {
@@ -1737,9 +1738,11 @@ class _CreateRfqDialogState extends State<CreateRfqDialog> {
         final projectId = widget.initialRfq?.projectId ??
             ProjectDataHelper.getData(context).projectId ??
             'project-1';
+        // Generate sequential RFQ number
+        final rfqCount = await ProcurementService.getRfqCount(projectId);
+        final rfqId = widget.initialRfq?.id ?? 'RFQ-${(rfqCount + 1).toString().padLeft(4, '0')}';
         final rfq = RfqModel(
-          id: widget.initialRfq?.id ??
-              'RFQ-${DateTime.now().millisecondsSinceEpoch % 10000}',
+          id: rfqId,
           title: _titleCtrl.text.trim(),
           projectId: projectId,
           category: _category,
@@ -2161,10 +2164,13 @@ class _CreatePoDialogState extends State<CreatePoDialog> {
         final amount = _parseCurrency(_amountCtrl.text);
         final selectedItemNumber =
             selectedItem == null ? null : _resolvedItemNumbers[selectedItem.id];
+        // Generate sequential PO number
+        final poCount = await ProcurementService.getPoCount(projectId);
+        final defaultPoNumber = 'PO-${(poCount + 1).toString().padLeft(4, '0')}';
         final poId = (!isEditing && selectedItemNumber != null)
             ? selectedItemNumber
             : (_idCtrl.text.trim().isEmpty
-                ? 'PO-${DateTime.now().millisecondsSinceEpoch % 10000}'
+                ? defaultPoNumber
                 : _idCtrl.text.trim());
         final projectId = widget.initialPo?.projectId ??
             ProjectDataHelper.getData(context).projectId ??
@@ -2546,9 +2552,11 @@ class _AddContractDialogState extends State<AddContractDialog> {
           }
         }
 
+        // Generate sequential Contract number
+        final contractCount = await ProcurementService.getContractCount(projectId);
+        final contractId = widget.initialContract?.id ?? 'CNT-${(contractCount + 1).toString().padLeft(4, '0')}';
         final contract = ContractModel(
-          id: widget.initialContract?.id ??
-              'CNT-${DateTime.now().millisecondsSinceEpoch % 10000}',
+          id: contractId,
           projectId: projectId,
           title: _titleCtrl.text.trim(),
           description: _descCtrl.text.trim(),

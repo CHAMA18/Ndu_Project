@@ -37,17 +37,17 @@ class _PlanningRequirementsScreenState
  final TextEditingController _requirementsPlanController =
  TextEditingController();
  final ScrollController _requirementsHorizontalController = ScrollController();
- final ScrollController _requirementsVerticalController = ScrollController();
-
- bool _isGeneratingRequirements = false;
- bool _isGeneratingRequirementsPlan = false;
+ final ScrollController _requirementsVerticalController = ScrollController();  bool _isGeneratingRequirements = false;
+  bool _isGeneratingRequirementsPlan = false;
+  bool _isAnalyzingScopeAlignment = false;
+  List<_ScopeSuggestion> _scopeSuggestions = [];
+  bool _showScopeSuggestions = false;
  bool _planEditedManually = false;
  bool _settingPlanFromAi = false;
  bool _isRegeneratingRow = false;
- int? _regeneratingRowIndex;
-
- Timer? _autoSaveTimer;
- Timer? _planTimer;
+ int? _regeneratingRowIndex;  Timer? _autoSaveTimer;
+  Timer? _planTimer;
+  bool _isTableExpanded = false;
  DateTime? _lastAutoSaveSnackAt;
 
  List<_AssignableMember> _memberOptions = const <_AssignableMember>[];
@@ -209,10 +209,57 @@ class _PlanningRequirementsScreenState
  final row = _createRow(entry.key + 1);
  row.setDescription(entry.value);
  return row;
- }).toList(),
- );
- }
- }
+ }).toList(      ),
+    );
+  }
+}
+
+class _SmeCheckItem extends StatelessWidget {
+  const _SmeCheckItem(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            size: 16,
+            color: Color(0xFF2563EB),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF374151),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScopeSuggestion {
+  final String requirement;
+  final String action;
+  final String reason;
+  final String scopeMapping;
+
+  _ScopeSuggestion({
+    required this.requirement,
+    required this.action,
+    required this.reason,
+    required this.scopeMapping,
+  });
+}
+
  }
 
  void _replaceRowsSafely(List<_RequirementRow> nextRows) {
@@ -401,10 +448,57 @@ $requirementsList
  debugPrint('AI requirements plan generation failed: $e');
  if (mounted) {
  ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(content: Text('Failed to generate plan: ${e.toString()}')),
- );
- }
- } finally {
+ SnackBar(content: Text('Failed to generate plan: ${e.toString()}')      ),
+    );
+  }
+}
+
+class _SmeCheckItem extends StatelessWidget {
+  const _SmeCheckItem(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            size: 16,
+            color: Color(0xFF2563EB),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF374151),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScopeSuggestion {
+  final String requirement;
+  final String action;
+  final String reason;
+  final String scopeMapping;
+
+  _ScopeSuggestion({
+    required this.requirement,
+    required this.action,
+    required this.reason,
+    required this.scopeMapping,
+  });
+}
+ finally {
  if (mounted) {
  setState(() => _isGeneratingRequirementsPlan = false);
  }
@@ -815,16 +909,10 @@ $requirementsList
  item.comments.isNotEmpty,
  )
  .toList();
- }
-
- void _handleSubmit() async {
- final continueAnyway = await showProceedWithoutReviewDialog(
- context,
- title: 'Confirm before submitting requirements',
- message:
- 'You are about to continue to the next step. You can proceed now and return later to refine details, or cancel and review first.',
- );
- if (!continueAnyway) return;
+ }  void _handleSubmit() async {
+    // Show SME consultation dialog for planning phase
+    final smeApproved = await _showSmeConsultationDialog();
+    if (!smeApproved) return;
 
  final requirementItems = _buildRequirementItems();
  if (requirementItems.isEmpty) {
@@ -1066,12 +1154,247 @@ $requirementsList
  if (shouldRegenerate == true && mounted) {
  await _generateRequirementsFromContext();
  }
- }
+ }  // ── Scope Alignment Analysis ──────────────────────────────────────
+  Future<void> _analyzeScopeAlignment() async {
+    if (_isAnalyzingScopeAlignment) return;
+    setState(() => _isAnalyzingScopeAlignment = true);
 
- @override
- void dispose() {
- _autoSaveTimer?.cancel();
- _planTimer?.cancel();
+    try {
+      final data = ProjectDataHelper.getData(context);
+      final currentReqs = _rows
+          .map((r) => r.descriptionController.text.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+
+      final scopeItems = data.withinScopeItems
+          .map((item) => item.description.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
+
+      final ctx = StringBuffer()
+        ..writeln('Current Requirements:');
+      for (final req in currentReqs) {
+        ctx.writeln('- $req');
+      }
+      ctx.writeln();
+      ctx.writeln('Project Scope Items:');
+      for (final scope in scopeItems) {
+        ctx.writeln('- $scope');
+      }
+      ctx.writeln();
+      ctx.writeln('Analyze the requirements against the scope.');
+      ctx.writeln('For each requirement, determine if it maps to a scope item.');
+      ctx.writeln('Also suggest any missing requirements that should be added based on the scope,');
+      ctx.writeln('and any requirements that seem out of scope and should be removed.');
+      ctx.writeln('Return JSON: {"suggestions": [{"requirement": "...", "action": "add|remove|keep", "reason": "...", "scopeMapping": "..."}]}');
+
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateCompletion(
+        ctx.toString(),
+        maxTokens: 1000,
+        temperature: 0.4,
+      );
+
+      if (!mounted) return;
+
+      // Parse AI response
+      final suggestions = _parseScopeSuggestions(result, currentReqs, scopeItems);
+      setState(() {
+        _scopeSuggestions = suggestions;
+        _showScopeSuggestions = suggestions.isNotEmpty;
+      });
+    } catch (e) {
+      debugPrint('Scope alignment analysis failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isAnalyzingScopeAlignment = false);
+      }
+    }
+  }
+
+  List<_ScopeSuggestion> _parseScopeSuggestions(
+    String aiResponse,
+    List<String> currentReqs,
+    List<String> scopeItems,
+  ) {
+    final suggestions = <_ScopeSuggestion>[];
+    try {
+      // Try to extract JSON from response
+      final jsonStart = aiResponse.indexOf('{');
+      final jsonEnd = aiResponse.lastIndexOf('}');
+      if (jsonStart >= 0 && jsonEnd > jsonStart) {
+        final jsonStr = aiResponse.substring(jsonStart, jsonEnd + 1);
+        // Simple parsing - in production, use proper JSON decoder
+        final lines = jsonStr.split('\n');
+        for (final line in lines) {
+          if (line.contains('"requirement"')) {
+            final req = _extractJsonValue(line, 'requirement');
+            final action = _extractJsonValue(line, 'action');
+            final reason = _extractJsonValue(line, 'reason');
+            final mapping = _extractJsonValue(line, 'scopeMapping');
+            if (req.isNotEmpty && action.isNotEmpty) {
+              suggestions.add(_ScopeSuggestion(
+                requirement: req,
+                action: action,
+                reason: reason,
+                scopeMapping: mapping,
+              ));
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to parse scope suggestions: $e');
+    }
+    return suggestions;
+  }
+
+  String _extractJsonValue(String line, String key) {
+    final pattern = '"$key"\s*:\s*"([^"]*)"';
+    final match = RegExp(pattern).firstMatch(line);
+    return match?.group(1) ?? '';
+  }
+
+  void _applyScopeSuggestion(_ScopeSuggestion suggestion, bool accept) {
+    setState(() {
+      if (accept && suggestion.action == 'add') {
+        final newRow = _createRow(_rows.length + 1);
+        newRow.setDescription(suggestion.requirement);
+        _rows.add(newRow);
+      } else if (accept && suggestion.action == 'remove') {
+        _rows.removeWhere((r) =>
+            r.descriptionController.text.trim() == suggestion.requirement);
+      }
+      _scopeSuggestions.remove(suggestion);
+      if (_scopeSuggestions.isEmpty) {
+        _showScopeSuggestions = false;
+      }
+    });
+    _commitAutoSave(showSnack: false);
+  }
+
+  void _applyAllScopeSuggestions(bool acceptAll) {
+    setState(() {
+      for (final suggestion in List.from(_scopeSuggestions)) {
+        if (acceptAll && suggestion.action == 'add') {
+          final newRow = _createRow(_rows.length + 1);
+          newRow.setDescription(suggestion.requirement);
+          _rows.add(newRow);
+        } else if (acceptAll && suggestion.action == 'remove') {
+          _rows.removeWhere((r) =>
+              r.descriptionController.text.trim() == suggestion.requirement);
+        }
+      }
+      _scopeSuggestions.clear();
+      _showScopeSuggestions = false;
+    });
+    _commitAutoSave(showSnack: false);
+  }
+
+  // ── SME Consultation Dialog ───────────────────────────────────────
+  Future<bool> _showSmeConsultationDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.person_search,
+                color: Color(0xFFD97706),
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'SME Review Recommended',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Before proceeding, it is strongly recommended that you consult with the Technical Lead or Subject Matter Expert (SME) to ensure all requirements are accurate, complete, and properly aligned with the project scope.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF374151),
+                  height: 1.5,
+                ),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Key areas to review with SME:',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              SizedBox(height: 8),
+              _SmeCheckItem('Technical feasibility of each requirement'),
+              _SmeCheckItem('Regulatory and compliance alignment'),
+              _SmeCheckItem('Resource allocation and role assignments'),
+              _SmeCheckItem('Scope boundary validation'),
+              _SmeCheckItem('Risk identification and mitigation strategies'),
+              SizedBox(height: 16),
+              Text(
+                'Have you consulted with the Tech Lead or SME?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF111827),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text(
+              'Cancel - I need to consult first',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2563EB),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Yes, SME has reviewed'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  void dispose() {
+    _autoSaveTimer?.cancel();
+    _planTimer?.cancel();
  _requirementsHorizontalController.dispose();
  _requirementsVerticalController.dispose();
  _notesController.removeListener(_handleNotesChanged);
@@ -1248,6 +1571,12 @@ $requirementsList
  ),
  const SizedBox(height: 14),
  _buildRequirementsTable(context),
+ const SizedBox(height: 12),
+ _buildScopeAnalysisButton(),
+ if (_showScopeSuggestions) ...[
+   const SizedBox(height: 12),
+   _buildScopeSuggestionsPanel(),
+ ],
  const SizedBox(height: 16),
  _buildActionButtons(),
  const SizedBox(height: 24),
@@ -1775,10 +2104,57 @@ $requirementsList
  content: Text('${rows.length} requirements imported from CSV'),
  backgroundColor: Colors.green,
  behavior: SnackBarBehavior.floating,
- ),
- );
- }
- },
+       ),
+    );
+  }
+}
+
+class _SmeCheckItem extends StatelessWidget {
+  const _SmeCheckItem(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.check_circle_outline,
+            size: 16,
+            color: Color(0xFF2563EB),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF374151),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScopeSuggestion {
+  final String requirement;
+  final String action;
+  final String reason;
+  final String scopeMapping;
+
+  _ScopeSuggestion({
+    required this.requirement,
+    required this.action,
+    required this.reason,
+    required this.scopeMapping,
+  });
+}
+,
  icon: const Icon(Icons.upload_file_outlined, size: 18),
  label: const Text('Import CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
  style: OutlinedButton.styleFrom(
