@@ -596,7 +596,7 @@ class _DynamicPlanColumn extends StatelessWidget {
                     color: _secondaryText,
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.line_through,
+                    decoration: TextDecoration.lineThrough,
                   ),
                 ),
                 const SizedBox(width: 6),

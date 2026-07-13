@@ -271,6 +271,7 @@ class _AdminPricingConfigScreenState extends State<AdminPricingConfigScreen> {
             Text(
               'Last updated: ${_formatDate(config.updatedAt!)}',
               style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],
@@ -421,6 +422,7 @@ class _TierCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Header row
           Container(
@@ -462,7 +464,9 @@ class _TierCard extends StatelessWidget {
                           children: [
                             Text(tier.label,
                                 style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.w700)),
+                                    fontSize: 18, fontWeight: FontWeight.w700),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis),
                             if (tier.subtitle.isNotEmpty)
                               Text(tier.subtitle,
                                   style: TextStyle(
@@ -602,7 +606,10 @@ class _TierCard extends StatelessWidget {
                     runSpacing: 6,
                     children: tier.features
                         .map((f) => Chip(
-                              label: Text(f, style: const TextStyle(fontSize: 12)),
+                              label: Text(f,
+                                  style: const TextStyle(fontSize: 12),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis),
                               visualDensity: VisualDensity.compact,
                               materialTapTargetSize:
                                   MaterialTapTargetSize.shrinkWrap,
@@ -615,8 +622,10 @@ class _TierCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.end,
                   children: [
                     TextButton.icon(
                       onPressed: onToggleActive,
@@ -630,7 +639,6 @@ class _TierCard extends StatelessWidget {
                             tier.isActive ? Colors.orange : Colors.green,
                       ),
                     ),
-                    const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: onEdit,
                       icon: const Icon(Icons.edit, size: 16),
@@ -638,7 +646,6 @@ class _TierCard extends StatelessWidget {
                       style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFF6366F1)),
                     ),
-                    const SizedBox(width: 8),
                     TextButton.icon(
                       onPressed: onDelete,
                       icon: const Icon(Icons.delete_outline, size: 16),
@@ -676,12 +683,17 @@ class _PriceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+        Text(label,
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            overflow: TextOverflow.ellipsis),
         const SizedBox(height: 4),
         Text(value,
             style: const TextStyle(
-                fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF6366F1))),
-        Text(subtext, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF6366F1)),
+            overflow: TextOverflow.ellipsis),
+        Text(subtext,
+            style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+            overflow: TextOverflow.ellipsis),
       ],
     );
   }
@@ -708,10 +720,15 @@ class _InfoChip extends StatelessWidget {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[500])),
+            Text(label,
+                style: TextStyle(fontSize: 10, color: Colors.grey[500]),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
             Text(value,
                 style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
           ],
         ),
       ],
@@ -944,8 +961,10 @@ class _TierFormDialogState extends State<_TierFormDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 560,
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
         padding: const EdgeInsets.all(32),
         child: Form(
           key: _formKey,

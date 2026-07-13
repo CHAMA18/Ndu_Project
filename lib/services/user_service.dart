@@ -223,7 +223,7 @@ class UserService {
       return combined.take(20).toList();
     } catch (e) {
       debugPrint('Error searching users: $e');
-      return [];
+      rethrow;
     }
   }
 }

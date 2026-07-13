@@ -235,7 +235,7 @@ class SubscriptionService {
       }
 
       final now = DateTime.now();
-      final trialEndDate = now.add(const Duration(days: trialDurationDays));
+      final trialEndDate = now.add(Duration(days: trialDurationDays));
       final docRef = _subscriptionsCollection.doc();
 
       final subscription = Subscription(

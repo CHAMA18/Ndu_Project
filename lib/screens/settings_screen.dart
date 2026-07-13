@@ -26,6 +26,8 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:ndu_project/screens/admin/admin_home_screen.dart';
+import 'package:ndu_project/services/user_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -95,6 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   String _fontSize = 'medium'; // 'small', 'medium', 'large'
   bool _compactMode = false;
   bool _reduceAnimations = false;
+  bool _isAdmin = false;
 
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
@@ -135,6 +138,10 @@ class _SettingsScreenState extends State<SettingsScreen>
     });
     // Load saved preferences
     _loadPreferences();
+    // Check admin status
+    UserService.isCurrentUserAdmin().then((isAdmin) {
+      if (mounted) setState(() => _isAdmin = isAdmin);
+    });
     // Ensure user-specific OpenAI key is loaded from Firestore if present
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await ApiKeyManager.ensureLoadedForSignedInUser();
@@ -182,6 +189,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      if (_isAdmin)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _AdminDashboardButton(),
+                        ),
                       InnerPageNavigationHint(
                         pageId: 'settings',
                         pageTitle: 'Settings',
@@ -5236,6 +5248,71 @@ class _PrefInfoRow extends StatelessWidget {
                 color: Colors.black54,
               )),
         ],
+      ),
+    );
+  }
+}
+
+class _AdminDashboardButton extends StatelessWidget {
+  const _AdminDashboardButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFFFC107), width: 1.5),
+      ),
+      color: const Color(0xFFFFF8E1),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminHomeScreen()),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFC107).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.admin_panel_settings,
+                    color: Color(0xFFB45309), size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Admin Dashboard',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Manage users, subscriptions, pricing, and system settings',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.black.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios,
+                  size: 16, color: Color(0xFFB45309)),
+            ],
+          ),
+        ),
       ),
     );
   }
