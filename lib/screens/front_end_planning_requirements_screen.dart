@@ -56,6 +56,7 @@ class _FrontEndPlanningRequirementsScreenState
   final ScrollController _requirementsHorizontalController = ScrollController();
   final ScrollController _requirementsVerticalController = ScrollController();
   bool _isGeneratingRequirements = false;
+  bool _isTableView = false;
   bool _isRegeneratingRow = false;
   int? _regeneratingRowIndex;
   Timer? _autoSaveTimer;
@@ -725,6 +726,13 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
                                       ],
                                     ),
                                     const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        _buildViewToggle(),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
                                     _buildRequirementsTable(context),
                                     const SizedBox(height: 16),
                                     _buildActionButtons(),
@@ -809,6 +817,49 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
     );
   }
 
+  Widget _buildViewToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3F4F6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _toggleButton('Cards', Icons.view_agenda_outlined, !_isTableView),
+          _toggleButton('Table', Icons.table_chart_outlined, _isTableView),
+        ],
+      ),
+    );
+  }
+
+  Widget _toggleButton(String label, IconData icon, bool active) {
+    return GestureDetector(
+      onTap: () => setState(() => _isTableView = label == 'Table'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          boxShadow: active
+              ? [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 2)]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: active ? const Color(0xFF2563EB) : const Color(0xFF6B7280)),
+            const SizedBox(width: 6),
+            Text(label, style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600,
+              color: active ? const Color(0xFF2563EB) : const Color(0xFF6B7280),
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRequirementsTable(BuildContext context) {
     final hasAnyRowData = _rows.any((row) {
       return row.descriptionController.text.trim().isNotEmpty ||
@@ -875,6 +926,17 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
     final showErrorBanner =
         (_initialGenerationError ?? '').trim().isNotEmpty && hasAnyRowData;
 
+    if (_isTableView && _rows.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (showErrorBanner)
+            _buildGenerationErrorBanner(context, message: _initialGenerationError!),
+          _buildTableView(),
+        ],
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -907,6 +969,134 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildTableView() {
+    final headerStyle = const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      color: Color(0xFF4B5563),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width - 100),
+          child: Column(
+            children: [
+              // Header row
+              Container(
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                ),
+                child: Row(
+                  children: [
+                    _tableHeaderCell('#', 50, headerStyle),
+                    _tableHeaderCell('Requirement', 300, headerStyle),
+                    _tableHeaderCell('Type', 140, headerStyle),
+                    _tableHeaderCell('Discipline', 140, headerStyle),
+                    _tableHeaderCell('Role', 120, headerStyle),
+                    _tableHeaderCell('Person', 120, headerStyle),
+                    _tableHeaderCell('Phase', 100, headerStyle),
+                    _tableHeaderCell('Source', 160, headerStyle),
+                    _tableHeaderCell('Comments', 200, headerStyle),
+                    _tableHeaderCell('Actions', 80, headerStyle),
+                  ],
+                ),
+              ),
+              // Data rows
+              ..._rows.asMap().entries.map((entry) {
+                final index = entry.key;
+                final row = entry.value;
+                return Container(
+                  key: ValueKey('req_table_row_$index'),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: const Color(0xFFE5E7EB)),
+                    ),
+                    color: index.isEven ? Colors.white : const Color(0xFFFAFBFC),
+                  ),
+                  child: Row(
+                    children: [
+                      _tableDataCell('${index + 1}', 50, center: true),
+                      _tableDataCell(row.descriptionController.text.trim().isEmpty ? '—' : row.descriptionController.text.trim(), 300),
+                      _tableDataCell(row.selectedType ?? '—', 140, center: true),
+                      _tableDataCell(row.selectedDiscipline ?? '—', 140, center: true),
+                      _tableDataCell(row.roleController.text.trim().isEmpty ? '—' : row.roleController.text.trim(), 120),
+                      _tableDataCell(row.personController.text.trim().isEmpty ? '—' : row.personController.text.trim(), 120),
+                      _tableDataCell(row.selectedPhase ?? '—', 100, center: true),
+                      _tableDataCell(row.sourceController.text.trim().isEmpty ? '—' : row.sourceController.text.trim(), 160),
+                      _tableDataCell(row.commentsController.text.trim().isEmpty ? '—' : row.commentsController.text.trim(), 200),
+                      SizedBox(
+                        width: 80,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF2563EB)),
+                              tooltip: 'Edit',
+                              onPressed: () {
+                                setState(() {
+                                  _isTableView = false;
+                                  row.isExpanded = true;
+                                });
+                              },
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                              tooltip: 'Delete',
+                              onPressed: () => _deleteRow(index),
+                              padding: const EdgeInsets.all(4),
+                              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tableHeaderCell(String text, double width, TextStyle style) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Text(text, style: style, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
+    );
+  }
+
+  Widget _tableDataCell(String text, double width, {bool center = false}) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Text(
+          text,
+          style: TextStyle(fontSize: 12, color: text == '—' ? const Color(0xFF9CA3AF) : const Color(0xFF111827)),
+          textAlign: center ? TextAlign.center : TextAlign.left,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
     );
   }
 
