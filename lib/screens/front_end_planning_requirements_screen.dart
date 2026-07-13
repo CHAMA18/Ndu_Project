@@ -26,6 +26,8 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
 /// Front End Planning - Project Requirements page
 /// Implements the layout from the provided screenshot exactly:
 /// - Top notes field
@@ -1844,6 +1846,63 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
   Widget _buildActionButtons() {
     return Row(
       children: [
+        SizedBox(
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: () async {
+              final rows = await showCsvImportDialog(
+                context,
+                tableTitle: 'Project Requirements',
+                columns: [
+                  CsvColumnSpec(key: 'description', label: 'Requirement', required: true, sampleValue: 'The system shall support user authentication'),
+                  CsvColumnSpec(key: 'type', label: 'Type', allowedValues: _RequirementRow.requirementTypeOptions, defaultValue: 'Functional', sampleValue: 'Functional'),
+                  CsvColumnSpec(key: 'discipline', label: 'Discipline', allowedValues: _RequirementRow.disciplineOptions, defaultValue: 'IT', sampleValue: 'IT'),
+                  CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Requirements Lead'),
+                  CsvColumnSpec(key: 'person', label: 'Person', sampleValue: 'John Doe'),
+                  CsvColumnSpec(key: 'phase', label: 'Phase', allowedValues: _RequirementRow.phaseOptions, defaultValue: 'Planning', sampleValue: 'Planning'),
+                  CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'Stakeholder interview'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'High priority'),
+                ],
+              );
+              if (rows == null || !mounted) return;
+              setState(() {
+                for (final row in rows) {
+                  final newRow = _createRow(_rows.length + 1, expanded: false);
+                  newRow.descriptionController.text = row['description'] ?? '';
+                  newRow.selectedType = _RequirementRow.requirementTypeOptions.contains(row['type']) ? row['type'] : 'Functional';
+                  newRow.selectedDiscipline = _RequirementRow.disciplineOptions.contains(row['discipline']) ? row['discipline'] : 'IT';
+                  newRow.selectedPhase = _RequirementRow.phaseOptions.contains(row['phase']) ? row['phase'] : 'Planning';
+                  newRow.roleController.text = row['role'] ?? '';
+                  newRow.personController.text = row['person'] ?? '';
+                  newRow.sourceController.text = row['source'] ?? '';
+                  newRow.commentsController.text = row['comments'] ?? '';
+                  _rows.add(newRow);
+                }
+              });
+              _scheduleAutoSave(showSnack: false);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${rows.length} requirements imported from CSV'),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.upload_file_outlined, size: 18),
+            label: const Text('Import CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: const Color(0xFF2563EB),
+              side: const BorderSide(color: Color(0xFF93C5FD)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
         SizedBox(
           height: 44,
           child: OutlinedButton(
