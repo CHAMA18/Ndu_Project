@@ -2834,7 +2834,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
 
  Widget _buildProjectValueSection() {
  const basisHelperText =
- 'Select a basis frequency to calculate Project Value for 1, 3, 5, and 10 years.';
+ 'Enter the estimated project benefit value to calculate ROI, NPV, and IRR for 1, 3, 5, and 10 years.';
 
  return Container(
  width: double.infinity,
@@ -3020,8 +3020,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  children: [
  currencyControl,
  const SizedBox(height: 10),
- basisControl,
- const SizedBox(height: 10),
  helperText,
  ],
  )
@@ -3030,8 +3028,6 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  child: Row(
  children: [
  currencyControl,
- const SizedBox(width: 14),
- basisControl,
  const SizedBox(width: 14),
  ConstrainedBox(
  constraints: BoxConstraints(
