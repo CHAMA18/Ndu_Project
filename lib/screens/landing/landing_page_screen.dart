@@ -118,8 +118,7 @@ class LandingPageScreen extends StatelessWidget {
                       if (MediaQuery.sizeOf(context).width > 900)
                         Row(children: [
                           _navLink('Why Ndu', () => _scrollTo(context, 'why')),
-                          _navLink('How It Works', () => _scrollTo(context, 'how')),
-                          _navLink('Differentiator', () => _scrollTo(context, 'diff')),
+                          _buildSolutionsDropdown(context),
                           _navLink('Pricing', () => _scrollTo(context, 'pricing')),
                           _navLink('KAZ AI', () => _scrollTo(context, 'kaz')),
                           _navLink('Services', () => _scrollTo(context, 'services')),
@@ -165,6 +164,48 @@ class LandingPageScreen extends StatelessWidget {
       child: TextButton(
         onPressed: onTap,
         child: Text(label, style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily)),
+      ),
+    );
+  }
+
+  Widget _buildSolutionsDropdown(BuildContext context) {
+    return PopupMenuButton<String>(
+      onSelected: (value) {
+        switch (value) {
+          case 'how':
+            _scrollTo(context, 'how');
+            break;
+          case 'diff':
+            _scrollTo(context, 'diff');
+            break;
+          case 'usecases':
+            _scrollTo(context, 'diff');
+            break;
+          case 'demo':
+            _scrollTo(context, 'pricing');
+            break;
+          case 'partner':
+            _scrollTo(context, 'services');
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(value: 'how', child: Text('How It Works')),
+        PopupMenuItem(value: 'diff', child: Text('Differentiator')),
+        PopupMenuItem(value: 'usecases', child: Text('Use Cases')),
+        PopupMenuItem(value: 'demo', child: Text('Demo')),
+        PopupMenuItem(value: 'partner', child: Text('Partner with Us')),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Solutions', style: TextStyle(color: _textSecondary, fontSize: 13, fontWeight: FontWeight.w500, fontFamily: appFontFamily)),
+            const SizedBox(width: 2),
+            Icon(Icons.keyboard_arrow_down, color: _textMuted, size: 16),
+          ],
+        ),
       ),
     );
   }
