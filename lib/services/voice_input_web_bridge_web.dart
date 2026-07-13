@@ -26,14 +26,15 @@ bool webVoiceInit(VoiceInputService service) {
       return false;
     }
 
-    // Create the recognition instance
+    // Create the recognition instance using 'new' operator
     JSObject recognition;
     if (hasStandard) {
-      recognition =
-          globalThis.callMethod('SpeechRecognition'.toJS) as JSObject;
+      // Use new operator via dart:js_interop — construct SpeechRecognition
+      recognition = (globalThis['SpeechRecognition'] as JSFunction)
+          .callAsConstructor() as JSObject;
     } else {
-      recognition =
-          globalThis.callMethod('webkitSpeechRecognition'.toJS) as JSObject;
+      recognition = (globalThis['webkitSpeechRecognition'] as JSFunction)
+          .callAsConstructor() as JSObject;
     }
 
     // Configure recognition
