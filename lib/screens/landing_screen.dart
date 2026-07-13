@@ -434,6 +434,7 @@ class _LandingScreenState extends State<LandingScreen>
  if (isDesktop) ...[
  const SizedBox(width: 32),
  _buildWhyNduDropdown(),
+ _buildSolutionsDropdown(),
  _navButton('Benefits', () => _scrollTo(_benefitsKey)),
  _navButton('Get Started', () => _scrollTo(_ctaKey)),
  ],
@@ -582,6 +583,58 @@ class _LandingScreenState extends State<LandingScreen>
  children: [
  Text(
  'Why Ndu Project?',
+ style: const TextStyle(
+ fontSize: 15,
+ fontWeight: FontWeight.w600,
+ color: Colors.white,
+ ),
+ ),
+ const SizedBox(width: 4),
+ const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
+ ],
+ ),
+ ),
+ ),
+ );
+ }
+
+ Widget _buildSolutionsDropdown() {
+ return PopupMenuButton<String>(
+ onSelected: (value) {
+ switch (value) {
+ case 'how':
+ _handleWorkflowTap();
+ break;
+ case 'diff':
+ _scrollTo(_differentiatorsKey);
+ break;
+ case 'usecases':
+ _scrollTo(_differentiatorsKey);
+ break;
+ case 'demo':
+ _scrollTo(_benefitsKey);
+ break;
+ case 'partner':
+ _scrollTo(_aiKey);
+ break;
+ }
+ },
+ itemBuilder: (context) => const [
+ PopupMenuItem(value: 'how', child: Text('How It Works')),
+ PopupMenuItem(value: 'diff', child: Text('Differentiator')),
+ PopupMenuItem(value: 'usecases', child: Text('Use Cases')),
+ PopupMenuItem(value: 'demo', child: Text('Demo')),
+ PopupMenuItem(value: 'partner', child: Text('Partner with Us')),
+ ],
+ child: Padding(
+ padding: const EdgeInsets.symmetric(horizontal: 12),
+ child: Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Text(
+ 'Solutions',
  style: const TextStyle(
  fontSize: 15,
  fontWeight: FontWeight.w600,
