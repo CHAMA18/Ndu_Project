@@ -698,6 +698,47 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  return 1;
  }
 
+ /// Returns a short description of what the "Units" value represents
+ /// for a given benefit line item, based on the benefit title.
+ String _unitDescriptionForEntry(_BenefitLineItemEntry entry) {
+ final title = entry.titleController.text.trim().toLowerCase();
+
+ if (title.contains('revenue') || title.contains('sales') ||
+ title.contains('income') || title.contains('uplift')) {
+ return 'transactions';
+ }
+ if (title.contains('cost') || title.contains('saving') ||
+ title.contains('avoidance') || title.contains('reduction')) {
+ return 'cost centers';
+ }
+ if (title.contains('efficiency') || title.contains('productivity') ||
+ title.contains('automation') || title.contains('workflow')) {
+ return 'processes';
+ }
+ if (title.contains('compliance') || title.contains('regulatory') ||
+ title.contains('audit') || title.contains('risk')) {
+ return 'compliance items';
+ }
+ if (title.contains('process') || title.contains('improvement')) {
+ return 'processes';
+ }
+ if (title.contains('staff') || title.contains('employee') ||
+ title.contains('hr') || title.contains('training')) {
+ return 'employees';
+ }
+ if (title.contains('customer') || title.contains('user') ||
+ title.contains('client')) {
+ return 'users';
+ }
+ if (title.contains('month')) {
+ return 'months';
+ }
+ if (title.contains('year') || title.contains('annual')) {
+ return 'years';
+ }
+ return 'units';
+ }
+
  /// Detects whether the project context suggests a small-scale project
  /// (barbershop, salon, small retail, local business, etc.)
  static bool _isSmallScaleProject(String context) {
@@ -4545,11 +4586,28 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  width: _benefitTotalUnitsColumnWidth,
  child: Align(
  alignment: Alignment.center,
- child: Text(
+ child: Column(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Text(
  entry.unitsController.text.trim().isEmpty
  ? '0'
  : entry.unitsController.text.trim(),
- style: const TextStyle(fontSize: 12),
+ style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+ ),
+ const SizedBox(height: 2),
+ Text(
+ _unitDescriptionForEntry(entry),
+ style: TextStyle(
+ fontSize: 9,
+ color: Colors.grey[600],
+ fontStyle: FontStyle.italic,
+ ),
+ maxLines: 1,
+ overflow: TextOverflow.ellipsis,
+ textAlign: TextAlign.center,
+ ),
+ ],
  ),
  ),
  ),
