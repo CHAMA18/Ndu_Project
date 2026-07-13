@@ -288,6 +288,8 @@ class _LandingScreenState extends State<LandingScreen>
  SizedBox(height: isDesktop ? 80 : 56),
  _buildBenefitsSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
+ _buildKazAiSection(context, isDesktop || isTablet),
+ SizedBox(height: isDesktop ? 80 : 56),
  _buildTargetCustomersSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
  _buildOriginSection(context, isDesktop || isTablet),
@@ -1465,11 +1467,32 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  const SizedBox(height: 14),
  Text(
- 'Ndu Project replaces disconnected tools with a unified system that governs how projects are defined, planned, and delivered.',
+ 'Ndu Project is a required solution for companies and businesses that need disciplined project delivery. Unlike task-focused platforms that only track execution, our front-end focus on structured initiation and planning minimizes rework, increases profitability, and ensures every project starts with a clear, validated foundation before a single dollar is spent on delivery.',
  style: TextStyle(
  fontSize: 18,
  color: Colors.white.withValues(alpha: 0.75),
  height: 1.6,
+ ),
+ ),
+ const SizedBox(height: 20),
+ Container(
+ padding: const EdgeInsets.all(20),
+ decoration: BoxDecoration(
+ color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+ borderRadius: BorderRadius.circular(16),
+ border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
+ ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: const [
+ Text('Why Front-End Focus Matters',
+ style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+ SizedBox(height: 10),
+ Text(
+ 'Studies show that 70% of project failures stem from poor initiation and planning—not execution. Ndu Project\'s PDOS front-ends the discipline: rigorous charter approval, stakeholder alignment, scope baselining, and readiness gating before execution begins. This means fewer change orders, less rework, and higher profitability.',
+ style: TextStyle(fontSize: 14, color: Colors.white70, height: 1.6),
+ ),
+ ],
  ),
  ),
  const SizedBox(height: 44),
@@ -1536,22 +1559,22 @@ class _LandingScreenState extends State<LandingScreen>
  const steps = [
  _HowItWorksStep(
  number: '01',
- title: 'Define',
- description: 'Structure strong project foundations with disciplined initiation',
+ title: 'Initiation',
+ description: 'Charter approval, stakeholder alignment, cost-benefit analysis, and preferred solution selection — all gated before planning begins.',
  icon: Icons.flag_rounded,
  color: Color(0xFF3B82F6),
  ),
  _HowItWorksStep(
  number: '02',
- title: 'Align',
- description: 'Integrate planning across engineering, procurement, and execution',
+ title: 'Planning',
+ description: 'Full project framework: WBS, cost estimate, schedule, procurement, risk, quality, and organizational planning for projects, programs, and portfolios.',
  icon: Icons.architecture_rounded,
  color: Color(0xFF8B5CF6),
  ),
  _HowItWorksStep(
  number: '03',
- title: 'Deliver',
- description: 'Execute with readiness gates, AI insights, and real-time alignment',
+ title: 'Execution & Launch',
+ description: 'Readiness-gated execution with real-time tracking, issue management, and structured closeout — from deliverables to demobilization.',
  icon: Icons.rocket_launch_rounded,
  color: Color(0xFF10B981),
  ),
@@ -1585,7 +1608,7 @@ class _LandingScreenState extends State<LandingScreen>
  onTap: _handleWorkflowTap,
  behavior: HitTestBehavior.opaque,
  child: Text(
- 'How Ndu Project Delivers Results',
+ 'Full Project Lifecycle Delivery',
  style: TextStyle(
  fontSize: wideLayout ? 38 : 28,
  fontWeight: FontWeight.w800,
@@ -1593,6 +1616,29 @@ class _LandingScreenState extends State<LandingScreen>
  height: 1.15,
  ),
  ),
+ ),
+ const SizedBox(height: 14),
+ Text(
+ 'Ndu Project embodies a full project framework supporting Agile, Waterfall, and Hybrid methodologies. Whether you\'re managing a single project, a program of interconnected projects, or an entire portfolio, the PDOS scales seamlessly across all levels.',
+ style: TextStyle(
+ fontSize: 16,
+ color: Colors.white.withValues(alpha: 0.7),
+ height: 1.6,
+ ),
+ ),
+ const SizedBox(height: 20),
+ // Methodology badges
+ Wrap(
+ spacing: 10,
+ runSpacing: 10,
+ children: [
+ _methodologyBadge('Agile', Icons.flash_on_rounded, const Color(0xFF10B981)),
+ _methodologyBadge('Waterfall', Icons.water_drop_rounded, const Color(0xFF3B82F6)),
+ _methodologyBadge('Hybrid', Icons.merge_rounded, const Color(0xFF8B5CF6)),
+ _methodologyBadge('Projects', Icons.assignment_rounded, const Color(0xFFF59E0B)),
+ _methodologyBadge('Programs', Icons.view_module_rounded, const Color(0xFF0EA5E9)),
+ _methodologyBadge('Portfolios', Icons.dashboard_rounded, const Color(0xFFEC4899)),
+ ],
  ),
  const SizedBox(height: 48),
  LayoutBuilder(
@@ -1717,6 +1763,25 @@ class _LandingScreenState extends State<LandingScreen>
  );
  }
 
+ Widget _methodologyBadge(String label, IconData icon, Color color) {
+ return Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+ decoration: BoxDecoration(
+ color: color.withValues(alpha: 0.12),
+ borderRadius: BorderRadius.circular(10),
+ border: Border.all(color: color.withValues(alpha: 0.3)),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Icon(icon, size: 14, color: color),
+ const SizedBox(width: 6),
+ Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+ ],
+ ),
+ );
+ }
+
  // ── Section 6: Differentiators ────────────────────────────────────────
  Widget _buildDifferentiatorsSection(BuildContext context, bool wideLayout) {
  const comparisons = [
@@ -1758,12 +1823,57 @@ class _LandingScreenState extends State<LandingScreen>
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  Text(
- 'Built Differently From Traditional Project Tools',
+ 'Minimize Rework. Maximize Profitability.',
  style: TextStyle(
  fontSize: wideLayout ? 38 : 28,
  fontWeight: FontWeight.w800,
  color: Colors.white,
  height: 1.15,
+ ),
+ ),
+ const SizedBox(height: 20),
+ // Value proposition
+ Container(
+ padding: const EdgeInsets.all(24),
+ decoration: BoxDecoration(
+ color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+ borderRadius: BorderRadius.circular(16),
+ border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
+ ),
+ child: const Text(
+ 'Our AI-powered end-to-end platform helps project managers and executives improve profitability through more effective delivery. It reduces implementation costs by 15–30% and cuts rework by 30–50% via structured initiation and planning. Unlike execution-focused tools that primarily track execution across only a few later phases, our platform drives disciplined, integrated delivery across the full project lifecycle.',
+ style: TextStyle(fontSize: 15, color: Color(0xFFD6DCE5), height: 1.7),
+ ),
+ ),
+ const SizedBox(height: 24),
+ // Research & credibility
+ Wrap(
+ spacing: 12,
+ runSpacing: 12,
+ children: [
+ _credibilityBadge('NSF I-Corps IdeaLaunch Research', Icons.science_outlined, const Color(0xFF3B82F6)),
+ _credibilityBadge('Tens of Companies Surveyed', Icons.groups_outlined, const Color(0xFF10B981)),
+ _credibilityBadge('IdeaVillage Accelerator', Icons.rocket_launch_outlined, const Color(0xFF8B5CF6)),
+ ],
+ ),
+ const SizedBox(height: 16),
+ // Expertise
+ Container(
+ padding: const EdgeInsets.all(20),
+ decoration: BoxDecoration(
+ color: Colors.white.withValues(alpha: 0.04),
+ borderRadius: BorderRadius.circular(14),
+ border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+ ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: const [
+ Text('Nearly 20 Years of Project Delivery Expertise',
+ style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+ SizedBox(height: 10),
+ Text('Energy (ExxonMobil)  •  IT (IBM)  •  Education  •  Healthcare  •  Financial',
+ style: TextStyle(fontSize: 13, color: Colors.white70, letterSpacing: 0.5)),
+ ],
  ),
  ),
  const SizedBox(height: 40),
@@ -1982,12 +2092,55 @@ class _LandingScreenState extends State<LandingScreen>
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  Text(
- 'What You Achieve with PDOS',
+ 'Trusted By Organizations That Deliver',
  style: TextStyle(
  fontSize: wideLayout ? 38 : 28,
  fontWeight: FontWeight.w800,
  color: Colors.white,
  height: 1.15,
+ ),
+ ),
+ const SizedBox(height: 14),
+ Text(
+ 'From ambitious start-ups to established MSMEs, consultants, and community organizations — teams trust Ndu Project to govern their most critical deliveries.',
+ style: TextStyle(
+ fontSize: 16,
+ color: Colors.white.withValues(alpha: 0.7),
+ height: 1.6,
+ ),
+ ),
+ const SizedBox(height: 24),
+ // Trusted by categories
+ Wrap(
+ spacing: 12,
+ runSpacing: 12,
+ children: [
+ _trustedByChip('Start-ups', Icons.rocket_launch_outlined),
+ _trustedByChip('MSMEs', Icons.business_outlined),
+ _trustedByChip('Consultants', Icons.person_outline),
+ _trustedByChip('Community Organizations', Icons.diversity_3_outlined),
+ ],
+ ),
+ const SizedBox(height: 24),
+ // Logo upload area
+ Container(
+ width: double.infinity,
+ padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+ decoration: BoxDecoration(
+ color: Colors.white.withValues(alpha: 0.03),
+ borderRadius: BorderRadius.circular(16),
+ border: Border.all(
+ color: Colors.white.withValues(alpha: 0.1),
+ width: 1.5,
+ ),
+ ),
+ child: Column(
+ children: [
+ Icon(Icons.add_photo_alternate_outlined, size: 32, color: Colors.white.withValues(alpha: 0.3)),
+ const SizedBox(height: 8),
+ Text('Add your organization\'s logo here',
+ style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.4))),
+ ],
  ),
  ),
  const SizedBox(height: 40),
@@ -2112,6 +2265,179 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ),
  ),
+ ],
+ ),
+ );
+ }
+
+ Widget _credibilityBadge(String label, IconData icon, Color color) {
+ return Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+ decoration: BoxDecoration(
+ color: color.withValues(alpha: 0.12),
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(color: color.withValues(alpha: 0.3)),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Icon(icon, size: 16, color: color),
+ const SizedBox(width: 8),
+ Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+ ],
+ ),
+ );
+ }
+
+ Widget _trustedByChip(String label, IconData icon) {
+ return Container(
+ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+ decoration: BoxDecoration(
+ color: const Color(0xFFFFC812).withValues(alpha: 0.12),
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(color: const Color(0xFFFFC812).withValues(alpha: 0.3)),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Icon(icon, size: 16, color: const Color(0xFFFFC812)),
+ const SizedBox(width: 8),
+ Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFFFFC812))),
+ ],
+ ),
+ );
+ }
+
+ // ── Section 7b: KAZ AI ────────────────────────────────────────────────
+ Widget _buildKazAiSection(BuildContext context, bool wideLayout) {
+ return Container(
+ key: _aiKey,
+ margin: EdgeInsets.symmetric(horizontal: wideLayout ? 96 : 24),
+ padding: EdgeInsets.symmetric(
+ horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 80 : 56),
+ decoration: BoxDecoration(
+ borderRadius: BorderRadius.circular(36),
+ gradient: const LinearGradient(
+ begin: Alignment.topLeft,
+ end: Alignment.bottomRight,
+ colors: [Color(0xFF1A0D2E), Color(0xFF0A0A1A)],
+ ),
+ border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.2)),
+ boxShadow: [
+ BoxShadow(
+ color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+ blurRadius: 48,
+ offset: const Offset(0, 30),
+ ),
+ ],
+ ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+ decoration: BoxDecoration(
+ borderRadius: BorderRadius.circular(18),
+ color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+ border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: const [
+ Icon(Icons.auto_awesome, color: Color(0xFFA78BFA), size: 16),
+ SizedBox(width: 8),
+ Text('KAZ AI', style: TextStyle(color: Color(0xFFA78BFA), fontWeight: FontWeight.w700, fontSize: 14)),
+ ],
+ ),
+ ),
+ const SizedBox(height: 24),
+ Text(
+ 'Your Knowledgeable Project Delivery Sidekick',
+ style: TextStyle(
+ fontSize: wideLayout ? 38 : 28,
+ fontWeight: FontWeight.w800,
+ color: Colors.white,
+ height: 1.15,
+ ),
+ ),
+ const SizedBox(height: 14),
+ const Text(
+ 'KAZ AI is built into every phase of the Ndu Project platform. It provides intelligent suggestions, maintains continuity across project phases, and delivers core AI capabilities that help project managers and executives make better decisions faster.',
+ style: TextStyle(fontSize: 16, color: Colors.white70, height: 1.6),
+ ),
+ const SizedBox(height: 32),
+ // AI capability cards
+ LayoutBuilder(
+ builder: (context, constraints) {
+ final double maxWidth = constraints.maxWidth;
+ final double spacing = 20;
+ final int columns = maxWidth >= 700 ? 3 : 1;
+ final double itemWidth = columns == 1 ? maxWidth : (maxWidth - spacing * (columns - 1)) / columns;
+
+ return Wrap(
+ spacing: spacing,
+ runSpacing: spacing,
+ children: [
+ SizedBox(
+ width: itemWidth,
+ child: _aiCapabilityCard(
+ icon: Icons.lightbulb_outline,
+ title: 'AI Suggestions',
+ description: 'Context-aware recommendations for scope items, risks, cost estimates, and schedule activities — generated from your project data.',
+ color: const Color(0xFF8B5CF6),
+ ),
+ ),
+ SizedBox(
+ width: itemWidth,
+ child: _aiCapabilityCard(
+ icon: Icons.timeline,
+ title: 'Continuity Across Phases',
+ description: 'KAZ AI remembers what was decided in Initiation and carries that context into Planning, Execution, and Launch — no more lost handoffs.',
+ color: const Color(0xFF3B82F6),
+ ),
+ ),
+ SizedBox(
+ width: itemWidth,
+ child: _aiCapabilityCard(
+ icon: Icons.psychology,
+ title: 'Core AI Capabilities',
+ description: 'Auto-populate sections, generate verification steps, draft status reports, and summarize project health — all grounded in your actual project data.',
+ color: const Color(0xFF10B981),
+ ),
+ ),
+ ],
+ );
+ },
+ ),
+ ],
+ ),
+ );
+ }
+
+ Widget _aiCapabilityCard({required IconData icon, required String title, required String description, required Color color}) {
+ return Container(
+ padding: const EdgeInsets.all(20),
+ decoration: BoxDecoration(
+ color: color.withValues(alpha: 0.06),
+ borderRadius: BorderRadius.circular(16),
+ border: Border.all(color: color.withValues(alpha: 0.2)),
+ ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ Container(
+ width: 44,
+ height: 44,
+ decoration: BoxDecoration(
+ color: color.withValues(alpha: 0.15),
+ borderRadius: BorderRadius.circular(12),
+ ),
+ child: Icon(icon, color: color, size: 22),
+ ),
+ const SizedBox(height: 14),
+ Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+ const SizedBox(height: 8),
+ Text(description, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.65), height: 1.5)),
  ],
  ),
  );
