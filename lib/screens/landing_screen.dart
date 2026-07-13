@@ -435,7 +435,7 @@ class _LandingScreenState extends State<LandingScreen>
  const SizedBox(width: 32),
  _buildWhyNduDropdown(),
  _buildSolutionsDropdown(),
- _navButton('Benefits', () => _scrollTo(_benefitsKey)),
+ _buildServicesDropdown(),
  _navButton('Get Started', () => _scrollTo(_ctaKey)),
  ],
  const Spacer(),
@@ -635,6 +635,54 @@ class _LandingScreenState extends State<LandingScreen>
  children: [
  Text(
  'Solutions',
+ style: const TextStyle(
+ fontSize: 15,
+ fontWeight: FontWeight.w600,
+ color: Colors.white,
+ ),
+ ),
+ const SizedBox(width: 4),
+ const Icon(Icons.keyboard_arrow_down, color: Colors.white, size: 20),
+ ],
+ ),
+ ),
+ ),
+ );
+ }
+
+ Widget _buildServicesDropdown() {
+ return PopupMenuButton<String>(
+ onSelected: (value) {
+ switch (value) {
+ case 'services':
+ _scrollTo(_benefitsKey);
+ break;
+ case 'delivery':
+ _scrollTo(_benefitsKey);
+ break;
+ case 'training':
+ _scrollTo(_aiKey);
+ break;
+ case 'consultation':
+ _scrollTo(_ctaKey);
+ break;
+ }
+ },
+ itemBuilder: (context) => const [
+ PopupMenuItem(value: 'services', child: Text('Services')),
+ PopupMenuItem(value: 'delivery', child: Text('Project Delivery')),
+ PopupMenuItem(value: 'training', child: Text('Training')),
+ PopupMenuItem(value: 'consultation', child: Text('Consultation')),
+ ],
+ child: Padding(
+ padding: const EdgeInsets.symmetric(horizontal: 12),
+ child: Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ Text(
+ 'Services',
  style: const TextStyle(
  fontSize: 15,
  fontWeight: FontWeight.w600,
