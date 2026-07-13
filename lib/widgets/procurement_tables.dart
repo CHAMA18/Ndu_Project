@@ -63,7 +63,6 @@ class _ContractsTableState extends State<ContractsTable> {
                 context: context,
                 columnSpacing: 24,
                 horizontalMargin: 16,
-                dataRowMinHeight: 56,
                 dataRowMaxHeight: 72,
                 border: TableBorder(
                   bottom: BorderSide(color: Colors.grey[200]!),

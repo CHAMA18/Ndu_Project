@@ -12,7 +12,10 @@ import 'package:ndu_project/widgets/unified_phase_header.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 import 'package:ndu_project/utils/ssher_export_helper.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/services/user_service.dart';
 import 'package:ndu_project/utils/web_utils_stub.dart'
@@ -20,6 +23,7 @@ import 'package:ndu_project/utils/web_utils_stub.dart'
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/intelligence_insights_panel.dart';
 
 enum _SsherCategory { safety, security, health, environment, regulatory }
 
@@ -67,9 +71,15 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
  final Color _securityAccent = const Color(0xFFEF5350);
  final Color _healthAccent = const Color(0xFF1E88E5);
  final Color _environmentAccent = const Color(0xFF2E7D32);
- final Color _regulatoryAccent = const Color(0xFF8E24AA);
+ final Color _regulatoryAccent = const Color(0xFF8E24AA);  static const List<CsvColumnSpec> _ssherCsvColumns = [
+    CsvColumnSpec(key: 'department', label: 'Department', required: true),
+    CsvColumnSpec(key: 'teamMember', label: 'Team Member', required: true),
+    CsvColumnSpec(key: 'concern', label: 'Concern', required: true),
+    CsvColumnSpec(key: 'riskLevel', label: 'Risk Level', required: true, allowedValues: ['High', 'Medium', 'Low']),
+    CsvColumnSpec(key: 'mitigation', label: 'Mitigation Strategy', required: true),
+  ];
 
- String _aiPlanSummary = '';
+  String _aiPlanSummary = '';
  bool _isGeneratingSummary = false;
  bool _summaryLoaded = false;
  bool _entriesGenerated = false;
@@ -695,12 +705,46 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
  _tabController.animateTo(cat.index);
  },
  ),
- ),
+ ),          // ── Intelligence Panel ──
+          _buildIntelligencePanel(isMobile),
 
- // ── Data Cards Section ──
- _buildDataCardsSection(isMobile, allowCsv),
+          // ── Data Cards Section ──
+          _buildDataCardsSection(isMobile, allowCsv),  // ── Handle CSV Import ──
+  Future<void> _handleCsvImport() async {
+    final result = await showCsvImportDialog(
+      context,
+      tableTitle: '${_labelForCategory(_selectedCategory)} Items',
+      columns: _ssherCsvColumns,
+    );
+    if (result == null || result.isEmpty) return;
 
- // ── Save & Continue Button ──
+    final entries = result.map((row) {
+      return SsherEntry(
+        category: _categoryKey(_selectedCategory),
+        department: row['department'] ?? '',
+        teamMember: row['teamMember'] ?? '',
+        concern: row['concern'] ?? '',
+        riskLevel: row['riskLevel'] ?? 'Medium',
+        mitigation: row['mitigation'] ?? '',
+      );
+    }).toList();
+
+    setState(() {
+      _entriesForCategory(_selectedCategory).addAll(entries);
+    });
+    await _saveEntries();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Imported ${entries.length} ${_labelForCategory(_selectedCategory)} items'),
+          backgroundColor: const Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  // ── Save & Continue Button ──
  if (isMobile)
  _buildSaveContinueButton()
  else
@@ -1028,110 +1072,207 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
  ),
  ),
  );
- }
+ }  // ── Data Cards Section ──
+  Widget _buildDataCardsSection(bool isMobile, bool allowCsv) {
+    final entries = _entriesForCategory(_selectedCategory);
+    final accent = _accentForCategory(_selectedCategory);
+    final catLabel = _labelForCategory(_selectedCategory);
 
- // ── Data Cards Section ──
- Widget _buildDataCardsSection(bool isMobile, bool allowCsv) {
- final entries = _entriesForCategory(_selectedCategory);
- final accent = _accentForCategory(_selectedCategory);
- final catLabel = _labelForCategory(_selectedCategory);
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Header
+          _buildSectionHeader(catLabel, entries.length, accent, isMobile),
 
- return Padding(
- padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0, vertical: 8),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- // Section Header
- _buildSectionHeader(catLabel, entries.length, accent),
+          const SizedBox(height: 16),
 
- const SizedBox(height: 16),
+          // AI Summary (desktop only)
+          if (!isMobile) ...[
+            _buildAiSummaryDesktop(),
+            const SizedBox(height: 16),
+          ],
 
- // AI Summary (desktop only)
- if (!isMobile) ...[
- _buildAiSummaryDesktop(),
- const SizedBox(height: 16),
- ],
-
- // Loading state
- if (_isGeneratingEntries)
- _buildLoadingState()
- else if (entries.isEmpty)
- _buildEmptyState(accent, catLabel)
- else
- ...entries.map((entry) => Padding(
- padding: const EdgeInsets.only(bottom: 12),
- child: _buildEntryCard(entry, accent, isMobile),
- )),
- ],
- ),
- );
- }
-
- // ── Section Header ──
- Widget _buildSectionHeader(String label, int count, Color accent) {
- return Container(
- padding: const EdgeInsets.only(bottom: 12),
- decoration: const BoxDecoration(
- border: Border(
- bottom: BorderSide(color: _Palette.surfaceVariant),
- ),
- ),
- child: Row(
- mainAxisAlignment: MainAxisAlignment.spaceBetween,
- children: [
- Row(
- children: [
- Text(
- '$label Items',
- style: const TextStyle(
- fontSize: 18,
- fontWeight: FontWeight.w700,
- color: _Palette.onSurface,
- letterSpacing: -0.01,
- ),
- ),
- const SizedBox(width: 8),
- Container(
- padding:
- const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
- decoration: BoxDecoration(
- color: _Palette.surfaceContainerHigh,
- borderRadius: BorderRadius.circular(999),
- ),
- child: Text(
- '$count',
- style: const TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600,
- color: _Palette.onSurfaceVariant,
- letterSpacing: 0.05,
- ),
- ),
- ),
- ],
- ),
- GestureDetector(
- onTap: () => _handleAddItem(),
- child: Row(
- children: [
- Icon(Icons.add_circle,
- size: 18, color: _Palette.primary),
- const SizedBox(width: 4),
- Text(
- 'Add Item',
- style: TextStyle(
- fontSize: 14,
- fontWeight: FontWeight.w600,
- color: _Palette.primary,
- ),
- ),
- ],
- ),
- ),
- ],
- ),
- );
- }
+          // Loading state
+          if (_isGeneratingEntries)
+            _buildLoadingState()
+          else if (entries.isEmpty)
+            _buildEmptyState(accent, catLabel)
+          else
+            // Table view
+            ResponsiveDataTableWrapper(
+              child: buildNduDataTable(
+                context: context,
+                columns: const [
+                  DataColumn(label: Text('#')),
+                  DataColumn(label: Text('Department')),
+                  DataColumn(label: Text('Team Member')),
+                  DataColumn(label: Text('Concern')),
+                  DataColumn(label: Text('Risk Level')),
+                  DataColumn(label: Text('Mitigation Strategy')),
+                  DataColumn(label: Text('Actions')),
+                ],
+                rows: entries.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final e = entry.value;
+                  final riskLevel = e.riskLevel.trim().toLowerCase();
+                  final Color riskColor;
+                  final String riskLabel;
+                  switch (riskLevel) {
+                    case 'high':
+                      riskColor = const Color(0xFFEF4444);
+                      riskLabel = 'High';
+                      break;
+                    case 'medium':
+                      riskColor = const Color(0xFFF59E0B);
+                      riskLabel = 'Medium';
+                      break;
+                    default:
+                      riskColor = const Color(0xFF10B981);
+                      riskLabel = 'Low';
+                  }
+                  return DataRow(cells: [
+                    DataCell(Text('${i + 1}', style: const TextStyle(fontSize: 12))),
+                    DataCell(TruncatedTableCell(text: e.department, maxLines: 2)),
+                    DataCell(TruncatedTableCell(text: e.teamMember, maxLines: 2)),
+                    DataCell(TruncatedTableCell(text: e.concern, maxLines: 3)),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: riskColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          riskLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: riskColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(TruncatedTableCell(text: e.mitigation, maxLines: 3)),
+                    DataCell(
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6B7280)),
+                            onPressed: () => _editEntry(e),
+                            tooltip: 'Edit',
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+                            onPressed: () => _deleteEntry(e),
+                            tooltip: 'Delete',
+                            padding: const EdgeInsets.all(4),
+                            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ]);
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }  // ── Section Header ──
+  Widget _buildSectionHeader(String label, int count, Color accent, bool isMobile) {
+    return Container(
+      padding: const EdgeInsets.only(bottom: 12),
+      decoration: const BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: _Palette.surfaceVariant),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Text(
+                '$label Items',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: _Palette.onSurface,
+                  letterSpacing: -0.01,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: _Palette.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _Palette.onSurfaceVariant,
+                    letterSpacing: 0.05,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: () => _handleCsvImport(),
+                child: Row(
+                  children: [
+                    Icon(Icons.upload_file_outlined,
+                        size: 18, color: _Palette.primary),
+                    if (!isMobile) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        'Import CSV',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: _Palette.primary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () => _handleAddItem(),
+                child: Row(
+                  children: [
+                    Icon(Icons.add_circle,
+                        size: 18, color: _Palette.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Add Item',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: _Palette.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
  // ── Entry Card (matches HTML data card) ──
  Widget _buildEntryCard(SsherEntry entry, Color accent, bool isMobile) {
@@ -1626,11 +1767,19 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
  ],
  ),
  );
- }
- }
+ }  // ── Intelligence Panel ──
+  Widget _buildIntelligencePanel(bool isMobile) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0, vertical: 8),
+      child: IntelligenceInsightsPanel(
+        currentSection: 'ssher',
+        compact: isMobile,
+      ),
+    );
+  }
 
- // ── Save & Continue Button ──
- Widget _buildSaveContinueButton() {
+  // ── Save & Continue Button ──
+  Widget _buildSaveContinueButton() {
  return Padding(
  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
  child: SizedBox(

@@ -526,7 +526,6 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  child: DataTable(
  headingRowColor: WidgetStateProperty.all(const Color(0xFF0F172A)),
  headingRowHeight: 48,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 72,
  columnSpacing: 24,
  horizontalMargin: 16,

@@ -475,7 +475,7 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
       width: tableWidth,
       padding: const EdgeInsets.symmetric(
         horizontal: _tableHorizontalPadding,
-        vertical: 14,
+        vertical: 18,
       ),
       decoration: const BoxDecoration(
         color: Color(0xFFF8FAFC),
@@ -591,7 +591,7 @@ class _LaunchDataRowState extends State<LaunchDataRow> {
             ),
             padding: const EdgeInsets.symmetric(
               horizontal: _tableHorizontalPadding,
-              vertical: 10,
+              vertical: 14,
             ),
             child: _EditingMode(
               isEditing: _isEditing,
@@ -695,7 +695,7 @@ class _CellSlot extends StatelessWidget {
     // Use a constrained height with padding so dropdowns and status pills
     // never clip vertically, but still keep rows compact.
     return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 44),
+      constraints: const BoxConstraints(minHeight: 52),
       child: Align(
         alignment: Alignment.center,
         child: child,

@@ -14,6 +14,7 @@ import 'package:ndu_project/screens/planning_requirements_screen.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/expandable_section.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kAccentColor = Color(0xFFFFC107);
 const Color _kPrimaryText = Color(0xFF1E293B);
@@ -404,34 +405,51 @@ class _ProjectFrameworkNextScreenState
  ),
  ),
  SingleChildScrollView(
- padding: const EdgeInsets.only(bottom: 80),
- child: Padding(
- padding: const EdgeInsets.all(16),
- child: isMobile
- ? Column(
- crossAxisAlignment:
- CrossAxisAlignment.start,
- children: [
- _buildNotesSection(),
- const SizedBox(height: 16),
- _buildContextSection(),
- const SizedBox(height: 16),
- _buildGoalsSection(isMobile: true),
- const SizedBox(height: 24),
- ],
- )
- : Column(
- crossAxisAlignment:
- CrossAxisAlignment.start,
- children: [
- _buildNotesSection(),
- const SizedBox(height: 16),
- _buildContextSection(),
- const SizedBox(height: 16),
- _buildGoalsSection(isMobile: false),
- const SizedBox(height: 24),
- ],
- ),
+ padding: const EdgeInsets.only(bottom: 80),                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: isMobile
+                      ? Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ExpandableSection(
+                              title: 'Notes',
+                              child: _buildNotesSection(),
+                            ),
+                            const SizedBox(height: 16),
+                            ExpandableSection(
+                              title: 'Project Context',
+                              child: _buildContextSection(),
+                            ),
+                            const SizedBox(height: 16),
+                            ExpandableSection(
+                              title: 'Goals & Milestones',
+                              accentColor: const Color(0xFF2563EB),
+                              child: _buildGoalsSection(isMobile: true),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ExpandableSection(
+                              title: 'Notes',
+                              child: _buildNotesSection(),
+                            ),
+                            const SizedBox(height: 16),
+                            ExpandableSection(
+                              title: 'Project Context',
+                              child: _buildContextSection(),
+                            ),
+                            const SizedBox(height: 16),
+                            ExpandableSection(
+                              title: 'Goals & Milestones',
+                              accentColor: const Color(0xFF2563EB),
+                              child: _buildGoalsSection(isMobile: false),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        ),
  ),
  ),
  Positioned(
@@ -1070,6 +1088,7 @@ class _GoalCardWidgetState extends State<_GoalCardWidget> {
  child: VoiceTextField(
  controller: widget.titleController,
  focusNode: widget.titleFocusNode,
+ maxLines: null,
  decoration: InputDecoration(
  hintText: 'Goal ${widget.goalIndex + 1} Title',
  border: InputBorder.none,
@@ -1161,6 +1180,7 @@ class _GoalCardWidgetState extends State<_GoalCardWidget> {
  VoiceTextField(
  controller: widget.descController,
  focusNode: widget.descFocusNode,
+ maxLines: null,
  decoration: InputDecoration(
  hintText: 'Enter description',
  hintStyle: const TextStyle(
@@ -1265,6 +1285,7 @@ class _GoalCardWidgetState extends State<_GoalCardWidget> {
  Expanded(
  child: VoiceTextField(
  controller: milestone.titleController,
+ maxLines: null,
  decoration: const InputDecoration(
  hintText: 'Milestone title',
  hintStyle: TextStyle(

@@ -1382,7 +1382,6 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  headingRowColor: WidgetStateProperty.all(const Color(0xFF1F2937)),
  columnSpacing: 24,
  horizontalMargin: 16,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 72,
  columns: const [
  DataColumn(
@@ -2756,7 +2755,6 @@ Execution snapshot:
  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
  columnSpacing: 24,
  horizontalMargin: 16,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 72,
  columns: const [
  DataColumn(
@@ -3085,7 +3083,6 @@ Execution snapshot:
  WidgetStateProperty.all(const Color(0xFFF8FAFC)),
  columnSpacing: 24,
  horizontalMargin: 16,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 72,
  columns: const [
  DataColumn(

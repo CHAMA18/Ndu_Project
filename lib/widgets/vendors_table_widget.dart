@@ -60,7 +60,6 @@ class VendorsTableWidget extends StatelessWidget {
               columnSpacing: 20,
               horizontalMargin: 18,
               headingRowHeight: 52,
-              dataRowMinHeight: 56,
               dataRowMaxHeight: 72,
               columns: const [
                 DataColumn(

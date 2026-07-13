@@ -825,7 +825,6 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  const BoxConstraints(minWidth: 1240),
  child: DataTable(
  columnSpacing: 30,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 76,
  columns: const [
  DataColumn(

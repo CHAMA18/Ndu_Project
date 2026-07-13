@@ -1910,7 +1910,6 @@ class _ActivitiesTableState extends State<_ActivitiesTable> {
  horizontalMargin: 12,
  columnSpacing: 16,
  showBottomBorder: true,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 74,
  headingTextStyle: const TextStyle(
  fontWeight: FontWeight.w700,

@@ -3918,7 +3918,6 @@ class _FrontEndPlanningProcurementScreenState
  columnSpacing: 24,
  horizontalMargin: 18,
  headingRowHeight: 48,
- dataRowMinHeight: 56,
  dataRowMaxHeight: 80,
  columns: const [
  DataColumn(label: Text('Item')),
