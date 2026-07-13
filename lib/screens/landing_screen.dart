@@ -1456,7 +1456,7 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  const SizedBox(height: 24),
  Text(
- 'A New Category: Project Delivery Operating System (PDOS)',
+ 'Why Ndu Project?',
  style: TextStyle(
  fontSize: wideLayout ? 38 : 28,
  fontWeight: FontWeight.w800,
@@ -1465,11 +1465,47 @@ class _LandingScreenState extends State<LandingScreen>
  height: 1.15,
  ),
  ),
+ const SizedBox(height: 20),
+ // Narrative text blocks
+ _infoBlock('Projects drive strategy, innovation, and growth, yet too many fail due to fragmented tools, inconsistent planning, and limited visibility.'),
+ const SizedBox(height: 12),
+ _infoBlock('Ndu Project brings everything together in one AI-powered Project Delivery Operating System (PDOS), helping organizations plan with confidence, execute with clarity, and deliver measurable business outcomes.'),
+ const SizedBox(height: 12),
+ _infoBlock('Whether you\'re managing a single project, a complex program, or an enterprise portfolio, Ndu Project provides the structure, intelligence, and governance needed to improve delivery success.'),
+ const SizedBox(height: 12),
+ _infoBlock('Ndu Project is informed by nearly two decades of hands-on project delivery experience across global enterprises and emerging organizations.'),
+ const SizedBox(height: 24),
+ // Credibility badges
+ Wrap(
+ spacing: 10,
+ runSpacing: 10,
+ children: [
+ _credibilityBadge('ExxonMobil Experience', Icons.local_fire_department_outlined, const Color(0xFFF97316)),
+ _credibilityBadge('IBM Experience', Icons.computer_outlined, const Color(0xFF3B82F6)),
+ _credibilityBadge('PMP Certification', Icons.verified_outlined, const Color(0xFF10B981)),
+ _credibilityBadge('PMI-ACP Certification', Icons.speed_outlined, const Color(0xFF8B5CF6)),
+ _credibilityBadge('NSF I-Corps Research', Icons.science_outlined, const Color(0xFF3B82F6)),
+ _credibilityBadge('IdeaVillage Accelerator', Icons.rocket_launch_outlined, const Color(0xFF8B5CF6)),
+ _credibilityBadge('MBA: Project Management', Icons.school_outlined, const Color(0xFF10B981)),
+ _credibilityBadge('Energy, Financial, Education, IT, Healthcare', Icons.business_outlined, const Color(0xFFF59E0B)),
+ ],
+ ),
+ const SizedBox(height: 24),
+ Text(
+ 'A New Category: Project Delivery Operating System (PDOS)',
+ style: TextStyle(
+ fontSize: wideLayout ? 28 : 22,
+ fontWeight: FontWeight.w700,
+ color: Colors.white.withValues(alpha: 0.9),
+ letterSpacing: -0.2,
+ height: 1.15,
+ ),
+ ),
  const SizedBox(height: 14),
  Text(
- 'Ndu Project is a required solution for companies and businesses that need disciplined project delivery. Unlike task-focused platforms that only track execution, our front-end focus on structured initiation and planning minimizes rework, increases profitability, and ensures every project starts with a clear, validated foundation before a single dollar is spent on delivery.',
+ 'Unlike task-focused platforms that only track execution, our front-end focus on structured initiation and planning minimizes rework, increases profitability, and ensures every project starts with a clear, validated foundation before a single dollar is spent on delivery.',
  style: TextStyle(
- fontSize: 18,
+ fontSize: 16,
  color: Colors.white.withValues(alpha: 0.75),
  height: 1.6,
  ),
@@ -2042,28 +2078,33 @@ class _LandingScreenState extends State<LandingScreen>
  const outcomes = [
  _OutcomeData(
  icon: Icons.trending_down_rounded,
- title: 'Reduced rework and cost overruns',
+ title: 'Reduced Rework and Delays',
  color: Color(0xFF10B981),
  ),
  _OutcomeData(
  icon: Icons.schedule_rounded,
- title: 'Improved schedule predictability',
+ title: 'Improved Delivery Predictability',
  color: Color(0xFF3B82F6),
  ),
  _OutcomeData(
  icon: Icons.bolt_rounded,
- title: 'Faster, higher-quality decisions',
+ title: 'Higher Project Success Rates',
  color: Color(0xFF8B5CF6),
  ),
  _OutcomeData(
  icon: Icons.show_chart_rounded,
- title: 'Increased project ROI',
+ title: 'Faster, Smarter Decision-Making',
  color: Color(0xFFF59E0B),
  ),
  _OutcomeData(
- icon: Icons.repeat_rounded,
- title: 'Scalable, repeatable delivery model',
+ icon: Icons.sync_rounded,
+ title: 'Enhanced Executive Visibility',
  color: Color(0xFF0EA5E9),
+ ),
+ _OutcomeData(
+ icon: Icons.dashboard_customize_rounded,
+ title: 'Scalable Project Delivery Framework',
+ color: Color(0xFF6366F1),
  ),
  ];
 
@@ -2092,7 +2133,7 @@ class _LandingScreenState extends State<LandingScreen>
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  Text(
- 'Trusted By Organizations That Deliver',
+ 'What You Achieve with PDOS',
  style: TextStyle(
  fontSize: wideLayout ? 38 : 28,
  fontWeight: FontWeight.w800,
@@ -2102,45 +2143,11 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  const SizedBox(height: 14),
  Text(
- 'From ambitious start-ups to established MSMEs, consultants, and community organizations — teams trust Ndu Project to govern their most critical deliveries.',
+ 'Ndu Project brings everything together in one AI-powered Project Delivery Operating System (PDOS), helping organizations plan with confidence, execute with clarity, and deliver measurable business outcomes.',
  style: TextStyle(
  fontSize: 16,
  color: Colors.white.withValues(alpha: 0.7),
  height: 1.6,
- ),
- ),
- const SizedBox(height: 24),
- // Trusted by categories
- Wrap(
- spacing: 12,
- runSpacing: 12,
- children: [
- _trustedByChip('Start-ups', Icons.rocket_launch_outlined),
- _trustedByChip('MSMEs', Icons.business_outlined),
- _trustedByChip('Consultants', Icons.person_outline),
- _trustedByChip('Community Organizations', Icons.diversity_3_outlined),
- ],
- ),
- const SizedBox(height: 24),
- // Logo upload area
- Container(
- width: double.infinity,
- padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
- decoration: BoxDecoration(
- color: Colors.white.withValues(alpha: 0.03),
- borderRadius: BorderRadius.circular(16),
- border: Border.all(
- color: Colors.white.withValues(alpha: 0.1),
- width: 1.5,
- ),
- ),
- child: Column(
- children: [
- Icon(Icons.add_photo_alternate_outlined, size: 32, color: Colors.white.withValues(alpha: 0.3)),
- const SizedBox(height: 8),
- Text('Add your organization\'s logo here',
- style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.4))),
- ],
  ),
  ),
  const SizedBox(height: 40),
@@ -2266,6 +2273,22 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ),
  ],
+ ),
+ );
+ }
+
+ Widget _infoBlock(String text) {
+ return Container(
+ width: double.infinity,
+ padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+ decoration: BoxDecoration(
+ color: const Color(0xFF06B6D4).withValues(alpha: 0.08),
+ borderRadius: BorderRadius.circular(12),
+ border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.15)),
+ ),
+ child: Text(
+ text,
+ style: const TextStyle(fontSize: 14, color: Color(0xFFE0F2FE), height: 1.6),
  ),
  );
  }
