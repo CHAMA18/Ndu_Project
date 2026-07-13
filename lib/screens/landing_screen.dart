@@ -274,7 +274,7 @@ class _LandingScreenState extends State<LandingScreen>
  controller: _scrollController,
  child: Column(
  children: [
- SizedBox(height: isDesktop ? 140 : 110),
+ SizedBox(height: isDesktop ? 24 : 16),
  _buildHeroSection(context, isDesktop),
  SizedBox(height: isDesktop ? 80 : 60),
  _buildSocialProofBar(isDesktop),
@@ -652,7 +652,7 @@ class _LandingScreenState extends State<LandingScreen>
  return FadeTransition(
  opacity: _fadeAnimation,
  child: Padding(
- padding: EdgeInsets.symmetric(horizontal: isDesktop ? 96 : 24),
+ padding: EdgeInsets.symmetric(horizontal: isDesktop ? 48 : 16),
  child: Container(
  decoration: BoxDecoration(
  borderRadius: BorderRadius.circular(40),
@@ -704,15 +704,18 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ),
  Padding(
- padding: EdgeInsets.all(isDesktop ? 64 : 36),
+ padding: EdgeInsets.all(isDesktop ? 32 : 20),
  child: isDesktop
  ? Row(
  crossAxisAlignment: CrossAxisAlignment.center,
  children: [
  Expanded(
+ flex: 3,
  child: _buildHeroContent(context, true)),
- const SizedBox(width: 54),
- Expanded(child: _buildHeroVisual(context)),
+ const SizedBox(width: 24),
+ Expanded(
+ flex: 2,
+ child: _buildHeroVisual(context)),
  ],
  )
  : Column(
@@ -759,7 +762,7 @@ class _LandingScreenState extends State<LandingScreen>
  ],
  ),
  ),
- const SizedBox(height: 16),
+ const SizedBox(height: 10),
  // NSF I-Corps button
  Container(
  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -769,7 +772,7 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  child: const Text('NSF I-Corps Validated', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
  ),
- const SizedBox(height: 24),
+ const SizedBox(height: 16),
  // Headline
  Text(
  'Project Delivery Operating System (PDOS) powered by AI KAZ',
@@ -782,7 +785,7 @@ class _LandingScreenState extends State<LandingScreen>
  color: const Color(0xFFFFF3C0),
  ),
  ),
- const SizedBox(height: 16),
+ const SizedBox(height: 10),
  // 50% stat
  Container(
  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -797,7 +800,7 @@ class _LandingScreenState extends State<LandingScreen>
  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFFCA5A5), height: 1.5),
  ),
  ),
- const SizedBox(height: 16),
+ const SizedBox(height: 10),
  // Description
  Text(
  'Ndu Project is an end-to-end Project Delivery Operating System (PDOS) that integrates AI, analytics, core project management processes, and human decision making to deliver projects from the crucial initiation phase through completion.',
@@ -808,7 +811,7 @@ class _LandingScreenState extends State<LandingScreen>
  color: Colors.white.withValues(alpha: 0.72),
  ),
  ),
- const SizedBox(height: 20),
+ const SizedBox(height: 12),
  // Project type pills
  Wrap(
  alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
@@ -824,7 +827,7 @@ class _LandingScreenState extends State<LandingScreen>
  child: Text(type, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
  )).toList(),
  ),
- const SizedBox(height: 24),
+ const SizedBox(height: 16),
  // CTAs
  Wrap(
  spacing: 14,
@@ -855,7 +858,7 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ],
  ),
- const SizedBox(height: 28),
+ const SizedBox(height: 16),
  // Stats row
  LayoutBuilder(builder: (context, c) {
  final horizontal = c.maxWidth >= 600;
@@ -905,7 +908,7 @@ class _LandingScreenState extends State<LandingScreen>
  )).toList(),
  );
  }),
- const SizedBox(height: 24),
+ const SizedBox(height: 16),
  // 3 feature cards
  LayoutBuilder(builder: (context, c) {
  final cols = c.maxWidth >= 700 ? 3 : 1;
