@@ -3802,6 +3802,8 @@ class WorkPackage {
   String? actualEnd;
   double budgetedCost;
   double actualCost;
+  double plannedHours;
+  double actualHours;
   List<String> scheduleActivityIds;
   List<String> contractIds;
   List<String> vendorIds;
@@ -3864,6 +3866,8 @@ class WorkPackage {
     this.actualEnd,
     this.budgetedCost = 0,
     this.actualCost = 0,
+    this.plannedHours = 0,
+    this.actualHours = 0,
     List<String>? scheduleActivityIds,
     List<String>? contractIds,
     List<String>? vendorIds,
@@ -3931,6 +3935,8 @@ class WorkPackage {
         'actualEnd': actualEnd,
         'budgetedCost': budgetedCost,
         'actualCost': actualCost,
+        'plannedHours': plannedHours,
+        'actualHours': actualHours,
         'scheduleActivityIds': scheduleActivityIds,
         'contractIds': contractIds,
         'vendorIds': vendorIds,
@@ -4002,6 +4008,12 @@ class WorkPackage {
       actualCost: json['actualCost'] is num
           ? (json['actualCost'] as num).toDouble()
           : double.tryParse(json['actualCost']?.toString() ?? '') ?? 0,
+      plannedHours: json['plannedHours'] is num
+          ? (json['plannedHours'] as num).toDouble()
+          : double.tryParse(json['plannedHours']?.toString() ?? '') ?? 0,
+      actualHours: json['actualHours'] is num
+          ? (json['actualHours'] as num).toDouble()
+          : double.tryParse(json['actualHours']?.toString() ?? '') ?? 0,
       scheduleActivityIds: (json['scheduleActivityIds'] as List?)
               ?.map((e) => e.toString())
               .toList() ??

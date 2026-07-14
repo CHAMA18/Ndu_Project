@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -23,6 +24,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/download_helper.dart' as dl;
 class PlanningRequirementsScreen extends StatefulWidget {
  const PlanningRequirementsScreen({super.key});
 
@@ -1661,17 +1663,24 @@ $requirementsList
                       ],
                     ),
                   ),
-                  // Data rows (draggable)
+                  // Data rows (draggable) or empty state
                   Expanded(
-                    child: Scrollbar(
-                      controller: _requirementsVerticalController,
-                      thumbVisibility: true,
-                      child: ReorderableListView(
-                        buildDefaultDragHandles: false,
-                        onReorderItem: _onReorder,
-                        children: List.generate(_rows.length, (i) => buildDataRow(i)),
-                      ),
-                    ),
+                    child: _rows.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No requirements yet. Add one or import from CSV.',
+                              style: TextStyle(color: Color(0xFF9CA3AF)),
+                            ),
+                          )
+                        : Scrollbar(
+                            controller: _requirementsVerticalController,
+                            thumbVisibility: true,
+                            child: ReorderableListView(
+                              buildDefaultDragHandles: false,
+                              onReorder: _onReorder,
+                              children: List.generate(_rows.length, (i) => buildDataRow(i)),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -1733,27 +1742,46 @@ $requirementsList
  );
  }
 
- Widget _buildActionButtons() {
- return Row(
- children: [
- SizedBox(
- height: 44,
- child: OutlinedButton.icon(
- onPressed: () async {
- final rows = await showCsvImportDialog(
- context,
- tableTitle: 'Project Requirements',
- columns: [
- CsvColumnSpec(key: 'description', label: 'Requirement', required: true, sampleValue: 'The system shall support user authentication'),
- CsvColumnSpec(key: 'type', label: 'Type', allowedValues: _RequirementRow.requirementTypeOptions, defaultValue: 'Functional', sampleValue: 'Functional'),
- CsvColumnSpec(key: 'discipline', label: 'Discipline', allowedValues: _RequirementRow.disciplineOptions, defaultValue: 'IT', sampleValue: 'IT'),
- CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Requirements Lead'),
- CsvColumnSpec(key: 'person', label: 'Person', sampleValue: 'John Doe'),
- CsvColumnSpec(key: 'phase', label: 'Phase', allowedValues: _RequirementRow.phaseOptions, defaultValue: 'Planning', sampleValue: 'Planning'),
- CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'Stakeholder interview'),
- CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'High priority'),
- ]);
- if (rows == null || !mounted) return;
+  List<CsvColumnSpec> get _csvColumns => [
+    CsvColumnSpec(key: 'description', label: 'Requirement', required: true, sampleValue: 'The system shall support user authentication'),
+    CsvColumnSpec(key: 'type', label: 'Type', allowedValues: _RequirementRow.requirementTypeOptions, defaultValue: 'Functional', sampleValue: 'Functional'),
+    CsvColumnSpec(key: 'discipline', label: 'Discipline', allowedValues: _RequirementRow.disciplineOptions, defaultValue: 'IT', sampleValue: 'IT'),
+    CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Requirements Lead'),
+    CsvColumnSpec(key: 'person', label: 'Person', sampleValue: 'John Doe'),
+    CsvColumnSpec(key: 'phase', label: 'Phase', allowedValues: _RequirementRow.phaseOptions, defaultValue: 'Planning', sampleValue: 'Planning'),
+    CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'Stakeholder interview'),
+    CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'High priority'),
+  ];
+
+  void _downloadTemplate() {
+    final template = CsvImportHelper.generateTemplate(_csvColumns);
+    final filename = CsvImportHelper.templateFilename('Project Requirements');
+    final bytes = utf8.encode(template);
+    dl.downloadFile(bytes, filename, mimeType: 'text/csv');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('CSV template downloaded!'),
+          backgroundColor: Color(0xFF10B981),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  Widget _buildActionButtons() {
+  return Row(
+  children: [
+  SizedBox(
+  height: 44,
+  child: OutlinedButton.icon(
+  onPressed: () async {
+  final rows = await showCsvImportDialog(
+  context,
+  tableTitle: 'Project Requirements',
+  columns: _csvColumns,
+  );
+  if (rows == null || !mounted) return;
  setState(() {
  for (final row in rows) {
  final newRow = _createRow(_rows.length + 1);
@@ -1790,34 +1818,52 @@ $requirementsList
  ),
  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
  ),
- ),
- ),
- const SizedBox(width: 12),
- SizedBox(
- height: 44,
- child: OutlinedButton(
- onPressed: () {
- setState(() {
- _rows.add(_createRow(_rows.length + 1));
- });
- _scheduleAutoSave(showSnack: false);
- },
- style: OutlinedButton.styleFrom(
- backgroundColor: Colors.white,
- foregroundColor: const Color(0xFF111827),
- side: const BorderSide(color: Color(0xFFE5E7EB)),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12),
- ),
- padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
- ),
- child: const Text(
- 'Add another',
- style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
- ),
- ),
- ),
- ],
+  ),
+  ),
+  const SizedBox(width: 12),
+  SizedBox(
+  height: 44,
+  child: OutlinedButton.icon(
+  onPressed: _downloadTemplate,
+  icon: const Icon(Icons.download, size: 18),
+  label: const Text('Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+  style: OutlinedButton.styleFrom(
+  backgroundColor: Colors.white,
+  foregroundColor: const Color(0xFF2563EB),
+  side: const BorderSide(color: Color(0xFF93C5FD)),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12),
+  ),
+  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+  ),
+  ),
+  ),
+  const SizedBox(width: 12),
+  SizedBox(
+  height: 44,
+  child: OutlinedButton(
+  onPressed: () {
+  setState(() {
+  _rows.add(_createRow(_rows.length + 1));
+  });
+  _scheduleAutoSave(showSnack: false);
+  },
+  style: OutlinedButton.styleFrom(
+  backgroundColor: Colors.white,
+  foregroundColor: const Color(0xFF111827),
+  side: const BorderSide(color: Color(0xFFE5E7EB)),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12),
+  ),
+  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+  ),
+  child: const Text(
+  'Add another',
+  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+  ),
+  ),
+  ),
+  ],
  );
  }
 

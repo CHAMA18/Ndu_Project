@@ -1,5 +1,5 @@
 import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
-import 'package:ndu_project/screens/execution_plan_construction_plan_screen.dart';
+import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 import 'package:ndu_project/widgets/responsive.dart';
@@ -475,7 +475,7 @@ class _DesktopBestPracticesActions extends StatelessWidget {
  const SizedBox(width: 24),
  YellowActionButton(
  label: 'Next',
- onPressed: () => ExecutionPlanConstructionPlanScreen.open(context),
+ onPressed: () => ExecutionPlanInterfaceManagementScreen.open(context),
  ),
  ],
  );
@@ -499,7 +499,7 @@ class _MobileBestPracticesActions extends StatelessWidget {
  const SizedBox(height: 20),
  YellowActionButton(
  label: 'Next',
- onPressed: () => ExecutionPlanConstructionPlanScreen.open(context),
+ onPressed: () => ExecutionPlanInterfaceManagementScreen.open(context),
  ),
  ],
  );

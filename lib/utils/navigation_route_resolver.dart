@@ -44,7 +44,7 @@ import 'package:ndu_project/screens/execution_plan_stakeholder_identification_sc
 import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
 import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_plan_screen.dart';
-import 'package:ndu_project/screens/schedule_screen.dart';
+import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
 import 'package:ndu_project/screens/design_phase_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
 import 'package:ndu_project/screens/planning_technology_screen.dart';
@@ -379,7 +379,7 @@ class NavigationRouteResolver {
       case 'execution_plan_stakeholder_identification':
         return const ExecutionPlanStakeholderIdentificationScreen();
       case 'schedule':
-        return const ScheduleScreen();
+        return const ScheduleModuleScreen();
       case 'design':
         return const DesignPlanningScreen();
       case 'design_management':

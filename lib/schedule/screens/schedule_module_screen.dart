@@ -29,6 +29,7 @@ import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+import 'package:ndu_project/widgets/planning_work_packages_tab.dart';
 
 class ScheduleModuleScreen extends StatefulWidget {
   const ScheduleModuleScreen({super.key});
@@ -46,7 +47,7 @@ class ScheduleModuleScreen extends StatefulWidget {
 class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController = TabController(
-    length: 3,
+    length: 4,
     vsync: this,
   );
 
@@ -115,6 +116,7 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
                     SectionTab(icon: Icons.build_outlined, label: 'Builder'),
                     SectionTab(icon: Icons.bar_chart, label: 'Gantt'),
                     SectionTab(icon: Icons.list_alt, label: 'List View'),
+                    SectionTab(icon: Icons.work_outline, label: 'Work Packages'),
                   ],
                   controller: _tabController,
                   onChanged: (index) => setState(() {}),
@@ -148,10 +150,11 @@ class _ScheduleModuleScreenState extends State<ScheduleModuleScreen>
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
-                  children: const [
-                    BuilderScreen(),
-                    GanttScreen(),
-                    ListViewScreen(),
+                  children: [
+                    const BuilderScreen(),
+                    const GanttScreen(),
+                    const ListViewScreen(),
+                    const PlanningWorkPackagesTab(),
                   ],
                 ),
               ),

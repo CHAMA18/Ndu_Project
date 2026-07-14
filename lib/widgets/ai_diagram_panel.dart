@@ -1,12 +1,9 @@
-import 'dart:io';
-import 'dart:convert';
-import 'dart:html' as html;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/openai/openai_config.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/download_helper.dart' as download_helper;
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:shimmer/shimmer.dart';
 // Use a relative import to avoid rare web hot-reload library resolution issues
@@ -537,6 +534,9 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
   // D7 — GlobalKey for export
   final _repaintBoundaryKey = GlobalKey();
 
+  // Key for the diagram viewport area (used by fit-to-screen)
+  final _viewportKey = GlobalKey();
+
   // D1 — InteractiveViewer controller
   final _transformationController = TransformationController();
 
@@ -670,8 +670,31 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
   }
 
   void _animateResetZoom() {
+    if (_diagram == null) return;
+    final painter = _DiagramPainter(_diagram!);
+    final diagramSize = painter.intrinsicSize;
+    if (diagramSize.width <= 0 || diagramSize.height <= 0) return;
+
+    final viewportRender =
+        _viewportKey.currentContext?.findRenderObject() as RenderBox?;
+    if (viewportRender == null) return;
+    final viewport = viewportRender.size;
+    if (viewport.width <= 0 || viewport.height <= 0) return;
+
+    const pad = 12.0;
+    final availableW = viewport.width - pad * 2;
+    final availableH = viewport.height - pad * 2;
+
+    final scaleX = availableW / diagramSize.width;
+    final scaleY = availableH / diagramSize.height;
+    final scale = (scaleX < scaleY ? scaleX : scaleY).clamp(0.2, 1.0);
+
+    final tx = (availableW - diagramSize.width * scale) / 2;
+    final ty = (availableH - diagramSize.height * scale) / 2;
+
     _resetFrom = _transformationController.value.clone();
-    _resetTarget = Matrix4.identity();
+    _resetTarget = Matrix4.diagonal3Values(scale, scale, 1.0)
+      ..setTranslationRaw(tx + pad, ty + pad, 0);
     _resetAnimController.forward(from: 0.0);
   }
 
@@ -684,10 +707,10 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
 
   // D7 — Export diagram as PNG (web-compatible download)
   Future<void> _exportAsPng() async {
+    if (_diagram == null) return;
     try {
-      final boundary = _repaintBoundaryKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
-      if (boundary == null) {
+      final image = await renderDiagramToImage(_diagram!, 3.0);
+      if (image == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -698,7 +721,6 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
         }
         return;
       }
-      final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData == null) return;
 
@@ -706,16 +728,7 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName = 'diagram_${widget.sectionLabel.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_$timestamp.png';
 
-      // Web: trigger browser download via blob URL
-      final blob = html.Blob([bytes], 'image/png');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..style.display = 'none';
-      html.document.body?.append(anchor);
-      anchor.click();
-      anchor.remove();
-      html.Url.revokeObjectUrl(url);
+      download_helper.downloadFile(bytes, fileName, mimeType: 'image/png');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -979,6 +992,7 @@ class _AiDiagramPanelState extends State<AiDiagramPanel>
                     // ── Diagram canvas (D1: InteractiveViewer for pan/zoom) ────
                     Expanded(
                       child: ClipRRect(
+                        key: _viewportKey,
                         borderRadius: const BorderRadius.only(
                           bottomLeft: Radius.circular(16),
                           bottomRight: Radius.circular(16),
@@ -1446,4 +1460,22 @@ class _DiagramFullscreenViewState extends State<_DiagramFullscreenView> {
       ),
     );
   }
+}
+
+// ── Shared offscreen diagram renderer ────────────────────────────────────────
+
+Future<ui.Image?> renderDiagramToImage(DiagramModel diagram, double pixelRatio) async {
+  final painter = _DiagramPainter(diagram);
+  final size = painter.intrinsicSize;
+  if (size.width <= 0 || size.height <= 0) return null;
+
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, size.width, size.height));
+  painter.paint(canvas, size);
+  final picture = recorder.endRecording();
+
+  return picture.toImage(
+    (size.width * pixelRatio).round(),
+    (size.height * pixelRatio).round(),
+  );
 }

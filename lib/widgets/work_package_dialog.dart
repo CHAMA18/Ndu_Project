@@ -124,7 +124,7 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
     };
     const allowedClassifications = {
       'engineeringEwp', 'procurementPackage', 'constructionCwp',
-      'implementationWorkPackage', 'agileIterationPackage',
+      'deliveryPackage', 'implementationWorkPackage', 'agileIterationPackage',
       'preCommissioningPackage', 'commissioningPackage', ''
     };
     const allowedReleaseStatuses = {
@@ -423,6 +423,9 @@ class _WorkPackageDialogState extends State<WorkPackageDialog> {
                           DropdownMenuItem(
                               value: 'constructionCwp',
                               child: Text('Construction Work Package')),
+                          DropdownMenuItem(
+                              value: 'deliveryPackage',
+                              child: Text('Deliverable Work Package')),
                           DropdownMenuItem(
                               value: 'implementationWorkPackage',
                               child: Text('Implementation Work Package')),

@@ -7,8 +7,11 @@
 ///   Level 3 = Work Package (or Story in Agile)
 ///   Level 4 = Activity / Task
 ///   Level 5 = Sub-activity / Subtask
+///   Level 6 = Task (detailed planning level)
+///   Level 7 = Subtask
+///   Level 8 = Work Item / Hours Block (lowest executable unit)
 ///
-/// Maximum depth: Level 5 (configurable per framework).
+/// Maximum depth: Level 8 (configurable per framework).
 
 library;
 
@@ -129,13 +132,43 @@ enum WBSFramework {
         WBSFramework.waterfallPhase => 'Activity',
       };
 
-  /// Returns the label for a given level number (1-5).
+  String get level6Label => switch (this) {
+        WBSFramework.agile => 'Work Item',
+        WBSFramework.waterfallDeliverable => 'Task',
+        WBSFramework.waterfallDiscipline => 'Task',
+        WBSFramework.waterfallFunctional => 'Task',
+        WBSFramework.waterfallGeographic => 'Sub-Activity',
+        WBSFramework.waterfallPhase => 'Sub-Activity',
+      };
+
+  String get level7Label => switch (this) {
+        WBSFramework.agile => 'Hours Block',
+        WBSFramework.waterfallDeliverable => 'Subtask',
+        WBSFramework.waterfallDiscipline => 'Subtask',
+        WBSFramework.waterfallFunctional => 'Subtask',
+        WBSFramework.waterfallGeographic => 'Task',
+        WBSFramework.waterfallPhase => 'Task',
+      };
+
+  String get level8Label => switch (this) {
+        WBSFramework.agile => 'Hours Block',
+        WBSFramework.waterfallDeliverable => 'Work Item',
+        WBSFramework.waterfallDiscipline => 'Work Item',
+        WBSFramework.waterfallFunctional => 'Work Item',
+        WBSFramework.waterfallGeographic => 'Subtask',
+        WBSFramework.waterfallPhase => 'Subtask',
+      };
+
+  /// Returns the label for a given level number (1-8).
   String levelLabel(int level) => switch (level) {
         1 => level1Label,
         2 => level2Label,
         3 => level3Label,
         4 => level4Label,
         5 => level5Label,
+        6 => level6Label,
+        7 => level7Label,
+        8 => level8Label,
         _ => 'Node',
       };
 
@@ -158,11 +191,11 @@ enum WBSFramework {
       };
 
   int get maxDepth => switch (this) {
-        WBSFramework.agile => 5,
-        WBSFramework.waterfallDeliverable => 5,
-        WBSFramework.waterfallDiscipline => 5,
+        WBSFramework.agile => 8,
+        WBSFramework.waterfallDeliverable => 8,
+        WBSFramework.waterfallDiscipline => 8,
         WBSFramework.waterfallFunctional => 4,
-        WBSFramework.waterfallGeographic => 5,
+        WBSFramework.waterfallGeographic => 8,
         WBSFramework.waterfallPhase => 4,
       };
 
@@ -183,15 +216,15 @@ enum WBSFramework {
 
   String get description => switch (this) {
         WBSFramework.agile =>
-          'Product → Epic → Feature → Story → Task. Focuses on deliverable increments. Maps naturally to the product backlog.',
+          'Product → Epic → Feature → Story → Task → Work Item → Hours Block. Focuses on deliverable increments. Supports up to 8 levels for hours-of-work granularity.',
         WBSFramework.waterfallDeliverable =>
-          'Project → Deliverable → Sub-Deliverable → Work Package → Activity. Focuses on what must be produced, not how. Preferred standard approach.',
+          'Project → Deliverable → Sub-Deliverable → Work Package → Activity → Task → Subtask → Work Item. Focuses on what must be produced, not how. Preferred standard approach. Supports up to 8 levels.',
         WBSFramework.waterfallDiscipline =>
-          'Project → Discipline → Component → Work Package → Activity. Best for technical/engineering systems.',
+          'Project → Discipline → Component → Work Package → Activity → Task → Subtask → Work Item. Best for technical/engineering systems. Supports up to 8 levels.',
         WBSFramework.waterfallFunctional =>
           'Project → Functional Area → Sub-Area → Work Package → Activity. Focuses on who performs the work.',
         WBSFramework.waterfallGeographic =>
-          'Project → Region → Site → Deliverable → Work Package → Activity. Focuses on where the work occurs.',
+          'Project → Region → Site → Deliverable → Work Package → Activity → Task → Subtask. Focuses on where the work occurs. Supports up to 8 levels.',
         WBSFramework.waterfallPhase =>
           'Project → Phase → Phase Activity → Deliverable → Work Package → Activity. Least preferred — mixes deliverables and activities.',
       };
@@ -213,7 +246,7 @@ enum WBSFramework {
   }
 }
 
-enum WBSLevel { level0, level1, level2, level3, level4, level5 }
+enum WBSLevel { level0, level1, level2, level3, level4, level5, level6, level7, level8 }
 
 extension WBSLevelMeta on WBSLevel {
   int get value => switch (this) {
@@ -223,6 +256,9 @@ extension WBSLevelMeta on WBSLevel {
         WBSLevel.level3 => 3,
         WBSLevel.level4 => 4,
         WBSLevel.level5 => 5,
+        WBSLevel.level6 => 6,
+        WBSLevel.level7 => 7,
+        WBSLevel.level8 => 8,
       };
 
   static WBSLevel fromInt(int v) => switch (v) {
@@ -232,7 +268,10 @@ extension WBSLevelMeta on WBSLevel {
         3 => WBSLevel.level3,
         4 => WBSLevel.level4,
         5 => WBSLevel.level5,
-        _ => WBSLevel.level0,
+        6 => WBSLevel.level6,
+        7 => WBSLevel.level7,
+        8 => WBSLevel.level8,
+        _ => WBSLevel.level8,
       };
 }
 
@@ -407,10 +446,11 @@ class WBS {
   }
 }
 
-/// Count nodes at each level (up to level5).
-({int level0, int level1, int level2, int level3, int level4, int level5})
+/// Count nodes at each level (up to level8).
+({int level0, int level1, int level2, int level3, int level4, int level5,
+  int level6, int level7, int level8})
     countNodes(WBS wbs) {
-  final counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+  final counts = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0};
   void walk(WBSNode node) {
     final lvl = node.level.value;
     if (counts.containsKey(lvl)) counts[lvl] = counts[lvl]! + 1;
@@ -426,6 +466,9 @@ class WBS {
     level3: counts[3]!,
     level4: counts[4]!,
     level5: counts[5]!,
+    level6: counts[6]!,
+    level7: counts[7]!,
+    level8: counts[8]!,
   );
 }
 
@@ -575,7 +618,7 @@ WBS createEmptyWBS({
 String nodeLevelLabel(WBSNode node, WBSFramework framework) {
   final depth = node.level.value;
   if (depth == 0) return 'Project';
-  if (depth > 0 && depth <= 5) return framework.levelLabel(depth);
+  if (depth > 0 && depth <= 8) return framework.levelLabel(depth);
   return 'Node';
 }
 

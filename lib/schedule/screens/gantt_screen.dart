@@ -1,12 +1,5 @@
 library;
 
-/// Gantt Chart Screen — dual-panel (activity list + timeline bars).
-///
-/// Rendered inside the parent module's `ResponsiveScaffold` body — no
-/// per-screen Scaffold wrapper (parent provides white background). Color-coded
-/// by domain. Includes a sample activity dataset so the Gantt visualization is
-/// always populated for demonstration.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/theme.dart';
@@ -21,22 +14,55 @@ class GanttScreen extends StatelessWidget {
     return Consumer<ScheduleProvider>(
       builder: (context, provider, _) {
         final schedule = provider.schedule!;
-        final rows = _sampleRows();
-        // Timeline: 16 weeks (Jan 5 → Apr 26, 2026) — covers all bars.
-        const weekCount = 16;
+        final allActivities = _flatten(schedule.activities);
+        final rows = _buildRows(allActivities);
+
+        if (rows.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(48),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.bar_chart,
+                      size: 48, color: LightModeColors.accent.withValues(alpha: 0.3)),
+                  const SizedBox(height: 16),
+                  const Text('No activities yet',
+                      style:
+                          TextStyle(color: Color(0xFF1A1D1F), fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Use the Builder tab to create activities from work packages, then run CPM to calculate dates.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final baseDate = rows.map((r) => r.startDate).reduce(
+            (a, b) => a.isBefore(b) ? a : b);
+        final maxEndDate = rows.map((r) => r.endDate).reduce(
+            (a, b) => a.isAfter(b) ? a : b);
+
+        final totalDays = maxEndDate.difference(baseDate).inDays + 1;
+        final weekCount = (totalDays / 7).ceil().clamp(1, 52);
+        const cellWidth = 56.0;
+
         final weekLabels = List<String>.generate(weekCount, (i) {
-          // Each week starts on a Monday; week 0 = Jan 5, 2026.
-          final start = DateTime(2026, 1, 5).add(Duration(days: i * 7));
-          final m = start.month.toString().padLeft(2, '0');
-          final d = start.day.toString().padLeft(2, '0');
-          return '$m/$d';
+          final start = baseDate.add(Duration(days: i * 7));
+          return '${start.month.toString().padLeft(2, '0')}/${start.day.toString().padLeft(2, '0')}';
         });
+
+        final criticalCount = rows.where((r) => r.isCritical).length;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
               Row(
                 children: [
                   const Icon(Icons.bar_chart,
@@ -53,12 +79,11 @@ class GanttScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Sample timeline view — bars are color-coded by domain and laid out across a 16-week rolling window.',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+              Text(
+                '${allActivities.length} activities · $criticalCount on critical path · $weekCount-week view',
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13),
               ),
               const SizedBox(height: 16),
-              // Legend + summary chips
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -93,8 +118,7 @@ class GanttScreen extends StatelessWidget {
                           width: 12,
                           height: 12,
                           decoration: BoxDecoration(
-                              color:
-                                  LightModeColors.accent.withValues(alpha: 0.3),
+                              color: LightModeColors.accent.withValues(alpha: 0.3),
                               border: Border.all(
                                   color: LightModeColors.accent, width: 1.5)),
                         ),
@@ -108,7 +132,6 @@ class GanttScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              // Gantt panel
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -129,19 +152,18 @@ class GanttScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Timeline header row
                         _GanttHeaderRow(
                             weekLabels: weekLabels,
                             leftColWidth: 280,
-                            cellWidth: 56),
+                            cellWidth: cellWidth),
                         const Divider(
                             color: Color(0xFFE4E7EC), height: 1, thickness: 1),
-                        // Activity rows
                         ...rows.map((r) => _GanttRow(
                               row: r,
+                              baseDate: baseDate,
                               weekCount: weekCount,
+                              cellWidth: cellWidth,
                               leftColWidth: 280,
-                              cellWidth: 56,
                             )),
                       ],
                     ),
@@ -149,7 +171,6 @@ class GanttScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              // Footer summary
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -166,9 +187,11 @@ class GanttScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Critical-path activities (Procurement, Fabrication, Mechanical Install, Cold & Hot Commissioning) form the longest dependency chain. Adding real activities via the Builder tab will replace this sample timeline with your project\'s actual schedule.',
-                        style: TextStyle(
-                            color: const Color(0xFF495057),
+                        '${rows.length} activities displayed. '
+                        '$criticalCount on critical path. '
+                        'Use "Run CPM" in the Builder tab to recompute dates and critical path.',
+                        style: const TextStyle(
+                            color: Color(0xFF495057),
                             fontSize: 12,
                             height: 1.5),
                       ),
@@ -183,70 +206,37 @@ class GanttScreen extends StatelessWidget {
     );
   }
 
-  List<_GanttRowData> _sampleRows() {
-    // weekStart and weekDuration are expressed in 7-day units; week 0 = Jan 5, 2026.
-    return [
-      _GanttRowData(
-        code: '1',
-        name: 'Engineering — Process Design',
-        domainColor: ScheduleDomain.engineering.color,
-        weekStart: 0,
-        weekDuration: 4,
-        isCritical: false,
-      ),
-      _GanttRowData(
-        code: '2',
-        name: 'Procurement — Long-Lead Vessels',
-        domainColor: ScheduleDomain.procurement.color,
-        weekStart: 4,
-        weekDuration: 9,
-        isCritical: true,
-      ),
-      _GanttRowData(
-        code: '3',
-        name: 'Execution — Fabrication Phase A',
-        domainColor: ScheduleDomain.execution.color,
-        weekStart: 9,
-        weekDuration: 12,
-        isCritical: true,
-      ),
-      _GanttRowData(
-        code: '4',
-        name: 'Construction — Site Mobilization',
-        domainColor: ScheduleDomain.construction.color,
-        weekStart: 12,
-        weekDuration: 2,
-        isCritical: false,
-      ),
-      _GanttRowData(
-        code: '5',
-        name: 'Construction — Mechanical Install',
-        domainColor: ScheduleDomain.construction.color,
-        weekStart: 14,
-        weekDuration: 7,
-        isCritical: true,
-      ),
-      _GanttRowData(
-        code: '6',
-        name: 'Commissioning — Cold Commissioning',
-        domainColor: ScheduleDomain.commissioning.color,
-        weekStart: 21,
-        weekDuration: 3,
-        isCritical: true,
-      ),
-      _GanttRowData(
-        code: '7',
-        name: 'Commissioning — Hot Commissioning & Handover',
-        domainColor: ScheduleDomain.commissioning.color,
-        weekStart: 24,
-        weekDuration: 3,
-        isCritical: true,
-      ),
-    ];
+  List<ScheduleActivity> _flatten(List<ScheduleActivity> roots) {
+    final result = <ScheduleActivity>[];
+    void walk(ScheduleActivity node) {
+      result.add(node);
+      for (final c in node.children) walk(c);
+    }
+    for (final r in roots) walk(r);
+    return result;
+  }
+
+  List<_GanttRowData> _buildRows(List<ScheduleActivity> activities) {
+    final result = <_GanttRowData>[];
+    for (final a in activities) {
+      if (a.type == ActivityType.summary) continue;
+      final start = a.startDate;
+      final end = a.endDate;
+      if (start == null || end == null) continue;
+      result.add(_GanttRowData(
+        code: a.code,
+        name: a.name,
+        domainColor: a.domain.color,
+        isCritical: a.isCriticalPath,
+        startDate: start,
+        endDate: end,
+      ));
+    }
+    result.sort((a, b) => a.startDate.compareTo(b.startDate));
+    return result;
   }
 }
 
-/// Timeline header row — fixed-width activity column + weekly grid cells.
 class _GanttHeaderRow extends StatelessWidget {
   final List<String> weekLabels;
   final double leftColWidth;
@@ -297,28 +287,35 @@ class _GanttHeaderRow extends StatelessWidget {
   }
 }
 
-/// Single activity row — fixed-width label column + Gantt bar across the grid.
 class _GanttRow extends StatelessWidget {
   final _GanttRowData row;
+  final DateTime baseDate;
   final int weekCount;
-  final double leftColWidth;
   final double cellWidth;
+  final double leftColWidth;
 
   const _GanttRow({
     required this.row,
+    required this.baseDate,
     required this.weekCount,
-    required this.leftColWidth,
     required this.cellWidth,
+    required this.leftColWidth,
   });
 
   @override
   Widget build(BuildContext context) {
+    final daysSinceBase = row.startDate.difference(baseDate).inDays;
+    final durationDays = row.endDate.difference(row.startDate).inDays + 1;
+    final pxPerDay = cellWidth / 7;
+
+    final barLeft = daysSinceBase * pxPerDay;
+    final barWidth = durationDays * pxPerDay;
     final timelineWidth = weekCount * cellWidth;
+
     return Column(
       children: [
         Row(
           children: [
-            // Activity label column
             Container(
               width: leftColWidth,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -354,14 +351,12 @@ class _GanttRow extends StatelessWidget {
                 ],
               ),
             ),
-            // Timeline + bar
             Container(
               width: timelineWidth,
               height: 36,
               color: Colors.white,
               child: Stack(
                 children: [
-                  // Grid vertical lines
                   ...List.generate(weekCount + 1, (i) {
                     return Positioned(
                       left: i * cellWidth,
@@ -373,12 +368,11 @@ class _GanttRow extends StatelessWidget {
                       ),
                     );
                   }),
-                  // Gantt bar
                   Positioned(
-                    left: row.weekStart * cellWidth + 2,
+                    left: barLeft + 2,
                     top: 8,
                     bottom: 8,
-                    width: (row.weekDuration * cellWidth) - 4,
+                    width: barWidth - 4,
                     child: Container(
                       decoration: BoxDecoration(
                         color: row.isCritical
@@ -397,7 +391,7 @@ class _GanttRow extends StatelessWidget {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            '${row.weekDuration}w',
+                            '${durationDays}d',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -429,16 +423,16 @@ class _GanttRowData {
   final String code;
   final String name;
   final int domainColor;
-  final int weekStart;
-  final int weekDuration;
   final bool isCritical;
+  final DateTime startDate;
+  final DateTime endDate;
 
   const _GanttRowData({
     required this.code,
     required this.name,
     required this.domainColor,
-    required this.weekStart,
-    required this.weekDuration,
     required this.isCritical,
+    required this.startDate,
+    required this.endDate,
   });
 }

@@ -7,6 +7,7 @@ class IntegratedWorkPackageService {
   static const String engineeringEwp = 'engineeringEwp';
   static const String procurementPackage = 'procurementPackage';
   static const String constructionCwp = 'constructionCwp';
+  static const String deliveryPackage = 'deliveryPackage';
   static const String implementationWorkPackage = 'implementationWorkPackage';
   static const String agileIterationPackage = 'agileIterationPackage';
   static const String commissioningPackage = 'commissioningPackage';
@@ -766,34 +767,35 @@ class IntegratedWorkPackageService {
 
     switch (package.packageClassification) {
       case engineeringEwp:
+      case deliveryPackage:
         if (!readiness.requirementsTraced) {
-          warnings.add('EWP requirements traceability is not complete.');
+          warnings.add('${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} requirements traceability is not complete.');
         }
         if (!readiness.drawingsComplete) {
-          warnings.add('EWP drawings are not complete.');
+          warnings.add('${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} drawings are not complete.');
         }
         if (!readiness.specificationsComplete) {
-          warnings.add('EWP specifications are not complete.');
+          warnings.add('${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} specifications are not complete.');
         }
         if (!readiness.billOfMaterialsComplete) {
-          warnings.add('EWP bill of materials is not complete.');
+          warnings.add('${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} bill of materials is not complete.');
         }
         if (!readiness.designReviewComplete) {
-          warnings.add('EWP design review is not complete.');
+          warnings.add('${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} design review is not complete.');
         }
         if (!readiness.ifcApproved) {
-          warnings.add('EWP is not approved/released for execution.');
+          warnings.add('${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} is not approved/released for execution.');
         }
         // Fix 1.2: Warn if EWP has no linked design specifications
         if (package.linkedDesignSpecificationIds.isEmpty) {
           warnings.add(
-              'EWP has no linked design specifications. Consider mapping specifications from the Design Planning document.');
+              '${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} has no linked design specifications. Consider mapping specifications from the Design Planning document.');
         }
-        // Fix 1.4: Warn if EWP is not released but execution packages exist
+        // Fix 1.4: Warn if not released but execution packages exist
         if (!package.isReleasedForExecution &&
             package.linkedExecutionPackageIds.isNotEmpty) {
           warnings.add(
-              'EWP is not released for execution. Linked execution packages should not start until this EWP is released.');
+              '${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} is not released for execution. Linked execution packages should not start until this is released.');
         }
       case procurementPackage:
         if (!readiness.procurementScopeDefined) {
@@ -807,6 +809,9 @@ class IntegratedWorkPackageService {
         }
         if (!readiness.contractAwarded) {
           warnings.add('Contract/vendor award is not complete.');
+        }
+        if (package.contractIds.isEmpty) {
+          warnings.add('Procurement package has no linked contract.');
         }
         if (package.procurementBreakdown.category.trim().isEmpty) {
           warnings.add('Procurement category is not set.');
@@ -833,6 +838,10 @@ class IntegratedWorkPackageService {
         if (!readiness.contractAwarded &&
             package.contractorOrCrew.trim().isEmpty) {
           warnings.add('Execution owner or contract is not confirmed.');
+        }
+        if (package.contractIds.isEmpty &&
+            package.packageClassification == constructionCwp) {
+          warnings.add('CWP has no linked contract. Assign a contract ID.');
         }
         if (!readiness.predecessorsComplete) {
           warnings.add('Predecessor work is not confirmed complete.');
@@ -875,6 +884,28 @@ class IntegratedWorkPackageService {
         if (package.contractorOrCrew.trim().isEmpty) {
           warnings.add('Handover acceptance authority is not designated.');
         }
+    }
+
+    // Readiness-date gate: if plannedStart is set, warn about overdue items
+    if (package.plannedStart != null && package.plannedStart!.isNotEmpty) {
+      final startDate = DateTime.tryParse(package.plannedStart!);
+      if (startDate != null && startDate.isBefore(DateTime.now())) {
+        if (!readiness.predecessorsComplete) {
+          warnings.add(
+              'Planned start (${package.plannedStart}) is in the past but predecessors are not confirmed complete.');
+        }
+        if (package.packageClassification == constructionCwp &&
+            !readiness.permitsApproved) {
+          warnings.add(
+              'CWP planned start (${package.plannedStart}) is past due but permits are not approved.');
+        }
+        if ((package.packageClassification == engineeringEwp ||
+                package.packageClassification == deliveryPackage) &&
+            !readiness.ifcApproved) {
+          warnings.add(
+              '${package.packageClassification == engineeringEwp ? "EWP" : "DWP"} planned start (${package.plannedStart}) is past due but IFC approval is not complete.');
+        }
+      }
     }
 
     return warnings;
@@ -1031,6 +1062,7 @@ class IntegratedWorkPackageService {
 
     switch (package.packageClassification) {
       case engineeringEwp:
+      case deliveryPackage:
         return _estimateEngineeringDuration(package);
       case procurementPackage:
         return _estimateProcurementDuration(package);

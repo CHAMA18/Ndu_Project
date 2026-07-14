@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:ndu_project/screens/execution_issue_management_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -5,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
@@ -28,51 +30,98 @@ Future<void> _exportPdf(BuildContext context) async {
  );
 }
 
-class ExecutionEnablingWorkPlanScreen extends StatelessWidget {
- const ExecutionEnablingWorkPlanScreen({super.key});
+class ExecutionEnablingWorkPlanScreen extends StatefulWidget {
+  const ExecutionEnablingWorkPlanScreen({super.key});
 
- static void open(BuildContext context) {
- Navigator.of(context).push(
- MaterialPageRoute(
- builder: (_) => const ExecutionEnablingWorkPlanScreen()),
- );
- }
+  static void open(BuildContext context) {
+  Navigator.of(context).push(
+  MaterialPageRoute(
+  builder: (_) => const ExecutionEnablingWorkPlanScreen()),
+  );
+  }
 
- @override
- Widget build(BuildContext context) {
- final bool isMobile = AppBreakpoints.isMobile(context);
- final double horizontalPadding = isMobile ? 20 : 40;
+  @override
+  State<ExecutionEnablingWorkPlanScreen> createState() => _ExecutionEnablingWorkPlanScreenState();
+}
 
- return ResponsiveScaffold(
- activeItemLabel: 'Execution Enabling Work Plan',
- backgroundColor: Colors.white,
- floatingActionButton: const KazAiChatBubble(positioned: false),
- body: SingleChildScrollView(
- padding: EdgeInsets.symmetric(
- horizontal: horizontalPadding, vertical: 32),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- ExecutionPlanHeader(
- onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_enabling_work_plan'),
- onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_enabling_work_plan'), onExportPdf: () => _exportPdf(context)),
- const SizedBox(height: 32),
- const SectionIntro(title: 'Execution Enabling Work Plan'),
- const SizedBox(height: 24),
- const ExecutionPlanForm(
- title: 'Execution Enabling Work Plan',
- hintText:
- 'Capture enabling works, dependencies, and resourcing needs.',
- noteKey: 'execution_enabling_work_plan',
- ),
- const SizedBox(height: 32),
- const _EnablingWorksPlanSection(),
- const SizedBox(height: 56),
- ],
- ),
- ),
- );
- }
+class _ExecutionEnablingWorkPlanScreenState extends State<ExecutionEnablingWorkPlanScreen> {
+  @override
+  void initState() {
+  super.initState();
+  WidgetsBinding.instance.addPostFrameCallback((_) => _autoGenerateNotesIfNeeded());
+  }
+
+  Future<void> _autoGenerateNotesIfNeeded() async {
+  if (!mounted) return;
+  final provider = ProjectDataInherited.maybeOf(context);
+  if (provider == null) return;
+  final data = provider.projectData;
+  const noteKey = 'execution_enabling_work_plan';
+  const sectionTitle = 'Execution Enabling Work Plan';
+  final existing = data.planningNotes[noteKey] ?? '';
+  if (existing.trim().isNotEmpty) return;
+
+  final ctx = ProjectDataHelper.buildExecutivePlanContext(data, sectionLabel: sectionTitle);
+  if (ctx.trim().isEmpty) return;
+
+  try {
+  final ai = OpenAiServiceSecure();
+  final result = await ai.generateExecutionPlanSectionFields(
+  section: sectionTitle,
+  context: ctx,
+  fields: {'notes': 'Detailed notes for $sectionTitle'},
+  );
+  if (!mounted) return;
+  if (result.containsKey('notes') && result['notes']!.trim().isNotEmpty) {
+  await ProjectDataHelper.updateAndSave(
+  context: context,
+  checkpoint: 'execution_enabling_work_plan',
+  showSnackbar: false,
+  dataUpdater: (data) {
+  final notes = Map<String, String>.from(data.planningNotes);
+  notes[noteKey] = result['notes']!;
+  return data.copyWith(planningNotes: notes);
+  },
+  );
+  }
+  } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+  final bool isMobile = AppBreakpoints.isMobile(context);
+  final double horizontalPadding = isMobile ? 20 : 40;
+
+  return ResponsiveScaffold(
+  activeItemLabel: 'Execution Enabling Work Plan',
+  backgroundColor: Colors.white,
+  floatingActionButton: const KazAiChatBubble(positioned: false),
+  body: SingleChildScrollView(
+  padding: EdgeInsets.symmetric(
+  horizontal: horizontalPadding, vertical: 32),
+  child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  ExecutionPlanHeader(
+  onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_enabling_work_plan'),
+  onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_enabling_work_plan'), onExportPdf: () => _exportPdf(context)),
+  const SizedBox(height: 32),
+  const SectionIntro(title: 'Execution Enabling Work Plan'),
+  const SizedBox(height: 24),
+  const ExecutionPlanForm(
+  title: 'Execution Enabling Work Plan',
+  hintText:
+  'Capture enabling works, dependencies, and resourcing needs.',
+  noteKey: 'execution_enabling_work_plan',
+  ),
+  const SizedBox(height: 32),
+  const _EnablingWorksPlanSection(),
+  const SizedBox(height: 56),
+  ],
+  ),
+  ),
+  );
+  }
 }
 
 class _EnablingWorksPlanSection extends StatelessWidget {

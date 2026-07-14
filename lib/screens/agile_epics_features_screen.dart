@@ -572,24 +572,38 @@ Widget _buildEpicTile(int index, Epic epic) {
  ),
  ],
  ),
- const SizedBox(height: 6),
- Row(
- children: [
- _buildChip(epic.id, 'Theme', epic.theme, (v) {
- epic.theme = v;
- _updateEpic(epic);
- }),
- const SizedBox(width: 8),
- _buildChip(epic.id, 'Value', epic.businessValue, (v) {
- epic.businessValue = v;
- _updateEpic(epic);
- }),
- const SizedBox(width: 8),
- Text('${epic.totalStoryPoints.toStringAsFixed(0)} pts',
- style: TextStyle(fontSize: 12, color: _kMuted)),
- ],
- ),
- ],
+  const SizedBox(height: 6),
+  Row(
+    children: [
+      _buildChip(epic.id, 'Theme', epic.theme, (v) {
+        epic.theme = v;
+        _updateEpic(epic);
+      }),
+      const SizedBox(width: 8),
+      _buildChip(epic.id, 'Value', epic.businessValue, (v) {
+        epic.businessValue = v;
+        _updateEpic(epic);
+      }),
+      const SizedBox(width: 8),
+      Text('${epic.totalStoryPoints.toStringAsFixed(0)} pts',
+          style: TextStyle(fontSize: 12, color: _kMuted)),
+    ],
+  ),
+  VoiceTextField(
+    decoration: InputDecoration(
+      hintText: 'Epic description',
+      border: InputBorder.none,
+      isDense: true,
+      contentPadding: EdgeInsets.zero,
+    ),
+    style: const TextStyle(fontSize: 12, color: _kMuted),
+    controller: _getController(_epicControllers, '${epic.id}_desc', epic.description),
+    onChanged: (v) {
+      epic.description = v;
+      _updateEpic(epic);
+    },
+  ),
+],
  ),
  ),
  ),
@@ -692,13 +706,27 @@ Widget _buildEpicTile(int index, Epic epic) {
  constraints: const BoxConstraints(),
  padding: EdgeInsets.zero,
  ),
- ],
- ),
- const SizedBox(height: 4),
- Row(
- children: [
- Text('Est: ${feature.storyPointEstimate.toStringAsFixed(0)} pts',
- style: TextStyle(fontSize: 11, color: _kMuted)),
+      ],
+    ),
+    VoiceTextField(
+      decoration: InputDecoration(
+        hintText: 'Feature description',
+        border: InputBorder.none,
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+      ),
+      style: const TextStyle(fontSize: 12, color: _kMuted),
+      controller: _getController(_featureControllers, '${feature.id}_desc', feature.description),
+      onChanged: (v) {
+        feature.description = v;
+        _updateFeature(feature);
+      },
+    ),
+    const SizedBox(height: 4),
+    Row(
+      children: [
+        Text('Est: ${feature.storyPointEstimate.toStringAsFixed(0)} pts',
+            style: TextStyle(fontSize: 11, color: _kMuted)),
  const SizedBox(width: 12),
  Text('Status: ${feature.status}',
  style: TextStyle(fontSize: 11, color: _kMuted)),
@@ -745,35 +773,32 @@ Widget _buildEpicTile(int index, Epic epic) {
  ),
  child: Row(
  mainAxisSize: MainAxisSize.min,
- children: [
- Text('$label: ', style: TextStyle(fontSize: 11, color: _kMuted)),
- SizedBox(
- width: 80,
- child: VoiceTextField(
- decoration: InputDecoration(
- border: InputBorder.none,
- isDense: true,
- suffixIcon: value.isNotEmpty
- ? IconButton(
- tooltip: 'Clear',
- icon: const Icon(Icons.close,
- color: Color(0xFFEF4444), size: 12),
- onPressed: () {
- onChanged('');
- setState(() {});
- },
- padding: EdgeInsets.zero,
- constraints: const BoxConstraints(
- minWidth: 20, minHeight: 20),
- )
- : null,
- ),
- style: const TextStyle(fontSize: 11),
- controller: _getController(_chipControllers, '${epicId}_$label', value),
- onChanged: onChanged,
- ),
- ),
- ],
+        children: [
+          Text('$label: ', style: TextStyle(fontSize: 11, color: _kMuted)),
+          VoiceTextField(
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+              suffixIcon: value.isNotEmpty
+                  ? IconButton(
+                      tooltip: 'Clear',
+                      icon: const Icon(Icons.close,
+                          color: Color(0xFFEF4444), size: 12),
+                      onPressed: () {
+                        onChanged('');
+                        setState(() {});
+                      },
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                          minWidth: 20, minHeight: 20),
+                    )
+                  : null,
+            ),
+            style: const TextStyle(fontSize: 11),
+            controller: _getController(_chipControllers, '${epicId}_$label', value),
+            onChanged: onChanged,
+          ),
+        ],
  ),
  );
  }

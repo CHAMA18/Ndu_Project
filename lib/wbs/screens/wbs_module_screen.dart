@@ -27,6 +27,7 @@ import 'package:ndu_project/widgets/context_banner.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 import 'package:ndu_project/wbs/screens/wbs_builder_screen.dart';
+import 'package:ndu_project/wbs/screens/framework_picker_screen.dart';
 import 'package:ndu_project/widgets/cost_by_wbs_tab.dart';
 import 'package:ndu_project/wbs/screens/wbs_ai_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_validator_screen.dart';
@@ -61,44 +62,6 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
   void initState() {
     super.initState();
     _tabController.addListener(_onTabChanged);
-    // Auto-create WBS from project data if not yet set up
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _autoSetupIfNeeded();
-    });
-  }
-
-  /// Automatically creates the WBS from the project's existing data
-  /// (project name + deliverable-based framework) so the user never
-  /// sees the setup wizard. Also syncs the WBS root node to the current
-  /// project name whenever the screen is opened.
-  void _autoSetupIfNeeded() {
-    final provider = context.read<WBSProvider>();
-    final projectProvider = context.read<ProjectDataProvider>();
-    final projectData = projectProvider.projectData;
-    final projectName = (projectData.projectName).trim().isNotEmpty
-        ? projectData.projectName.trim()
-        : 'Project';
-    final projectId = projectData.projectId ?? 'default';
-
-    // Wait for storage to finish loading before deciding to setup
-    if (provider.isLoadingFromStorage) {
-      // Retry after a short delay
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) _autoSetupIfNeeded();
-      });
-      return;
-    }
-
-    if (provider.wbs != null && provider.setupComplete) {
-      provider.syncToProject(projectId, projectName);
-      return;
-    }
-
-    provider.setup(
-      projectName: projectName,
-      framework: WBSFramework.waterfallDeliverable,
-      projectId: projectId,
-    );
   }
 
   void _onTabChanged() {
@@ -120,14 +83,19 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
       builder: (context, provider, projectProvider, _) {
         final wbs = provider.wbs;
 
-        // Auto-setup state — WBS is being created from project data.
-        // Show a minimal loading indicator while the auto-setup completes.
-        if (wbs == null || !provider.setupComplete) {
+        // Still loading from storage — wait
+        if (provider.isLoadingFromStorage) {
           return const Center(
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(LightModeColors.accent),
             ),
           );
+        }
+
+        // No WBS yet — show the framework picker so the user chooses
+        // their WBS dimension (deliverable, discipline, geographic, etc.)
+        if (wbs == null || !provider.setupComplete) {
+          return const FrameworkPickerScreen();
         }
 
         final projectData = projectProvider.projectData;
@@ -137,6 +105,8 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
         final solutionsCount = projectData.potentialSolutions.length;
         final businessCasePreview =
             _clamp((projectData.businessCase).trim(), max: 50);
+        final fm = wbs.framework;
+        final totalNodes = countAllNodes(wbs.level0);
 
         return ResponsiveScaffold(
           activeItemLabel: 'Work Breakdown Structure',
@@ -164,6 +134,33 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
                   onChanged: (index) => setState(() {}),
                 ),
               ),
+              // ── Framework dimension indicator ─────────────────────────
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Icon(fm.iconData, size: 14, color: LightModeColors.accent),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Dimension: ${fm.label}',
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'L0–L${fm.maxDepth} · $totalNodes nodes',
+                      style: const TextStyle(
+                        color: Color(0xFF9CA3AF),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
               // Tab content
               Expanded(
                 child: TabBarView(
@@ -377,7 +374,7 @@ class _ExportAndLinkTab extends StatelessWidget {
                         border:
                             Border.all(color: const Color(0xFFE4E7EC)),
                       ),
-                      child: Text('${counts.level1 + counts.level2 + counts.level3 + counts.level4 + counts.level5 + 1} nodes',
+                      child: Text('${counts.level1 + counts.level2 + counts.level3 + counts.level4 + counts.level5 + counts.level6 + counts.level7 + counts.level8 + 1} nodes',
                           style: const TextStyle(
                               color: Color(0xFF495057),
                               fontSize: 11,

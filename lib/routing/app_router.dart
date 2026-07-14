@@ -53,6 +53,7 @@ import 'package:ndu_project/screens/project_charter_screen.dart';
 import 'package:ndu_project/screens/project_decision_summary_screen.dart';
 import 'package:ndu_project/screens/progress_tracking_screen.dart';
 import 'package:ndu_project/wbs/screens/wbs_module_screen.dart';
+import 'package:ndu_project/pbs/screens/pbs_module_screen.dart';
 import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
 import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
 import 'package:ndu_project/project_controls/screens/project_controls_screen.dart';
@@ -68,7 +69,6 @@ import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
 import 'package:ndu_project/screens/risk_assessment_screen.dart';
 import 'package:ndu_project/screens/risk_identification_screen.dart';
 import 'package:ndu_project/screens/issue_management_screen.dart';
-import 'package:ndu_project/screens/schedule_screen.dart';
 import 'package:ndu_project/screens/contract_details_dashboard_screen.dart';
 import 'package:ndu_project/screens/schedule_management_board_screen.dart';
 
@@ -190,6 +190,7 @@ class AppRoutes {
   static const projectDecisionSummary = 'project-decision-summary';
   static const progressTracking = 'progress-tracking';
   static const wbs = 'work-breakdown-structure';
+  static const pbs = 'product-breakdown-structure';
   static const executionPlan = 'execution-plan';
   static const executionPlanInterface = 'execution-plan-interface-management';
   static const costEstimate = 'cost-estimate';
@@ -607,6 +608,10 @@ class AppRouter {
           name: AppRoutes.wbs,
           path: '/${AppRoutes.wbs}',
           pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const WBSModuleScreen())),
+      GoRoute(
+          name: AppRoutes.pbs,
+          path: '/${AppRoutes.pbs}',
+          pageBuilder: (c, s) => shimmerTransitionPage(state: s, child: const PBSModuleScreen())),
       GoRoute(
           name: AppRoutes.executionPlan,
           path: '/${AppRoutes.executionPlan}',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/download_helper.dart' as dl;
 /// Front End Planning - Project Requirements page
 /// Implements the layout from the provided screenshot exactly:
 /// - Top notes field
@@ -731,7 +733,13 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                       children: [
-                                        _buildImportCsvButton(),
+                                        Row(
+                                          children: [
+                                            _buildImportCsvButton(),
+                                            const SizedBox(width: 12),
+                                            _buildDownloadTemplateButton(),
+                                          ],
+                                        ),
                                         _buildViewToggle(),
                                       ],
                                     ),
@@ -1844,6 +1852,33 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
     );
   }
 
+  List<CsvColumnSpec> get _csvColumns => [
+    CsvColumnSpec(key: 'description', label: 'Requirement', required: true, sampleValue: 'The system shall support user authentication'),
+    CsvColumnSpec(key: 'type', label: 'Type', allowedValues: _RequirementRow.requirementTypeOptions, defaultValue: 'Functional', sampleValue: 'Functional'),
+    CsvColumnSpec(key: 'discipline', label: 'Discipline', allowedValues: _RequirementRow.disciplineOptions, defaultValue: 'IT', sampleValue: 'IT'),
+    CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Requirements Lead'),
+    CsvColumnSpec(key: 'person', label: 'Person', sampleValue: 'John Doe'),
+    CsvColumnSpec(key: 'phase', label: 'Phase', allowedValues: _RequirementRow.phaseOptions, defaultValue: 'Planning', sampleValue: 'Planning'),
+    CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'Stakeholder interview'),
+    CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'High priority'),
+  ];
+
+  void _downloadTemplate() {
+    final template = CsvImportHelper.generateTemplate(_csvColumns);
+    final filename = CsvImportHelper.templateFilename('Project Requirements');
+    final bytes = utf8.encode(template);
+    dl.downloadFile(bytes, filename, mimeType: 'text/csv');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('CSV template downloaded!'),
+          backgroundColor: Color(0xFF10B981),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   Widget _buildImportCsvButton() {
     return SizedBox(
       height: 44,
@@ -1852,16 +1887,7 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
           final rows = await showCsvImportDialog(
             context,
             tableTitle: 'Project Requirements',
-            columns: [
-              CsvColumnSpec(key: 'description', label: 'Requirement', required: true, sampleValue: 'The system shall support user authentication'),
-              CsvColumnSpec(key: 'type', label: 'Type', allowedValues: _RequirementRow.requirementTypeOptions, defaultValue: 'Functional', sampleValue: 'Functional'),
-              CsvColumnSpec(key: 'discipline', label: 'Discipline', allowedValues: _RequirementRow.disciplineOptions, defaultValue: 'IT', sampleValue: 'IT'),
-              CsvColumnSpec(key: 'role', label: 'Role', sampleValue: 'Requirements Lead'),
-              CsvColumnSpec(key: 'person', label: 'Person', sampleValue: 'John Doe'),
-              CsvColumnSpec(key: 'phase', label: 'Phase', allowedValues: _RequirementRow.phaseOptions, defaultValue: 'Planning', sampleValue: 'Planning'),
-              CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'Stakeholder interview'),
-              CsvColumnSpec(key: 'comments', label: 'Comments', sampleValue: 'High priority'),
-            ],
+            columns: _csvColumns,
           );
           if (rows == null || !mounted) return;
           setState(() {
@@ -1891,6 +1917,25 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
         },
         icon: const Icon(Icons.upload_file_outlined, size: 18),
         label: const Text('Import CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF2563EB),
+          side: const BorderSide(color: Color(0xFF93C5FD)),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDownloadTemplateButton() {
+    return SizedBox(
+      height: 44,
+      child: OutlinedButton.icon(
+        onPressed: _downloadTemplate,
+        icon: const Icon(Icons.download, size: 18),
+        label: const Text('Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: const Color(0xFF2563EB),

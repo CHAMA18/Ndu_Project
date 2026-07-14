@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:ndu_project/schedule/models/schedule_models.dart';
+import 'package:ndu_project/schedule/services/schedule_cpm_service.dart';
 
 const String _storageKey = 'ndu_schedule_v1';
 
@@ -117,6 +118,36 @@ class ScheduleProvider extends ChangeNotifier {
 
   // ─── Activities ─────────────────────────────────────────────────────────
 
+  void setActivities(List<ScheduleActivity> activities) {
+    if (_schedule == null) return;
+    _schedule = _schedule!.copyWith(
+      activities: activities,
+      updatedAt: DateTime.now(),
+    );
+    notifyListeners();
+    _saveToStorage();
+  }
+
+  CpmResult? computeCpm({bool overwriteDates = false, DateTime? projectStart}) {
+    if (_schedule == null || _schedule!.activities.isEmpty) return null;
+    final start = projectStart ?? DateTime.now();
+    final flat = ScheduleCpmService.flatten(_schedule!.activities);
+    final result = ScheduleCpmService.calculate(activities: flat);
+    final updated = ScheduleCpmService.applyToActivities(
+      roots: _schedule!.activities,
+      projectStart: start,
+      result: result,
+      overwriteDates: overwriteDates,
+    );
+    _schedule = _schedule!.copyWith(
+      activities: updated,
+      updatedAt: DateTime.now(),
+    );
+    notifyListeners();
+    _saveToStorage();
+    return result;
+  }
+
   String addActivity(String parentId, ScheduleActivity activity) {
     if (_schedule == null || _schedule!.activities.isEmpty) return '';
     final id = newSchedId('act');
@@ -160,6 +191,8 @@ class ScheduleProvider extends ChangeNotifier {
         endDate: patch.endDate,
         isCriticalPath: patch.isCriticalPath,
         isLongLead: patch.isLongLead,
+        dependencies: patch.dependencies,
+        estimatedHours: patch.estimatedHours,
       )),
     );
     _schedule = _schedule!.copyWith(

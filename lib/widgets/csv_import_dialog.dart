@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:excel/excel.dart' hide Border;
 import 'package:ndu_project/utils/csv_import_helper.dart';
-import 'package:ndu_project/utils/download_helper.dart' as dl;
 import 'package:ndu_project/theme.dart';
 
 /// World-class CSV / XLSX Import Dialog
@@ -160,19 +159,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
     }
   }
 
-  void _downloadTemplate() {
-    final template = CsvImportHelper.generateTemplate(widget.columns);
-    final filename = CsvImportHelper.templateFilename(widget.tableTitle);
-    final bytes = utf8.encode(template);
-    dl.downloadFile(bytes, filename, mimeType: 'text/csv');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('CSV template downloaded!'),
-        backgroundColor: Color(0xFF10B981),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
+
 
   Future<void> _pickFile() async {
     setState(() => _isFileLoading = true);
@@ -370,7 +357,6 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
                 ),
               ),
               const Spacer(),
-              _buildTemplateDownloadButton(),
             ],
           ),
           const SizedBox(height: 12),
@@ -447,34 +433,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
     );
   }
 
-  Widget _buildTemplateDownloadButton() {
-    return Material(
-      color: const Color(0xFF0284C7),
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        onTap: _downloadTemplate,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.download, size: 15, color: Colors.white),
-              SizedBox(width: 6),
-              Text(
-                'Download Template',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   // ─── Drop Zone ─────────────────────────────────────────────────────
 

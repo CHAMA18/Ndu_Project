@@ -403,6 +403,8 @@ class WorkPackageDetailView extends StatelessWidget {
         return 'Engineering Work Package';
       case IntegratedWorkPackageService.procurementPackage:
         return 'Procurement Package';
+      case IntegratedWorkPackageService.deliveryPackage:
+        return 'Deliverable Work Package';
       case IntegratedWorkPackageService.constructionCwp:
         return 'Construction Work Package';
       case IntegratedWorkPackageService.implementationWorkPackage:

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:ndu_project/screens/execution_enabling_work_plan_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -5,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
@@ -28,112 +30,180 @@ Future<void> _exportPdf(BuildContext context) async {
  );
 }
 
-class ExecutionPlanDetailsScreen extends StatelessWidget {
- const ExecutionPlanDetailsScreen({
- super.key,
- this.activeItemLabel = 'Execution Plan Details',
- this.showPlanDetails = true,
- this.showEarlyWorks = false,
- });
+class ExecutionPlanDetailsScreen extends StatefulWidget {
+  const ExecutionPlanDetailsScreen({
+  super.key,
+  this.activeItemLabel = 'Execution Plan Details',
+  this.showPlanDetails = true,
+  this.showEarlyWorks = false,
+  });
 
- final String activeItemLabel;
- final bool showPlanDetails;
- final bool showEarlyWorks;
+  final String activeItemLabel;
+  final bool showPlanDetails;
+  final bool showEarlyWorks;
 
- static void open(BuildContext context) {
- Navigator.of(context).push(
- MaterialPageRoute(
- builder: (_) => const ExecutionPlanDetailsScreen(
- activeItemLabel: 'Execution Plan Details',
- showPlanDetails: true,
- showEarlyWorks: false,
- ),
- ),
- );
- }
+  static void open(BuildContext context) {
+  Navigator.of(context).push(
+  MaterialPageRoute(
+  builder: (_) => const ExecutionPlanDetailsScreen(
+  activeItemLabel: 'Execution Plan Details',
+  showPlanDetails: true,
+  showEarlyWorks: false,
+  ),
+  ),
+  );
+  }
 
- static void openEarlyWorks(BuildContext context) {
- Navigator.of(context).push(
- MaterialPageRoute(
- builder: (_) => const ExecutionPlanDetailsScreen(
- activeItemLabel: 'Execution Early Works',
- showPlanDetails: false,
- showEarlyWorks: true,
- ),
- ),
- );
- }
+  static void openEarlyWorks(BuildContext context) {
+  Navigator.of(context).push(
+  MaterialPageRoute(
+  builder: (_) => const ExecutionPlanDetailsScreen(
+  activeItemLabel: 'Execution Early Works',
+  showPlanDetails: false,
+  showEarlyWorks: true,
+  ),
+  ),
+  );
+  }
 
- @override
- Widget build(BuildContext context) {
- final bool isMobile = AppBreakpoints.isMobile(context);
- final double horizontalPadding = isMobile ? 20 : 40;
+  @override
+  State<ExecutionPlanDetailsScreen> createState() => _ExecutionPlanDetailsScreenState();
+}
 
- return ResponsiveScaffold(
- activeItemLabel: activeItemLabel,
- backgroundColor: Colors.white,
- floatingActionButton: const KazAiChatBubble(positioned: false),
- body: SingleChildScrollView(
- padding: EdgeInsets.symmetric(
- horizontal: horizontalPadding, vertical: 32),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- ExecutionPlanHeader(
- onBack: () => PlanningPhaseNavigation.goToPrevious(context, showEarlyWorks ? 'execution_early_works' : 'execution_plan_details'),
- onNext: () => PlanningPhaseNavigation.goToNext(context, showEarlyWorks ? 'execution_early_works' : 'execution_plan_details'),
- onExportPdf: () => _exportPdf(context)),
- const SizedBox(height: 32),
- if (showPlanDetails) ...[
- const SectionIntro(title: 'Execution Plan Details'),
- const SizedBox(height: 28),
- ExecutionPlanForm(
- title: 'Execution Plan Details',
- hintText: 'Input your notes here...',
- noteKey: 'execution_plan_details',
- ),
- const SizedBox(height: 40),
- ],
- if (showPlanDetails && !showEarlyWorks) ...[
- Align(
- alignment: Alignment.centerRight,
- child: Wrap(
- spacing: 16,
- runSpacing: 12,
- crossAxisAlignment: WrapCrossAlignment.center,
- alignment: WrapAlignment.end,
- children: [
- const InfoBadge(),
- const AiTipCard(),
- YellowActionButton(
- label: 'Next',
- onPressed: () =>
- ExecutionPlanDetailsScreen.openEarlyWorks(
- context),
- ),
- ],
- ),
- ),
- const SizedBox(height: 56),
- ],
- if (showEarlyWorks) ...[
- const SectionIntro(title: 'Execution Early Works'),
- const SizedBox(height: 24),
- const ExecutionPlanForm(
- title: 'Execution Early Works',
- hintText:
- 'Outline early works scope, sequencing, and handoffs.',
- noteKey: 'execution_early_works',
- ),
- const SizedBox(height: 32),
- const _EarlyWorksSection(),
- const SizedBox(height: 56),
- ],
- ],
- ),
- ),
- );
- }
+class _ExecutionPlanDetailsScreenState extends State<ExecutionPlanDetailsScreen> {
+  @override
+  void initState() {
+  super.initState();
+  WidgetsBinding.instance.addPostFrameCallback((_) => _autoGenerateNotesIfNeeded());
+  }
+
+  Future<void> _autoGenerateNotesIfNeeded() async {
+  if (!mounted) return;
+  final provider = ProjectDataInherited.maybeOf(context);
+  if (provider == null) return;
+
+  if (widget.showPlanDetails) {
+  await _generateSection(
+  noteKey: 'execution_plan_details',
+  sectionTitle: 'Execution Plan Details',
+  );
+  }
+
+  if (widget.showEarlyWorks) {
+  await _generateSection(
+  noteKey: 'execution_early_works',
+  sectionTitle: 'Execution Early Works',
+  );
+  }
+  }
+
+  Future<void> _generateSection({
+  required String noteKey,
+  required String sectionTitle,
+  }) async {
+    if (!mounted) return;
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (provider == null) return;
+    final data = provider.projectData;
+    final existing = data.planningNotes[noteKey] ?? '';
+    if (existing.trim().isNotEmpty) return;
+
+    final ctx = ProjectDataHelper.buildExecutivePlanContext(data, sectionLabel: sectionTitle);
+    if (ctx.trim().isEmpty) return;
+
+    try {
+      final ai = OpenAiServiceSecure();
+      final result = await ai.generateExecutionPlanSectionFields(
+        section: sectionTitle,
+        context: ctx,
+        fields: {'notes': 'Detailed notes for $sectionTitle'},
+      );
+      if (!mounted) return;
+      if (result.containsKey('notes') && result['notes']!.trim().isNotEmpty) {
+        await ProjectDataHelper.updateAndSave(
+          context: context,
+          checkpoint: noteKey,
+          showSnackbar: false,
+          dataUpdater: (d) {
+            final notes = Map<String, String>.from(d.planningNotes);
+            notes[noteKey] = result['notes']!;
+            return d.copyWith(planningNotes: notes);
+          },
+        );
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+  final bool isMobile = AppBreakpoints.isMobile(context);
+  final double horizontalPadding = isMobile ? 20 : 40;
+
+  return ResponsiveScaffold(
+  activeItemLabel: widget.activeItemLabel,
+  backgroundColor: Colors.white,
+  floatingActionButton: const KazAiChatBubble(positioned: false),
+  body: SingleChildScrollView(
+  padding: EdgeInsets.symmetric(
+  horizontal: horizontalPadding, vertical: 32),
+  child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  ExecutionPlanHeader(
+  onBack: () => PlanningPhaseNavigation.goToPrevious(context, widget.showEarlyWorks ? 'execution_early_works' : 'execution_plan_details'),
+  onNext: () => PlanningPhaseNavigation.goToNext(context, widget.showEarlyWorks ? 'execution_early_works' : 'execution_plan_details'),
+  onExportPdf: () => _exportPdf(context)),
+  const SizedBox(height: 32),
+  if (widget.showPlanDetails) ...[
+  const SectionIntro(title: 'Execution Plan Details'),
+  const SizedBox(height: 28),
+  ExecutionPlanForm(
+  title: 'Execution Plan Details',
+  hintText: 'Input your notes here...',
+  noteKey: 'execution_plan_details',
+  ),
+  const SizedBox(height: 40),
+  ],
+  if (widget.showPlanDetails && !widget.showEarlyWorks) ...[
+  Align(
+  alignment: Alignment.centerRight,
+  child: Wrap(
+  spacing: 16,
+  runSpacing: 12,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  alignment: WrapAlignment.end,
+  children: [
+  const InfoBadge(),
+  const AiTipCard(),
+  YellowActionButton(
+  label: 'Next',
+  onPressed: () =>
+  ExecutionPlanDetailsScreen.openEarlyWorks(
+  context),
+  ),
+  ],
+  ),
+  ),
+  const SizedBox(height: 56),
+  ],
+  if (widget.showEarlyWorks) ...[
+  const SectionIntro(title: 'Execution Early Works'),
+  const SizedBox(height: 24),
+  const ExecutionPlanForm(
+  title: 'Execution Early Works',
+  hintText:
+  'Outline early works scope, sequencing, and handoffs.',
+  noteKey: 'execution_early_works',
+  ),
+  const SizedBox(height: 32),
+  const _EarlyWorksSection(),
+  const SizedBox(height: 56),
+  ],
+  ],
+  ),
+  ),
+  );
+  }
 }
 
 class _EarlyWorksSection extends StatelessWidget {

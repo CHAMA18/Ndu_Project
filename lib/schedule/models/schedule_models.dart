@@ -161,6 +161,7 @@ class ScheduleActivity {
   final List<String>? prerequisites;
   final bool isCriticalPath;
   final bool isLongLead;
+  final double? estimatedHours;
   final bool aiGenerated;
   final List<ScheduleActivity> children;
 
@@ -190,6 +191,7 @@ class ScheduleActivity {
     this.prerequisites,
     this.isCriticalPath = false,
     this.isLongLead = false,
+    this.estimatedHours,
     required this.aiGenerated,
     required this.children,
   });
@@ -220,6 +222,7 @@ class ScheduleActivity {
     List<String>? prerequisites,
     bool? isCriticalPath,
     bool? isLongLead,
+    double? estimatedHours,
     bool? aiGenerated,
     List<ScheduleActivity>? children,
   }) {
@@ -249,6 +252,7 @@ class ScheduleActivity {
       prerequisites: prerequisites ?? this.prerequisites,
       isCriticalPath: isCriticalPath ?? this.isCriticalPath,
       isLongLead: isLongLead ?? this.isLongLead,
+      estimatedHours: estimatedHours ?? this.estimatedHours,
       aiGenerated: aiGenerated ?? this.aiGenerated,
       children: children ?? this.children,
     );

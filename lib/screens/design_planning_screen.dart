@@ -30,6 +30,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/services/integrated_work_package_service.dart';
 
 const Color _kSurface = Colors.white;
 const Color _kBorder = Color(0xFFE5E7EB);
@@ -166,9 +167,11 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  final Map<String, GlobalKey> _specificationRowKeys = {};
  Timer? _saveDebounce;
  bool _didInit = false;
- bool _saving = false;
- bool _pendingSave = false;
- DateTime? _lastSavedAt;
+  bool _saving = false;
+  bool _pendingSave = false;
+  bool _generatingPackages = false;
+  final Set<String> _selectedWbsNodeIds = {};
+  DateTime? _lastSavedAt;
  // ValueNotifier for lightweight save-indicator rebuilds without full setState
  final ValueNotifier<_SaveIndicatorState> _saveIndicatorNotifier =
  ValueNotifier<_SaveIndicatorState>(_SaveIndicatorState(
@@ -1983,9 +1986,10 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  _buildDependenciesSection(owners),
  _buildDecisionLogSection(owners),
  _buildValidationSection(),
- _buildApprovalsSection(owners),
- ],
- );
+  _buildApprovalsSection(owners),
+  _buildWorkPackagesSection(),
+  ],
+  );
  }
 
  InnerPageSectionStatus _mapSectionProgress(_SectionProgressState state, String sectionId) {
@@ -3006,9 +3010,250 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  ],
  ),
  );
- }
+  }
 
- static List<String> _splitLines(String raw) {
+  Widget _buildWorkPackagesSection() {
+    final wbsTree = ProjectDataHelper.getData(context).wbsTree;
+
+    return _buildGuidedSectionCard(
+      sectionId: 'work_packages',
+      sectionKey: _sectionKeys['work_packages']!,
+      title: 'Design Work Packages',
+      subtitle:
+          'Select WBS items to generate design work package chains (EWP → Procurement → Execution).',
+      accent: const Color(0xFF0D9488),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Work Breakdown Structure',
+            style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w700, color: _kText),
+          ),
+          const SizedBox(height: 10),
+          if (wbsTree.isEmpty)
+            const _EmptyState(message: 'No WBS items found.')
+          else
+            ..._buildWbsTree(wbsTree),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed:
+                  _selectedWbsNodeIds.isEmpty || _generatingPackages
+                      ? null
+                      : _generateWorkPackages,
+              icon: _generatingPackages
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.auto_awesome, size: 18),
+              label: Text(
+                _generatingPackages
+                    ? 'Generating...'
+                    : 'Create Design Work Packages from Selected',
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0D9488),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.4),
+                disabledForegroundColor: Colors.white70,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildWbsTree(List<WorkItem> items, {int depth = 1}) {
+    final widgets = <Widget>[];
+    for (final item in items) {
+      final isSelected = _selectedWbsNodeIds.contains(item.id);
+      widgets.add(
+        Padding(
+          padding: EdgeInsets.only(left: (depth - 1) * 20.0),
+          child: Row(
+            children: [
+              if (depth >= 2)
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (val) {
+                    setState(() {
+                      if (val == true) {
+                        _selectedWbsNodeIds.add(item.id);
+                      } else {
+                        _selectedWbsNodeIds.remove(item.id);
+                      }
+                    });
+                  },
+                ),
+              if (depth < 2)
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Icon(Icons.folder, size: 18, color: _kMuted),
+                ),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Text(
+                    item.title.isEmpty ? '(untitled)' : item.title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight:
+                          depth <= 1 ? FontWeight.w600 : FontWeight.w400,
+                      color: _kText,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (item.children.isNotEmpty) {
+        widgets.addAll(_buildWbsTree(item.children, depth: depth + 1));
+      }
+    }
+    return widgets;
+  }
+
+  Future<void> _generateWorkPackages() async {
+    final context_ = context;
+    final wbsTree = ProjectDataHelper.getData(context_).wbsTree;
+
+    List<WorkItem> collectSelected(List<WorkItem> items) {
+      final result = <WorkItem>[];
+      for (final item in items) {
+        if (_selectedWbsNodeIds.contains(item.id)) {
+          final childSelected = item.children
+              .where((c) => _selectedWbsNodeIds.contains(c.id))
+              .toList();
+          result.add(WorkItem(
+            id: item.id,
+            parentId: item.parentId,
+            title: item.title,
+            description: item.description,
+            status: item.status,
+            framework: item.framework,
+            children: childSelected,
+            dependencies: List.from(item.dependencies),
+            controlAccountId: item.controlAccountId,
+            wbsCode: item.wbsCode,
+            deliverableDescription: item.deliverableDescription,
+            acceptanceCriteria: item.acceptanceCriteria,
+            workPackageDefinition: item.workPackageDefinition,
+            weight: item.weight,
+            cbsId: item.cbsId,
+            obsId: item.obsId,
+          ));
+        } else {
+          final filtered = collectSelected(item.children);
+          if (filtered.isNotEmpty) {
+            result.add(WorkItem(
+              id: item.id,
+              parentId: item.parentId,
+              title: item.title,
+              description: item.description,
+              status: item.status,
+              framework: item.framework,
+              children: filtered,
+              dependencies: List.from(item.dependencies),
+              controlAccountId: item.controlAccountId,
+              wbsCode: item.wbsCode,
+              deliverableDescription: item.deliverableDescription,
+              acceptanceCriteria: item.acceptanceCriteria,
+              workPackageDefinition: item.workPackageDefinition,
+              weight: item.weight,
+              cbsId: item.cbsId,
+              obsId: item.obsId,
+            ));
+          }
+        }
+      }
+      return result;
+    }
+
+    final selectedTree = collectSelected(wbsTree);
+
+    if (selectedTree.isEmpty) {
+      _showToast('No WBS items selected.');
+      return;
+    }
+
+    final selectedTitles = <String>[];
+    void collectTitles(List<WorkItem> items) {
+      for (final item in items) {
+        selectedTitles.add(item.title);
+        collectTitles(item.children);
+      }
+    }
+    collectTitles(selectedTree);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Generate Design Work Packages'),
+        content: Text(
+          'Generate work packages for ${selectedTitles.length} selected WBS item(s)?\n\n'
+          'Selected: ${selectedTitles.take(5).join(", ")}${selectedTitles.length > 5 ? ', +${selectedTitles.length - 5} more' : ''}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Generate'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _generatingPackages = true);
+
+    try {
+      final packages = IntegratedWorkPackageService
+          .generatePackageChainsFromWbs(
+        wbsTree: selectedTree,
+        methodology: 'waterfall',
+        designSpecifications: _document.specifications,
+      );
+
+      if (!mounted) return;
+
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'design_planning_generate_work_packages',
+        dataUpdater: (data) {
+          data.workPackages.addAll(packages);
+          return data;
+        },
+      );
+
+      if (!mounted) return;
+      _showToast('${packages.length} design work package(s) created.');
+    } catch (e) {
+      if (mounted) {
+        _showToast('Failed to generate work packages: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _generatingPackages = false);
+    }
+  }
+
+  static List<String> _splitLines(String raw) {
  return raw
  .split('\n')
  .map((line) => line.trim())
@@ -3040,7 +3285,8 @@ const List<_SectionMeta> _sectionOrder = [
  _SectionMeta('dependencies', 'Dependencies', Color(0xFF0891B2)),
  _SectionMeta('decisions', 'Decision Log', Color(0xFF4F46E5)),
  _SectionMeta('validation', 'Validation', Color(0xFF15803D)),
- _SectionMeta('approvals', 'Approvals', Color(0xFF7C2D12)),
+  _SectionMeta('approvals', 'Approvals', Color(0xFF7C2D12)),
+  _SectionMeta('work_packages', 'Work Packages', Color(0xFF0D9488)),
 ];
 
 class _SectionCard extends StatelessWidget {

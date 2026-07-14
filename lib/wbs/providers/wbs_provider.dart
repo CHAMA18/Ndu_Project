@@ -17,10 +17,18 @@ class WBSProvider extends ChangeNotifier {
   WBS? _wbs;
   bool _setupComplete = false;
   bool _isLoadingFromStorage = true;
+  bool _viewModeSimple = false;
 
   WBS? get wbs => _wbs;
   bool get setupComplete => _setupComplete;
   bool get isLoadingFromStorage => _isLoadingFromStorage;
+  bool get viewModeSimple => _viewModeSimple;
+
+  void setViewMode(bool simple) {
+    _viewModeSimple = simple;
+    notifyListeners();
+    _saveToStorage();
+  }
 
   WBSProvider() {
     _loadFromStorage();
@@ -34,6 +42,7 @@ class WBSProvider extends ChangeNotifier {
         final data = jsonDecode(raw) as Map<String, dynamic>;
         final state = data['state'] as Map<String, dynamic>? ?? {};
         _setupComplete = state['setupComplete'] as bool? ?? false;
+        _viewModeSimple = state['viewModeSimple'] as bool? ?? false;
         if (state['wbs'] != null) {
           _wbs = _wbsFromJson(state['wbs'] as Map<String, dynamic>);
         }
@@ -53,6 +62,7 @@ class WBSProvider extends ChangeNotifier {
         'state': {
           'wbs': _wbs != null ? _wbsToJson(_wbs!) : null,
           'setupComplete': _setupComplete,
+          'viewModeSimple': _viewModeSimple,
         },
       };
       await prefs.setString(_storageKey, jsonEncode(data));

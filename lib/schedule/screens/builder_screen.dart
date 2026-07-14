@@ -30,6 +30,10 @@ import 'package:ndu_project/cost_estimate/providers/compute_utils.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/services/integrated_work_package_service.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/utils/design_planning_document.dart';
+import 'package:ndu_project/models/project_data_model.dart' hide ScheduleActivity;
 
 class BuilderScreen extends StatefulWidget {
   const BuilderScreen({super.key});
@@ -103,6 +107,217 @@ class _BuilderScreenState extends State<BuilderScreen> {
           duration: const Duration(seconds: 3),
         ),
       );
+    }
+  }
+
+  Future<void> _generateWorkPackageActivities() async {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    final data = ProjectDataHelper.getData(context);
+
+    if (data.wbsTree.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No WBS items found. Create a WBS first.')),
+        );
+      }
+      return;
+    }
+
+    final designDoc = DesignPlanningDocument.fromProjectData(data);
+    final designSpecs = designDoc.specifications;
+
+    var packages = IntegratedWorkPackageService.generatePackageChainsFromWbs(
+      wbsTree: data.wbsTree,
+      methodology: 'waterfall',
+      designSpecifications: designSpecs,
+    );
+
+    packages = IntegratedWorkPackageService.deriveProcurementScopeFromEwpDeliverables(packages);
+    packages = IntegratedWorkPackageService.rollUpChildCostsAndDates(packages);
+    packages = IntegratedWorkPackageService.enforceEstimateBasis(packages);
+
+    if (packages.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No work packages generated from WBS. Try adding more WBS levels.')),
+        );
+      }
+      return;
+    }
+
+    // Build package ID → activity ID mapping
+    final pkgToActId = <String, String>{};
+    for (final pkg in packages) {
+      pkgToActId[pkg.id] = newSchedId('act');
+    }
+    final packageIdSet = packages.map((p) => p.id).toSet();
+
+    // Convert WorkPackages to ScheduleActivity with proper ActivityType and dependency chains
+    final root = scheduleProvider.schedule!.activities[0];
+    var newChildren = [...root.children];
+
+    List<String> _depPackageIds(WorkPackage pkg) {
+      final deps = <String>{};
+      void addIfPresent(String id) {
+        if (id.trim().isNotEmpty && packageIdSet.contains(id.trim())) {
+          deps.add(id.trim());
+        }
+      }
+      switch (pkg.packageClassification) {
+        case IntegratedWorkPackageService.procurementPackage:
+          for (final id in pkg.linkedEngineeringPackageIds) addIfPresent(id);
+          addIfPresent(pkg.parentPackageId);
+        case IntegratedWorkPackageService.constructionCwp:
+        case IntegratedWorkPackageService.implementationWorkPackage:
+        case IntegratedWorkPackageService.agileIterationPackage:
+          for (final id in pkg.linkedEngineeringPackageIds) addIfPresent(id);
+          for (final id in pkg.linkedProcurementPackageIds) addIfPresent(id);
+          addIfPresent(pkg.parentPackageId);
+        case IntegratedWorkPackageService.preCommissioningPackage:
+          addIfPresent(pkg.parentPackageId);
+          for (final id in pkg.linkedEngineeringPackageIds) addIfPresent(id);
+        case IntegratedWorkPackageService.commissioningPackage:
+          addIfPresent(pkg.parentPackageId);
+          for (final id in pkg.linkedEngineeringPackageIds) addIfPresent(id);
+        default:
+          break;
+      }
+      return deps.toList();
+    }
+
+    for (final pkg in packages) {
+      final domain = _domainForPackage(pkg);
+      final activityType = _typeForPackage(pkg);
+      final activityId = pkgToActId[pkg.id]!;
+
+      // Resolve dependency package IDs → ActivityDependency objects
+      final depPackageIds = _depPackageIds(pkg);
+      final dependencies = depPackageIds
+          .where((depId) => pkgToActId.containsKey(depId))
+          .map((depId) => ActivityDependency(
+                activityId: pkgToActId[depId]!,
+                type: DependencyType.finishToStart,
+              ))
+          .toList();
+
+      final level = pkg.wbsLevel2Id.isNotEmpty ? 3 : 2;
+      final description = StringBuffer();
+      if (pkg.description.isNotEmpty) description.writeln(pkg.description);
+      if (pkg.deliverables.isNotEmpty) {
+        description.writeln('Deliverables: ${pkg.deliverables.map((d) => d.title).join(', ')}');
+      }
+
+      newChildren.add(ScheduleActivity(
+        id: activityId,
+        level: level,
+        code: '',
+        name: _formatPackageName(pkg),
+        description: description.toString().trim(),
+        type: activityType,
+        domain: domain,
+        duration: IntegratedWorkPackageService.estimateDurationDays(pkg).toDouble(),
+        durationUnit: 'day',
+        owner: pkg.owner.isNotEmpty ? pkg.owner : pkg.contractorOrCrew,
+        dependencies: dependencies,
+        aiGenerated: false,
+        wbsNodeId: pkg.wbsItemId,
+        startDate: pkg.plannedStart != null && pkg.plannedStart!.isNotEmpty
+            ? DateTime.tryParse(pkg.plannedStart!)
+            : null,
+        endDate: pkg.plannedEnd != null && pkg.plannedEnd!.isNotEmpty
+            ? DateTime.tryParse(pkg.plannedEnd!)
+            : null,
+        status: pkg.releaseStatus.isNotEmpty ? pkg.releaseStatus : 'draft',
+        progress: pkg.percentComplete,
+        children: [],
+      ));
+    }
+
+    final updatedRoot = recalcActivityCodes(root.copyWith(children: newChildren));
+    scheduleProvider.setActivities([updatedRoot]);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Generated ${packages.length} work package activities (EWP, Procurement, CWP, etc.)'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: LightModeColors.accent,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _runCpm() {
+    final scheduleProvider = context.read<ScheduleProvider>();
+    final result = scheduleProvider.computeCpm(overwriteDates: false);
+    if (result == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No activities to compute CPM on.')),
+      );
+      return;
+    }
+    final critCount = result.criticalPathIds.length;
+    final totalFloatItems = result.activitiesById.values
+        .where((a) => a.totalFloat > 0)
+        .length;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'CPM: ${result.projectDurationDays.toStringAsFixed(1)} days total · '
+          '$critCount critical activities · '
+          '$totalFloatItems with float',
+        ),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: LightModeColors.accent,
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  String _formatPackageName(WorkPackage pkg) {
+    final readable = pkg.packageClassification
+        .replaceAllMapped(RegExp(r'[A-Z]'), (m) => ' ${m.group(0)}')
+        .trim();
+    final title = pkg.title.isNotEmpty ? pkg.title : 'Untitled';
+    return '$readable: $title';
+  }
+
+  ScheduleDomain _domainForPackage(WorkPackage pkg) {
+    switch (pkg.packageClassification) {
+      case 'engineeringEwp':
+      case 'design':
+        return ScheduleDomain.engineering;
+      case 'procurementPackage':
+        return ScheduleDomain.procurement;
+      case 'constructionCwp':
+        return ScheduleDomain.construction;
+      case 'preCommissioningPackage':
+      case 'commissioningPackage':
+        return ScheduleDomain.commissioning;
+      case 'implementationWorkPackage':
+      case 'agileIterationPackage':
+        return ScheduleDomain.execution;
+      default:
+        return ScheduleDomain.engineering;
+    }
+  }
+
+  ActivityType _typeForPackage(WorkPackage pkg) {
+    switch (pkg.packageClassification) {
+      case 'engineeringEwp':
+        return ActivityType.ewp;
+      case 'procurementPackage':
+        return ActivityType.procurementPackage;
+      case 'constructionCwp':
+        return ActivityType.cwp;
+      case 'preCommissioningPackage':
+      case 'commissioningPackage':
+      case 'implementationWorkPackage':
+      case 'agileIterationPackage':
+        return ActivityType.activity;
+      default:
+        return ActivityType.summary;
     }
   }
 
@@ -183,6 +398,18 @@ class _BuilderScreenState extends State<BuilderScreen> {
                         label: 'Import',
                         enabled: !schedule.isLocked,
                         onTap: () => _showImportInfo(context),
+                      ),
+                      _ActionChip(
+                        icon: Icons.account_tree_outlined,
+                        label: 'Gen from WBS',
+                        enabled: !schedule.isLocked,
+                        onTap: () => _generateWorkPackageActivities(),
+                      ),
+                      _ActionChip(
+                        icon: Icons.calculate_outlined,
+                        label: 'Run CPM',
+                        enabled: !schedule.isLocked,
+                        onTap: () => _runCpm(),
                       ),
                       _ActionChip(
                         icon: Icons.download_outlined,
@@ -729,7 +956,9 @@ class _ActivityNode extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onTap: () => _showActivityEditDialog(context),
+      child: Container(
       margin: EdgeInsets.only(bottom: 6, left: isRoot ? 0 : 24),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -789,6 +1018,26 @@ class _ActivityNode extends StatelessWidget {
                   style: const TextStyle(
                       color: Color(0xFF6B7280), fontSize: 11)),
             ),
+          // Dependency type chips
+          if (activity.dependencies.isNotEmpty)
+            ...activity.dependencies.map((dep) => Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(3),
+                      border: Border.all(color: const Color(0xFFBBF7D0)),
+                    ),
+                    child: Text(
+                      dep.type.short,
+                      style: const TextStyle(
+                          color: Color(0xFF166534),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                )),
           // Inline start/end date chips
           if (activity.startDate != null)
             Padding(
@@ -838,6 +1087,88 @@ class _ActivityNode extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    ),
+    );
+  }
+
+  void _showActivityEditDialog(BuildContext context) {
+    if (isRoot || isLocked) return;
+    final deps = List<ActivityDependency>.from(activity.dependencies);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit: ${activity.name}'),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Dependencies',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                const SizedBox(height: 8),
+                if (deps.isEmpty)
+                  const Text('No dependencies',
+                      style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                ...deps.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final dep = entry.value;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(dep.activityId,
+                              style: const TextStyle(fontSize: 12)),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: 140,
+                          child: DropdownButtonFormField<DependencyType>(
+                            value: dep.type,
+                            isDense: true,
+                            items: DependencyType.values.map((t) {
+                              return DropdownMenuItem(
+                                  value: t,
+                                  child: Text('${t.short} - ${t.label}',
+                                      style: const TextStyle(fontSize: 11)));
+                            }).toList(),
+                            onChanged: (newType) {
+                              if (newType != null) {
+                                setDialogState(() {
+                                  deps[i] = ActivityDependency(
+                                      activityId: dep.activityId, type: newType);
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                provider.updateActivity(
+                  activity.id,
+                  activity.copyWith(dependencies: deps),
+                );
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2136,7 +2467,7 @@ class _DateField extends StatelessWidget {
 
 class _DrawingFromBanner extends StatelessWidget {
   final WBS? wbs;
-  final ({int level0, int level1, int level2, int level3, int level4, int level5})? wbsCounts;
+  final ({int level0, int level1, int level2, int level3, int level4, int level5, int level6, int level7, int level8})? wbsCounts;
   final double costTotal;
   final String currency;
   final bool hasEstimate;

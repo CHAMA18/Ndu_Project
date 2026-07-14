@@ -19,7 +19,7 @@ import 'package:ndu_project/screens/interface_management_screen.dart';
 import 'package:ndu_project/screens/risk_assessment_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
 import 'package:ndu_project/screens/planning_procurement_screen.dart';
-import 'package:ndu_project/screens/schedule_screen.dart';
+import 'package:ndu_project/schedule/screens/schedule_module_screen.dart';
 import 'package:ndu_project/screens/cost_estimate_screen.dart';
 import 'package:ndu_project/screens/scope_tracking_plan_screen.dart';
 import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
@@ -70,7 +70,7 @@ class ProjectRouteRegistry {
     'risk_assessment': () => const RiskAssessmentScreen(),
     'contracts': () => const PlanningContractingScreen(),
     'procurement': () => const PlanningProcurementScreen(),
-    'schedule': () => const ScheduleScreen(),
+    'schedule': () => const ScheduleModuleScreen(),
     'cost_estimate': () => const CostEstimateScreen(),
     'scope_tracking_plan': () => const ScopeTrackingPlanScreen(),
     'change_management': () => const ChangeManagementModuleScreen(),

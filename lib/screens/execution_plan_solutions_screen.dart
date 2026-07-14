@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:ndu_project/screens/execution_plan_details_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -5,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/execution_plan_shared.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/execution_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
@@ -28,124 +30,171 @@ Future<void> _exportPdf(BuildContext context) async {
  );
 }
 
-class ExecutionPlanSolutionsScreen extends StatelessWidget {
- const ExecutionPlanSolutionsScreen({super.key});
+class ExecutionPlanSolutionsScreen extends StatefulWidget {
+  const ExecutionPlanSolutionsScreen({super.key});
 
- static void open(BuildContext context) {
- Navigator.of(context).push(
- MaterialPageRoute(builder: (_) => const ExecutionPlanSolutionsScreen()),
- );
- }
+  static void open(BuildContext context) {
+  Navigator.of(context).push(
+  MaterialPageRoute(builder: (_) => const ExecutionPlanSolutionsScreen()),
+  );
+  }
 
- @override
- Widget build(BuildContext context) {
- final bool isMobile = AppBreakpoints.isMobile(context);
- final double horizontalPadding = isMobile ? 20 : 40;
+  @override
+  State<ExecutionPlanSolutionsScreen> createState() => _ExecutionPlanSolutionsScreenState();
+}
 
- return ResponsiveScaffold(
- activeItemLabel: 'Executive Plan Strategy',
- backgroundColor: Colors.white,
- floatingActionButton: const KazAiChatBubble(positioned: false),
- body: SingleChildScrollView(
- padding: EdgeInsets.symmetric(
- horizontal: horizontalPadding, vertical: 32),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- ExecutionPlanHeader(
- onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_plan_strategy'),
- onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_plan_strategy'), onExportPdf: () => _exportPdf(context)),
- const SizedBox(height: 32),
- const SectionIntro(title: 'Executive Plan Strategy'),
- const SizedBox(height: 28),
- ExecutionPlanForm(
- title: 'Executive Plan Strategy',
- hintText: 'Input your notes here...',
- noteKey: 'execution_plan_strategy',
- ),
- const SizedBox(height: 28),
- const _ExecutionPlanTable(),
- const SizedBox(height: 20),
- Align(
- alignment: Alignment.centerRight,
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- CsvTableImportButton(
- tableTitle: 'Execution Tools',
- columns: [
- CsvColumnSpec(key: 'tool', label: 'Tool', required: true, sampleValue: 'Hammer Drill'),
- CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Heavy-duty drilling tool'),
- CsvColumnSpec(key: 'source', label: 'Source', required: true, sampleValue: 'Vendor A'),
- CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Required for Phase 1'),
- ],
- onImport: (rows) async {
- final projectId = _ExecutionPlanTable._getProjectIdStatic(context);
- if (projectId == null) return;
- var imported = 0;
- for (final row in rows) {
- try {
- await ExecutionService.createTool(
- projectId: projectId,
- tool: row['tool'] ?? '',
- description: row['description'] ?? '',
- source: row['source'] ?? '',
- cost: null,
- comments: row['comments'] ?? '',
- );
- imported++;
- } catch (e) {
- if (context.mounted) {
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(content: Text('Error importing row: $e')),
- );
- }
- }
- }
- if (context.mounted && imported > 0) {
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(content: Text('Imported $imported tool(s) successfully')),
- );
- }
- },
- ),
- const SizedBox(width: 12),
- AddSolutionButton(
- onPressed: () =>
- _ExecutionPlanTable.showAddDialog(context)),
- ],
- ),
- ),
- const SizedBox(height: 44),
- Wrap(
- spacing: 20,
- runSpacing: 16,
- alignment: WrapAlignment.spaceBetween,
- crossAxisAlignment: WrapCrossAlignment.center,
- children: [
- const InfoBadge(),
- Wrap(
- spacing: 16,
- runSpacing: 12,
- crossAxisAlignment: WrapCrossAlignment.center,
- alignment: WrapAlignment.end,
- children: [
- const AiTipCard(),
- YellowActionButton(
- label: 'Next',
- onPressed: () =>
- ExecutionPlanDetailsScreen.open(context),
- ),
- ],
- ),
- ],
- ),
- const SizedBox(height: 56),
- ],
- ),
- ),
- );
- }
+class _ExecutionPlanSolutionsScreenState extends State<ExecutionPlanSolutionsScreen> {
+  @override
+  void initState() {
+  super.initState();
+  WidgetsBinding.instance.addPostFrameCallback((_) => _autoGenerateNotesIfNeeded());
+  }
+
+  Future<void> _autoGenerateNotesIfNeeded() async {
+  if (!mounted) return;
+  final provider = ProjectDataInherited.maybeOf(context);
+  if (provider == null) return;
+  final data = provider.projectData;
+  const noteKey = 'execution_plan_strategy';
+  const sectionTitle = 'Execution Plan Strategy';
+  final existing = data.planningNotes[noteKey] ?? '';
+  if (existing.trim().isNotEmpty) return;
+
+  final ctx = ProjectDataHelper.buildExecutivePlanContext(data, sectionLabel: sectionTitle);
+  if (ctx.trim().isEmpty) return;
+
+  try {
+  final ai = OpenAiServiceSecure();
+  final result = await ai.generateExecutionPlanSectionFields(
+  section: sectionTitle,
+  context: ctx,
+  fields: {'notes': 'Execution strategy notes capturing approach, sequence of activities, and key execution decisions'},
+  );
+  if (!mounted) return;
+  if (result.containsKey('notes') && result['notes']!.trim().isNotEmpty) {
+  await ProjectDataHelper.updateAndSave(
+  context: context,
+  checkpoint: 'execution_plan_strategy',
+  showSnackbar: false,
+  dataUpdater: (data) {
+  final notes = Map<String, String>.from(data.planningNotes);
+  notes[noteKey] = result['notes']!;
+  return data.copyWith(planningNotes: notes);
+  },
+  );
+  }
+  } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+  final bool isMobile = AppBreakpoints.isMobile(context);
+  final double horizontalPadding = isMobile ? 20 : 40;
+
+  return ResponsiveScaffold(
+  activeItemLabel: 'Executive Plan Strategy',
+  backgroundColor: Colors.white,
+  floatingActionButton: const KazAiChatBubble(positioned: false),
+  body: SingleChildScrollView(
+  padding: EdgeInsets.symmetric(
+  horizontal: horizontalPadding, vertical: 32),
+  child: Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+  ExecutionPlanHeader(
+  onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_plan_strategy'),
+  onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_plan_strategy'), onExportPdf: () => _exportPdf(context)),
+  const SizedBox(height: 32),
+  const SectionIntro(title: 'Executive Plan Strategy'),
+  const SizedBox(height: 28),
+  ExecutionPlanForm(
+  title: 'Executive Plan Strategy',
+  hintText: 'Input your notes here...',
+  noteKey: 'execution_plan_strategy',
+  ),
+  const SizedBox(height: 28),
+  const _ExecutionPlanTable(),
+  const SizedBox(height: 20),
+  Align(
+  alignment: Alignment.centerRight,
+  child: Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+  CsvTableImportButton(
+  tableTitle: 'Execution Tools',
+  columns: [
+  CsvColumnSpec(key: 'tool', label: 'Tool', required: true, sampleValue: 'Hammer Drill'),
+  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Heavy-duty drilling tool'),
+  CsvColumnSpec(key: 'source', label: 'Source', required: true, sampleValue: 'Vendor A'),
+  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Required for Phase 1'),
+  ],
+  onImport: (rows) async {
+  final projectId = _ExecutionPlanTable._getProjectIdStatic(context);
+  if (projectId == null) return;
+  var imported = 0;
+  for (final row in rows) {
+  try {
+  await ExecutionService.createTool(
+  projectId: projectId,
+  tool: row['tool'] ?? '',
+  description: row['description'] ?? '',
+  source: row['source'] ?? '',
+  cost: null,
+  comments: row['comments'] ?? '',
+  );
+  imported++;
+  } catch (e) {
+  if (context.mounted) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(content: Text('Error importing row: $e')),
+  );
+  }
+  }
+  }
+  if (context.mounted && imported > 0) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(content: Text('Imported $imported tool(s) successfully')),
+  );
+  }
+  },
+  ),
+  const SizedBox(width: 12),
+  AddSolutionButton(
+  onPressed: () =>
+  _ExecutionPlanTable.showAddDialog(context)),
+  ],
+  ),
+  ),
+  const SizedBox(height: 44),
+  Wrap(
+  spacing: 20,
+  runSpacing: 16,
+  alignment: WrapAlignment.spaceBetween,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  children: [
+  const InfoBadge(),
+  Wrap(
+  spacing: 16,
+  runSpacing: 12,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  alignment: WrapAlignment.end,
+  children: [
+  const AiTipCard(),
+  YellowActionButton(
+  label: 'Next',
+  onPressed: () =>
+  ExecutionPlanDetailsScreen.open(context),
+  ),
+  ],
+  ),
+  ],
+  ),
+  const SizedBox(height: 56),
+  ],
+  ),
+  ),
+  );
+  }
 }
 
 // _TeamSummaryCard removed — hardcoded data (StackOne / 12 Members) was misleading.

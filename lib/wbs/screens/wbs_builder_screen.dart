@@ -67,8 +67,11 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               // ── World-class Header ──────────────────────────────────
               _buildHeader(context, provider, wbs, fm, counts, totalNodes, treeDepthActual),
               const SizedBox(height: 24),
-              // ── Recursive Tree ──────────────────────────────────────
-              _buildRecursiveTree(context, provider, costProvider, wbs.level0, fm, 0),
+              // ── Tree View ───────────────────────────────────────────
+              if (provider.viewModeSimple)
+                _buildSimpleView(context, provider, wbs, fm)
+              else
+                _buildAdvancedView(context, provider, costProvider, wbs, fm, counts),
             ],
           ),
         );
@@ -85,7 +88,8 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     WBSProvider provider,
     WBS wbs,
     WBSFramework fm,
-    ({int level0, int level1, int level2, int level3, int level4, int level5}) counts,
+    ({int level0, int level1, int level2, int level3, int level4, int level5,
+      int level6, int level7, int level8}) counts,
     int totalNodes,
     int treeDepthActual,
   ) {
@@ -96,6 +100,9 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     if (counts.level3 > 0) levelParts.add('${counts.level3} ${fm.level3Label}');
     if (counts.level4 > 0) levelParts.add('${counts.level4} ${fm.level4Label}');
     if (counts.level5 > 0) levelParts.add('${counts.level5} ${fm.level5Label}');
+    if (counts.level6 > 0) levelParts.add('${counts.level6} ${fm.level6Label}');
+    if (counts.level7 > 0) levelParts.add('${counts.level7} ${fm.level7Label}');
+    if (counts.level8 > 0) levelParts.add('${counts.level8} ${fm.level8Label}');
     final summary = levelParts.join(' · ');
 
     return Container(
@@ -161,30 +168,22 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
           // Action buttons
           Row(
             children: [
-              // KAZ AI generate button
+              // Generate WBS button (prominent)
               _kazAiLoading
-                  ? SizedBox(
+                  ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: LightModeColors.accent.withValues(alpha: 0.7),
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Tooltip(
-                      message: 'Use KAZ AI to generate ${fm.level1Label} suggestions',
-                      child: InkWell(
-                        onTap: () => _generateWithKazAi(context, provider, wbs),
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF8E1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFFFFC107).withValues(alpha: 0.4)),
-                          ),
-                          child: const Icon(Icons.auto_awesome, color: Color(0xFFFFC107), size: 18),
-                        ),
+                  : FilledButton.icon(
+                      onPressed: () => _generateWithKazAi(context, provider, wbs),
+                      icon: const Icon(Icons.auto_awesome, size: 16),
+                      label: Text('Generate ${fm.level1Label}'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFFC107),
+                        foregroundColor: const Color(0xFF1A1D1F),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                     ),
               const SizedBox(width: 8),
@@ -200,7 +199,21 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
-              const Spacer(),
+              // View mode toggle
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Advanced', style: TextStyle(fontSize: 12))),
+                  ButtonSegment(value: true, label: Text('Simple', style: TextStyle(fontSize: 12))),
+                ],
+                selected: {provider.viewModeSimple},
+                onSelectionChanged: (v) => provider.setViewMode(v.first),
+                style: SegmentedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 12),
               FilledButton.icon(
                 onPressed: () => _showAddNodeDialog(context, provider, 1, fm.level1Label, parentId: wbs.level0.id),
                 icon: const Icon(Icons.add, size: 16),
@@ -282,6 +295,393 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
   }
 
   // ───────────────────────────────────────────────────────────────────────
+  // SIMPLE VIEW (old-style flat tree)
+  // ───────────────────────────────────────────────────────────────────────
+
+  Widget _buildSimpleView(
+    BuildContext context,
+    WBSProvider provider,
+    WBS wbs,
+    WBSFramework fm,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Level convention reminder
+        _buildSimpleLevelHint(fm),
+        const SizedBox(height: 16),
+        // Root node
+        _buildSimpleNodeRow(context, provider, wbs.level0, 'Project', fm, isRoot: true),
+        const SizedBox(height: 8),
+        // Children tree
+        if (wbs.level0.children.isEmpty)
+          _buildSimpleEmptyState(context, provider, fm)
+        else
+          Container(
+            margin: const EdgeInsets.only(left: 24),
+            padding: const EdgeInsets.only(left: 16),
+            decoration: const BoxDecoration(
+              border: Border(
+                left: BorderSide(color: Color(0xFFE4E7EC), width: 1),
+              ),
+            ),
+            child: _buildSimpleTree(context, provider, wbs.level0.children, fm, 1),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSimpleLevelHint(WBSFramework fm) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+      ),
+      child: Text(
+        'Level 0 = Project · Level 1 = ${fm.level1Label} · Level 2 = ${fm.level2Label} · ... up to Level ${fm.maxDepth}',
+        style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _buildSimpleEmptyState(
+      BuildContext context, WBSProvider provider, WBSFramework fm) {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.layers, color: Color(0xFF9CA3AF), size: 32),
+          const SizedBox(height: 8),
+          Text('No ${fm.level1Label} nodes yet.',
+              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 13)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            children: [
+              FilledButton(
+                onPressed: () => _showAddNodeDialog(
+                    context, provider, 1, fm.level1Label,
+                    parentId: provider.wbs!.level0.id),
+                style: FilledButton.styleFrom(
+                    backgroundColor: LightModeColors.accent,
+                    foregroundColor: LightModeColors.lightOnPrimary),
+                child: Text('Add ${fm.level1Label}'),
+              ),
+              if (WBSTemplates.templates[provider.wbs!.framework]!.isNotEmpty)
+                OutlinedButton(
+                  onPressed: () => _showTemplatesDialog(
+                      context, provider, provider.wbs!.framework, provider.wbs!.level0.id),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1A1D1F),
+                      side: const BorderSide(color: Color(0xFFE4E7EC))),
+                  child: const Text('Use template'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSimpleNodeRow(
+    BuildContext context,
+    WBSProvider provider,
+    WBSNode node,
+    String levelLabel,
+    WBSFramework fm, {
+    bool isRoot = false,
+  }) {
+    final isExpanded = _expanded.contains(node.id);
+    final hasChildren = node.children.isNotEmpty;
+    final canAddChild = node.level.value < fm.maxDepth;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Expand toggle (for non-root)
+          if (!isRoot && hasChildren)
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  if (isExpanded) {
+                    _expanded.remove(node.id);
+                  } else {
+                    _expanded.add(node.id);
+                  }
+                });
+              },
+              child: Icon(
+                isExpanded ? Icons.expand_more : Icons.chevron_right,
+                size: 16,
+                color: const Color(0xFF6B7280),
+              ),
+            ),
+          if (!isRoot && hasChildren) const SizedBox(width: 4),
+          // Code badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              isRoot ? 'ROOT' : node.code,
+              style: const TextStyle(
+                color: Color(0xFF495057),
+                fontSize: 11,
+                fontFamily: 'monospace',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Name + description + badges
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(node.name,
+                          style: const TextStyle(
+                              color: Color(0xFF1A1D1F),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600),
+                          overflow: TextOverflow.ellipsis),
+                    ),
+                    if (node.aiGenerated) ...[
+                      const SizedBox(width: 6),
+                      _buildBadge('AI', const Color(0xFF3B82F6), 9),
+                    ],
+                    if (node.isWorkPackage == true) ...[
+                      const SizedBox(width: 4),
+                      _buildBadge('WP', const Color(0xFF16A34A), 9),
+                    ],
+                  ],
+                ),
+                if (node.description != null && node.description!.isNotEmpty)
+                  Text(node.description!,
+                      style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                if (isRoot)
+                  Text(levelLabel.toUpperCase(),
+                      style: const TextStyle(
+                          color: Color(0xFF9CA3AF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ),
+          // Actions
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (canAddChild)
+                _simpleActionButton(
+                  icon: Icons.add_circle_outline,
+                  onPressed: () => _showAddNodeDialog(
+                    context, provider,
+                    node.level.value + 1,
+                    fm.levelLabel(node.level.value + 1),
+                    parentId: node.id,
+                  ),
+                  tooltip: 'Add child',
+                  color: const Color(0xFF6B7280),
+                ),
+              if (!isRoot) ...[
+                const SizedBox(width: 2),
+                _simpleActionButton(
+                  icon: Icons.arrow_upward,
+                  onPressed: () => provider.moveNode(node.id, true),
+                  tooltip: 'Move up',
+                ),
+                const SizedBox(width: 2),
+                _simpleActionButton(
+                  icon: Icons.arrow_downward,
+                  onPressed: () => provider.moveNode(node.id, false),
+                  tooltip: 'Move down',
+                ),
+                const SizedBox(width: 2),
+                _simpleActionButton(
+                  icon: Icons.edit_outlined,
+                  onPressed: () => _showEditNodeDialog(context, provider, node, fm),
+                  tooltip: 'Edit',
+                  color: const Color(0xFF6B7280),
+                ),
+                const SizedBox(width: 2),
+                _simpleActionButton(
+                  icon: Icons.delete_outline,
+                  onPressed: () => provider.removeNode(node.id),
+                  tooltip: 'Delete',
+                  color: const Color(0xFFEF4444),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _simpleActionButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    String? tooltip,
+    Color color = const Color(0xFF6B7280),
+  }) {
+    final btn = InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFFE4E7EC)),
+        ),
+        child: Icon(icon, size: 14, color: color),
+      ),
+    );
+    if (tooltip != null) return Tooltip(message: tooltip, child: btn);
+    return btn;
+  }
+
+  /// Recursive simple tree with left-border indent for any depth.
+  Widget _buildSimpleTree(
+    BuildContext context,
+    WBSProvider provider,
+    List<WBSNode> children,
+    WBSFramework fm,
+    int depth,
+  ) {
+    if (children.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: children.map((child) {
+        final isExpanded = _expanded.contains(child.id);
+        final hasChildren = child.children.isNotEmpty;
+        final canAddChild = child.level.value < fm.maxDepth;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Node row
+            _buildSimpleNodeRow(
+              context, provider, child, fm.levelLabel(depth), fm,
+            ),
+            // Expand button for leaf nodes that can have children
+            if (hasChildren && !isExpanded && !_expanded.contains(child.id))
+              Padding(
+                padding: const EdgeInsets.only(left: 24, top: 2, bottom: 2),
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _expanded.add(child.id)),
+                  icon: const Icon(Icons.chevron_right, size: 12),
+                  label: Text('Show ${child.children.length} child${child.children.length == 1 ? '' : 'ren'}',
+                    style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ),
+            // Children (when expanded)
+            if (isExpanded && hasChildren)
+              Container(
+                margin: const EdgeInsets.only(left: 24),
+                padding: const EdgeInsets.only(left: 16),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: Color(0xFFE4E7EC), width: 1),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ...child.children.map((grand) => _buildSimpleTree(
+                      context, provider, [grand], fm, depth + 1,
+                    )),
+                    // Add child button at bottom
+                    if (canAddChild)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: () => _showAddNodeDialog(
+                              context, provider,
+                              child.level.value + 1,
+                              fm.levelLabel(child.level.value + 1),
+                              parentId: child.id,
+                            ),
+                            icon: const Icon(Icons.add, size: 12),
+                            label: Text('Add ${fm.levelLabel(child.level.value + 1)}',
+                              style: const TextStyle(fontSize: 11)),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF6B7280),
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: const Size(0, 28),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // ADVANCED VIEW (current deep recursive tree)
+  // ───────────────────────────────────────────────────────────────────────
+
+  Widget _buildAdvancedView(
+    BuildContext context,
+    WBSProvider provider,
+    CostEstimateProvider costProvider,
+    WBS wbs,
+    WBSFramework fm,
+    ({int level0, int level1, int level2, int level3, int level4, int level5,
+      int level6, int level7, int level8}) counts,
+  ) {
+    return _buildRecursiveTree(context, provider, costProvider, wbs.level0, fm, 0);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
 
   Widget _buildRecursiveTree(
     BuildContext context,
@@ -325,6 +725,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children.asMap().entries.map((entry) {
         final child = entry.value;
+        final isLast = entry.key == children.length - 1;
         final isExpanded = _expanded.contains(child.id);
         final canExpand = child.children.isNotEmpty;
         final canAddChild = depth < fm.maxDepth;
@@ -338,47 +739,38 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Expand/collapse toggle (only if has children)
+                  // Expand/collapse toggle (always visible)
                   SizedBox(
                     width: 24,
-                    child: canExpand
-                        ? IconButton(
-                            icon: AnimatedRotation(
-                              turns: isExpanded ? 0.25 : 0.0,
-                              duration: const Duration(milliseconds: 200),
-                              child: Icon(
-                                Icons.chevron_right,
-                                size: 16,
-                                color: const Color(0xFF6B7280),
-                              ),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                if (isExpanded) {
-                                  _expanded.remove(child.id);
-                                } else {
-                                  _expanded.add(child.id);
-                                }
-                              });
-                            },
-                            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                            padding: EdgeInsets.zero,
-                            iconSize: 16,
-                          )
-                        : const SizedBox(width: 24),
-                  ),
-                  const SizedBox(width: 4),
-                  // Vertical connector line
-                  SizedBox(
-                    width: 2,
-                    child: Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: levelColor(depth, LightModeColors.accent),
-                        borderRadius: BorderRadius.circular(1),
+                    child: IconButton(
+                      icon: AnimatedRotation(
+                        turns: isExpanded ? 0.25 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.chevron_right,
+                          size: 16,
+                          color: canExpand
+                              ? const Color(0xFF6B7280)
+                              : const Color(0xFFD1D5DB),
+                        ),
                       ),
+                      onPressed: () {
+                        setState(() {
+                          if (isExpanded) {
+                            _expanded.remove(child.id);
+                          } else {
+                            _expanded.add(child.id);
+                          }
+                        });
+                      },
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      padding: EdgeInsets.zero,
+                      iconSize: 16,
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  // Tree branch connector
+                  _TreeBranch(isLast: isLast, color: levelColor(depth, LightModeColors.accent)),
                   const SizedBox(width: 8),
                   // Node card
                   Expanded(
@@ -392,13 +784,15 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                   padding: const EdgeInsets.only(left: 44, top: 6),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ...child.children.map((c) => Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: _buildRecursiveChild(
-                                context, provider, costProvider, c, fm, depth + 1),
-                          )),
-                    ],
+                    children: child.children.asMap().entries.map((grandEntry) {
+                      final grand = grandEntry.value;
+                      final isLastGrand = grandEntry.key == child.children.length - 1;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: _buildRecursiveChild(
+                            context, provider, costProvider, grand, fm, depth + 1, isLast: isLastGrand),
+                      );
+                    }).toList(),
                   ),
                 ),
               // Add child button (when expanded)
@@ -427,8 +821,9 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
     CostEstimateProvider costProvider,
     WBSNode node,
     WBSFramework fm,
-    int depth,
-  ) {
+    int depth, {
+    bool isLast = true,
+  }) {
     final isExpanded = _expanded.contains(node.id);
     final canExpand = node.children.isNotEmpty;
     final canAddChild = depth < fm.maxDepth;
@@ -441,43 +836,35 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
           children: [
             SizedBox(
               width: 24,
-              child: canExpand
-                  ? IconButton(
-                      icon: AnimatedRotation(
-                        turns: isExpanded ? 0.25 : 0.0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          Icons.chevron_right,
-                          size: 14,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          if (isExpanded) {
-                            _expanded.remove(node.id);
-                          } else {
-                            _expanded.add(node.id);
-                          }
-                        });
-                      },
-                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-                      padding: EdgeInsets.zero,
-                      iconSize: 14,
-                    )
-                  : const SizedBox(width: 24),
-            ),
-            const SizedBox(width: 4),
-            SizedBox(
-              width: 2,
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: levelColor(depth, LightModeColors.accent),
-                  borderRadius: BorderRadius.circular(1),
+              child: IconButton(
+                icon: AnimatedRotation(
+                  turns: isExpanded ? 0.25 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 14,
+                    color: canExpand
+                        ? const Color(0xFF6B7280)
+                        : const Color(0xFFD1D5DB),
+                  ),
                 ),
+                onPressed: () {
+                  setState(() {
+                    if (isExpanded) {
+                      _expanded.remove(node.id);
+                    } else {
+                      _expanded.add(node.id);
+                    }
+                  });
+                },
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                padding: EdgeInsets.zero,
+                iconSize: 14,
               ),
             ),
+            const SizedBox(width: 4),
+            // Tree branch connector
+            _TreeBranch(isLast: isLast, color: levelColor(depth, LightModeColors.accent)),
             const SizedBox(width: 8),
             Expanded(
               child: _buildNodeCard(context, provider, costProvider, node, fm, depth),
@@ -489,11 +876,15 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
             padding: const EdgeInsets.only(left: 44, top: 6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: node.children.map((c) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: _buildRecursiveChild(
-                        context, provider, costProvider, c, fm, depth + 1),
-                  )).toList(),
+              children: node.children.asMap().entries.map((entry) {
+                final c = entry.value;
+                final isLastChild = entry.key == node.children.length - 1;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: _buildRecursiveChild(
+                      context, provider, costProvider, c, fm, depth + 1, isLast: isLastChild),
+                );
+              }).toList(),
             ),
           ),
         if (isExpanded && canAddChild)
@@ -584,13 +975,33 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
  fontFamily: appFontFamily,
  fontWeight: FontWeight.w800,
  letterSpacing: 0.3),
- ),
- ),
- const SizedBox(width: 10),
- // Name
- Flexible(
- child: Text(
- node.name,
+  ),
+  ),
+  if (!isRoot) ...[
+    const SizedBox(width: 6),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: accentColor.withValues(alpha: 0.2)),
+      ),
+      child: Text(
+        levelLabel.toUpperCase(),
+        style: TextStyle(
+          color: accentColor.withValues(alpha: 0.8),
+          fontSize: 8,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.5,
+        ),
+      ),
+    ),
+  ],
+  const SizedBox(width: 10),
+  // Name
+  Flexible(
+  child: Text(
+  node.name,
  style: TextStyle(
  color: const Color(0xFF1A1D1F),
  fontSize: isRoot ? 16 : 14,
@@ -736,35 +1147,47 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
  ),
  ),
  ],
- const Spacer(),
- // Action buttons (larger, more touchable)
- if (!isRoot) ...[
- _actionButton(
- icon: Icons.arrow_upward,
- onPressed: () => provider.moveNode(node.id, true),
- tooltip: 'Move up',
- ),
- const SizedBox(width: 2),
- _actionButton(
- icon: Icons.arrow_downward,
- onPressed: () => provider.moveNode(node.id, false),
- tooltip: 'Move down',
- ),
- const SizedBox(width: 2),
- _actionButton(
- icon: Icons.edit_outlined,
- onPressed: () => _showEditNodeDialog(context, provider, node, fm),
- tooltip: 'Edit',
- color: const Color(0xFF6B7280),
- ),
- const SizedBox(width: 2),
- _actionButton(
- icon: Icons.delete_outline,
- onPressed: () => provider.removeNode(node.id),
- tooltip: 'Delete',
- color: const Color(0xFFEF4444),
- ),
- ],
+          const Spacer(),
+          // Action buttons (larger, more touchable)
+          _actionButton(
+            icon: Icons.add_circle_outline,
+            onPressed: () => _showAddNodeDialog(
+              context, provider,
+              isRoot ? 1 : depth + 1,
+              fm.levelLabel(isRoot ? 1 : depth + 1),
+              parentId: node.id,
+            ),
+            tooltip: 'Add child',
+            color: levelColor(isRoot ? 1 : depth + 1, LightModeColors.accent),
+          ),
+          if (!isRoot) ...[
+            const SizedBox(width: 2),
+            _actionButton(
+              icon: Icons.arrow_upward,
+              onPressed: () => provider.moveNode(node.id, true),
+              tooltip: 'Move up',
+            ),
+            const SizedBox(width: 2),
+            _actionButton(
+              icon: Icons.arrow_downward,
+              onPressed: () => provider.moveNode(node.id, false),
+              tooltip: 'Move down',
+            ),
+            const SizedBox(width: 2),
+            _actionButton(
+              icon: Icons.edit_outlined,
+              onPressed: () => _showEditNodeDialog(context, provider, node, fm),
+              tooltip: 'Edit',
+              color: const Color(0xFF6B7280),
+            ),
+            const SizedBox(width: 2),
+            _actionButton(
+              icon: Icons.delete_outline,
+              onPressed: () => provider.removeNode(node.id),
+              tooltip: 'Delete',
+              color: const Color(0xFFEF4444),
+            ),
+          ],
  ],
  ),
  ],
@@ -1438,4 +1861,56 @@ Guidelines:
       ),
     );
   }
+}
+
+/// Draws a tree-branch connector: ├ for middle children, └ for last child.
+class _TreeBranch extends StatelessWidget {
+  const _TreeBranch({required this.isLast, required this.color});
+  final bool isLast;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 14,
+      height: 40,
+      child: CustomPaint(
+        painter: _TreeBranchPainter(isLast: isLast, color: color),
+      ),
+    );
+  }
+}
+
+class _TreeBranchPainter extends CustomPainter {
+  _TreeBranchPainter({required this.isLast, required this.color});
+  final bool isLast;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+
+    final h = size.height;
+    final w = size.width;
+    final midY = h / 2;
+
+    // Horizontal line from left to right (branch to card)
+    canvas.drawLine(Offset(0, midY), Offset(w, midY), paint);
+
+    // Vertical line from top to mid (connecting from parent)
+    if (isLast) {
+      // Last child: line stops at the branch point
+      canvas.drawLine(Offset(0, 0), Offset(0, midY), paint);
+    } else {
+      // Middle child: line continues below the branch
+      canvas.drawLine(Offset(0, 0), Offset(0, h), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TreeBranchPainter old) =>
+      old.isLast != isLast || old.color != color;
 }

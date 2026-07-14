@@ -364,7 +364,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${_methodology!.label} project: max depth ${switch (_methodology!) { ProjectMethodology.agile => '5 (Epic → Feature → Story → Task → Subtask)', ProjectMethodology.waterfall => '5 (Deliverable → Sub-Deliverable → WP → Activity → Sub-Activity)', ProjectMethodology.hybrid => '5, mix of Waterfall and Agile subtrees' }}',
+                    '${_methodology!.label} project: max depth 8 (drill down to hours-of-work level)',
                     style: TextStyle(
                         color: _methodology!.color.withValues(alpha: 0.9),
                         fontSize: 12),

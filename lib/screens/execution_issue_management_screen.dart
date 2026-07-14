@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ndu_project/screens/execution_plan_lessons_learned_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
@@ -13,6 +15,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
+import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 
 Future<void> _exportPdf(BuildContext context) async {
  final projectData = ProjectDataHelper.getData(context);
@@ -76,91 +79,224 @@ class ExecutionIssueManagementScreen extends StatelessWidget {
  }
 }
 
-class _IssuesManagementSection extends StatelessWidget {
- const _IssuesManagementSection();
+class _IssuesManagementSection extends StatefulWidget {
+  const _IssuesManagementSection();
 
- @override
- Widget build(BuildContext context) {
- final bool isMobile = AppBreakpoints.isMobile(context);
+  @override
+  State<_IssuesManagementSection> createState() => _IssuesManagementSectionState();
+}
 
- return Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- const Text(
- 'Issues Management',
- style: TextStyle(
- fontSize: 22,
- fontWeight: FontWeight.w700,
- color: Color(0xFF111827),
- ),
- ),
- const SizedBox(height: 28),
- const _IssuesManagementTable(),
- const SizedBox(height: 20),
- Align(
- alignment: Alignment.centerRight,
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: [
- CsvTableImportButton(
- tableTitle: 'Issues',
- columns: [
- CsvColumnSpec(key: 'issueTopic', label: 'Issue Topic', required: true, sampleValue: 'Delay in permits'),
- CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Permit approval pending'),
- CsvColumnSpec(key: 'discipline', label: 'Discipline', required: true, sampleValue: 'Engineering'),
- CsvColumnSpec(key: 'raisedBy', label: 'Raised By', required: true, sampleValue: 'Project Manager'),
- CsvColumnSpec(key: 'scheduleImpact', label: 'Schedule Impact', required: true, sampleValue: '2 weeks delay'),
- CsvColumnSpec(key: 'costImpact', label: 'Cost Impact', required: true, sampleValue: '\$10,000'),
- CsvColumnSpec(key: 'approved', label: 'Approved', allowedValues: ['Yes', 'No'], defaultValue: 'No', sampleValue: 'No'),
- CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Follow up with authorities'),
- ],
- onImport: (rows) async {
- final projectId = _IssuesManagementTable._getProjectIdStatic(context);
- if (projectId == null) return;
- var imported = 0;
- for (final row in rows) {
- try {
- await ExecutionService.createIssue(
- projectId: projectId,
- issueTopic: row['issueTopic'] ?? '',
- description: row['description'] ?? '',
- discipline: row['discipline'] ?? '',
- raisedBy: row['raisedBy'] ?? '',
- scheduleImpact: row['scheduleImpact'] ?? '',
- costImpact: row['costImpact'] ?? '',
- approved: (row['approved'] ?? '').toLowerCase() == 'yes',
- comments: row['comments'] ?? '',
- );
- imported++;
- } catch (e) {
- if (context.mounted) {
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(content: Text('Error importing row: $e')),
- );
- }
- }
- }
- if (context.mounted && imported > 0) {
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(content: Text('Imported $imported issue(s) successfully')),
- );
- }
- },
- ),
- const SizedBox(width: 12),
- AddRowButton(
- onPressed: () => _IssuesManagementTable.showAddDialog(context)),
- ],
- ),
- ),
- const SizedBox(height: 44),
- if (isMobile)
- _MobileIssueManagementActions()
- else
- const _DesktopIssueManagementActions(),
- ],
- );
- }
+class _IssuesManagementSectionState extends State<_IssuesManagementSection> {
+  bool _autoGenerationTriggered = false;
+  bool _isAutoGenerating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _autoGenerateIfNeeded());
+  }
+
+  String? _getProjectId() {
+    try {
+      final provider = ProjectDataInherited.maybeOf(context);
+      return provider?.projectData.projectId;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  Future<void> _autoGenerateIfNeeded() async {
+    if (_autoGenerationTriggered || _isAutoGenerating) return;
+
+    final projectId = _getProjectId();
+    if (projectId == null) return;
+
+    _autoGenerationTriggered = true;
+    _isAutoGenerating = true;
+    if (mounted) setState(() {});
+
+    try {
+      final existing = await ExecutionService.streamIssues(projectId).first;
+      if (existing.isNotEmpty) {
+        if (mounted) setState(() => _isAutoGenerating = false);
+        return;
+      }
+      if (!mounted) return;
+
+      final data = ProjectDataHelper.getData(context);
+      final issueLog = data.issueLogItems;
+
+      if (issueLog.isNotEmpty) {
+        var count = 0;
+        for (final item in issueLog) {
+          await ExecutionService.createIssue(
+            projectId: projectId,
+            issueTopic: item.title,
+            description: item.description,
+            discipline: item.type,
+            raisedBy: item.assignee,
+            scheduleImpact: '',
+            costImpact: '',
+            approved: false,
+            comments: 'Severity: ${item.severity}, Status: ${item.status}',
+          );
+          count++;
+        }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$count issue(s) auto-populated from planning phase')),
+          );
+        }
+        if (mounted) setState(() => _isAutoGenerating = false);
+        return;
+      }
+      if (!mounted) return;
+
+      final ctx = ExecutionPhaseAiSeed.buildContext(context, section: 'Execution Issue Management');
+      if (ctx.isNotEmpty) {
+        final generated = await ExecutionPhaseAiSeed.generateEntries(
+          context: context,
+          section: 'Execution Issue Management',
+          sections: {'issues': 'Issues with topic, description, and impact'},
+          itemsPerSection: 5,
+        );
+        final entries = generated['issues'] ?? [];
+        for (final entry in entries) {
+          await ExecutionService.createIssue(
+            projectId: projectId,
+            issueTopic: entry.title,
+            description: entry.details,
+            discipline: '',
+            raisedBy: '',
+            scheduleImpact: '',
+            costImpact: '',
+            approved: false,
+            comments: entry.status ?? '',
+          );
+        }
+        if (mounted && entries.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${entries.length} issue(s) AI-generated')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Auto-generation error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isAutoGenerating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = AppBreakpoints.isMobile(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Issues Management',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+            if (_isAutoGenerating) ...[
+              const SizedBox(width: 16),
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ],
+          ],
+        ),
+        if (_isAutoGenerating)
+          const Padding(
+            padding: EdgeInsets.only(top: 8),
+            child: Text(
+              'Auto-populating issues…',
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFF64748B),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        const SizedBox(height: 28),
+        const _IssuesManagementTable(),
+        const SizedBox(height: 20),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CsvTableImportButton(
+                tableTitle: 'Issues',
+                columns: [
+                  CsvColumnSpec(key: 'issueTopic', label: 'Issue Topic', required: true, sampleValue: 'Delay in permits'),
+                  CsvColumnSpec(key: 'description', label: 'Description', required: true, sampleValue: 'Permit approval pending'),
+                  CsvColumnSpec(key: 'discipline', label: 'Discipline', required: true, sampleValue: 'Engineering'),
+                  CsvColumnSpec(key: 'raisedBy', label: 'Raised By', required: true, sampleValue: 'Project Manager'),
+                  CsvColumnSpec(key: 'scheduleImpact', label: 'Schedule Impact', required: true, sampleValue: '2 weeks delay'),
+                  CsvColumnSpec(key: 'costImpact', label: 'Cost Impact', required: true, sampleValue: '\$10,000'),
+                  CsvColumnSpec(key: 'approved', label: 'Approved', allowedValues: ['Yes', 'No'], defaultValue: 'No', sampleValue: 'No'),
+                  CsvColumnSpec(key: 'comments', label: 'Comments', required: true, sampleValue: 'Follow up with authorities'),
+                ],
+                onImport: (rows) async {
+                  final projectId = _IssuesManagementTable._getProjectIdStatic(context);
+                  if (projectId == null) return;
+                  var imported = 0;
+                  for (final row in rows) {
+                    try {
+                      await ExecutionService.createIssue(
+                        projectId: projectId,
+                        issueTopic: row['issueTopic'] ?? '',
+                        description: row['description'] ?? '',
+                        discipline: row['discipline'] ?? '',
+                        raisedBy: row['raisedBy'] ?? '',
+                        scheduleImpact: row['scheduleImpact'] ?? '',
+                        costImpact: row['costImpact'] ?? '',
+                        approved: (row['approved'] ?? '').toLowerCase() == 'yes',
+                        comments: row['comments'] ?? '',
+                      );
+                      imported++;
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error importing row: $e')),
+                        );
+                      }
+                    }
+                  }
+                  if (context.mounted && imported > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Imported $imported issue(s) successfully')),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(width: 12),
+              AddRowButton(
+                onPressed: () => _IssuesManagementTable.showAddDialog(context)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 44),
+        if (isMobile)
+          _MobileIssueManagementActions()
+        else
+          const _DesktopIssueManagementActions(),
+      ],
+    );
+  }
 }
 
 class _IssuesManagementTable extends StatelessWidget {
