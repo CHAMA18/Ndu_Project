@@ -362,18 +362,18 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
  ),
  ),
- child: Row(
- children: [
- _tableHeaderCell('ID', flex: isNarrow ? 0.6 : 0.5),
- _tableHeaderCell('Item', flex: 2.0),
- _tableHeaderCell('Area', flex: 1.0),
- _tableHeaderCell('Owner', flex: 1.2),
- _tableHeaderCell('Severity', flex: 1.0),
- _tableHeaderCell('Status', flex: 1.1),
- _tableHeaderCell('Target', flex: 1.0),
- _tableHeaderCell('Actions', flex: 0.8),
- ],
- ),
+ child:Row(
+                children: [
+                  _tableHeaderCell('#', flex: isNarrow ? 0.4 : 0.3),
+                  _tableHeaderCell('Item', flex: 2.5),
+                  _tableHeaderCell('Area', flex: 1.0),
+                  _tableHeaderCell('Owner', flex: 1.2),
+                  _tableHeaderCell('Severity', flex: 1.0),
+                  _tableHeaderCell('Status', flex: 1.1),
+                  _tableHeaderCell('Target', flex: 1.0),
+                  _tableHeaderCell('Actions', flex: 0.8),
+                ],
+              ),
  ),
  // Data rows
  if (_debtItems.isEmpty)
@@ -388,28 +388,29 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  )
  else
- ..._debtItems.asMap().entries.map((entry) {
- final index = entry.key;
- final item = entry.value;
- return Container(
- padding: EdgeInsets.all(isNarrow ? 10 : 12),
- decoration: BoxDecoration(
- color: index % 2 == 0
- ? Colors.white
- : const Color(0xFFFAFAFA),
- border: const Border(
- bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
- ),
- ),
- child: Row(
- children: [
- _tableCell(item.id,
- flex: isNarrow ? 0.6 : 0.5,
- textStyle: const TextStyle(
- fontSize: 12, color: Color(0xFF0EA5E9))),
- _tableCell(item.title,
- flex: 2.0,
- textStyle: const TextStyle(fontSize: 13)),
+ ..._debtItems.asMap().entries.map((entry) {final index = entry.key;
+              final item = entry.value;
+              return Container(
+                padding: EdgeInsets.all(isNarrow ? 10 : 12),
+                decoration: BoxDecoration(
+                  color: index % 2 == 0
+                      ? Colors.white
+                      : const Color(0xFFFAFAFA),
+                  border: const Border(
+                    bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _tableCell('${index + 1}',
+                        flex: isNarrow ? 0.4 : 0.3,
+                        textStyle: const TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    _tableCell(item.title,
+                        flex: 2.5,
+                        wrap: true,
+                        textStyle: const TextStyle(fontSize: 13)),
  _tableCell(item.area, flex: 1.0, isChip: true),
  _tableCell(item.owner,
  flex: 1.2,
@@ -2027,35 +2028,35 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  overflow: TextOverflow.ellipsis,
  ),
  );
- }
-
- Widget _tableCell(
- String text, {
- required double flex,
- TextStyle? textStyle,
- bool isChip = false,
- bool isSeverityChip = false,
- bool isStatusChip = false,
- }) {
- Widget? child;
- if (isChip) {
- child = _chip(text);
- } else if (isSeverityChip) {
- child = _severityChip(text);
- } else if (isStatusChip) {
- child = _statusChip(text);
- } else {
- child = Text(
- text,
- style: textStyle ?? const TextStyle(fontSize: 13),
- overflow: TextOverflow.ellipsis,
- );
- }
- return Expanded(
- flex: (flex * 10).round(),
- child: child,
- );
- }
+ }Widget _tableCell(
+    String text, {
+    required double flex,
+    TextStyle? textStyle,
+    bool isChip = false,
+    bool isSeverityChip = false,
+    bool isStatusChip = false,
+    bool wrap = false,
+  }) {
+    Widget? child;
+    if (isChip) {
+      child = _chip(text);
+    } else if (isSeverityChip) {
+      child = _severityChip(text);
+    } else if (isStatusChip) {
+      child = _statusChip(text);
+    } else {
+      child = Text(
+        text,
+        style: textStyle ?? const TextStyle(fontSize: 13),
+        overflow: wrap ? null : TextOverflow.ellipsis,
+        maxLines: wrap ? null : 1,
+      );
+    }
+    return Expanded(
+      flex: (flex * 10).round(),
+      child: child,
+    );
+  }
 
  Widget _actionsCell({
  required double flex,

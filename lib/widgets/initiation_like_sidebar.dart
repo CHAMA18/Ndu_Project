@@ -45,6 +45,7 @@ import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
 import 'package:ndu_project/project_controls/screens/change_management_module_screen.dart';
+import 'package:ndu_project/project_controls/screens/project_controls_screen.dart';
 import 'package:ndu_project/screens/project_plan_screen.dart';
 import 'package:ndu_project/screens/project_framework_next_screen.dart';
 import 'package:ndu_project/screens/project_framework_screen.dart';
@@ -274,7 +275,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     'Vendor Tracking',
     'Detailed Design',
     'Agile Development Iterations',
-    'Scope Tracking Implementation',
+    'Project Controls',
     'Stakeholder Alignment',
     'Update Ops and Maintenance Plans',
     'Launch Checklist',
@@ -1423,9 +1424,9 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('detailed_design', const DetailedDesignScreen());
   }
 
-  void _openScopeTrackingImplementation() {
-    _navigateWithCheckpoint('scope_tracking_implementation',
-        const ScopeTrackingImplementationScreen());
+  void _openProjectControls() {
+    _navigateWithCheckpoint('project_controls',
+        const ProjectControlsScreen());
   }
 
   void _openStakeholderAlignment() {
@@ -2629,10 +2630,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         _buildSubMenuItem('Agile Development Iterations',
             onTap: _openAgileDevelopmentIterations,
             isActive: widget.activeItemLabel == 'Agile Development Iterations'),
-        _buildSubMenuItem('Scope Tracking Implementation',
-            onTap: _openScopeTrackingImplementation,
-            isActive:
-                widget.activeItemLabel == 'Scope Tracking Implementation'),
+_buildSubMenuItem('Project Controls',
+    onTap: _openProjectControls,
+    isActive:
+        widget.activeItemLabel == 'Project Controls'),
         _buildSubMenuItem('Stakeholder Alignment',
             onTap: _openStakeholderAlignment,
             isActive: widget.activeItemLabel == 'Stakeholder Alignment'),
@@ -3414,12 +3415,12 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           onTap: _openDetailedDesign,
           isActive: widget.activeItemLabel == 'Detailed Design'));
     }
-    if ('scope tracking implementation'.contains(query) ||
-        'scope tracking'.contains(query)) {
+    if ('project controls'.contains(query) ||
+        'controls'.contains(query)) {
       results.add(_buildMenuItem(
-          Icons.track_changes_outlined, 'Scope Tracking Implementation',
-          onTap: _openScopeTrackingImplementation,
-          isActive: widget.activeItemLabel == 'Scope Tracking Implementation'));
+          Icons.dashboard_outlined, 'Project Controls',
+          onTap: _openProjectControls,
+          isActive: widget.activeItemLabel == 'Project Controls'));
     }
     if ('stakeholder alignment'.contains(query) ||
         'alignment'.contains(query)) {
