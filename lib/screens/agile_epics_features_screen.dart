@@ -347,14 +347,14 @@ class _AgileEpicsFeaturesScreenState
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Epics & Features'),
+ activeItemLabel: 'Agile Delivery Model - Epics & Features'),
  ),
  Expanded(
  child: Stack(
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Epics & Features',
+ activeItemLabel: 'Agile Delivery Model - Epics & Features',
  ),
  ),
  SingleChildScrollView(

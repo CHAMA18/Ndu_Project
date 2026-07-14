@@ -225,14 +225,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   };
 
   static const Set<String> _agileWireframeLabels = {
-    'Agile Wireframe - Delivery Model',
-    'Agile Wireframe - Backlog Governance',
-    'Agile Wireframe - Team Structure',
-    'Agile Wireframe - Epics & Features',
-    'Agile Wireframe - Sprint Calendar',
-    'Agile Wireframe - Agile Map Out',
-    'Agile Wireframe - Release Plan',
-    'Agile Wireframe - Project Baseline',
+    'Agile Delivery Model - Delivery Model',
+    'Agile Delivery Model - Backlog Governance',
+    'Agile Delivery Model - Team Structure',
+    'Agile Delivery Model - Epics & Features',
+    'Agile Delivery Model - Sprint Calendar',
+    'Agile Delivery Model - Agile Map Out',
+    'Agile Delivery Model - Release Plan',
+    'Agile Delivery Model - Project Baseline',
   };
 
   static const Set<String> _projectPlanLabels = {
@@ -2235,7 +2235,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isDisabled: lockInterfaceManagement,
         ),
         _buildSubExpandableHeader(
-          'Agile Wireframe',
+          'Agile Delivery Model',
           expanded: _agileWireframeExpanded,
           onTap: () => setState(() {
             _agileWireframeExpanded = !_agileWireframeExpanded;
@@ -2247,35 +2247,35 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _buildSubSubMenuItem('Agile Delivery Model',
               onTap: _openAgileDeliveryModel,
               isActive:
-                  widget.activeItemLabel == 'Agile Wireframe - Delivery Model'),
+                  widget.activeItemLabel == 'Agile Delivery Model - Delivery Model'),
           _buildSubSubMenuItem('Backlog Governance',
               onTap: _openAgileBacklogGovernance,
               isActive: widget.activeItemLabel ==
-                  'Agile Wireframe - Backlog Governance'),
+                  'Agile Delivery Model - Backlog Governance'),
           _buildSubSubMenuItem('Agile Team Structure',
               onTap: _openAgileTeamStructure,
               isActive:
-                  widget.activeItemLabel == 'Agile Wireframe - Team Structure'),
+                  widget.activeItemLabel == 'Agile Delivery Model - Team Structure'),
           _buildSubSubMenuItem('Epics & Features',
               onTap: _openAgileEpicsFeatures,
               isActive:
-                  widget.activeItemLabel == 'Agile Wireframe - Epics & Features'),
+                  widget.activeItemLabel == 'Agile Delivery Model - Epics & Features'),
           _buildSubSubMenuItem('Sprint Cadence & Calendar',
               onTap: _openAgileSprintCalendar,
               isActive: widget.activeItemLabel ==
-                  'Agile Wireframe - Sprint Calendar'),
+                  'Agile Delivery Model - Sprint Calendar'),
           _buildSubSubMenuItem('Agile Map Out',
               onTap: _openAgileMapOut,
               isActive:
-                  widget.activeItemLabel == 'Agile Wireframe - Agile Map Out'),
+                  widget.activeItemLabel == 'Agile Delivery Model - Agile Map Out'),
           _buildSubSubMenuItem('Release Plan',
               onTap: _openAgileReleasePlan,
               isActive:
-                  widget.activeItemLabel == 'Agile Wireframe - Release Plan'),
+                  widget.activeItemLabel == 'Agile Delivery Model - Release Plan'),
           _buildSubSubMenuItem('Agile Project Baseline',
               onTap: _openAgileProjectBaseline,
               isActive: widget.activeItemLabel ==
-                  'Agile Wireframe - Project Baseline'),
+                  'Agile Delivery Model - Project Baseline'),
         ],
         _buildSubExpandableHeader(
           'Execution Plan',
@@ -3069,7 +3069,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           'Agile Project Baseline',
           onTap: _openAgileProjectBaseline,
           isActive: widget.activeItemLabel ==
-              'Agile Wireframe - Project Baseline'));
+              'Agile Delivery Model - Project Baseline'));
     }
     if ('project baseline'.contains(query) || 'baseline'.contains(query)) {
       results.add(
@@ -3103,7 +3103,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       results.add(_buildMenuItem(Icons.route_outlined, 'Agile Delivery Model',
           onTap: _openAgileDeliveryModel,
           isActive:
-              widget.activeItemLabel == 'Agile Wireframe - Delivery Model'));
+              widget.activeItemLabel == 'Agile Delivery Model - Delivery Model'));
     }
     if ('schedule'.contains(query)) {
       results.add(_buildMenuItem(Icons.calendar_today_outlined, 'Schedule',
@@ -3137,7 +3137,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       results.add(_buildMenuItem(
           Icons.groups_outlined, 'Agile Team Structure',
           onTap: _openAgileTeamStructure,
-          isActive: widget.activeItemLabel == 'Agile Wireframe - Team Structure'));
+          isActive: widget.activeItemLabel == 'Agile Delivery Model - Team Structure'));
     }
     if ('epics'.contains(query) || 'features'.contains(query) ||
         'user story'.contains(query)) {
@@ -3145,7 +3145,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           Icons.account_tree_outlined, 'Epics & Features',
           onTap: _openAgileEpicsFeatures,
           isActive: widget.activeItemLabel ==
-              'Agile Wireframe - Epics & Features'));
+              'Agile Delivery Model - Epics & Features'));
     }
     if ('sprint calendar'.contains(query) || 'sprint cadence'.contains(query) ||
         'sprint'.contains(query) || 'iteration'.contains(query)) {
@@ -3153,14 +3153,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           Icons.calendar_month_outlined, 'Sprint Cadence & Calendar',
           onTap: _openAgileSprintCalendar,
           isActive: widget.activeItemLabel ==
-              'Agile Wireframe - Sprint Calendar'));
+              'Agile Delivery Model - Sprint Calendar'));
     }
     if ('release plan'.contains(query) || 'release'.contains(query) ||
         'pi planning'.contains(query)) {
       results.add(_buildMenuItem(
           Icons.rocket_launch_outlined, 'Release Plan',
           onTap: _openAgileReleasePlan,
-          isActive: widget.activeItemLabel == 'Agile Wireframe - Release Plan'));
+          isActive: widget.activeItemLabel == 'Agile Delivery Model - Release Plan'));
     }
     if ('backlog'.contains(query) || 'backlog governance'.contains(query) ||
         'grooming'.contains(query) || 'refinement'.contains(query)) {
@@ -3168,7 +3168,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           Icons.list_alt_outlined, 'Backlog Governance',
           onTap: _openAgileBacklogGovernance,
           isActive: widget.activeItemLabel ==
-              'Agile Wireframe - Backlog Governance'));
+              'Agile Delivery Model - Backlog Governance'));
     }
     if ('start-up planning'.contains(query) ||
         'startup planning'.contains(query) ||
@@ -3481,7 +3481,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       results.add(_buildMenuItem(Icons.timeline_outlined, 'Agile Map Out',
           onTap: _openAgileMapOut,
           isActive:
-              widget.activeItemLabel == 'Agile Wireframe - Agile Map Out'));
+              widget.activeItemLabel == 'Agile Delivery Model - Agile Map Out'));
     }
     if ('tools integration'.contains(query) ||
         'integration'.contains(query) ||

@@ -320,14 +320,14 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Delivery Model'),
+ activeItemLabel: 'Agile Delivery Model - Delivery Model'),
  ),
  Expanded(
  child: Stack(
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Delivery Model',
+ activeItemLabel: 'Agile Delivery Model - Delivery Model',
  ),
  ),
  SingleChildScrollView(

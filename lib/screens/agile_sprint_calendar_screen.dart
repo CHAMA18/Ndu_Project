@@ -197,7 +197,7 @@ class _AgileSprintCalendarScreenState
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Sprint Calendar'),
+ activeItemLabel: 'Agile Delivery Model - Sprint Calendar'),
  ),
  Expanded(
  child: SingleChildScrollView(

@@ -148,7 +148,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'technology', label: 'Technology Planning'),
     SidebarItem(
         checkpoint: 'interface_management', label: 'Interface Management'),
-    // Agile Wireframe Section — before Execution Plan
+    // Agile Delivery Model Section — before Execution Plan
     SidebarItem(
         checkpoint: 'agile_delivery_model',
         label: 'Agile Delivery Model'),

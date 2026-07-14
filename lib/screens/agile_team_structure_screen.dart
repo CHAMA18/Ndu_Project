@@ -461,14 +461,14 @@ class _AgileTeamStructureScreenState
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Team Structure'),
+ activeItemLabel: 'Agile Delivery Model - Team Structure'),
  ),
  Expanded(
  child: Stack(
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Team Structure',
+ activeItemLabel: 'Agile Delivery Model - Team Structure',
  ),
  ),
  SingleChildScrollView(

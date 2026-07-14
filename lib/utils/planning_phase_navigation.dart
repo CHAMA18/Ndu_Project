@@ -132,7 +132,7 @@ class PlanningPhaseNavigation {
       title: 'Interface Management',
       builder: (_) => const InterfaceManagementScreen(),
     ),
-    // Agile Wireframe Section — before Execution Plan
+    // Agile Delivery Model Section — before Execution Plan
     PlanningPage(
       id: 'agile_delivery_model',
       title: 'Agile Delivery Model',

@@ -616,7 +616,7 @@ class _AgileProjectBaselineScreenState
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Project Baseline',
+ activeItemLabel: 'Agile Delivery Model - Project Baseline',
  ),
  ),
  Expanded(
@@ -624,7 +624,7 @@ class _AgileProjectBaselineScreenState
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Project Baseline',
+ activeItemLabel: 'Agile Delivery Model - Project Baseline',
  ),
  ),
  SingleChildScrollView(

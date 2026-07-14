@@ -175,14 +175,14 @@ class _DeliverableRoadmapAgileMapOutScreenState
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Agile Map Out'),
+ activeItemLabel: 'Agile Delivery Model - Agile Map Out'),
  ),
  Expanded(
  child: Stack(
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Agile Map Out',
+ activeItemLabel: 'Agile Delivery Model - Agile Map Out',
  ),
  ),
  SingleChildScrollView(

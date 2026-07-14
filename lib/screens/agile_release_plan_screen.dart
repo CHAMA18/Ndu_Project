@@ -127,14 +127,14 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Release Plan'),
+ activeItemLabel: 'Agile Delivery Model - Release Plan'),
  ),
  Expanded(
  child: Stack(
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Release Plan',
+ activeItemLabel: 'Agile Delivery Model - Release Plan',
  ),
  ),
  SingleChildScrollView(

@@ -330,14 +330,14 @@ class _AgileBacklogGovernanceScreenState
  DraggableSidebar(
  openWidth: AppBreakpoints.sidebarWidth(context),
  child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Backlog Governance'),
+ activeItemLabel: 'Agile Delivery Model - Backlog Governance'),
  ),
  Expanded(
  child: Stack(
  children: [
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Wireframe - Backlog Governance',
+ activeItemLabel: 'Agile Delivery Model - Backlog Governance',
  ),
  ),
  SingleChildScrollView(
