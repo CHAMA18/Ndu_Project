@@ -1018,6 +1018,23 @@ class _LandingScreenState extends State<LandingScreen>
  child: Column(
  mainAxisAlignment: MainAxisAlignment.center,
  children: [
+ // Complementary Services at top of container
+ _buildServiceCard(
+ title: 'Project Delivery Consultation',
+ description: '',
+ icon: Icons.event_available_rounded,
+ borderColor: const Color(0xFFFBBF24),
+ iconColor: const Color(0xFFFBBF24),
+ ),
+ const SizedBox(height: 12),
+ _buildServiceCard(
+ title: 'Personnel Training and Project Management Process Services',
+ description: '',
+ icon: Icons.groups_rounded,
+ borderColor: const Color(0xFF94A3B8),
+ iconColor: Colors.white,
+ ),
+ const SizedBox(height: 24),
  // 5-step process: Initiation → Planning → Design → Execution → Launch
  Wrap(
  alignment: WrapAlignment.center,
@@ -1105,23 +1122,6 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ],
  ),
- ),
- const SizedBox(height: 24),
- // Complementary Services inside the container
- _buildServiceCard(
- title: 'Project Delivery Consultation',
- description: '',
- icon: Icons.event_available_rounded,
- borderColor: const Color(0xFFFBBF24),
- iconColor: const Color(0xFFFBBF24),
- ),
- const SizedBox(height: 12),
- _buildServiceCard(
- title: 'Personnel Training and Project Management Process Services',
- description: '',
- icon: Icons.groups_rounded,
- borderColor: const Color(0xFF94A3B8),
- iconColor: Colors.white,
  ),
  ],
  ),
