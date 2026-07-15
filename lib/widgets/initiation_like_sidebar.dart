@@ -120,6 +120,15 @@ import 'package:ndu_project/screens/benefits_realization_screen.dart';
 import 'package:ndu_project/screens/agile_development_iterations_screen.dart';
 import 'package:ndu_project/screens/agile_project_hub_screen.dart';
 import 'package:ndu_project/screens/agile_roadmap_screen.dart';
+import 'package:ndu_project/screens/agile_dashboard_screen.dart';
+import 'package:ndu_project/screens/agile_kanban_board_screen.dart';
+import 'package:ndu_project/screens/agile_daily_standups_screen.dart';
+import 'package:ndu_project/screens/agile_sprint_reviews_screen.dart';
+import 'package:ndu_project/screens/agile_retrospectives_screen.dart';
+import 'package:ndu_project/screens/agile_metrics_screen.dart';
+import 'package:ndu_project/screens/agile_risks_screen.dart';
+import 'package:ndu_project/screens/agile_ai_coach_screen.dart';
+import 'package:ndu_project/screens/agile_iteration_management_screen.dart';
 import 'package:ndu_project/screens/project_team_activities_screen.dart';
 import 'package:ndu_project/screens/recognition_awards_screen.dart';
 import 'package:ndu_project/screens/team_status_check_screen.dart';
@@ -2860,7 +2869,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         if (_agileHubExpanded) ...[
           _buildSubSubMenuItem(
             'Agile Dashboard',
-            onTap: () => _showAgileComingSoon('Agile Dashboard'),
+            onTap: () => AgileDashboardScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Agile Dashboard',
           ),
           _buildSubSubMenuItem(
@@ -2875,27 +2884,27 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           ),
           _buildSubSubMenuItem(
             'Iteration Management',
-            onTap: () => _showAgileComingSoon('Iteration Management'),
+            onTap: () => AgileIterationManagementScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Iteration Management',
           ),
           _buildSubSubMenuItem(
             'Kanban Board',
-            onTap: () => _showAgileComingSoon('Kanban Board'),
+            onTap: () => AgileKanbanBoardScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Kanban Board',
           ),
           _buildSubSubMenuItem(
             'Daily Standups',
-            onTap: () => _showAgileComingSoon('Daily Standups'),
+            onTap: () => AgileDailyStandupsScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Daily Standups',
           ),
           _buildSubSubMenuItem(
             'Sprint Reviews',
-            onTap: () => _showAgileComingSoon('Sprint Reviews'),
+            onTap: () => AgileSprintReviewsScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Sprint Reviews',
           ),
           _buildSubSubMenuItem(
             'Sprint Retrospectives',
-            onTap: () => _showAgileComingSoon('Sprint Retrospectives'),
+            onTap: () => AgileRetrospectivesScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Sprint Retrospectives',
           ),
           _buildSubSubMenuItem(
@@ -2905,7 +2914,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           ),
           _buildSubSubMenuItem(
             'Agile Metrics & Reporting',
-            onTap: () => _showAgileComingSoon('Agile Metrics & Reporting'),
+            onTap: () => AgileMetricsScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Agile Metrics',
           ),
           _buildSubSubMenuItem(
@@ -2915,7 +2924,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           ),
           _buildSubSubMenuItem(
             'Agile Risks & Impediments',
-            onTap: () => _showAgileComingSoon('Agile Risks & Impediments'),
+            onTap: () => AgileRisksScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - Agile Risks',
           ),
           _buildSubSubMenuItem(
@@ -2925,7 +2934,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           ),
           _buildSubSubMenuItem(
             'AI Agile Coach',
-            onTap: () => _showAgileComingSoon('AI Agile Coach'),
+            onTap: () => AgileAiCoachScreen.open(context),
             isActive: widget.activeItemLabel == 'Agile Project Hub - AI Agile Coach',
           ),
           _buildSubSubMenuItem(

@@ -6,6 +6,15 @@ import 'package:ndu_project/screens/agile_release_plan_screen.dart';
 import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
 import 'package:ndu_project/screens/agile_team_structure_screen.dart';
 import 'package:ndu_project/screens/agile_roadmap_screen.dart';
+import 'package:ndu_project/screens/agile_dashboard_screen.dart';
+import 'package:ndu_project/screens/agile_kanban_board_screen.dart';
+import 'package:ndu_project/screens/agile_daily_standups_screen.dart';
+import 'package:ndu_project/screens/agile_sprint_reviews_screen.dart';
+import 'package:ndu_project/screens/agile_retrospectives_screen.dart';
+import 'package:ndu_project/screens/agile_metrics_screen.dart';
+import 'package:ndu_project/screens/agile_risks_screen.dart';
+import 'package:ndu_project/screens/agile_ai_coach_screen.dart';
+import 'package:ndu_project/screens/agile_iteration_management_screen.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -368,7 +377,7 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
   void _navigateToSection(int index) {
     switch (index) {
       case 0:
-        _showComingSoon('Agile Dashboard');
+        AgileDashboardScreen.open(context);
         break;
       case 1:
         Navigator.of(context).push(MaterialPageRoute(
@@ -379,40 +388,40 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
             builder: (_) => const AgileSprintCalendarScreen()));
         break;
       case 3:
-        _showComingSoon('Iteration Management');
+        AgileIterationManagementScreen.open(context);
         break;
       case 4:
-        _showComingSoon('Kanban Board');
+        AgileKanbanBoardScreen.open(context);
         break;
       case 5:
-        _showComingSoon('Daily Standups');
+        AgileDailyStandupsScreen.open(context);
         break;
       case 6:
-        _showComingSoon('Sprint Reviews');
+        AgileSprintReviewsScreen.open(context);
         break;
       case 7:
-        _showComingSoon('Sprint Retrospectives');
+        AgileRetrospectivesScreen.open(context);
         break;
       case 8:
         Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const AgileBacklogGovernanceScreen()));
         break;
       case 9:
-        _showComingSoon('Agile Metrics & Reporting');
+        AgileMetricsScreen.open(context);
         break;
       case 10:
         Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const AgileReleasePlanScreen()));
         break;
       case 11:
-        _showComingSoon('Agile Risks & Impediments');
+        AgileRisksScreen.open(context);
         break;
       case 12:
         Navigator.of(context).push(MaterialPageRoute(
             builder: (_) => const AgileTeamStructureScreen()));
         break;
       case 13:
-        _showComingSoon('AI Agile Coach');
+        AgileAiCoachScreen.open(context);
         break;
       case 14:
         AgileRoadmapScreen.open(context);
