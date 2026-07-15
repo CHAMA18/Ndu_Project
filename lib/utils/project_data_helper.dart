@@ -1393,6 +1393,8 @@ class ProjectDataHelper {
     final autoItems = <BenefitLineItem>[];
     for (final opp in fep.opportunityItems) {
       if (!_hasTag(opp.appliesTo, 'Estimate')) continue;
+      // Only feed approved opportunities into the cost estimate
+      if (opp.status.toLowerCase() != 'approved') continue;
       final savings = _parseNumericValue(opp.potentialCostSavings);
       if (savings <= 0) continue;
 

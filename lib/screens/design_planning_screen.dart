@@ -1956,8 +1956,8 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  // ── Inner-Page Navigation Hint ──
  InnerPageNavigationHint(
  pageId: 'design_planning',
- pageTitle: 'Design Planning',
- description: 'This page has 14 guided sections. Complete each in order to advance.',
+ pageTitle: 'Design Planning Process',
+ description: 'This page has 14 guided sections.',
  accentColor: _kPrimary,
  currentSectionId: _activeSectionId,
  sections: _sectionOrder.asMap().entries.map((entry) {

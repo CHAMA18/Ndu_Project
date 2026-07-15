@@ -155,8 +155,14 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
  );
  });
  // Only auto-generate if we have actual solutions (not empty placeholder)
+ // AND there is no saved IT data already (avoid wiping saved tech)
  if (widget.solutions.isNotEmpty) {
- _generateTechnologies();
+   final existingData = ProjectDataInherited.maybeOf(context)?.projectData.itConsiderationsData;
+   final hasSavedData = existingData != null &&
+       existingData.solutionITData.any((s) => s.coreTechnology.trim().isNotEmpty);
+   if (!hasSavedData) {
+     _generateTechnologies();
+   }
  }
  });
  }
@@ -1399,7 +1405,8 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
  try {
  final provider = ProjectDataInherited.read(context);
 
- // Collect all IT data from all solutions (including manually added items)
+ // Collect all IT data from all solutions — persist ALL rows (even empty)
+ // so the saved list stays index-aligned with _solutions and load doesn't shift rows.
  final solutionITData = <SolutionITData>[];
  for (int i = 0;
  i < _solutions.length && i < _techControllers.length;
@@ -1409,13 +1416,10 @@ class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
  : 'IT Entry ${i + 1}';
  final coreTechnology = _techControllers[i].text.trim();
 
- // Only add if there's actual content (coreTechnology is not empty)
- if (coreTechnology.isNotEmpty) {
  solutionITData.add(SolutionITData(
  solutionTitle: solutionTitle,
  coreTechnology: coreTechnology,
  ));
- }
  }
 
  final itConsiderationsData = ITConsiderationsData(

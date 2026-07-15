@@ -828,11 +828,22 @@ class _ContractRow {
 
  factory _ContractRow.fromContract(ContractModel contract) {
  final status = contract.status.isNotEmpty ? contract.status : 'Pending';
- final progress = status.toLowerCase().contains('complete')
- ? 100
- : status.toLowerCase().contains('progress')
- ? 60
- : 20;
+ final lowerStatus = status.toLowerCase();
+ // Expanded progress stages: Not Started → Started → In Progress → Almost Complete → Completed → Closed Out
+ final int progress;
+ if (lowerStatus.contains('closed') || lowerStatus.contains('terminated') || lowerStatus.contains('expired')) {
+ progress = 100; // Closed out
+ } else if (lowerStatus.contains('complete') || lowerStatus.contains('executed')) {
+ progress = 100; // Completed
+ } else if (lowerStatus.contains('almost') || lowerStatus.contains('final') || lowerStatus.contains('review')) {
+ progress = 85; // Almost complete
+ } else if (lowerStatus.contains('progress') || lowerStatus.contains('active') || lowerStatus.contains('started')) {
+ progress = 60; // In Progress / Started
+ } else if (lowerStatus.contains('approved') || lowerStatus.contains('pending')) {
+ progress = 30; // Pending Review
+ } else {
+ progress = 0; // Not Started
+ }
  final estimatedValue = contract.estimatedValue;
  final formattedValue =
  estimatedValue > 0 ? '\$${estimatedValue.toStringAsFixed(0)}' : 'TBD';

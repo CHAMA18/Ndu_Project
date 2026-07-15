@@ -60,6 +60,71 @@ class _OrganizationRolesResponsibilitiesScreenState
  ];
  static const String _customRoleOption = 'Custom';
 
+ /// Role bank: maps role title → (description, workstream).
+ /// When a user selects a title from the dropdown, the description is auto-filled.
+ static const Map<String, _RoleBankEntry> _roleBank = {
+ 'Project Manager': _RoleBankEntry(
+ description: 'Overall project leadership, planning, and coordination across all phases.',
+ workstream: 'Management',
+ ),
+ 'Program Manager': _RoleBankEntry(
+ description: 'Multi-project program coordination and strategic alignment.',
+ workstream: 'Management',
+ ),
+ 'Product Owner': _RoleBankEntry(
+ description: 'Agile product owner — backlog prioritization and stakeholder representation.',
+ workstream: 'Management',
+ ),
+ 'Scrum Master': _RoleBankEntry(
+ description: 'Facilitates Agile ceremonies, removes impediments, and coaches the team on Scrum practices.',
+ workstream: 'Management',
+ ),
+ 'Business Analyst': _RoleBankEntry(
+ description: 'Elicits, documents, and manages requirements. Bridges business stakeholders and delivery teams.',
+ workstream: 'Management',
+ ),
+ 'PMO Lead': _RoleBankEntry(
+ description: 'Project Management Office oversight, governance, and standards.',
+ workstream: 'Management',
+ ),
+ 'Delivery Manager': _RoleBankEntry(
+ description: 'Coordinates delivery across teams, manages dependencies, and ensures timely execution.',
+ workstream: 'Management',
+ ),
+ 'Operations Manager': _RoleBankEntry(
+ description: 'Manages day-to-day operations, resource allocation, and process optimization.',
+ workstream: 'Operations',
+ ),
+ 'Risk Manager': _RoleBankEntry(
+ description: 'Identifies, assesses, and mitigates project risks. Maintains the risk register.',
+ workstream: 'Management',
+ ),
+ 'Quality Assurance Lead': _RoleBankEntry(
+ description: 'Owns quality planning, QA/QC processes, and compliance with standards.',
+ workstream: 'Quality',
+ ),
+ 'Change Manager': _RoleBankEntry(
+ description: 'Manages organizational change, stakeholder adoption, and transition planning.',
+ workstream: 'Management',
+ ),
+ 'Stakeholder Manager': _RoleBankEntry(
+ description: 'Manages stakeholder engagement, communication, and alignment throughout the project.',
+ workstream: 'Management',
+ ),
+ 'Planning Engineer': _RoleBankEntry(
+ description: 'Develops and maintains project schedules, WBS, and progress tracking.',
+ workstream: 'Engineering',
+ ),
+ 'Project Coordinator': _RoleBankEntry(
+ description: 'Supports project administration, documentation, and meeting coordination.',
+ workstream: 'Management',
+ ),
+ 'Portfolio Manager': _RoleBankEntry(
+ description: 'Oversees portfolio of projects, prioritizes investments, and aligns with strategic objectives.',
+ workstream: 'Management',
+ ),
+ };
+
  @override
  Widget build(BuildContext context) {
  final projectData = ProjectDataHelper.getData(context);
@@ -292,7 +357,15 @@ class _OrganizationRolesResponsibilitiesScreenState
  .toList(),
  onChanged: (value) {
  if (value == null) return;
- setDialogState(() => selectedTitle = value);
+ setDialogState(() {
+ selectedTitle = value;
+ // Auto-fill description and workstream from role bank
+ final entry = _roleBank[value];
+ if (entry != null) {
+ descController.text = entry.description;
+ workstreamController.text = entry.workstream;
+ }
+ });
  },
  decoration: const InputDecoration(
  hintText: 'Select a role title',
@@ -372,7 +445,15 @@ class _OrganizationRolesResponsibilitiesScreenState
  .toList(),
  onChanged: (value) {
  if (value == null) return;
- setDialogState(() => selectedTitle = value);
+ setDialogState(() {
+ selectedTitle = value;
+ // Auto-fill description and workstream from role bank
+ final entry = _roleBank[value];
+ if (entry != null) {
+ descController.text = entry.description;
+ workstreamController.text = entry.workstream;
+ }
+ });
  },
  decoration: const InputDecoration(
  hintText: 'Select a role title',
@@ -785,7 +866,7 @@ class _OrganizationStaffingPlanScreenState
  ],
  ),
  const SizedBox(height: 16),
- PremiumEditDialog.fieldLabel('Monthly Cost'),
+ PremiumEditDialog.fieldLabel('Monthly Rate'),
  PremiumEditDialog.textField(
  controller: monthlyCostController, hint: '2500'),
  const SizedBox(height: 16),
@@ -1810,4 +1891,15 @@ class _SectionEmptyState extends StatelessWidget {
  ),
  );
  }
+}
+
+/// Entry in the role bank — maps a role title to a description and workstream.
+class _RoleBankEntry {
+  final String description;
+  final String workstream;
+
+  const _RoleBankEntry({
+    required this.description,
+    required this.workstream,
+  });
 }

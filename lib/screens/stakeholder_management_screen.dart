@@ -380,6 +380,81 @@ class _StakeholderManagementScreenState
  parseAndAdd(solutionData.internalStakeholders, 'Internal');
  parseAndAdd(solutionData.externalStakeholders, 'External');
 
+ // Also parse organisation context for additional internal teams/groups
+ // that may influence or be influenced by the project.
+ final orgContext = coreStakeholders.organisationContext.trim();
+ if (orgContext.isNotEmpty) {
+ // Extract team/group names from organisation description
+ // Look for lines or phrases mentioning teams, departments, groups
+ final orgLines = orgContext.split('\n');
+ for (var line in orgLines) {
+ final cleaned = line.replaceAll(RegExp(r'^[-*•]\s*'), '').trim();
+ if (cleaned.isNotEmpty &&
+ !newEntries.any((e) => e.name.toLowerCase() == cleaned.toLowerCase())) {
+ // Only add if it looks like a team/group/department reference
+ final lowerLine = cleaned.toLowerCase();
+ if (lowerLine.contains('team') ||
+ lowerLine.contains('department') ||
+ lowerLine.contains('group') ||
+ lowerLine.contains('division') ||
+ lowerLine.contains('unit') ||
+ lowerLine.contains('office') ||
+ lowerLine.contains('finance') ||
+ lowerLine.contains('it ') ||
+ lowerLine.contains('operations') ||
+ lowerLine.contains('hr') ||
+ lowerLine.contains('legal') ||
+ lowerLine.contains('marketing') ||
+ lowerLine.contains('sales') ||
+ lowerLine.contains('engineering') ||
+ lowerLine.contains('design') ||
+ lowerLine.contains('quality') ||
+ lowerLine.contains('security')) {
+ newEntries.add(StakeholderEntry(
+ id: DateTime.now().microsecondsSinceEpoch.toString() +
+ cleaned.hashCode.toString(),
+ name: cleaned,
+ organization: 'Internal',
+ role: 'Team/Group',
+ contactInfo: '',
+ influence: 'Medium',
+ interest: 'Medium',
+ channel: 'Email',
+ owner: 'Project Manager',
+ notes: 'Identified from organisation context in Initiation Phase',
+ createdAt: DateTime.now(),
+ updatedAt: DateTime.now(),
+ ));
+ }
+ }
+ }
+ }
+
+ // Show prompt asking about additional teams/groups
+ if (mounted) {
+ await showDialog(
+ context: context,
+ builder: (ctx) => AlertDialog(
+ title: const Text('Teams & Groups Check'),
+ content: const Text(
+ 'Are there any other teams or groups in your organisation that would '
+ 'influence this project or be influenced by it?\n\n'
+ 'Consider:\n'
+ '• Teams that will contribute resources or expertise\n'
+ '• Departments affected by the project outcomes\n'
+ '• Groups that need to be consulted or informed\n'
+ '• External partners or vendors with influence\n\n'
+ 'You can add them manually using the "Add Stakeholder" button.'),
+ actions: [
+ TextButton(
+ onPressed: () => Navigator.of(ctx).pop(),
+ child: const Text('Got it'),
+ ),
+ ],
+ ),
+ );
+ }
+
  if (newEntries.isEmpty) {
  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
  content: Text('No stakeholders found in Initiation Phase.')));
