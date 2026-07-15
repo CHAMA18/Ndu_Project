@@ -1110,8 +1110,7 @@ class _LandingScreenState extends State<LandingScreen>
  // Complementary Services inside the container
  _buildServiceCard(
  title: 'Project Delivery Consultation',
- description: 'Expert guidance on project delivery strategy, methodology selection, '
- 'governance frameworks, and PDOS implementation tailored to your organization\'s needs.',
+ description: '',
  icon: Icons.event_available_rounded,
  borderColor: const Color(0xFFFBBF24),
  iconColor: const Color(0xFFFBBF24),
@@ -1119,8 +1118,7 @@ class _LandingScreenState extends State<LandingScreen>
  const SizedBox(height: 12),
  _buildServiceCard(
  title: 'Personnel Training and Project Management Process Services',
- description: 'Comprehensive training programs and process services to upskill your teams '
- 'on modern project delivery practices, Agile methodologies, and the Ndu Project platform.',
+ description: '',
  icon: Icons.groups_rounded,
  borderColor: const Color(0xFF94A3B8),
  iconColor: Colors.white,
@@ -2123,6 +2121,7 @@ class _LandingScreenState extends State<LandingScreen>
  color: Colors.white,
  ),
  ),
+ if (description.isNotEmpty) ...[
  const SizedBox(height: 8),
  Text(
  description,
@@ -2132,6 +2131,7 @@ class _LandingScreenState extends State<LandingScreen>
  height: 1.5,
  ),
  ),
+ ],
  ],
  ),
  ),
