@@ -1496,7 +1496,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  openWidth: sidebarWidth,
  child: const InitiationLikeSidebar(
  activeItemLabel:
- 'Cost Benefit Analysis & Financial Metrics'),
+ 'Initial Cost Estimate'),
  ),
  Expanded(
  child: Column(children: [
@@ -1506,7 +1506,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  ]),
  MobileSidebarHamburger(
  sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Cost Benefit Analysis & Financial Metrics',
+ activeItemLabel: 'Initial Cost Estimate',
  ),
  ),
  const KazAiChatBubble(),
@@ -1681,7 +1681,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  _buildNestedSubMenuItem('Core Stakeholders',
  onTap: _openCoreStakeholders),
  _buildNestedSubMenuItem(
- 'Cost Benefit Analysis & Financial Metrics',
+ 'Initial Cost Estimate',
  isActive: true),
  _buildNestedSubMenuItem('Preferred Solution Analysis',
  onTap: _openPreferredSolutionAnalysis),
@@ -1711,7 +1711,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  width: MediaQuery.sizeOf(context).width * 0.88,
  child: const SafeArea(
  child: InitiationLikeSidebar(
- activeItemLabel: 'Cost Benefit Analysis & Financial Metrics',
+ activeItemLabel: 'Initial Cost Estimate',
  ),
  ),
  );
@@ -2050,10 +2050,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  crossAxisAlignment: CrossAxisAlignment.center,
  children: [Center(
                       child: EditableContentText(
-                        contentKey: 'cost_analysis_heading',
-                        fallback: _isFullAdminView
-                            ? 'Cost Benefit Analysis & Financial Metrics'
-                            : 'Initial Cost Estimate',
+                        contentKey: 'cost_analysis_heading',fallback: _isFullAdminView
+      ? 'Cost Benefit Analysis'
+      : 'Initial Cost Estimate',
                         category: 'business_case',
                         style: const TextStyle(
                             fontSize: 22, fontWeight: FontWeight.bold)),

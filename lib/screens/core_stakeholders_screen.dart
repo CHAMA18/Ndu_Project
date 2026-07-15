@@ -457,7 +457,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  onTap: _openInfrastructureConsiderations),
  _buildNestedSubMenuItem('Core Stakeholders', isActive: true),
  _buildNestedSubMenuItem(
- 'Cost Benefit Analysis & Financial Metrics',
+ 'Initial Cost Estimate',
  onTap: _openCostAnalysis),
  _buildNestedSubMenuItem('Preferred Solution Analysis',
  onTap: _openPreferredSolutionAnalysis),

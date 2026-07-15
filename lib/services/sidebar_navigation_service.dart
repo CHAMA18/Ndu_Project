@@ -102,7 +102,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'core_stakeholders', label: 'Core Stakeholders'),
     SidebarItem(
         checkpoint: 'cost_analysis',
-        label: 'Cost Benefit Analysis & Financial Metrics'),
+        label: 'Initial Cost Estimate'),
     SidebarItem(
         checkpoint: 'preferred_solution_analysis',
         label: 'Preferred Solution Analysis'),

@@ -163,7 +163,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     'IT Considerations',
     'Infrastructure Considerations',
     'Core Stakeholders',
-    'Cost Benefit Analysis & Financial Metrics',
+    'Initial Cost Estimate',
     'Preferred Solution Analysis',
     'Preferred Solution',
   };
@@ -2166,10 +2166,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           _buildSubSubMenuItem('Core Stakeholders',
               onTap: _openCoreStakeholders,
               isActive: widget.activeItemLabel == 'Core Stakeholders'),
-          _buildSubSubMenuItem('Cost Benefit Analysis & Financial Metrics',
+          _buildSubSubMenuItem('Initial Cost Estimate',
               onTap: _openCostAnalysis,
               isActive: widget.activeItemLabel ==
-                  'Cost Benefit Analysis & Financial Metrics'),
+                  'Initial Cost Estimate'),
           _buildSubExpandableHeader(
             'Executive Summary',
             expanded: _executiveSummaryExpanded,
@@ -3001,10 +3001,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('cost benefit analysis'.contains(query) ||
         'financial metrics'.contains(query)) {
       results.add(_buildMenuItem(
-          Icons.analytics_outlined, 'Cost Benefit Analysis & Financial Metrics',
+          Icons.analytics_outlined, 'Initial Cost Estimate',
           onTap: _openCostAnalysis,
           isActive: widget.activeItemLabel ==
-              'Cost Benefit Analysis & Financial Metrics'));
+              'Initial Cost Estimate'));
     }
     if ('executive summary'.contains(query)) {
       results.add(_buildMenuItem(Icons.summarize_outlined, 'Executive Summary',

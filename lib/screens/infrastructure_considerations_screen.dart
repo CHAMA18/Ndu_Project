@@ -816,7 +816,7 @@ class _InfrastructureConsiderationsScreenState
  _buildNestedSubMenuItem('Core Stakeholders',
  onTap: _openCoreStakeholders),
  _buildNestedSubMenuItem(
- 'Cost Benefit Analysis & Financial Metrics',
+ 'Initial Cost Estimate',
  onTap: _openCostAnalysis),
  _buildNestedSubMenuItem('Preferred Solution Analysis',
  onTap: _openPreferredSolutionAnalysis),

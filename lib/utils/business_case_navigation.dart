@@ -12,7 +12,7 @@ class BusinessCaseNavigation {
     'IT Considerations': 'it_considerations',
     'Infrastructure Considerations': 'infrastructure_considerations',
     'Core Stakeholders': 'core_stakeholders',
-    'Cost Benefit Analysis & Financial Metrics': 'cost_analysis',
+    'Initial Cost Estimate': 'cost_analysis',
     'Preferred Solution Analysis': 'preferred_solution_analysis',
   };
 

@@ -1408,7 +1408,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  _buildSubMenuItem('Core Stakeholders',
  onTap: _openCoreStakeholders,
  disabled: !_isBusinessCaseValid),
- _buildSubMenuItem('Cost Benefit Analysis & Financial Metrics',
+ _buildSubMenuItem('Initial Cost Estimate',
  onTap: _openCostAnalysis,
  disabled: !_isBusinessCaseValid),
  _buildSubMenuItem('Preferred Solution Analysis',
@@ -2259,7 +2259,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  }
 
  void _openCostAnalysis() {
- _requireBusinessCaseBefore('Cost Benefit Analysis & Financial Metrics', () {
+ _requireBusinessCaseBefore('Initial Cost Estimate', () {
  Navigator.push(
  context,
  MaterialPageRoute(
