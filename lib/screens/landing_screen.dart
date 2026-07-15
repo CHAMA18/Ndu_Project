@@ -818,7 +818,7 @@ class _LandingScreenState extends State<LandingScreen>
  const SizedBox(height: 12),
  // Project type pills
  Wrap(
- alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
+ alignment: WrapAlignment.center,
  spacing: 8,
  runSpacing: 8,
  children: projectTypes.map((type) => Container(
@@ -836,7 +836,7 @@ class _LandingScreenState extends State<LandingScreen>
  Wrap(
  spacing: 14,
  runSpacing: 14,
- alignment: isDesktop ? WrapAlignment.start : WrapAlignment.center,
+ alignment: WrapAlignment.center,
  children: [
  ElevatedButton(
  onPressed: () => _launchExternalLink('https://calendar.app.google/aGQDFPpmEK9eDh5W6'),
