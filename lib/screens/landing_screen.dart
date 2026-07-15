@@ -288,8 +288,6 @@ class _LandingScreenState extends State<LandingScreen>
  SizedBox(height: isDesktop ? 80 : 56),
  _buildHowItWorksSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
- _buildServicesFlowSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
  _buildDifferentiatorsSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
  _buildFeatureGridSection(context, isDesktop || isTablet),
@@ -1107,6 +1105,25 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ],
  ),
+ ),
+ const SizedBox(height: 24),
+ // Complementary Services inside the container
+ _buildServiceCard(
+ title: 'Project Delivery Consultation',
+ description: 'Expert guidance on project delivery strategy, methodology selection, '
+ 'governance frameworks, and PDOS implementation tailored to your organization\'s needs.',
+ icon: Icons.event_available_rounded,
+ borderColor: const Color(0xFFFBBF24),
+ iconColor: const Color(0xFFFBBF24),
+ ),
+ const SizedBox(height: 12),
+ _buildServiceCard(
+ title: 'Personnel Training and Project Management Process Services',
+ description: 'Comprehensive training programs and process services to upskill your teams '
+ 'on modern project delivery practices, Agile methodologies, and the Ndu Project platform.',
+ icon: Icons.groups_rounded,
+ borderColor: const Color(0xFF94A3B8),
+ iconColor: Colors.white,
  ),
  ],
  ),
@@ -2057,75 +2074,7 @@ class _LandingScreenState extends State<LandingScreen>
  );
  }
 
- // ── Section 5b: Services Flow (Consultation + Training) ────────────
- Widget _buildServicesFlowSection(BuildContext context, bool wideLayout) {
- return Container(
- margin: EdgeInsets.symmetric(horizontal: wideLayout ? 96 : 24),
- padding: EdgeInsets.symmetric(
- horizontal: wideLayout ? 64 : 28, vertical: wideLayout ? 64 : 40),
- decoration: BoxDecoration(
- borderRadius: BorderRadius.circular(36),
- gradient: const LinearGradient(
- begin: Alignment.topCenter,
- end: Alignment.bottomCenter,
- colors: [Color(0xFF121212), Color(0xFF060606)],
- ),
- border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
- boxShadow: [
- BoxShadow(
- color: Colors.black.withValues(alpha: 0.32),
- blurRadius: 48,
- offset: const Offset(0, 32),
- ),
- ],
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- const Text(
- 'Complementary Services',
- style: TextStyle(
- fontSize: 32,
- fontWeight: FontWeight.w800,
- color: Colors.white,
- height: 1.15,
- ),
- ),
- const SizedBox(height: 14),
- Text(
- 'Beyond the platform, Ndu Project offers expert consulting and training services '
- 'to accelerate your project delivery capabilities.',
- style: TextStyle(
- fontSize: 16,
- color: Colors.white.withValues(alpha: 0.7),
- height: 1.6,
- ),
- ),
- const SizedBox(height: 40),
- // Two service cards stacked vertically
- _buildServiceCard(
- title: 'Project Delivery Consultation',
- description: 'Expert guidance on project delivery strategy, methodology selection, '
- 'governance frameworks, and PDOS implementation tailored to your organization\'s needs.',
- icon: Icons.event_available_rounded,
- borderColor: const Color(0xFFFBBF24),
- iconColor: const Color(0xFFFBBF24),
- isTop: true,
- ),
- const SizedBox(height: 16),
- _buildServiceCard(
- title: 'Personnel Training and Project Management Process Services',
- description: 'Comprehensive training programs and process services to upskill your teams '
- 'on modern project delivery practices, Agile methodologies, and the Ndu Project platform.',
- icon: Icons.groups_rounded,
- borderColor: const Color(0xFF94A3B8),
- iconColor: Colors.white,
- isTop: false,
- ),
- ],
- ),
- );
- }
+ // ── Section 5b removed — service cards now inside solution section ──
 
  Widget _buildServiceCard({
  required String title,
@@ -2133,7 +2082,6 @@ class _LandingScreenState extends State<LandingScreen>
  required IconData icon,
  required Color borderColor,
  required Color iconColor,
- required bool isTop,
  }) {
  return Container(
  width: double.infinity,
