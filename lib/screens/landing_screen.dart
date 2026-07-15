@@ -5,6 +5,7 @@ import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/partner_screen.dart';
 import 'package:ndu_project/screens/use_cases_screen.dart';
+import 'package:ndu_project/screens/how_it_works_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -120,7 +121,8 @@ class _LandingScreenState extends State<LandingScreen>
  return;
  }
 
- _scrollTo(_howItWorksKey);
+ // Navigate to the standalone How It Works page
+ HowItWorksScreen.open(context);
  }
 
  void _handleStartProject() {
