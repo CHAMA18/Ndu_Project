@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 
@@ -26,14 +27,28 @@ class FrameworkPickerScreen extends StatefulWidget {
 }
 
 class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
-  int _step = 0;
+  int _step = 1; // Skip Step 1 (project name) — auto-drawn from project context
   String _projectName = '';
   ProjectMethodology? _methodology;
   WBSFramework? _framework;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final data = ProjectDataHelper.getData(context);
+      final name = data.projectName.trim().isNotEmpty
+          ? data.projectName.trim()
+          : (data.solutionTitle.trim().isNotEmpty
+              ? data.solutionTitle.trim()
+              : 'Project');
+      if (mounted) setState(() => _projectName = name);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final totalSteps = 3;
+    final totalSteps = 2;
     return ResponsiveScaffold(
       activeItemLabel: 'Work Breakdown Structure',
       appBarTitle: 'Work Breakdown Structure',
@@ -80,12 +95,13 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(totalSteps, (i) {
+                  final dotIndex = i + 1; // Map to 1-based step
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: i == _step ? 24 : 8,
+                    width: dotIndex == _step ? 24 : 8,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: i <= _step
+                      color: dotIndex <= _step
                           ? LightModeColors.accent
                           : const Color(0xFFE4E7EC),
                       borderRadius: BorderRadius.circular(3),
@@ -148,8 +164,6 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
 
   bool _canProceed() {
     switch (_step) {
-      case 0:
-        return _projectName.trim().isNotEmpty;
       case 1:
         return _methodology != null;
       case 2:
@@ -159,9 +173,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   }
 
   void _handleNext() {
-    if (_step == 0 && _projectName.trim().isNotEmpty) {
-      setState(() => _step = 1);
-    } else if (_step == 1 && _methodology != null) {
+    if (_step == 1 && _methodology != null) {
       // Auto-select the default framework based on methodology
       if (_framework == null) {
         _framework = switch (_methodology!) {
@@ -173,7 +185,9 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
       setState(() => _step = 2);
     } else if (_step == 2 && _framework != null) {
       context.read<WBSProvider>().setup(
-            projectName: _projectName.trim(),
+            projectName: _projectName.trim().isNotEmpty
+                ? _projectName.trim()
+                : 'Project',
             framework: _framework!,
             methodology: _methodology!,
           );

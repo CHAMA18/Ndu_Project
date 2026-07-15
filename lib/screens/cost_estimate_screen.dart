@@ -4720,7 +4720,6 @@ class _CbsTreeTileState extends State<_CbsTreeTile> {
  fontWeight: hasChildren ? FontWeight.w700 : FontWeight.w500,
  color: const Color(0xFF111827),
  ),
- overflow: TextOverflow.ellipsis,
  ),
  ),
  if (node.designMaturity.isNotEmpty)
