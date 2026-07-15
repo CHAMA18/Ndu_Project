@@ -2180,13 +2180,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             isActive: _activeIn(_executiveSummaryLabels),
           ),
           if (_executiveSummaryExpanded) ...[
+            _buildSubSubMenuItem('Preferred Solution',
+                onTap: _openPreferredSolutionsComparison,
+                isActive: widget.activeItemLabel == 'Preferred Solution'),
             _buildSubSubMenuItem('Preferred Solution Analysis',
                 onTap: _openPreferredSolutionAnalysis,
                 isActive:
                     widget.activeItemLabel == 'Preferred Solution Analysis'),
-            _buildSubSubMenuItem('Preferred Solution',
-                onTap: _openPreferredSolutionsComparison,
-                isActive: widget.activeItemLabel == 'Preferred Solution'),
           ],
         ],
         _buildSubExpandableHeader(
@@ -3011,13 +3011,6 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           onTap: _openExecutiveSummary,
           isActive: widget.activeItemLabel == 'Executive Summary'));
     }
-    if ('preferred solution analysis'.contains(query) ||
-        'preferred'.contains(query)) {
-      results.add(_buildMenuItem(
-          Icons.fact_check_outlined, 'Preferred Solution Analysis',
-          onTap: _openPreferredSolutionAnalysis,
-          isActive: widget.activeItemLabel == 'Preferred Solution Analysis'));
-    }
     if ('preferred solution'.contains(query) ||
         'preferred solutions'.contains(query) ||
         'preferred comparison'.contains(query)) {
@@ -3025,6 +3018,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           Icons.fact_check_outlined, 'Preferred Solution',
           onTap: _openPreferredSolutionsComparison,
           isActive: widget.activeItemLabel == 'Preferred Solution'));
+    }
+    if ('preferred solution analysis'.contains(query) ||
+        'preferred'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.fact_check_outlined, 'Preferred Solution Analysis',
+          onTap: _openPreferredSolutionAnalysis,
+          isActive: widget.activeItemLabel == 'Preferred Solution Analysis'));
     }
     if ('work breakdown structure'.contains(query) ||
         'wbs'.contains(query) ||

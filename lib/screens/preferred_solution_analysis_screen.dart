@@ -4748,6 +4748,7 @@ class _PreferredSolutionAnalysisScreenState
  title: solution.title, description: solution.description))
  .toList(growable: false),
  businessCase: widget.businessCase,
+ onViewMore: _showSolutionDetailsDialog,
  ),
  ),
  );
@@ -5975,14 +5976,16 @@ class _PreferredSolutionComparisonScreen extends StatelessWidget {
  final List<AiSolutionItem> solutions;
  final String businessCase;
 
- const _PreferredSolutionComparisonScreen({
- // ignore: unused_element_parameter
+ _PreferredSolutionComparisonScreen({
  super.key,
  required this.notes,
  required this.analysis,
  required this.solutions,
  required this.businessCase,
+ this.onViewMore,
  });
+
+  final void Function(_SolutionAnalysisData, int)? onViewMore;
 
  @override
  Widget build(BuildContext context) {
@@ -6029,15 +6032,25 @@ class _PreferredSolutionComparisonScreen extends StatelessWidget {
  ],
  ),
  ),
- const SizedBox(height: 24),
- _ComparisonContent(
- analysis: analysis,
- ),
- const SizedBox(height: 24),
- Align(
- alignment: Alignment.centerRight,
- child: ElevatedButton(
- onPressed: () => _handleNext(context),
+ const SizedBox(height: 24), _ComparisonContent(
+              analysis: analysis,
+            ),
+            const SizedBox(height: 16),
+            // View More Details - mirrors the analysis screen's View More
+            if (analysis.isNotEmpty)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onViewMore != null ? () => onViewMore!(analysis.first, 0) : null,
+                  icon: const Icon(Icons.read_more, size: 18),
+                  label: const Text('View More Details'),
+                ),
+              ),
+            const SizedBox(height: 24),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton(
+                onPressed: () => _handleNext(context),
  style: ElevatedButton.styleFrom(
  backgroundColor: const Color(0xFFFFD700),
  foregroundColor: Colors.black,
