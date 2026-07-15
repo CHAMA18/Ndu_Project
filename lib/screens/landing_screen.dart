@@ -2083,10 +2083,10 @@ class _LandingScreenState extends State<LandingScreen>
  }) {
  return Container(
  width: double.infinity,
- padding: const EdgeInsets.all(24),
+ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
  decoration: BoxDecoration(
- borderRadius: BorderRadius.circular(20),
- border: Border.all(color: borderColor.withValues(alpha: 0.4), width: 2),
+ borderRadius: BorderRadius.circular(14),
+ border: Border.all(color: borderColor.withValues(alpha: 0.4), width: 1.5),
  gradient: LinearGradient(
  begin: Alignment.topLeft,
  end: Alignment.bottomRight,
@@ -2099,40 +2099,24 @@ class _LandingScreenState extends State<LandingScreen>
  child: Row(
  children: [
  Container(
- width: 56,
- height: 56,
+ width: 32,
+ height: 32,
  decoration: BoxDecoration(
- borderRadius: BorderRadius.circular(16),
+ borderRadius: BorderRadius.circular(10),
  color: borderColor.withValues(alpha: 0.15),
  border: Border.all(color: borderColor.withValues(alpha: 0.3)),
  ),
- child: Icon(icon, color: iconColor, size: 28),
+ child: Icon(icon, color: iconColor, size: 16),
  ),
- const SizedBox(width: 20),
+ const SizedBox(width: 12),
  Expanded(
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(
+ child: Text(
  title,
  style: const TextStyle(
- fontSize: 18,
- fontWeight: FontWeight.w700,
+ fontSize: 14,
+ fontWeight: FontWeight.w600,
  color: Colors.white,
  ),
- ),
- if (description.isNotEmpty) ...[
- const SizedBox(height: 8),
- Text(
- description,
- style: TextStyle(
- fontSize: 14,
- color: Colors.white.withValues(alpha: 0.7),
- height: 1.5,
- ),
- ),
- ],
- ],
  ),
  ),
  ],
