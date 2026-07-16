@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -53,7 +54,9 @@ class _AgileSprintReviewsScreenState extends State<AgileSprintReviewsScreen> {
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -82,7 +85,7 @@ class _AgileSprintReviewsScreenState extends State<AgileSprintReviewsScreen> {
               ?.map((e) => _ReviewAction.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [];
-      if (stories.isEmpty) _seedDemoData();
+      if (stories.isEmpty) _seedProjectData(projectData);
       if (mounted) {
         setState(() {
           if (stories.isNotEmpty) _stories = stories;
@@ -101,82 +104,67 @@ class _AgileSprintReviewsScreenState extends State<AgileSprintReviewsScreen> {
       }
     } catch (e) {
       debugPrint('Sprint reviews load error: $e');
-      _seedDemoData();
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _seedDemoData() {
+  void _seedProjectData(dynamic projectData) {
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 8);
+    final stakeholders =
+        AgileProjectContextHelper.stakeholders(projectData, limit: 4);
+    final issues = AgileProjectContextHelper.issues(projectData, limit: 4);
+    final sprintLabel = AgileProjectContextHelper.activeSprintLabel(projectData);
+
+    _currentSprint = sprintLabel;
     _stories = [
-      _CompletedStory(id: 'NDU-1029', title: 'SSO integration: SAML',
-          points: 8, assignee: 'Sarah Chen', status: 'Accepted', value: 'High'),
-      _CompletedStory(id: 'NDU-1027', title: 'Kanban board UI shell',
-          points: 5, assignee: 'James Okoro', status: 'Accepted', value: 'Medium'),
-      _CompletedStory(id: 'NDU-1024', title: 'Auth: refresh tokens',
-          points: 3, assignee: 'Marcus Reed', status: 'Accepted', value: 'High'),
-      _CompletedStory(id: 'NDU-1020', title: 'Notification service v1',
-          points: 8, assignee: 'Priya Nair', status: 'Accepted', value: 'Medium'),
-      _CompletedStory(id: 'NDU-1018', title: 'Password reset flow',
-          points: 3, assignee: 'Lena Park', status: 'Accepted', value: 'Medium'),
-      _CompletedStory(id: 'NDU-1015', title: 'Audit log viewer',
-          points: 5, assignee: 'James Okoro', status: 'Rejected', value: 'Low'),
-      _CompletedStory(id: 'NDU-1010', title: 'User invite email template',
-          points: 2, assignee: 'Lena Park', status: 'Accepted', value: 'Low'),
-      _CompletedStory(id: 'NDU-1008', title: 'Role-based permissions',
-          points: 8, assignee: 'Sarah Chen', status: 'Accepted', value: 'High'),
+      for (final item in workItems)
+        _CompletedStory(
+          id: item.id,
+          title: item.title,
+          points: AgileProjectContextHelper.estimateStoryPoints(item.title),
+          assignee: item.owner.isEmpty ? 'Project Team' : item.owner,
+          status: item.status == 'Blocked' ? 'Rejected' : 'Accepted',
+          value: item.priority,
+        ),
     ];
     _demoItems = [
-      _DemoItem(id: 'D1', title: 'SSO login flow with Azure AD',
-          owner: 'Sarah Chen', status: 'Ready', notes: 'Test tenant configured'),
-      _DemoItem(id: 'D2', title: 'Kanban drag-drop demo',
-          owner: 'James Okoro', status: 'Ready', notes: ''),
-      _DemoItem(id: 'D3', title: 'Refresh token rotation',
-          owner: 'Marcus Reed', status: 'Pending', notes: 'Awaiting QA sign-off'),
-      _DemoItem(id: 'D4', title: 'In-app notifications panel',
-          owner: 'Priya Nair', status: 'Ready', notes: 'Sample notifications seeded'),
-      _DemoItem(id: 'D5', title: 'Password reset end-to-end',
-          owner: 'Lena Park', status: 'Ready', notes: ''),
-      _DemoItem(id: 'D6', title: 'Audit log query + filter',
-          owner: 'James Okoro', status: 'Blocked', notes: 'Story rejected — needs rework'),
+      for (final item in workItems.take(6))
+        _DemoItem(
+          id: 'D-${item.id}',
+          title: item.title,
+          owner: item.owner.isEmpty ? 'Project Team' : item.owner,
+          status: item.status == 'Done' ? 'Demoed' : 'Ready',
+          notes: item.description,
+        ),
     ];
-    _feedback.clear();
-    _feedback.addAll([
-      _StakeholderFeedback(
-          stakeholder: 'Aisha Rahman',
-          role: 'Product Owner',
-          rating: 5,
-          comment: 'SSO is a game-changer for our enterprise customers. Great work on the SAML flow.',
-          sentiment: 'positive'),
-      _StakeholderFeedback(
-          stakeholder: 'David Lin',
-          role: 'VP Engineering',
-          rating: 4,
-          comment: 'Solid increment. Would like to see the audit log viewer reworked — current UX is too dense.',
-          sentiment: 'mixed'),
-      _StakeholderFeedback(
-          stakeholder: 'Emily Carter',
-          role: 'Customer Success',
-          rating: 5,
-          comment: 'Notification panel will reduce our support tickets significantly. Thank you!',
-          sentiment: 'positive'),
-      _StakeholderFeedback(
-          stakeholder: 'Robert Kim',
-          role: 'Security Lead',
-          rating: 5,
-          comment: 'Refresh token rotation exceeds our security requirements. Approved for production.',
-          sentiment: 'positive'),
-    ]);
-    _actions.clear();
-    _actions.addAll([
-      _ReviewAction(id: 'SR-101', description: 'Rework audit log viewer UX (NDU-1015)',
-          owner: 'James Okoro', due: 'Next Sprint', status: 'Open', priority: 'High'),
-      _ReviewAction(id: 'SR-102', description: 'Schedule SSO go-live coordination meeting',
-          owner: 'Sarah Chen', due: 'Tomorrow', status: 'In Progress', priority: 'High'),
-      _ReviewAction(id: 'SR-103', description: 'Prepare demo recording for stakeholders absent',
-          owner: 'Lena Park', due: '2 days', status: 'Open', priority: 'Medium'),
-      _ReviewAction(id: 'SR-104', description: 'Update release notes for Sprint 24 increment',
-          owner: 'Priya Nair', due: 'Today', status: 'Done', priority: 'Low'),
-    ]);
+    _feedback
+      ..clear()
+      ..addAll([
+        for (final stakeholder in stakeholders)
+          _StakeholderFeedback(
+            stakeholder: stakeholder.name,
+            role: stakeholder.role,
+            rating: stakeholder.sentiment == 'positive' ? 5 : 4,
+            comment: stakeholder.notes.isEmpty
+                ? 'This increment should stay aligned to the broader project objective and stakeholder expectations.'
+                : stakeholder.notes,
+            sentiment: stakeholder.sentiment,
+          ),
+      ]);
+    _actions
+      ..clear()
+      ..addAll([
+        for (final issue in issues)
+          _ReviewAction(
+            id: 'ACT-${issue.id}',
+            description: issue.title,
+            owner: issue.owner.isEmpty ? 'Project Team' : issue.owner,
+            due: issue.due.isEmpty ? 'Next Sprint' : issue.due,
+            status: issue.status == 'Done' ? 'Done' : 'Open',
+            priority: issue.severity,
+          ),
+      ]);
   }
 
   Future<void> _saveData() async {

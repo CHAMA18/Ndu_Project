@@ -5373,16 +5373,22 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  tooltip: 'View details',
  onPressed: () => _viewInitialCostRow(row),
  icon: const Icon(Icons.visibility_outlined, size: 18),
+ padding: EdgeInsets.zero,
+ constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  ),
  IconButton(
  tooltip: 'Edit row',
  onPressed: () => _editInitialCostRow(row),
  icon: const Icon(Icons.edit_outlined, size: 18),
+ padding: EdgeInsets.zero,
+ constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  ),
  IconButton(
  tooltip: 'Delete row',
  onPressed: () => _removeInitialCostRow(row),
  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+ padding: EdgeInsets.zero,
+ constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  ),
  IconButton(
    onPressed: () {
@@ -5393,7 +5399,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
    icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
    tooltip: 'KAZ AI',
    padding: EdgeInsets.zero,
-   constraints: const BoxConstraints(minWidth: 28),
+   constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
  ),
  ],
  ),

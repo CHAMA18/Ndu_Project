@@ -90,6 +90,11 @@ class PlanningPhaseNavigation {
       builder: (_) => const OrganizationRolesResponsibilitiesScreen(),
     ),
     PlanningPage(
+      id: 'organization_raci_matrix',
+      title: 'RACI Matrix',
+      builder: (_) => const OrganizationRaciMatrixScreen(),
+    ),
+    PlanningPage(
       id: 'organization_staffing_plan',
       title: 'Staffing Plan',
       builder: (_) => const OrganizationStaffingPlanScreen(),

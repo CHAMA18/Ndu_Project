@@ -413,6 +413,8 @@ class NavigationRouteResolver {
         return const ProjectBaselineScreen();
       case 'organization_roles_responsibilities':
         return const OrganizationRolesResponsibilitiesScreen();
+      case 'organization_raci_matrix':
+        return const OrganizationRaciMatrixScreen();
       case 'organization_staffing_plan':
         return const OrganizationStaffingPlanScreen();
       case 'team_training':

@@ -93,8 +93,8 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
 
       final sprintCalendar = wireframeData['sprintCalendar'] as List? ?? [];
       _activeSprints = sprintCalendar
-          .where((s) =>
-              (s['status'] ?? '').toString().toLowerCase() == 'active')
+          .where(
+              (s) => (s['status'] ?? '').toString().toLowerCase() == 'active')
           .length;
 
       try {
@@ -410,8 +410,8 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
         AgileMetricsScreen.open(context);
         break;
       case 10:
-        Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => const AgileReleasePlanScreen()));
+        Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AgileReleasePlanScreen()));
         break;
       case 11:
         AgileRisksScreen.open(context);
@@ -444,13 +444,14 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
                 ),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.auto_awesome,
-                  color: Colors.white, size: 20),
+              child:
+                  const Icon(Icons.auto_awesome, color: Colors.white, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(sectionName,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
             ),
           ],
         ),
@@ -460,7 +461,8 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
           children: [
             const Text(
               'This section is being activated as part of the Agile Project Hub rollout.',
-              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
+              style: TextStyle(
+                  fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
             ),
             const SizedBox(height: 12),
             Container(
@@ -489,7 +491,8 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFF59E0B)),
+            style:
+                TextButton.styleFrom(foregroundColor: const Color(0xFFF59E0B)),
             child: const Text('Got it'),
           ),
         ],
@@ -727,9 +730,6 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
   }
 
   Widget _buildSectionGrid(bool isMobile) {
-    final crossAxisCount =
-        isMobile ? 1 : (MediaQuery.sizeOf(context).width > 1200 ? 3 : 2);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -762,22 +762,16 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
           ],
         ),
         const SizedBox(height: 20),
-        Wrap(
-          spacing: 20,
-          runSpacing: 20,
-          children: _sections.map((s) {
-            final sidebarW = AppBreakpoints.sidebarWidth(context);
-            final availableWidth =
-                MediaQuery.sizeOf(context).width - sidebarW - 64;
-            final width = crossAxisCount == 1
-                ? double.infinity
-                : (availableWidth - (crossAxisCount - 1) * 20) /
-                    crossAxisCount;
-            return SizedBox(
-              width: width,
-              child: _buildSectionCard(s),
-            );
-          }).toList(),
+        Column(
+          children: [
+            for (int i = 0; i < _sections.length; i++) ...[
+              SizedBox(
+                width: double.infinity,
+                child: _buildSectionCard(_sections[i]),
+              ),
+              if (i < _sections.length - 1) const SizedBox(height: 20),
+            ],
+          ],
         ),
       ],
     );
@@ -825,7 +819,8 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
                           color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(section.icon, color: Colors.white, size: 24),
+                        child:
+                            Icon(section.icon, color: Colors.white, size: 24),
                       ),
                       const Spacer(),
                       Container(

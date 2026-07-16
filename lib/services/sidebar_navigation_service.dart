@@ -100,9 +100,7 @@ class SidebarNavigationService {
         checkpoint: 'infrastructure_considerations',
         label: 'Infrastructure Considerations'),
     SidebarItem(checkpoint: 'core_stakeholders', label: 'Core Stakeholders'),
-    SidebarItem(
-        checkpoint: 'cost_analysis',
-        label: 'Initial Cost Estimate'),
+    SidebarItem(checkpoint: 'cost_analysis', label: 'Initial Cost Estimate'),
     SidebarItem(
         checkpoint: 'preferred_solution_analysis',
         label: 'Preferred Solution Analysis'),
@@ -135,6 +133,7 @@ class SidebarNavigationService {
     SidebarItem(
         checkpoint: 'organization_roles_responsibilities',
         label: 'Roles & Responsibilities'),
+    SidebarItem(checkpoint: 'organization_raci_matrix', label: 'RACI Matrix'),
     SidebarItem(
         checkpoint: 'organization_staffing_plan', label: 'Staffing Plan'),
     SidebarItem(checkpoint: 'team_training', label: 'Training & Team Building'),
@@ -150,35 +149,24 @@ class SidebarNavigationService {
         checkpoint: 'interface_management', label: 'Interface Management'),
     // Agile Delivery Model Section — before Execution Plan
     SidebarItem(
-        checkpoint: 'agile_delivery_model',
-        label: 'Agile Delivery Model'),
+        checkpoint: 'agile_delivery_model', label: 'Agile Delivery Model'),
     SidebarItem(
-        checkpoint: 'agile_backlog_governance',
-        label: 'Backlog Governance'),
+        checkpoint: 'agile_backlog_governance', label: 'Backlog Governance'),
     SidebarItem(
-        checkpoint: 'agile_team_structure',
-        label: 'Agile Team Structure'),
+        checkpoint: 'agile_team_structure', label: 'Agile Team Structure'),
     SidebarItem(
-        checkpoint: 'agile_kanban_config',
-        label: 'Kanban Configuration'),
-    SidebarItem(
-        checkpoint: 'agile_epics_features',
-        label: 'Epics & Features'),
+        checkpoint: 'agile_kanban_config', label: 'Kanban Configuration'),
+    SidebarItem(checkpoint: 'agile_epics_features', label: 'Epics & Features'),
     SidebarItem(
         checkpoint: 'agile_acceptance_criteria',
         label: 'Acceptance Criteria Planning'),
     SidebarItem(
         checkpoint: 'agile_sprint_calendar',
         label: 'Sprint Cadence & Calendar'),
+    SidebarItem(checkpoint: 'agile_map_out', label: 'Agile Map Out'),
+    SidebarItem(checkpoint: 'agile_release_plan', label: 'Release Plan'),
     SidebarItem(
-        checkpoint: 'agile_map_out',
-        label: 'Agile Map Out'),
-    SidebarItem(
-        checkpoint: 'agile_release_plan',
-        label: 'Release Plan'),
-    SidebarItem(
-        checkpoint: 'agile_metrics_planning',
-        label: 'Agile Metrics Planning'),
+        checkpoint: 'agile_metrics_planning', label: 'Agile Metrics Planning'),
     // Execution Plan sub-items (full flow matching sidebar order)
     SidebarItem(checkpoint: 'execution_plan', label: 'Execution Plan Overview'),
     SidebarItem(
@@ -213,8 +201,7 @@ class SidebarNavigationService {
         checkpoint: 'execution_plan_lessons_learned',
         label: 'Execution Lessons Learned'),
     SidebarItem(
-        checkpoint: 'execution_plan_best_practices',
-        label: 'Best Practices'),
+        checkpoint: 'execution_plan_best_practices', label: 'Best Practices'),
     SidebarItem(
         checkpoint: 'execution_plan_interface_management',
         label: 'Execution Interface Management'),
@@ -307,8 +294,7 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'vendor_tracking', label: 'Vendor Tracking'),
     SidebarItem(checkpoint: 'detailed_design', label: 'Detailed Design'),
     SidebarItem(
-        checkpoint: 'agile_development_iterations',
-        label: 'Agile Project Hub'),
+        checkpoint: 'agile_development_iterations', label: 'Agile Project Hub'),
     SidebarItem(
         checkpoint: 'scope_tracking_implementation',
         label: 'Scope Tracking Implementation'),
@@ -345,29 +331,23 @@ class SidebarNavigationService {
         checkpoint: 'fat_mechanical_completion',
         label: 'FAT, Mechanical Completion & Commission Solution'),
     SidebarItem(
-        checkpoint: 'contract_close_out',
-        label: 'Vendor & Contract Closeout'),
+        checkpoint: 'contract_close_out', label: 'Vendor & Contract Closeout'),
     SidebarItem(
         checkpoint: 'actual_vs_planned_gap_analysis',
         label: 'Scope & Deliverable Reconciliation'),
     SidebarItem(
         checkpoint: 'commerce_viability',
         label: 'Hypercare & Warranty Support'),
-    SidebarItem(
-        checkpoint: 'financial_closeout',
-        label: 'Financial Closeout'),
+    SidebarItem(checkpoint: 'financial_closeout', label: 'Financial Closeout'),
     SidebarItem(
         checkpoint: 'summarize_account_risks',
         label: 'Project Performance Review'),
     SidebarItem(
-        checkpoint: 'benefits_realization',
-        label: 'Benefits Realization'),
+        checkpoint: 'benefits_realization', label: 'Benefits Realization'),
     SidebarItem(
         checkpoint: 'demobilize_team',
         label: 'Team Demobilization & Operations/Production Transition'),
-    SidebarItem(
-        checkpoint: 'project_close_out',
-        label: 'Project Closeout'),
+    SidebarItem(checkpoint: 'project_close_out', label: 'Project Closeout'),
   ];
 
   /// Ordered, read-only sidebar catalog for admin surfaces that need to mirror

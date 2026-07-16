@@ -155,6 +155,7 @@ class ProjectDataModel {
 
   // Organisation Plan Data
   List<RoleDefinition> projectRoles;
+  List<RaciMatrixRow> raciMatrixRows;
   List<StaffingRequirement> staffingRequirements;
   List<InfrastructurePlanningItem> planningInfrastructureItems;
   List<TrainingActivity> trainingActivities;
@@ -191,28 +192,40 @@ class ProjectDataModel {
   // ── P2.5: Project-level EVM aggregate fields ──
   /// Aggregate Budget at Completion (sum of all control account BACs).
   double aggregateBac;
+
   /// Aggregate Planned Value to date.
   double aggregatePlannedValue;
+
   /// Aggregate Earned Value.
   double aggregateEarnedValue;
+
   /// Aggregate Actual Cost.
   double aggregateActualCost;
+
   /// Aggregate CPI (Cost Performance Index).
   double aggregateCpi;
+
   /// Aggregate SPI (Schedule Performance Index).
   double aggregateSpi;
+
   /// Aggregate EAC (Estimate at Completion).
   double aggregateEac;
+
   /// Aggregate ETC (Estimate to Complete).
   double aggregateEtc;
+
   /// Aggregate VAC (Variance at Completion).
   double aggregateVac;
+
   /// Aggregate CV (Cost Variance).
   double aggregateCv;
+
   /// Aggregate SV (Schedule Variance).
   double aggregateSv;
+
   /// Aggregate TCPI (To-Complete Performance Index).
   double aggregateTcpi;
+
   /// Last time project-level EVM was recalculated.
   DateTime? evmLastRecalculated;
 
@@ -307,6 +320,7 @@ class ProjectDataModel {
     this.infrastructureConsiderationsData,
     this.coreStakeholdersData,
     List<RoleDefinition>? projectRoles,
+    List<RaciMatrixRow>? raciMatrixRows,
     List<StaffingRequirement>? staffingRequirements,
     List<InfrastructurePlanningItem>? planningInfrastructureItems,
     List<TrainingActivity>? trainingActivities,
@@ -390,6 +404,7 @@ class ProjectDataModel {
         designDeliverablesData =
             designDeliverablesData ?? DesignDeliverablesData(),
         projectRoles = projectRoles ?? [],
+        raciMatrixRows = raciMatrixRows ?? [],
         staffingRequirements = staffingRequirements ?? [],
         planningInfrastructureItems = planningInfrastructureItems ?? [],
         trainingActivities = trainingActivities ?? [],
@@ -486,6 +501,7 @@ class ProjectDataModel {
     InfrastructureConsiderationsData? infrastructureConsiderationsData,
     CoreStakeholdersData? coreStakeholdersData,
     List<RoleDefinition>? projectRoles,
+    List<RaciMatrixRow>? raciMatrixRows,
     List<StaffingRequirement>? staffingRequirements,
     List<InfrastructurePlanningItem>? planningInfrastructureItems,
     List<TrainingActivity>? trainingActivities,
@@ -636,6 +652,7 @@ class ProjectDataModel {
           this.infrastructureConsiderationsData,
       coreStakeholdersData: coreStakeholdersData ?? this.coreStakeholdersData,
       projectRoles: projectRoles ?? this.projectRoles,
+      raciMatrixRows: raciMatrixRows ?? this.raciMatrixRows,
       staffingRequirements: staffingRequirements ?? this.staffingRequirements,
       planningInfrastructureItems:
           planningInfrastructureItems ?? this.planningInfrastructureItems,
@@ -666,7 +683,8 @@ class ProjectDataModel {
       obsElements: obsElements ?? this.obsElements,
       cbsElements: cbsElements ?? this.cbsElements,
       aggregateBac: aggregateBac ?? this.aggregateBac,
-      aggregatePlannedValue: aggregatePlannedValue ?? this.aggregatePlannedValue,
+      aggregatePlannedValue:
+          aggregatePlannedValue ?? this.aggregatePlannedValue,
       aggregateEarnedValue: aggregateEarnedValue ?? this.aggregateEarnedValue,
       aggregateActualCost: aggregateActualCost ?? this.aggregateActualCost,
       aggregateCpi: aggregateCpi ?? this.aggregateCpi,
@@ -786,7 +804,8 @@ class ProjectDataModel {
       'frontEndPlanning': frontEndPlanning.toJson(),
       'ssherData': ssherData.toJson(),
       'teamMembers': teamMembers.map((m) => m.toJson()).toList(),
-      'teamMemberEmails': teamMembers.map((m) => m.email).where((e) => e.isNotEmpty).toList(),
+      'teamMemberEmails':
+          teamMembers.map((m) => m.email).where((e) => e.isNotEmpty).toList(),
       'launchChecklistItems':
           launchChecklistItems.map((item) => item.toJson()).toList(),
       if (costAnalysisData != null)
@@ -802,6 +821,7 @@ class ProjectDataModel {
       if (coreStakeholdersData != null)
         'coreStakeholdersData': coreStakeholdersData!.toJson(),
       'projectRoles': projectRoles.map((r) => r.toJson()).toList(),
+      'raciMatrixRows': raciMatrixRows.map((r) => r.toJson()).toList(),
       'staffingRequirements':
           staffingRequirements.map((s) => s.toJson()).toList(),
       'planningInfrastructureItems':
@@ -1070,8 +1090,9 @@ class ProjectDataModel {
           safeParseSingle('costAnalysisData', CostAnalysisData.fromJson),
       costEstimateItems:
           safeParseList('costEstimateItems', CostEstimateItem.fromJson),
-      managementReserve:
-          (json['managementReserve'] is num) ? (json['managementReserve'] as num).toDouble() : 0.0,
+      managementReserve: (json['managementReserve'] is num)
+          ? (json['managementReserve'] as num).toDouble()
+          : 0.0,
       itConsiderationsData: safeParseSingle(
           'itConsiderationsData', ITConsiderationsData.fromJson),
       infrastructureConsiderationsData: safeParseSingle(
@@ -1080,6 +1101,7 @@ class ProjectDataModel {
       coreStakeholdersData: safeParseSingle(
           'coreStakeholdersData', CoreStakeholdersData.fromJson),
       projectRoles: safeParseList('projectRoles', RoleDefinition.fromJson),
+      raciMatrixRows: safeParseList('raciMatrixRows', RaciMatrixRow.fromJson),
       staffingRequirements:
           safeParseList('staffingRequirements', StaffingRequirement.fromJson),
       planningInfrastructureItems: safeParseList(
@@ -1164,18 +1186,42 @@ class ProjectDataModel {
           safeParseList('controlAccounts', ControlAccount.fromJson),
       obsElements: safeParseList('obsElements', ObsElement.fromJson),
       cbsElements: safeParseList('cbsElements', CbsElement.fromJson),
-      aggregateBac: (json['aggregateBac'] is num) ? (json['aggregateBac'] as num).toDouble() : 0.0,
-      aggregatePlannedValue: (json['aggregatePlannedValue'] is num) ? (json['aggregatePlannedValue'] as num).toDouble() : 0.0,
-      aggregateEarnedValue: (json['aggregateEarnedValue'] is num) ? (json['aggregateEarnedValue'] as num).toDouble() : 0.0,
-      aggregateActualCost: (json['aggregateActualCost'] is num) ? (json['aggregateActualCost'] as num).toDouble() : 0.0,
-      aggregateCpi: (json['aggregateCpi'] is num) ? (json['aggregateCpi'] as num).toDouble() : 1.0,
-      aggregateSpi: (json['aggregateSpi'] is num) ? (json['aggregateSpi'] as num).toDouble() : 1.0,
-      aggregateEac: (json['aggregateEac'] is num) ? (json['aggregateEac'] as num).toDouble() : 0.0,
-      aggregateEtc: (json['aggregateEtc'] is num) ? (json['aggregateEtc'] as num).toDouble() : 0.0,
-      aggregateVac: (json['aggregateVac'] is num) ? (json['aggregateVac'] as num).toDouble() : 0.0,
-      aggregateCv: (json['aggregateCv'] is num) ? (json['aggregateCv'] as num).toDouble() : 0.0,
-      aggregateSv: (json['aggregateSv'] is num) ? (json['aggregateSv'] as num).toDouble() : 0.0,
-      aggregateTcpi: (json['aggregateTcpi'] is num) ? (json['aggregateTcpi'] as num).toDouble() : 0.0,
+      aggregateBac: (json['aggregateBac'] is num)
+          ? (json['aggregateBac'] as num).toDouble()
+          : 0.0,
+      aggregatePlannedValue: (json['aggregatePlannedValue'] is num)
+          ? (json['aggregatePlannedValue'] as num).toDouble()
+          : 0.0,
+      aggregateEarnedValue: (json['aggregateEarnedValue'] is num)
+          ? (json['aggregateEarnedValue'] as num).toDouble()
+          : 0.0,
+      aggregateActualCost: (json['aggregateActualCost'] is num)
+          ? (json['aggregateActualCost'] as num).toDouble()
+          : 0.0,
+      aggregateCpi: (json['aggregateCpi'] is num)
+          ? (json['aggregateCpi'] as num).toDouble()
+          : 1.0,
+      aggregateSpi: (json['aggregateSpi'] is num)
+          ? (json['aggregateSpi'] as num).toDouble()
+          : 1.0,
+      aggregateEac: (json['aggregateEac'] is num)
+          ? (json['aggregateEac'] as num).toDouble()
+          : 0.0,
+      aggregateEtc: (json['aggregateEtc'] is num)
+          ? (json['aggregateEtc'] as num).toDouble()
+          : 0.0,
+      aggregateVac: (json['aggregateVac'] is num)
+          ? (json['aggregateVac'] as num).toDouble()
+          : 0.0,
+      aggregateCv: (json['aggregateCv'] is num)
+          ? (json['aggregateCv'] as num).toDouble()
+          : 0.0,
+      aggregateSv: (json['aggregateSv'] is num)
+          ? (json['aggregateSv'] as num).toDouble()
+          : 0.0,
+      aggregateTcpi: (json['aggregateTcpi'] is num)
+          ? (json['aggregateTcpi'] as num).toDouble()
+          : 0.0,
       evmLastRecalculated: safeParseDateTime('evmLastRecalculated'),
 
       // Load New Structured Data
@@ -1203,8 +1249,7 @@ class ProjectDataModel {
       aggAc += ca.actualCost;
       // Sum planned value from period data
       final now = DateTime.now();
-      final currentKey =
-          '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final currentKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
       for (final entry in ca.plannedValueByPeriod.entries) {
         if (entry.key.compareTo(currentKey) <= 0) {
           aggPv += entry.value;
@@ -1719,7 +1764,8 @@ class ScheduleActivity {
   bool isCriticalPath;
   int totalFloat;
   String controlAccountId;
-  String progressMeasurementMethod; // 'zeroHundred' | 'fiftyFifty' | 'percentComplete' | ...
+  String
+      progressMeasurementMethod; // 'zeroHundred' | 'fiftyFifty' | 'percentComplete' | ...
 
   // ── P3.5: Percent complete, resource assignments, cost ──
   double percentComplete; // 0-1 for EVM calculation
@@ -1877,10 +1923,9 @@ class ScheduleActivity {
       percentComplete: json['percentComplete'] is num
           ? (json['percentComplete'] as num).toDouble().clamp(0, 1)
           : 0,
-      resourceIds: (json['resourceIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      resourceIds:
+          (json['resourceIds'] as List?)?.map((e) => e.toString()).toList() ??
+              [],
       estimatedCost: json['estimatedCost'] is num
           ? (json['estimatedCost'] as num).toDouble()
           : 0,
@@ -2603,6 +2648,7 @@ class OpportunityItem {
   List<String> appliesTo;
   String assignedTo;
   String impact;
+
   /// Whether this opportunity has been accepted (applied to cost estimate)
   bool isAccepted;
 
@@ -2716,28 +2762,39 @@ class RiskRegisterItem {
   // ── P3.6: Quantitative risk analysis fields ──
   /// Numeric probability (0-1) for EMV and Monte Carlo calculations.
   double probabilityNumeric;
+
   /// Minimum cost impact if risk materializes.
   double costImpactMin;
+
   /// Most likely cost impact if risk materializes.
   double costImpactMostLikely;
+
   /// Maximum cost impact if risk materializes.
   double costImpactMax;
+
   /// Minimum schedule impact (days) if risk materializes.
   int scheduleImpactMin;
+
   /// Most likely schedule impact (days) if risk materializes.
   int scheduleImpactMostLikely;
+
   /// Maximum schedule impact (days) if risk materializes.
   int scheduleImpactMax;
+
   /// Control Account ID affected by this risk.
   String controlAccountId;
+
   /// CBS element ID for cost risk allocation.
   String cbsId;
+
   /// Whether this is a threat (negative) or opportunity (positive).
   String riskType; // 'threat' | 'opportunity'
   /// Risk response strategy category.
-  String responseStrategy; // 'avoid' | 'mitigate' | 'transfer' | 'accept' | 'exploit' | 'enhance' | 'share'
+  String
+      responseStrategy; // 'avoid' | 'mitigate' | 'transfer' | 'accept' | 'exploit' | 'enhance' | 'share'
   /// Residual probability after mitigation.
   double? residualProbability;
+
   /// Residual cost impact after mitigation.
   double? residualCostImpact;
 
@@ -2779,9 +2836,7 @@ class RiskRegisterItem {
 
   /// PERT mean of schedule impact = (min + 4×mostLikely + max) / 6.
   double get pertScheduleImpact =>
-      (scheduleImpactMin +
-          4 * scheduleImpactMostLikely +
-          scheduleImpactMax) /
+      (scheduleImpactMin + 4 * scheduleImpactMostLikely + scheduleImpactMax) /
       6;
 
   /// Residual EMV after mitigation.
@@ -3662,9 +3717,11 @@ class CostEstimateItem {
   // Structured BOE fields (P1)
   String scopeIncluded;
   String scopeExcluded;
-  String designMaturity; // '10%' | '30%' | '60%' | '90%' | 'IFC' | 'AsBuilt' | ''
+  String
+      designMaturity; // '10%' | '30%' | '60%' | '90%' | 'IFC' | 'AsBuilt' | ''
   String designMaturityNote;
-  String rateSource; // 'vendor_quote' | 'historical' | 'published_index' | 'benchmark' | 'expert_judgment' | ''
+  String
+      rateSource; // 'vendor_quote' | 'historical' | 'published_index' | 'benchmark' | 'expert_judgment' | ''
   // PERT risk ranges (P1)
   double rangeLow;
   double rangeHigh;
@@ -3850,9 +3907,11 @@ class WorkPackage {
   String areaOrSystem;
   String contractorOrCrew;
   String releaseStatus;
+
   /// Date when the EWP was released for execution (Guide Step 2 / Fix 1.4).
   /// Null means not yet released. Only set when releaseStatus is 'released'.
   String? releaseForExecutionDate;
+
   /// IDs of design specification rows from DesignPlanningDocument
   /// that are linked to this package (Guide Step 2 / Fix 1.2).
   /// For EWPs, these are the specs this package must produce deliverables for.
@@ -3934,8 +3993,7 @@ class WorkPackage {
         requirementIds = requirementIds ?? [],
         deliverables = deliverables ?? [],
         procurementItemIds = procurementItemIds ?? [],
-        linkedDesignSpecificationIds =
-            linkedDesignSpecificationIds ?? [],
+        linkedDesignSpecificationIds = linkedDesignSpecificationIds ?? [],
         readiness = readiness ?? PackageReadinessChecklist(),
         estimateBasis = estimateBasis ?? PackageEstimateBasis(),
         procurementBreakdown =
@@ -4077,8 +4135,7 @@ class WorkPackage {
       areaOrSystem: json['areaOrSystem']?.toString() ?? '',
       contractorOrCrew: json['contractorOrCrew']?.toString() ?? '',
       releaseStatus: json['releaseStatus']?.toString() ?? 'draft',
-      releaseForExecutionDate:
-          json['releaseForExecutionDate']?.toString(),
+      releaseForExecutionDate: json['releaseForExecutionDate']?.toString(),
       linkedDesignSpecificationIds:
           (json['linkedDesignSpecificationIds'] as List?)
                   ?.map((e) => e.toString())
@@ -4205,8 +4262,7 @@ class WorkPackage {
       releaseForExecutionDate:
           releaseForExecutionDate ?? this.releaseForExecutionDate,
       linkedDesignSpecificationIds:
-          linkedDesignSpecificationIds ??
-              this.linkedDesignSpecificationIds,
+          linkedDesignSpecificationIds ?? this.linkedDesignSpecificationIds,
       readiness: readiness ?? this.readiness,
       estimateBasis: estimateBasis ?? this.estimateBasis,
       procurementBreakdown: procurementBreakdown ?? this.procurementBreakdown,
@@ -4225,15 +4281,18 @@ class PackageDeliverable {
   String status;
   String reference;
   String notes;
+
   /// IDs of procurement packages that this deliverable feeds into.
   /// Enables design-to-procurement traceability (Guide Step 3):
   /// each EWP output that must be purchased or contracted links
   /// directly to the procurement package it triggers.
   List<String> feedsProcurementPackageIds;
+
   /// IDs of design specification rows from DesignPlanningDocument
   /// that this deliverable fulfills. Provides traceability from
   /// design specifications → EWP deliverables.
   List<String> linkedSpecificationIds;
+
   /// Whether this deliverable is required for procurement.
   /// When true, the linked procurement package cannot start
   /// until this deliverable reaches 'released' status.
@@ -4276,11 +4335,10 @@ class PackageDeliverable {
       status: json['status']?.toString() ?? 'planned',
       reference: json['reference']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
-      feedsProcurementPackageIds:
-          (json['feedsProcurementPackageIds'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [],
+      feedsProcurementPackageIds: (json['feedsProcurementPackageIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       linkedSpecificationIds: (json['linkedSpecificationIds'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -4555,7 +4613,8 @@ class PackageProcurementBreakdown {
       rfqDate: rfqDate ?? this.rfqDate,
       awardDate: awardDate ?? this.awardDate,
       deliveryDate: deliveryDate ?? this.deliveryDate,
-      requiredByMilestoneId: requiredByMilestoneId ?? this.requiredByMilestoneId,
+      requiredByMilestoneId:
+          requiredByMilestoneId ?? this.requiredByMilestoneId,
       vendorScope: vendorScope ?? this.vendorScope,
       activities: activities ?? this.activities,
     );
@@ -5819,6 +5878,59 @@ class RoleDefinition {
       description: json['description']?.toString() ?? '',
       workstream: json['workstream']?.toString() ?? '',
       isPredefined: json['isPredefined'] == true,
+    );
+  }
+}
+
+class RaciMatrixRow {
+  String id;
+  String role;
+  String framework;
+  String discipline;
+  Map<String, String> assignments;
+
+  RaciMatrixRow({
+    String? id,
+    this.role = '',
+    this.framework = '',
+    this.discipline = '',
+    Map<String, String>? assignments,
+  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+        assignments = assignments ?? <String, String>{};
+
+  RaciMatrixRow copyWith({
+    String? id,
+    String? role,
+    String? framework,
+    String? discipline,
+    Map<String, String>? assignments,
+  }) {
+    return RaciMatrixRow(
+      id: id ?? this.id,
+      role: role ?? this.role,
+      framework: framework ?? this.framework,
+      discipline: discipline ?? this.discipline,
+      assignments: assignments ?? Map<String, String>.from(this.assignments),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'role': role,
+        'framework': framework,
+        'discipline': discipline,
+        'assignments': assignments,
+      };
+
+  factory RaciMatrixRow.fromJson(Map<String, dynamic> json) {
+    return RaciMatrixRow(
+      id: json['id']?.toString(),
+      role: json['role']?.toString() ?? '',
+      framework: json['framework']?.toString() ?? '',
+      discipline: json['discipline']?.toString() ?? '',
+      assignments: (json['assignments'] as Map?)?.map((key, value) =>
+              MapEntry(key.toString(), value?.toString() ?? '')) ??
+          <String, String>{},
     );
   }
 }
@@ -7932,7 +8044,8 @@ class InterfaceEntry {
   final String notes;
 
   // PM-standard fields (Tier 1)
-  final String interfaceType; // Technical, Contractual, Organizational, Physical, Procedural
+  final String
+      interfaceType; // Technical, Contractual, Organizational, Physical, Procedural
   final String partyA; // Providing party
   final String partyB; // Receiving party
   final String priority; // High, Medium, Low
@@ -8036,7 +8149,8 @@ class InterfaceChangeLogEntry {
   final String id;
   final String interfaceId;
   final String interfaceName;
-  final String action; // 'Created', 'Updated', 'Deleted', 'Status Changed', 'Imported'
+  final String
+      action; // 'Created', 'Updated', 'Deleted', 'Status Changed', 'Imported'
   final String fieldName; // Which field changed (empty for Created/Deleted)
   final String oldValue; // Previous value (empty for Created)
   final String newValue; // New value (empty for Deleted)

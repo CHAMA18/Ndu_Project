@@ -32,21 +32,6 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   WBSFramework? _framework;
 
   @override
-  void initState() {
-    super.initState();
-    // Auto-populate project name from existing project data
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      try {
-        final projectData = ProjectDataHelper.getData(context);
-        final name = projectData.projectName;
-        if (name != null && name.trim().isNotEmpty) {
-          setState(() => _projectName = name.trim());
-        }
-      } catch (_) {}
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final totalSteps = 2;
     return ResponsiveScaffold(
@@ -174,22 +159,18 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   void _handleNext() {
     if (_step == 0 && _methodology != null) {
       // Auto-select the default framework based on methodology
-      if (_framework == null) {
-        _framework = switch (_methodology!) {
-          ProjectMethodology.agile => WBSFramework.agile,
-          ProjectMethodology.waterfall => WBSFramework.waterfallDeliverable,
-          ProjectMethodology.hybrid => WBSFramework.waterfallDeliverable,
-        };
-      }
+      _framework ??= switch (_methodology!) {
+        ProjectMethodology.agile => WBSFramework.agile,
+        ProjectMethodology.waterfall => WBSFramework.waterfallDeliverable,
+        ProjectMethodology.hybrid => WBSFramework.waterfallDeliverable,
+      };
       setState(() => _step = 1);
     } else if (_step == 1 && _framework != null) {
       final projectData = ProjectDataHelper.getData(context);
       final resolvedProjectName =
-          projectData.projectName?.trim().isNotEmpty == true
-              ? projectData.projectName!.trim()
-              : (_projectName.trim().isNotEmpty
-                  ? _projectName.trim()
-                  : 'Untitled Project');
+          projectData.projectName.trim().isNotEmpty
+              ? projectData.projectName.trim()
+              : 'Untitled Project';
       context.read<WBSProvider>().setup(
             projectName: resolvedProjectName,
             framework: _framework!,

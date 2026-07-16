@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -73,7 +74,9 @@ class _AgileDailyStandupsScreenState extends State<AgileDailyStandupsScreen> {
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -94,7 +97,7 @@ class _AgileDailyStandupsScreenState extends State<AgileDailyStandupsScreen> {
               ?.map((e) => _ActionItem.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [];
-      if (entries.isEmpty) _seedDemoData();
+      if (entries.isEmpty) _seedProjectData(projectData);
       if (mounted) {
         setState(() {
           if (entries.isNotEmpty) _entries = entries;
@@ -107,105 +110,66 @@ class _AgileDailyStandupsScreenState extends State<AgileDailyStandupsScreen> {
       }
     } catch (e) {
       debugPrint('Standups load error: $e');
-      _seedDemoData();
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _seedDemoData() {
+  void _seedProjectData(dynamic projectData) {
+    final people = AgileProjectContextHelper.people(projectData, limit: 6);
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 10);
+    final risks = AgileProjectContextHelper.risks(projectData, limit: 4);
+    final issues = AgileProjectContextHelper.issues(projectData, limit: 4);
+
     _entries = [
-      _StandupEntry(
-        member: 'Sarah Chen',
-        role: 'Tech Lead',
-        avatar: 'SC',
-        yesterday: 'Wrapped up login validation hardening (NDU-1042). Reviewed Marcus\'s PR for rate-limiting scaffolding.',
-        today: 'Pair with Lena on reporting module data layer. Start NDU-1047 audit log stub.',
-        blockers: 'Waiting on DevOps to provision staging Redis instance.',
-        mood: 'positive',
-        color: Colors.green,
-      ),
-      _StandupEntry(
-        member: 'Marcus Reed',
-        role: 'Backend Engineer',
-        avatar: 'MR',
-        yesterday: 'Moved NDU-1038 (rate limiting) to In Review. Pair-debugged Priya\'s KPI card.',
-        today: 'Finalize rate-limiting review. Start NDU-1055 dashboard drag-drop.',
-        blockers: '',
-        mood: 'positive',
-        color: Colors.blue,
-      ),
-      _StandupEntry(
-        member: 'Priya Nair',
-        role: 'Frontend Engineer',
-        avatar: 'PN',
-        yesterday: 'Completed KPI card component (NDU-1031) and pushed for review.',
-        today: 'Wire KPI card into dashboard. Address review feedback on NDU-1031.',
-        blockers: 'Figma tokens for dark mode not finalized — blocking NDU-1046.',
-        mood: 'neutral',
-        color: Colors.purple,
-      ),
-      _StandupEntry(
-        member: 'James Okoro',
-        role: 'Frontend Engineer',
-        avatar: 'JO',
-        yesterday: 'Started NDU-1046 (dark mode tokens). Pushed initial branch.',
-        today: 'Continue dark mode tokens. Help Lena with onboarding tour.',
-        blockers: '',
-        mood: 'positive',
-        color: Colors.orange,
-      ),
-      _StandupEntry(
-        member: 'Lena Park',
-        role: 'Frontend Engineer',
-        avatar: 'LP',
-        yesterday: 'Started reporting module data layer (NDU-1045). Drafted onboarding tour plan.',
-        today: 'Finish reporting DTOs. Begin onboarding tour (NDU-1050).',
-        blockers: '',
-        mood: 'positive',
-        color: Colors.teal,
-      ),
-      _StandupEntry(
-        member: 'Kaz AI',
-        role: 'AI Coach',
-        avatar: 'AI',
-        yesterday: 'Detected velocity drift of -8% on Sprint 24. Suggested scope negotiation.',
-        today: 'Monitoring daily progress. Will flag if cycle time exceeds 3 days.',
-        blockers: '',
-        mood: 'info',
-        color: _kAccent,
-      ),
+      for (int index = 0; index < people.length; index++)
+        _StandupEntry(
+          member: people[index].name,
+          role: people[index].role,
+          avatar: AgileProjectContextHelper.initials(people[index].name),
+          yesterday: workItems.length > index
+              ? 'Progressed ${workItems[index].title} from the project backlog.'
+              : 'Reviewed current project priorities and open delivery commitments.',
+          today: workItems.length > index + 1
+              ? 'Continue with ${workItems[index + 1].title} and align deliverables to sprint goals.'
+              : 'Pull the next highest-priority item from the project plan.',
+          blockers: risks.length > index
+              ? risks[index].title
+              : (issues.length > index ? issues[index].title : ''),
+          mood: risks.length > index ? 'neutral' : 'positive',
+          color: [
+            Colors.green,
+            Colors.blue,
+            Colors.purple,
+            Colors.orange,
+            Colors.teal,
+            _kAccent,
+          ][index % 6],
+        ),
     ];
-    _actionItems.clear();
-    _actionItems.addAll([
-      _ActionItem(
-          id: 'AI-201',
-          description: 'Provision staging Redis instance for Sarah',
-          owner: 'DevOps Team',
-          due: 'Today',
-          status: 'Open',
-          priority: 'High'),
-      _ActionItem(
-          id: 'AI-202',
-          description: 'Finalize Figma dark mode tokens for Priya',
-          owner: 'Design Team',
-          due: 'Tomorrow',
-          status: 'In Progress',
-          priority: 'Medium'),
-      _ActionItem(
-          id: 'AI-203',
-          description: 'Schedule NDU-1047 audit log kickoff',
-          owner: 'Sarah Chen',
-          due: 'Today',
-          status: 'Open',
-          priority: 'Medium'),
-      _ActionItem(
-          id: 'AI-204',
-          description: 'Send stakeholder preview of reporting module',
-          owner: 'Lena Park',
-          due: 'Fri',
-          status: 'Done',
-          priority: 'Low'),
-    ]);
+
+    _actionItems
+      ..clear()
+      ..addAll([
+        for (final risk in risks.take(3))
+          _ActionItem(
+            id: risk.id,
+            description: risk.title,
+            owner: risk.owner.isEmpty ? 'Project Team' : risk.owner,
+            due: 'This sprint',
+            status: risk.status == 'Resolved' ? 'Done' : 'Open',
+            priority: risk.impact >= 4 ? 'High' : 'Medium',
+          ),
+        for (final issue in issues.take(2))
+          _ActionItem(
+            id: issue.id,
+            description: issue.title,
+            owner: issue.owner.isEmpty ? 'Project Team' : issue.owner,
+            due: issue.due.isEmpty ? 'Next standup' : issue.due,
+            status: issue.status == 'Done' ? 'Done' : 'In Progress',
+            priority: issue.severity,
+          ),
+      ]);
   }
 
   Future<void> _saveData() async {

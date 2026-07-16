@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -89,7 +92,9 @@ class _AgileDashboardScreenState extends State<AgileDashboardScreen> {
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedFromProjectContext(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -102,6 +107,9 @@ class _AgileDashboardScreenState extends State<AgileDashboardScreen> {
           .doc('agile_dashboard')
           .get();
       final data = doc.data() ?? {};
+      if (data.isEmpty) {
+        _seedFromProjectContext(projectData);
+      }
       if (mounted) {
         setState(() {
           _activeSprint = data['activeSprint'] as String? ?? _activeSprint;
@@ -124,8 +132,112 @@ class _AgileDashboardScreenState extends State<AgileDashboardScreen> {
       }
     } catch (e) {
       debugPrint('Agile dashboard load error: $e');
+      _seedFromProjectContext(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _seedFromProjectContext(dynamic projectData) {
+    final people = AgileProjectContextHelper.people(projectData, limit: 6);
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 10);
+    final issues = AgileProjectContextHelper.issues(projectData, limit: 6);
+    final risks = AgileProjectContextHelper.risks(projectData, limit: 4);
+
+    _activeSprint = AgileProjectContextHelper.activeSprintLabel(projectData);
+    _storiesTotal = workItems.length;
+    _storiesCompleted = workItems
+        .where((item) => item.status == 'Done' || item.status == 'In Review')
+        .length;
+    _velocity = workItems.fold<int>(
+      0,
+      (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+    );
+    _sprintTotalDays = 10;
+    _sprintDay = (_storiesCompleted == 0
+            ? 1
+            : ((_storiesCompleted / (_storiesTotal == 0 ? 1 : _storiesTotal)) *
+                    _sprintTotalDays)
+                .round())
+        .clamp(1, _sprintTotalDays)
+        .toInt();
+    _teamCapacity =
+        people.isEmpty ? 70 : (people.length * 14).clamp(42, 100).toInt();
+    _sprintCompletion =
+        _storiesTotal == 0 ? 0 : _storiesCompleted / _storiesTotal;
+
+    final totalPoints = math.max(1, _velocity).toDouble();
+    _burnDown
+      ..clear()
+      ..addAll(List.generate(_sprintTotalDays, (index) {
+        final remaining = totalPoints - ((index + 1) * (totalPoints / _sprintTotalDays));
+        return remaining.clamp(0, totalPoints);
+      }));
+    _idealBurn
+      ..clear()
+      ..addAll(List.generate(_sprintTotalDays, (index) {
+        final remaining = totalPoints - ((index + 1) * (totalPoints / _sprintTotalDays));
+        return remaining.clamp(0, totalPoints);
+      }));
+
+    _health
+      ..clear()
+      ..addAll([
+        _HealthIndicator(
+          'Scope Readiness',
+          (_storiesTotal / 8).clamp(0.35, 1.0).toDouble(),
+          Colors.green,
+          _storiesTotal >= 5 ? 'Ready' : 'Building',
+        ),
+        _HealthIndicator(
+          'Delivery Confidence',
+          _sprintCompletion.clamp(0.2, 1.0),
+          _kAccent,
+          _sprintCompletion >= 0.6 ? 'On Track' : 'Watch',
+        ),
+        _HealthIndicator(
+          'Blocker Backlog',
+          (1 - (issues.length / 10)).clamp(0.25, 0.95).toDouble(),
+          issues.isEmpty ? Colors.green : Colors.red,
+          issues.isEmpty ? 'Clear' : 'Attention',
+        ),
+        _HealthIndicator(
+          'Risk Posture',
+          (1 - (risks.length / 8)).clamp(0.2, 0.9).toDouble(),
+          risks.length > 3 ? Colors.red : Colors.green,
+          risks.length > 3 ? 'Elevated' : 'Healthy',
+        ),
+      ]);
+
+    _activity
+      ..clear()
+      ..addAll([
+        for (final item in workItems.take(4))
+          _ActivityItem(
+            item.owner.isEmpty ? 'Project Team' : item.owner,
+            item.status.toLowerCase(),
+            '${item.id}: ${item.title}',
+            '${item.category} item',
+            item.status == 'Done'
+                ? Icons.check_circle
+                : item.status == 'Blocked'
+                    ? Icons.block
+                    : Icons.track_changes,
+            item.status == 'Done'
+                ? Colors.green
+                : item.status == 'Blocked'
+                    ? Colors.red
+                    : _kAccent,
+          ),
+        for (final risk in risks.take(2))
+          _ActivityItem(
+            risk.owner.isEmpty ? 'Risk Monitor' : risk.owner,
+            'flagged',
+            risk.title,
+            'Risk from project register',
+            Icons.warning_amber_rounded,
+            Colors.orange,
+          ),
+      ]);
   }
 
   Future<void> _saveData() async {

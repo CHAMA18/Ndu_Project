@@ -53,6 +53,7 @@ class ProjectRouteRegistry {
     'requirements': () => const PlanningRequirementsScreen(),
     'organization_roles_responsibilities': () =>
         const OrganizationRolesResponsibilitiesScreen(),
+    'organization_raci_matrix': () => const OrganizationRaciMatrixScreen(),
     'organization_staffing_plan': () => const OrganizationStaffingPlanScreen(),
     'team_training': () => const TeamTrainingAndBuildingScreen(),
     'stakeholder_management': () => const StakeholderManagementScreen(),

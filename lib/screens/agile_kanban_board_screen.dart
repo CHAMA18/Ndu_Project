@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -60,7 +61,9 @@ class _AgileKanbanBoardScreenState extends State<AgileKanbanBoardScreen> {
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedProjectCards(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -75,7 +78,7 @@ class _AgileKanbanBoardScreenState extends State<AgileKanbanBoardScreen> {
       final data = doc.data() ?? {};
       final cards = data['cards'] as List? ?? [];
       if (cards.isEmpty) {
-        _seedDemoCards();
+        _seedProjectCards(projectData);
       } else {
         for (final c in _columns) {
           _cardsByColumn[c.id] = [];
@@ -100,86 +103,43 @@ class _AgileKanbanBoardScreenState extends State<AgileKanbanBoardScreen> {
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       debugPrint('Kanban load error: $e');
-      _seedDemoCards();
+      _seedProjectCards(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _seedDemoCards() {
-    _cardsByColumn['backlog'] = [
-      _KanbanCard(id: 'NDU-1051', title: 'Reporting module: export to PDF',
-          description: 'Allow users to export dashboard as PDF report.',
-          points: 5, assignee: 'Lena Park', priority: 'Medium', columnId: 'backlog',
-          tags: ['frontend', 'reporting']),
-      _KanbanCard(id: 'NDU-1052', title: 'Notification preferences UI',
-          description: 'Build a settings page for notification preferences.',
-          points: 3, assignee: 'James Okoro', priority: 'Low', columnId: 'backlog',
-          tags: ['frontend']),
-      _KanbanCard(id: 'NDU-1053', title: 'Audit log retention policy',
-          description: 'Define and implement retention rules for audit log.',
-          points: 8, assignee: 'Priya Nair', priority: 'High', columnId: 'backlog',
-          tags: ['backend', 'security']),
-      _KanbanCard(id: 'NDU-1054', title: 'Localization: French strings',
-          description: 'Add FR translations for all user-facing copy.',
-          points: 5, assignee: 'Sarah Chen', priority: 'Medium', columnId: 'backlog',
-          tags: ['i18n']),
-      _KanbanCard(id: 'NDU-1055', title: 'Dashboard widget drag-drop',
-          description: 'Reorderable widget grid with persistence.',
-          points: 8, assignee: 'Marcus Reed', priority: 'High', columnId: 'backlog',
-          tags: ['frontend', 'ux']),
-    ];
-    _cardsByColumn['ready'] = [
-      _KanbanCard(id: 'NDU-1049', title: 'API rate limiting middleware',
-          description: 'Per-tenant rate limit using Redis token bucket.',
-          points: 5, assignee: 'Marcus Reed', priority: 'High', columnId: 'ready',
-          tags: ['backend', 'infra']),
-      _KanbanCard(id: 'NDU-1050', title: 'User onboarding tour',
-          description: 'Guided first-run tour using coach marks.',
-          points: 3, assignee: 'Lena Park', priority: 'Medium', columnId: 'ready',
-          tags: ['frontend', 'ux']),
-    ];
-    _cardsByColumn['in_progress'] = [
-      _KanbanCard(id: 'NDU-1042', title: 'Login validation hardening',
-          description: 'Add server-side validation and rate checks.',
-          points: 3, assignee: 'Sarah Chen', priority: 'High', columnId: 'in_progress',
-          tags: ['backend', 'security']),
-      _KanbanCard(id: 'NDU-1045', title: 'Reporting module: data layer',
-          description: 'Repository and DTOs for report aggregation.',
-          points: 5, assignee: 'Lena Park', priority: 'Medium', columnId: 'in_progress',
-          tags: ['backend']),
-      _KanbanCard(id: 'NDU-1046', title: 'Dark mode theme tokens',
-          description: 'Centralize dark theme tokens and propagate.',
-          points: 2, assignee: 'James Okoro', priority: 'Low', columnId: 'in_progress',
-          tags: ['frontend', 'theme']),
-    ];
-    _cardsByColumn['in_review'] = [
-      _KanbanCard(id: 'NDU-1038', title: 'API rate limiting scaffolding',
-          description: 'Wire middleware skeleton for review.',
-          points: 2, assignee: 'Marcus Reed', priority: 'Medium', columnId: 'in_review',
-          tags: ['backend']),
-      _KanbanCard(id: 'NDU-1031', title: 'Dashboard widgets: KPI card',
-          description: 'Reusable KPI card component with sparkline.',
-          points: 3, assignee: 'Priya Nair', priority: 'Medium', columnId: 'in_review',
-          tags: ['frontend']),
-    ];
-    _cardsByColumn['done'] = [
-      _KanbanCard(id: 'NDU-1029', title: 'SSO integration: SAML',
-          description: 'Enterprise SAML SSO sign-in flow.',
-          points: 8, assignee: 'Sarah Chen', priority: 'High', columnId: 'done',
-          tags: ['security', 'auth']),
-      _KanbanCard(id: 'NDU-1027', title: 'Kanban board UI shell',
-          description: '5-column layout with drag-drop placeholder.',
-          points: 5, assignee: 'James Okoro', priority: 'Medium', columnId: 'done',
-          tags: ['frontend']),
-      _KanbanCard(id: 'NDU-1024', title: 'Auth: refresh tokens',
-          description: 'Rotating refresh tokens with revocation.',
-          points: 3, assignee: 'Marcus Reed', priority: 'High', columnId: 'done',
-          tags: ['security', 'auth']),
-      _KanbanCard(id: 'NDU-1020', title: 'Notification service v1',
-          description: 'In-app + email notification pipeline.',
-          points: 8, assignee: 'Priya Nair', priority: 'Medium', columnId: 'done',
-          tags: ['backend']),
-    ];
+  void _seedProjectCards(dynamic projectData) {
+    for (final column in _columns) {
+      _cardsByColumn[column.id] = [];
+    }
+    final items = AgileProjectContextHelper.workItems(projectData, limit: 16);
+    for (final item in items) {
+      final columnId = switch (item.status) {
+        'Done' => 'done',
+        'In Review' => 'in_review',
+        'In Progress' => 'in_progress',
+        'Ready' => 'ready',
+        'Blocked' => 'ready',
+        _ => 'backlog',
+      };
+      _cardsByColumn[columnId]!.add(
+        _KanbanCard(
+          id: item.id,
+          title: item.title,
+          description: item.description.isEmpty
+              ? '${item.category} pulled from project context.'
+              : item.description,
+          points: AgileProjectContextHelper.estimateStoryPoints(item.title),
+          assignee: item.owner.isEmpty ? 'Unassigned' : item.owner,
+          priority: item.priority,
+          columnId: columnId,
+          tags: [
+            item.category.toLowerCase().replaceAll(' ', '_'),
+            item.priority.toLowerCase(),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _saveData() async {

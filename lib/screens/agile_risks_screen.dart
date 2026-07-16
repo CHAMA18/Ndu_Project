@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -54,7 +55,9 @@ class _AgileRisksScreenState extends State<AgileRisksScreen> {
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -79,7 +82,7 @@ class _AgileRisksScreenState extends State<AgileRisksScreen> {
               ?.map((e) => _TrendPoint.fromMap(e as Map<String, dynamic>))
               .toList() ??
           [];
-      if (blockers.isEmpty) _seedDemoData();
+      if (blockers.isEmpty) _seedProjectData(projectData);
       if (mounted) {
         setState(() {
           if (blockers.isNotEmpty) _blockers = blockers;
@@ -97,45 +100,43 @@ class _AgileRisksScreenState extends State<AgileRisksScreen> {
       }
     } catch (e) {
       debugPrint('Risks load error: $e');
-      _seedDemoData();
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  void _seedDemoData() {
+  void _seedProjectData(dynamic projectData) {
+    final risks = AgileProjectContextHelper.risks(projectData, limit: 8);
+    final issues = AgileProjectContextHelper.issues(projectData, limit: 4);
     _blockers = [
-      _Blocker(id: 'BLK-501', item: 'Redis staging instance not provisioned',
-          owner: 'DevOps Team', status: 'Open', sla: '2 days overdue',
-          resolution: 'Awaiting infra ticket IR-9821',
-          probability: 3, impact: 4, raised: '2 days ago'),
-      _Blocker(id: 'BLK-502', item: 'Figma dark mode tokens not finalized',
-          owner: 'Design Team', status: 'In Progress', sla: 'Today',
-          resolution: 'Design sync scheduled 3pm today',
-          probability: 2, impact: 3, raised: '1 day ago'),
-      _Blocker(id: 'BLK-503', item: 'Story NDU-1015 rejected at review',
-          owner: 'James Okoro', status: 'Open', sla: '3 days',
-          resolution: 'Rework planned for next sprint',
-          probability: 2, impact: 2, raised: 'Today'),
-      _Blocker(id: 'BLK-504', item: 'SSO go-live coordination pending',
-          owner: 'Sarah Chen', status: 'In Progress', sla: 'Tomorrow',
-          resolution: 'Coordinating with Customer Success',
-          probability: 1, impact: 4, raised: '1 day ago'),
-      _Blocker(id: 'BLK-505', item: 'Velocity drift -8% on Sprint 24',
-          owner: 'Kaz AI', status: 'Open', sla: '5 days',
-          resolution: 'Kaz AI recommends scope negotiation',
-          probability: 4, impact: 3, raised: '3 days ago'),
-      _Blocker(id: 'BLK-506', item: 'Cycle time exceeding 3-day target',
-          owner: 'Marcus Reed', status: 'In Progress', sla: 'This sprint',
-          resolution: 'WIP limits being enforced on Kanban',
-          probability: 4, impact: 2, raised: '2 days ago'),
-      _Blocker(id: 'BLK-507', item: 'Cross-team dependency on Auth API',
-          owner: 'Priya Nair', status: 'Escalated', sla: '1 day overdue',
-          resolution: 'Escalated to Engineering Director',
-          probability: 3, impact: 5, raised: '4 days ago'),
-      _Blocker(id: 'BLK-508', item: 'Audit log story rejected — needs rework',
-          owner: 'James Okoro', status: 'Open', sla: 'Next sprint',
-          resolution: 'UX workshop scheduled',
-          probability: 2, impact: 2, raised: 'Today'),
+      for (final risk in risks)
+        _Blocker(
+          id: risk.id,
+          item: risk.title,
+          owner: risk.owner.isEmpty ? 'Project Team' : risk.owner,
+          status: risk.status,
+          sla: 'This sprint',
+          resolution: risk.mitigation.isEmpty
+              ? 'Track via agile risk workflow'
+              : risk.mitigation,
+          probability: risk.probability.clamp(1, 5).toInt(),
+          impact: risk.impact.clamp(1, 5).toInt(),
+          raised: 'From project context',
+        ),
+      for (final issue in issues)
+        _Blocker(
+          id: issue.id,
+          item: issue.title,
+          owner: issue.owner.isEmpty ? 'Project Team' : issue.owner,
+          status: issue.status,
+          sla: issue.due.isEmpty ? 'Next review' : issue.due,
+          resolution: issue.description.isEmpty
+              ? 'Resolve through issue log follow-up'
+              : issue.description,
+          probability: 3,
+          impact: issue.severity.toLowerCase().contains('high') ? 4 : 3,
+          raised: 'From issue log',
+        ),
     ];
     _escalation.clear();
     _escalation.addAll([
@@ -169,13 +170,29 @@ class _AgileRisksScreenState extends State<AgileRisksScreen> {
           color: Colors.red),
     ]);
     _trend.clear();
+    final sprintLabel = AgileProjectContextHelper.activeSprintLabel(projectData);
     _trend.addAll([
-      _TrendPoint(sprint: 'S19', blockers: 4, resolved: 3),
-      _TrendPoint(sprint: 'S20', blockers: 6, resolved: 5),
-      _TrendPoint(sprint: 'S21', blockers: 5, resolved: 6),
-      _TrendPoint(sprint: 'S22', blockers: 7, resolved: 5),
-      _TrendPoint(sprint: 'S23', blockers: 4, resolved: 4),
-      _TrendPoint(sprint: 'S24', blockers: 8, resolved: 3),
+      _TrendPoint(
+        sprint: 'Baseline',
+        blockers: (_blockers.length / 2).roundToDouble(),
+        resolved: 1,
+      ),
+      _TrendPoint(
+        sprint: 'Current - 2',
+        blockers: (_blockers.length * 0.7).roundToDouble(),
+        resolved: 2,
+      ),
+      _TrendPoint(
+        sprint: 'Current - 1',
+        blockers: (_blockers.length * 0.85).roundToDouble(),
+        resolved: 2,
+      ),
+      _TrendPoint(
+        sprint: sprintLabel.replaceAll('Sprint ', 'S'),
+        blockers: _blockers.length.toDouble(),
+        resolved:
+            _blockers.where((blocker) => blocker.status == 'Resolved').length.toDouble(),
+      ),
     ]);
     _rebuildHeatmap();
   }

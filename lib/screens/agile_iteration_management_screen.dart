@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -92,7 +93,9 @@ class _AgileIterationManagementScreenState
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -105,6 +108,9 @@ class _AgileIterationManagementScreenState
           .doc('agile_iteration_management')
           .get();
       final data = doc.data() ?? {};
+      if (data.isEmpty) {
+        _seedProjectData(projectData);
+      }
       if (mounted) {
         setState(() {
           _currentSprint = data['currentSprint'] as String? ?? _currentSprint;
@@ -124,13 +130,100 @@ class _AgileIterationManagementScreenState
             _kickoff.addAll(kickoff
                 .map((e) => _KickoffItem.fromMap(e as Map<String, dynamic>)));
           }
+          final daily = data['daily'] as List?;
+          if (daily != null) {
+            _daily
+              ..clear()
+              ..addAll(daily
+                  .map((e) => _DailyProgress.fromMap(e as Map<String, dynamic>)));
+          }
+          final carryover = data['carryover'] as List?;
+          if (carryover != null) {
+            _carryover
+              ..clear()
+              ..addAll(carryover.map(
+                  (e) => _CarryoverItem.fromMap(e as Map<String, dynamic>)));
+          }
           _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Iteration mgmt load error: $e');
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _seedProjectData(dynamic projectData) {
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 12);
+    final risks = AgileProjectContextHelper.risks(projectData, limit: 4);
+    final people = AgileProjectContextHelper.people(projectData, limit: 6);
+
+    _currentSprint = AgileProjectContextHelper.activeSprintLabel(projectData);
+    _committedPoints = workItems.fold<int>(
+      0,
+      (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+    );
+    _completedPoints = workItems
+        .where((item) => item.status == 'Done' || item.status == 'In Review')
+        .fold<int>(
+          0,
+          (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+        );
+    _carryover
+      ..clear()
+      ..addAll([
+        for (final item in workItems
+            .where((item) => item.status == 'Backlog' || item.status == 'Blocked')
+            .take(4))
+          _CarryoverItem(
+            id: item.id,
+            title: item.title,
+            reason: item.description.isEmpty ? 'Still pending in project pipeline' : item.description,
+            points: AgileProjectContextHelper.estimateStoryPoints(item.title),
+            owner: item.owner.isEmpty ? 'Project Team' : item.owner,
+          ),
+      ]);
+    _carryoverPoints =
+        _carryover.fold<int>(0, (total, item) => total + item.points);
+    _completionPct =
+        _committedPoints == 0 ? 0 : _completedPoints / _committedPoints;
+    _sprintGoalPct = (_completionPct * 100).round().clamp(0, 100).toInt();
+    _kickoff
+      ..clear()
+      ..addAll([
+        _KickoffItem(
+          id: 'K1',
+          text: 'Sprint goal aligned to project objective',
+          owner: 'Project Manager',
+          done: workItems.isNotEmpty,
+        ),
+        _KickoffItem(
+          id: 'K2',
+          text: 'Capacity confirmed for active contributors',
+          owner: 'Scrum Master',
+          done: people.isNotEmpty,
+        ),
+        _KickoffItem(
+          id: 'K3',
+          text: 'Top backlog items linked to project scope',
+          owner: 'Product Owner',
+          done: workItems.length >= 3,
+        ),
+        _KickoffItem(
+          id: 'K4',
+          text: 'Execution risks reviewed before sprint start',
+          owner: 'Project Controls',
+          done: risks.isNotEmpty,
+        ),
+      ]);
+    _daily
+      ..clear()
+      ..addAll(List.generate(6, (index) {
+        final planned = (_committedPoints / 6).ceil();
+        final actual = (_completedPoints / 6).ceil() + (index.isEven ? 0 : 1);
+        return _DailyProgress(day: index + 1, planned: planned, actual: actual);
+      }));
   }
 
   Future<void> _saveData() async {
@@ -1173,6 +1266,12 @@ class _DailyProgress {
         'planned': planned,
         'actual': actual,
       };
+
+  factory _DailyProgress.fromMap(Map<String, dynamic> m) => _DailyProgress(
+        day: (m['day'] as num?)?.toInt() ?? 0,
+        planned: (m['planned'] as num?)?.toInt() ?? 0,
+        actual: (m['actual'] as num?)?.toInt() ?? 0,
+      );
 }
 
 class _CarryoverItem {
@@ -1196,6 +1295,14 @@ class _CarryoverItem {
         'points': points,
         'owner': owner,
       };
+
+  factory _CarryoverItem.fromMap(Map<String, dynamic> m) => _CarryoverItem(
+        id: m['id'] as String? ?? '',
+        title: m['title'] as String? ?? '',
+        reason: m['reason'] as String? ?? '',
+        points: (m['points'] as num?)?.toInt() ?? 0,
+        owner: m['owner'] as String? ?? '',
+      );
 }
 
 class _DailyProgressPainter extends CustomPainter {

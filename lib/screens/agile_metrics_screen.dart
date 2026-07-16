@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -81,7 +82,9 @@ class _AgileMetricsScreenState extends State<AgileMetricsScreen> {
 
   Future<void> _loadData() async {
     final pid = _projectId;
+    final projectData = ProjectDataHelper.getData(context);
     if (pid == null) {
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
       return;
     }
@@ -94,6 +97,9 @@ class _AgileMetricsScreenState extends State<AgileMetricsScreen> {
           .doc('agile_metrics')
           .get();
       final data = doc.data() ?? {};
+      if (data.isEmpty) {
+        _seedProjectData(projectData);
+      }
       if (mounted) {
         setState(() {
           _predictability =
@@ -104,13 +110,95 @@ class _AgileMetricsScreenState extends State<AgileMetricsScreen> {
               (data['escapedDefects'] as num?)?.toInt() ?? _escapedDefects;
           _openDefects =
               (data['openDefects'] as num?)?.toInt() ?? _openDefects;
+          final velocity = data['velocity'] as List?;
+          if (velocity != null) {
+            _velocity
+              ..clear()
+              ..addAll(velocity
+                  .map((e) => _VelocityPoint.fromMap(e as Map<String, dynamic>)));
+          }
+          final defectTrend = data['defectTrend'] as List?;
+          if (defectTrend != null) {
+            _defectTrend
+              ..clear()
+              ..addAll(defectTrend
+                  .map((e) => _DefectPoint.fromMap(e as Map<String, dynamic>)));
+          }
+          final capacity = data['capacity'] as List?;
+          if (capacity != null) {
+            _capacity
+              ..clear()
+              ..addAll(capacity
+                  .map((e) => _CapacityMember.fromMap(e as Map<String, dynamic>)));
+          }
           _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('Agile metrics load error: $e');
+      _seedProjectData(projectData);
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _seedProjectData(dynamic projectData) {
+    final people = AgileProjectContextHelper.people(projectData, limit: 6);
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 12);
+    final issues = AgileProjectContextHelper.issues(projectData, limit: 8);
+
+    final totalPoints = workItems.fold<int>(
+      0,
+      (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+    );
+    final completedPoints = workItems
+        .where((item) => item.status == 'Done' || item.status == 'In Review')
+        .fold<int>(
+          0,
+          (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+        );
+    _predictability = totalPoints == 0 ? 0.75 : completedPoints / totalPoints;
+    _leadTime = math.max(2, workItems.length / 2).toDouble();
+    _cycleTime = math.max(1.5, _leadTime / 2);
+    _escapedDefects = issues
+        .where((issue) => issue.status != 'Done' && issue.severity.toLowerCase().contains('high'))
+        .length;
+    _openDefects = issues.where((issue) => issue.status != 'Done').length;
+
+    _velocity
+      ..clear()
+      ..addAll(List.generate(4, (index) {
+        final planned =
+            math.max<double>(8, (totalPoints * (0.8 + (index * 0.05))).roundToDouble());
+        final completed = math.max<double>(
+          6,
+          (planned * (_predictability.clamp(0.55, 0.98))).roundToDouble(),
+        );
+        return _VelocityPoint(
+          sprint: 'S${index + 1}',
+          planned: planned,
+          completed: completed,
+        );
+      }));
+    _defectTrend
+      ..clear()
+      ..addAll(List.generate(4, (index) {
+        final found = math.max<double>(1, (_openDefects + index + 1).toDouble());
+        final escaped = math.min<double>(
+          found,
+          math.max<double>(0, (_escapedDefects + (index ~/ 2)).toDouble()),
+        );
+        return _DefectPoint(sprint: 'S${index + 1}', found: found, escaped: escaped);
+      }));
+    _capacity
+      ..clear()
+      ..addAll([
+        for (final person in people)
+          _CapacityMember(
+            person.name,
+            person.notes.isEmpty ? 0.8 : 0.9,
+            person.role,
+          ),
+      ]);
   }
 
   Future<void> _saveData() async {
@@ -784,6 +872,12 @@ class _VelocityPoint {
         'planned': planned,
         'completed': completed,
       };
+
+  factory _VelocityPoint.fromMap(Map<String, dynamic> m) => _VelocityPoint(
+        sprint: m['sprint'] as String? ?? '',
+        planned: (m['planned'] as num?)?.toDouble() ?? 0,
+        completed: (m['completed'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 class _DefectPoint {
@@ -801,6 +895,12 @@ class _DefectPoint {
         'found': found,
         'escaped': escaped,
       };
+
+  factory _DefectPoint.fromMap(Map<String, dynamic> m) => _DefectPoint(
+        sprint: m['sprint'] as String? ?? '',
+        found: (m['found'] as num?)?.toDouble() ?? 0,
+        escaped: (m['escaped'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 class _CapacityMember {
@@ -814,6 +914,12 @@ class _CapacityMember {
         'utilization': utilization,
         'role': role,
       };
+
+  factory _CapacityMember.fromMap(Map<String, dynamic> m) => _CapacityMember(
+        m['name'] as String? ?? '',
+        (m['utilization'] as num?)?.toDouble() ?? 0,
+        m['role'] as String? ?? '',
+      );
 }
 
 class _VelocityPainter extends CustomPainter {

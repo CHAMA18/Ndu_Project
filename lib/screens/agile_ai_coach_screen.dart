@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ndu_project/utils/agile_project_context_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -160,27 +161,25 @@ class _AgileAiCoachScreenState extends State<AgileAiCoachScreen> {
   }
 
   void _seedChat() {
+    final projectData = ProjectDataHelper.getData(context);
+    final sprintLabel = AgileProjectContextHelper.activeSprintLabel(projectData);
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 3);
+    final risks = AgileProjectContextHelper.risks(projectData, limit: 2);
+    final topItem = workItems.isEmpty ? 'the current project backlog' : workItems.first.title;
+    final topRisk = risks.isEmpty ? 'delivery dependencies from the project record' : risks.first.title;
     _chat.addAll([
       _ChatMessage(
           from: 'ai',
-          text: 'Hi! I\'m Kaz, your Agile AI Coach. I detected velocity drift on Sprint 24. Want me to suggest scope negotiations?',
+          text: 'Hi! I\'m Kaz, your Agile AI Coach. I\'m using project-wide backlog, schedule, and risk context for $sprintLabel. Want me to prioritize the next best work item?',
           time: '2:14 PM'),
       _ChatMessage(
           from: 'user',
-          text: 'Yes — what should we drop from the sprint?',
+          text: 'What should the team focus on first?',
           time: '2:15 PM'),
       _ChatMessage(
           from: 'ai',
-          text: 'Based on value-vs-effort, NDU-1054 (FR localization) and NDU-1052 (Notification preferences UI) are the safest to defer. Pulling them restores ~8 points of capacity.',
+          text: 'Based on current project context, I would focus on "$topItem" first and keep an eye on "$topRisk" as the main delivery constraint.',
           time: '2:15 PM'),
-      _ChatMessage(
-          from: 'user',
-          text: 'Will that impact the release goal?',
-          time: '2:16 PM'),
-      _ChatMessage(
-          from: 'ai',
-          text: 'No — neither story is on the critical path for Release 24.2. I recommend confirming with the Product Owner before adjusting.',
-          time: '2:17 PM'),
     ]);
   }
 
@@ -301,17 +300,39 @@ class _AgileAiCoachScreenState extends State<AgileAiCoachScreen> {
   }
 
   String _generateAiReply(String input) {
+    final projectData = ProjectDataHelper.getData(context);
+    final sprintLabel = AgileProjectContextHelper.activeSprintLabel(projectData);
+    final workItems = AgileProjectContextHelper.workItems(projectData, limit: 8);
+    final risks = AgileProjectContextHelper.risks(projectData, limit: 6);
+    final issues = AgileProjectContextHelper.issues(projectData, limit: 6);
+    final people = AgileProjectContextHelper.people(projectData, limit: 6);
+    final totalPoints = workItems.fold<int>(
+      0,
+      (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+    );
+    final completedPoints = workItems
+        .where((item) => item.status == 'Done' || item.status == 'In Review')
+        .fold<int>(
+          0,
+          (sum, item) => sum + AgileProjectContextHelper.estimateStoryPoints(item.title),
+        );
     final lower = input.toLowerCase();
     if (lower.contains('velocity')) {
-      return 'Current 3-sprint velocity is 42 pts (trend +5%). Sprint 24 is on track to deliver 40 of 45 committed points (89% predictability).';
+      return '$sprintLabel is currently carrying about $totalPoints story points from project-linked backlog items, with roughly $completedPoints points already progressed.';
     } else if (lower.contains('risk')) {
-      return 'I\'m tracking 8 open blockers. The highest-impact risk is BLK-507 (cross-team dependency on Auth API), probability 3 × impact 5 = 15 (Critical). Recommend immediate escalation to L3.';
+      final risk = risks.isEmpty ? null : risks.first;
+      return risk == null
+          ? 'I do not see a populated agile risk entry yet, so I would start by reviewing issue log items and execution risks for blockers.'
+          : 'The highest-priority project risk I can see is "${risk.title}" owned by ${risk.owner.isEmpty ? 'the project team' : risk.owner}.';
     } else if (lower.contains('estimat')) {
-      return 'For NDU-1055 (Dashboard drag-drop), I recommend 8 points based on analogy to NDU-1027 (Kanban shell, also 5) plus persistence layer.';
+      final item = workItems.isEmpty ? null : workItems.first;
+      return item == null
+          ? 'I need backlog detail before estimating, but once requirements are added I can score them from project context.'
+          : 'For "${item.title}", I would start at ${AgileProjectContextHelper.estimateStoryPoints(item.title)} points based on the current scope wording and linked project detail.';
     } else if (lower.contains('retro')) {
-      return 'Recurring retro themes across S19-S24: (1) mid-sprint refinement missing, (2) DoR enforcement weak. Recommended experiment: 30-min refinement slot every Wednesday.';
+      return 'From the current project record, the strongest retro themes are scope readiness, open dependencies, and follow-through on issue resolution. I would test one recurring mid-sprint refinement slot.';
     } else if (lower.contains('sprint')) {
-      return 'Sprint 24 has 6 days remaining. At current burn rate (4.3 pts/day), you\'ll deliver ~26 more points — total ~44 of 45 committed. Recommend no scope change unless blockers increase.';
+      return '$sprintLabel should center on ${workItems.isEmpty ? 'the top backlog items' : workItems.first.title}. Team coverage currently reflects ${people.length} mapped contributors and ${issues.length} active issue entries.';
     } else {
       return 'I can help with sprint planning, story writing, estimation, risk ID, retro insights, predictability forecasting, blocker triage, and agile maturity coaching. Which area would you like to explore?';
     }
