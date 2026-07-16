@@ -500,7 +500,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
- style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFFFFC812), side: const BorderSide(color: Color(0xFF93C5FD))),
  ),
  const SizedBox(width: 8),
  FilledButton.icon(
@@ -907,7 +907,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
- style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), foregroundColor: const Color(0xFFFFC812), side: const BorderSide(color: Color(0xFF93C5FD))),
  ),
  const SizedBox(width: 8),
  FilledButton.icon(

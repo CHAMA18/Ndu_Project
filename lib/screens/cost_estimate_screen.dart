@@ -7757,11 +7757,11 @@ class _AiSuggestionsDialogState extends State<_AiSuggestionsDialog> {
  onPressed:
  _selectedIndices.isEmpty ? null : _addSelected,
  style: FilledButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- padding: const EdgeInsets.symmetric(
- horizontal: 24, vertical: 12),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12)),
+  backgroundColor: const Color(0xFFFFC812),
+  padding: const EdgeInsets.symmetric(
+  horizontal: 24, vertical: 12),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12)),
  ),
  child:
  Text('Add Selected (${_selectedIndices.length})'),

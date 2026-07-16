@@ -18,775 +18,936 @@ import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
+import 'package:ndu_project/services/kanban_config_service.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/screens/agile_task_board_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+
 class AgileDevelopmentIterationsScreen extends StatefulWidget {
- const AgileDevelopmentIterationsScreen({super.key});
+  const AgileDevelopmentIterationsScreen({super.key});
 
- static void open(BuildContext context) {
- Navigator.of(context).push(
- MaterialPageRoute(
- builder: (_) => const AgileDevelopmentIterationsScreen()),
- );
- }
+  static void open(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+          builder: (_) => const AgileDevelopmentIterationsScreen()),
+    );
+  }
 
- @override
- State<AgileDevelopmentIterationsScreen> createState() =>
- _AgileDevelopmentIterationsScreenState();
+  @override
+  State<AgileDevelopmentIterationsScreen> createState() =>
+      _AgileDevelopmentIterationsScreenState();
 }
 
 class _AgileDevelopmentIterationsScreenState
- extends State<AgileDevelopmentIterationsScreen> {
- final Set<String> _selectedFilters = {'All'};
- List<AgileTask> _tasks = [];
- List<String> _availableRoles = [];
- bool _isLoading = false;
- bool _isRegeneratingAll = false;
- bool _autoGenerationTriggered = false;
- bool _isAutoGenerating = false;
+    extends State<AgileDevelopmentIterationsScreen> {
+  final Set<String> _selectedFilters = {'All'};
+  List<AgileTask> _tasks = [];
+  List<String> _availableRoles = [];
+  List<String> _workflowColumns =
+      List<String>.from(KanbanConfigService.simpleTemplate);
+  bool _isLoading = false;
+  bool _isRegeneratingAll = false;
+  bool _autoGenerationTriggered = false;
+  bool _isAutoGenerating = false;
 
- String? get _projectId {
- try {
- final provider = ProjectDataInherited.maybeOf(context);
- return provider?.projectData.projectId;
- } catch (e) {
- return null;
- }
- }
+  String? get _projectId {
+    try {
+      final provider = ProjectDataInherited.maybeOf(context);
+      return provider?.projectData.projectId;
+    } catch (e) {
+      return null;
+    }
+  }
 
- @override
- void initState() {
- super.initState();
- WidgetsBinding.instance.addPostFrameCallback((_) {
- _loadTasks();
- _loadAvailableRoles();
- });
- }
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadWorkflowColumns();
+      _loadTasks();
+      _loadAvailableRoles();
+    });
+  }
 
- Future<void> _loadTasks() async {
- final projectId = _projectId;
- if (projectId == null) return;
+  Future<void> _loadWorkflowColumns() async {
+    final projectId = _projectId;
+    if (projectId == null) return;
+    try {
+      final columns = await KanbanConfigService.loadWorkflowColumns(projectId);
+      if (!mounted) return;
+      setState(() => _workflowColumns = columns);
+    } catch (e) {
+      debugPrint('Error loading kanban workflow columns: $e');
+    }
+  }
 
- setState(() => _isLoading = true);
- try {
- final tasks =
- await ExecutionPhaseService.loadAgileTasks(projectId: projectId);
- if (mounted) {
- setState(() {
- _tasks = tasks;
- _isLoading = false;
- });
- }
- await _autoGenerateIfNeeded();
- } catch (e) {
- debugPrint('Error loading agile tasks: $e');
- if (mounted) {
- setState(() => _isLoading = false);
- }
- }
- }
+  Future<void> _loadTasks() async {
+    final projectId = _projectId;
+    if (projectId == null) return;
 
- Future<void> _loadAvailableRoles() async {
- final projectId = _projectId;
- if (projectId == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final tasks =
+          await ExecutionPhaseService.loadAgileTasks(projectId: projectId);
+      if (mounted) {
+        setState(() {
+          _tasks = tasks
+              .map((task) => task.copyWith(
+                    status: KanbanConfigService.coerceTaskStatus(
+                        task.status, _workflowColumns),
+                  ))
+              .toList();
+          _isLoading = false;
+        });
+      }
+      await _autoGenerateIfNeeded();
+    } catch (e) {
+      debugPrint('Error loading agile tasks: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
- try {
- final staffRows =
- await ExecutionPhaseService.loadStaffingRows(projectId: projectId);
- if (mounted) {
- setState(() {
- _availableRoles = staffRows
- .map((row) => row.role)
- .where((role) => role.isNotEmpty)
- .toSet()
- .toList();
- });
- }
- await _autoGenerateIfNeeded();
- } catch (e) {
- debugPrint('Error loading staff roles: $e');
- }
- }
+  Future<void> _loadAvailableRoles() async {
+    final projectId = _projectId;
+    if (projectId == null) return;
 
- Future<void> _autoGenerateIfNeeded() async {
- if (!mounted || _autoGenerationTriggered || _isAutoGenerating) return;
- if (_tasks.isNotEmpty) return;
- if (_projectId == null) return;
+    try {
+      final staffRows =
+          await ExecutionPhaseService.loadStaffingRows(projectId: projectId);
+      if (mounted) {
+        setState(() {
+          _availableRoles = staffRows
+              .map((row) => row.role)
+              .where((role) => role.isNotEmpty)
+              .toSet()
+              .toList();
+        });
+      }
+      await _autoGenerateIfNeeded();
+    } catch (e) {
+      debugPrint('Error loading staff roles: $e');
+    }
+  }
 
- _autoGenerationTriggered = true;
- _isAutoGenerating = true;
- try {
- final generated = await ExecutionPhaseAiSeed.generateEntries(
- context: context,
- section: 'Agile Development Iterations',
- sections: const {
- 'agileTasks': 'Agile user stories and tasks for execution',
- },
- itemsPerSection: 4,
- );
- final entries = generated['agileTasks'] ?? const [];
- if (entries.isEmpty) return;
+  Future<void> _autoGenerateIfNeeded() async {
+    if (!mounted || _autoGenerationTriggered || _isAutoGenerating) return;
+    if (_tasks.isNotEmpty) return;
+    if (_projectId == null) return;
 
- final roleFallback =
- _availableRoles.isNotEmpty ? _availableRoles.first : '';
- final newTasks = entries
- .map(
- (entry) => AgileTask(
- userStory: entry.title,
- assignedRole: roleFallback,
- storyPoints: 3,
- priority: 'Medium',
- status: 'To-Do',
- taskDescription: entry.details,
- acceptanceCriteria: entry.details.isNotEmpty
- ? '. ${entry.details}'
- : '',
- ),
- )
- .toList();
+    _autoGenerationTriggered = true;
+    _isAutoGenerating = true;
+    try {
+      final generated = await ExecutionPhaseAiSeed.generateEntries(
+        context: context,
+        section: 'Agile Development Iterations',
+        sections: const {
+          'agileTasks': 'Agile user stories and tasks for execution',
+        },
+        itemsPerSection: 4,
+      );
+      final entries = generated['agileTasks'] ?? const [];
+      if (entries.isEmpty) return;
 
- if (!mounted) return;
- setState(() => _tasks = newTasks);
- final projectId = _projectId;
- if (projectId != null) {
- await ExecutionPhaseService.saveAgileTasks(
- projectId: projectId,
- tasks: newTasks,
- );
- }
- } catch (e) {
- debugPrint('Error auto-generating agile tasks: $e');
- } finally {
- _isAutoGenerating = false;
- }
- }
+      final roleFallback =
+          _availableRoles.isNotEmpty ? _availableRoles.first : '';
+      final newTasks = entries
+          .map(
+            (entry) => AgileTask(
+              userStory: entry.title,
+              assignedRole: roleFallback,
+              storyPoints: 3,
+              priority: 'Medium',
+              status: _workflowColumns.isNotEmpty
+                  ? _workflowColumns.first
+                  : 'To Do',
+              taskDescription: entry.details,
+              acceptanceCriteria:
+                  entry.details.isNotEmpty ? '. ${entry.details}' : '',
+            ),
+          )
+          .toList();
 
- @override
- Widget build(BuildContext context) {
- final bool isMobile = AppBreakpoints.isMobile(context);
- final double horizontalPadding = isMobile ? 18 : 32;
+      if (!mounted) return;
+      setState(() => _tasks = newTasks);
+      final projectId = _projectId;
+      if (projectId != null) {
+        await ExecutionPhaseService.saveAgileTasks(
+          projectId: projectId,
+          tasks: newTasks,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error auto-generating agile tasks: $e');
+    } finally {
+      _isAutoGenerating = false;
+    }
+  }
 
- return Scaffold(
- backgroundColor: Colors.white,
- body: SafeArea(
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- DraggableSidebar(
- openWidth: AppBreakpoints.sidebarWidth(context),
- child: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Development Iterations'),
- ),
- Expanded(
- child: Stack(
- children: [
- SingleChildScrollView(
- padding: EdgeInsets.symmetric(
- horizontal: horizontalPadding, vertical: 28),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- if (_isLoading)
- const LinearProgressIndicator(minHeight: 2),
- if (_isLoading) const SizedBox(height: 16),
- PlanningPhaseHeader(
- title: 'Agile Development Iterations',
-showNavigationButtons: false, onExportPdf: _exportPdf),
- const SizedBox(height: 16),
- _buildPageHeader(context),
- const SizedBox(height: 20),
- _buildFilterChips(context),
- const SizedBox(height: 24),
- _buildIterationTable(),
- const SizedBox(height: 24),
- _buildFooterNavigation(context),
- const SizedBox(height: 48),
- ],
- ),
- ),
- MobileSidebarHamburger(
- sidebar: const InitiationLikeSidebar(
- activeItemLabel: 'Agile Development Iterations',
- ),
- ),
- const KazAiChatBubble(),
- ],
- ),
- ),
- ],
- ),
- ),
- );
- }
+  @override
+  Widget build(BuildContext context) {
+    final bool isMobile = AppBreakpoints.isMobile(context);
+    final double horizontalPadding = isMobile ? 18 : 32;
 
- Widget _buildPageHeader(BuildContext context) {
- final isMobile = AppBreakpoints.isMobile(context);
- return Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Container(
- padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
- decoration: BoxDecoration(
- color: const Color(0xFFFFC812),
- borderRadius: BorderRadius.circular(4),
- ),
- child: const Text(
- 'AGILE DELIVERY',
- style: TextStyle(
- fontSize: 11,
- fontWeight: FontWeight.w700,
- color: Colors.black,
- letterSpacing: 0.5,
- ),
- ),
- ),
- const SizedBox(height: 12),
- Row(
- children: [
- Expanded(
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(
- 'Agile Development Iterations',
- style: Theme.of(context).textTheme.headlineLarge?.copyWith(
- fontSize: 26,
- fontWeight: FontWeight.w700,
- color: const Color(0xFF111827),
- ),
- ),
- const SizedBox(height: 6),
- const Text(
- 'Manage sprint cycles, track velocity, and synchronize development tasks with design components.',
- style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
- ),
- ],
- ),
- ),
- if (!isMobile) _buildHeaderActions(),
- ],
- ),
- if (isMobile) ...[
- const SizedBox(height: 12),
- _buildHeaderActions(),
- ],
- ],
- );
- }
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DraggableSidebar(
+              openWidth: AppBreakpoints.sidebarWidth(context),
+              child: const InitiationLikeSidebar(
+                  activeItemLabel: 'Agile Development Iterations'),
+            ),
+            Expanded(
+              child: Stack(
+                children: [
+                  SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding, vertical: 28),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isLoading)
+                          const LinearProgressIndicator(minHeight: 2),
+                        if (_isLoading) const SizedBox(height: 16),
+                        PlanningPhaseHeader(
+                            title: 'Agile Development Iterations',
+                            showNavigationButtons: false,
+                            onExportPdf: _exportPdf),
+                        const SizedBox(height: 16),
+                        _buildPageHeader(context),
+                        const SizedBox(height: 20),
+                        _buildFilterChips(context),
+                        const SizedBox(height: 24),
+                        _buildKanbanSummaryBoard(),
+                        const SizedBox(height: 20),
+                        _buildIterationTable(),
+                        const SizedBox(height: 24),
+                        _buildFooterNavigation(context),
+                        const SizedBox(height: 48),
+                      ],
+                    ),
+                  ),
+                  MobileSidebarHamburger(
+                    sidebar: const InitiationLikeSidebar(
+                      activeItemLabel: 'Agile Development Iterations',
+                    ),
+                  ),
+                  const KazAiChatBubble(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
- Widget _buildHeaderActions() {
- return Wrap(
- spacing: 10,
- runSpacing: 10,
- children: [
- Tooltip(
- message: 'Regenerate all task descriptions',
- child: PageRegenerateAllButton(
- isLoading: _isRegeneratingAll,
- onRegenerateAll: _regenerateAllTaskDescriptions,
- ),
- ),
- OutlinedButton.icon(
- onPressed: () => _showAddTaskDialog(context),
- icon: const Icon(Icons.add, size: 18, color: Color(0xFF64748B)),
- label: const Text('Add Task',
- style: TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600,
- color: Color(0xFF64748B))),
- style: OutlinedButton.styleFrom(
- side: const BorderSide(color: Color(0xFFE2E8F0)),
- padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
- shape:
- RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
- ),
- ),
- OutlinedButton.icon(
- onPressed: () {},
- icon: const Icon(Icons.description_outlined,
- size: 18, color: Color(0xFF64748B)),
- label: const Text('Export',
- style: TextStyle(
- fontSize: 12,
- fontWeight: FontWeight.w600,
- color: Color(0xFF64748B))),
- style: OutlinedButton.styleFrom(
- side: const BorderSide(color: Color(0xFFE2E8F0)),
- padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
- shape:
- RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
- ),
- ),
- ],
- );
- }
+  Widget _buildPageHeader(BuildContext context) {
+    final isMobile = AppBreakpoints.isMobile(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFC812),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'AGILE DELIVERY',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.black,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Agile Development Iterations',
+                    style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF111827),
+                        ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Manage sprint cycles, track velocity, and synchronize development tasks with design components.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                  ),
+                ],
+              ),
+            ),
+            if (!isMobile) _buildHeaderActions(),
+          ],
+        ),
+        if (isMobile) ...[
+          const SizedBox(height: 12),
+          _buildHeaderActions(),
+        ],
+      ],
+    );
+  }
 
- Future<void> _regenerateAllTaskDescriptions() async {
- if (_isRegeneratingAll || _tasks.isEmpty) return;
- final projectId = _projectId;
- final provider = ProjectDataInherited.maybeOf(context);
- if (projectId == null || provider == null) return;
+  Widget _buildKanbanSummaryBoard() {
+    final grouped = <String, List<AgileTask>>{
+      for (final status in _workflowColumns) status: [],
+    };
+    for (final task in _tasks) {
+      final status =
+          KanbanConfigService.coerceTaskStatus(task.status, _workflowColumns);
+      grouped.putIfAbsent(status, () => []).add(task);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Kanban Board Preview',
+          style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF111827)),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'This preview reflects the configured Kanban workflow and current agile task statuses.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+        ),
+        const SizedBox(height: 14),
+        SizedBox(
+          height: 220,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _workflowColumns.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final column = _workflowColumns[index];
+              final tasks = grouped[column] ?? const [];
+              return Container(
+                width: 250,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            column,
+                            style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF111827)),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Text('${tasks.length}',
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (tasks.isEmpty)
+                      const Text(
+                        'No work items in this stage yet.',
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B7280),
+                            fontStyle: FontStyle.italic),
+                      )
+                    else
+                      ...tasks.take(3).map((task) => Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: Text(
+                              task.userStory.isEmpty
+                                  ? 'Untitled task'
+                                  : task.userStory,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF111827)),
+                            ),
+                          )),
+                    if (tasks.length > 3)
+                      Text(
+                        '+${tasks.length - 3} more',
+                        style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF6B7280),
+                            fontWeight: FontWeight.w600),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 
- final confirmed = await showRegenerateAllConfirmation(context);
- if (!confirmed) return;
+  Widget _buildHeaderActions() {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        Tooltip(
+          message: 'Regenerate all task descriptions',
+          child: PageRegenerateAllButton(
+            isLoading: _isRegeneratingAll,
+            onRegenerateAll: _regenerateAllTaskDescriptions,
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () => _showAddTaskDialog(context),
+          icon: const Icon(Icons.add, size: 18, color: Color(0xFF64748B)),
+          label: const Text('Add Task',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B))),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        OutlinedButton.icon(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => AgileTaskBoardScreen(
+                  initialTasks: _tasks,
+                  workflowColumns: _workflowColumns,
+                  availableRoles: _availableRoles,
+                ),
+              ),
+            );
+          },
+          icon: const Icon(Icons.view_kanban_outlined,
+              size: 18, color: Color(0xFF64748B)),
+          label: const Text('Open Board',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B))),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
+    );
+  }
 
- setState(() => _isRegeneratingAll = true);
- try {
- final designComponents = await ExecutionPhaseService.loadDesignComponents(
- projectId: projectId,
- );
- final componentNames =
- designComponents.map((c) => c.componentName).toList();
- final contextText = ProjectDataHelper.buildExecutivePlanContext(
- provider.projectData,
- sectionLabel: 'Agile Development Iterations',
- );
- final ai = OpenAiServiceSecure();
- final updated = <AgileTask>[];
- for (final task in _tasks) {
- try {
- final breakdown = await ai.breakDownUserStory(
- context: contextText,
- userStory: task.userStory,
- designComponents: componentNames,
- );
- updated.add(task.copyWith(taskDescription: breakdown));
- } catch (e) {
- updated.add(task);
- }
- }
- if (!mounted) return;
- setState(() => _tasks = updated);
- await ExecutionPhaseService.saveAgileTasks(
- projectId: projectId,
- tasks: updated,
- );
- } finally {
- if (mounted) setState(() => _isRegeneratingAll = false);
- }
- }
+  Future<void> _regenerateAllTaskDescriptions() async {
+    if (_isRegeneratingAll || _tasks.isEmpty) return;
+    final projectId = _projectId;
+    final provider = ProjectDataInherited.maybeOf(context);
+    if (projectId == null || provider == null) return;
 
- Widget _buildFilterChips(BuildContext context) {
- final List<String> filters = [
- 'All',
- 'To-Do',
- 'In-Progress',
- 'Testing',
- 'Done'
- ];
+    final confirmed = await showRegenerateAllConfirmation(context);
+    if (!confirmed) return;
 
- return Wrap(
- spacing: 10,
- runSpacing: 10,
- children: filters.map((label) {
- final isSelected = _selectedFilters.contains(label);
- return GestureDetector(
- onTap: () => setState(() {
- _selectedFilters.clear();
- _selectedFilters.add(label);
- }),
- child: Container(
- padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
- decoration: BoxDecoration(
- color: isSelected ? const Color(0xFF1F2937) : Colors.white,
- borderRadius: BorderRadius.circular(20),
- border: Border.all(color: const Color(0xFFE5E7EB)),
- ),
- child: Text(
- label,
- style: TextStyle(
- fontSize: 13,
- fontWeight: FontWeight.w500,
- color: isSelected ? Colors.white : const Color(0xFF374151),
- ),
- ),
- ),
- );
- }).toList(),
- );
- }
+    setState(() => _isRegeneratingAll = true);
+    try {
+      final designComponents = await ExecutionPhaseService.loadDesignComponents(
+        projectId: projectId,
+      );
+      final componentNames =
+          designComponents.map((c) => c.componentName).toList();
+      final contextText = ProjectDataHelper.buildExecutivePlanContext(
+        provider.projectData,
+        sectionLabel: 'Agile Development Iterations',
+      );
+      final ai = OpenAiServiceSecure();
+      final updated = <AgileTask>[];
+      for (final task in _tasks) {
+        try {
+          final breakdown = await ai.breakDownUserStory(
+            context: contextText,
+            userStory: task.userStory,
+            designComponents: componentNames,
+          );
+          updated.add(task.copyWith(taskDescription: breakdown));
+        } catch (e) {
+          updated.add(task);
+        }
+      }
+      if (!mounted) return;
+      setState(() => _tasks = updated);
+      await ExecutionPhaseService.saveAgileTasks(
+        projectId: projectId,
+        tasks: updated,
+      );
+    } finally {
+      if (mounted) setState(() => _isRegeneratingAll = false);
+    }
+  }
 
- Widget _buildStatsRow(bool isNarrow) {
- // Calculate metrics from tasks
- final totalTasks = _tasks.length;
- final completedTasks = _tasks.where((t) => t.status == 'Done').length;
- final iterationProgress =
- totalTasks > 0 ? ((completedTasks / totalTasks) * 100).round() : 0;
- final sprintVelocity =
- _tasks.fold<int>(0, (sum, task) => sum + task.storyPoints);
- final activeBlockers = _tasks
- .where((t) => t.status == 'To-Do' && t.priority == 'Critical')
- .length;
+  Widget _buildFilterChips(BuildContext context) {
+    final List<String> filters = [
+      'All',
+      'To-Do',
+      'In-Progress',
+      'Testing',
+      'Done'
+    ];
 
- final stats = [
- _StatCardData('Iteration Progress', '$iterationProgress%',
- '$completedTasks/$totalTasks tasks', const Color(0xFF0EA5E9)),
- _StatCardData('Sprint Velocity', '$sprintVelocity', 'Total story points',
- const Color(0xFF6366F1)),
- _StatCardData('Active Blockers', '$activeBlockers',
- 'Critical tasks pending', const Color(0xFFEF4444)),
- ];
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: filters.map((label) {
+        final isSelected = _selectedFilters.contains(label);
+        return GestureDetector(
+          onTap: () => setState(() {
+            _selectedFilters.clear();
+            _selectedFilters.add(label);
+          }),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: isSelected ? const Color(0xFF1F2937) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: isSelected ? Colors.white : const Color(0xFF374151),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
- if (isNarrow) {
- return Wrap(
- spacing: 12,
- runSpacing: 12,
- children: stats.map((stat) => _buildStatCard(stat)).toList(),
- );
- }
+  Widget _buildStatsRow(bool isNarrow) {
+    // Calculate metrics from tasks
+    final totalTasks = _tasks.length;
+    final completedTasks = _tasks.where((t) => t.status == 'Done').length;
+    final iterationProgress =
+        totalTasks > 0 ? ((completedTasks / totalTasks) * 100).round() : 0;
+    final sprintVelocity =
+        _tasks.fold<int>(0, (sum, task) => sum + task.storyPoints);
+    final activeBlockers = _tasks
+        .where((t) => t.status == 'To-Do' && t.priority == 'Critical')
+        .length;
 
- return Row(
- children: stats
- .map((stat) => Expanded(
- child: Padding(
- padding: const EdgeInsets.only(right: 12),
- child: _buildStatCard(stat),
- ),
- ))
- .toList(),
- );
- }
+    final stats = [
+      _StatCardData('Iteration Progress', '$iterationProgress%',
+          '$completedTasks/$totalTasks tasks', const Color(0xFF0EA5E9)),
+      _StatCardData('Sprint Velocity', '$sprintVelocity', 'Total story points',
+          const Color(0xFF6366F1)),
+      _StatCardData('Active Blockers', '$activeBlockers',
+          'Critical tasks pending', const Color(0xFFEF4444)),
+    ];
 
- Widget _buildStatCard(_StatCardData data) {
- return Container(
- padding: const EdgeInsets.all(16),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(12),
- border: Border.all(color: const Color(0xFFE2E8F0)),
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(
- data.label,
- style: const TextStyle(
- fontSize: 12,
- color: Color(0xFF64748B),
- fontWeight: FontWeight.w600),
- ),
- const SizedBox(height: 8),
- Text(
- data.value,
- style: TextStyle(
- fontSize: 24, fontWeight: FontWeight.w700, color: data.color),
- ),
- const SizedBox(height: 4),
- Text(
- data.subtitle,
- style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
- ),
- ],
- ),
- );
- }
+    if (isNarrow) {
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
+        children: stats.map((stat) => _buildStatCard(stat)).toList(),
+      );
+    }
 
- Widget _buildIterationTable() {
- final filteredTasks = _selectedFilters.contains('All')
- ? _tasks
- : _tasks.where((t) => _selectedFilters.contains(t.status)).toList();
+    return Row(
+      children: stats
+          .map((stat) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _buildStatCard(stat),
+                ),
+              ))
+          .toList(),
+    );
+  }
 
- return Container(
- padding: const EdgeInsets.all(20),
- decoration: BoxDecoration(
- color: Colors.white,
- borderRadius: BorderRadius.circular(12),
- border: Border.all(color: const Color(0xFFE2E8F0)),
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- const Text(
- 'Agile Iteration Table',
- style: TextStyle(
- fontSize: 16,
- fontWeight: FontWeight.w700,
- color: Color(0xFF111827)),
- ),
- const SizedBox(height: 8),
- const Text(
- 'Track user stories, assign roles, and manage sprint velocity.',
- style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
- ),
- const SizedBox(height: 16),
- AgileIterationTableWidget(
- tasks: filteredTasks,
- availableRoles: _availableRoles,
- onUpdated: (task) {
- setState(() {
- final index = _tasks.indexWhere((t) => t.id == task.id);
- if (index != -1) {
- _tasks[index] = task;
- } else {
- _tasks.add(task);
- }
- });
- },
- onDeleted: (task) {
- setState(() {
- _tasks.removeWhere((t) => t.id == task.id);
- });
- },
- ),
- ],
- ),
- );
- }
+  Widget _buildStatCard(_StatCardData data) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            data.label,
+            style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            data.value,
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.w700, color: data.color),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            data.subtitle,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+          ),
+        ],
+      ),
+    );
+  }
 
- void _showAddTaskDialog(BuildContext context) {
- final userStoryController = TextEditingController();
- final taskDescriptionController = RichTextEditingController();
- final acceptanceCriteriaController = RichAutoBulletTextController();
- final iterationNotesController = RichTextEditingController();
- final userStoryFieldKey = GlobalKey();
- final assignedRoleFieldKey = GlobalKey();
- String selectedRole = '';
- int selectedStoryPoints = 1;
- String selectedPriority = 'Medium';
- String selectedStatus = 'To-Do';
- Map<String, String> validationErrors = const {};
+  Widget _buildIterationTable() {
+    final filteredTasks = _selectedFilters.contains('All')
+        ? _tasks
+        : _tasks.where((t) => _selectedFilters.contains(t.status)).toList();
 
- OutlineInputBorder fieldBorder(bool hasError) {
- return OutlineInputBorder(
- borderRadius: BorderRadius.circular(8),
- borderSide: BorderSide(
- color: hasError ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1),
- ),
- );
- }
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Agile Iteration Table',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Track user stories, assign roles, and manage sprint velocity.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 16),
+          AgileIterationTableWidget(
+            tasks: filteredTasks,
+            availableRoles: _availableRoles,
+            workflowColumns: _workflowColumns,
+            onUpdated: (task) {
+              setState(() {
+                final index = _tasks.indexWhere((t) => t.id == task.id);
+                if (index != -1) {
+                  _tasks[index] = task;
+                } else {
+                  _tasks.add(task);
+                }
+              });
+            },
+            onDeleted: (task) {
+              setState(() {
+                _tasks.removeWhere((t) => t.id == task.id);
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
- showDialog(
- context: context,
- builder: (dialogContext) => StatefulBuilder(
- builder: (dialogContext, setDialogState) {
- return AlertDialog(
- title: const Text('Add New Task'),
- content: SingleChildScrollView(
- child: Column(
- mainAxisSize: MainAxisSize.min,
- crossAxisAlignment: CrossAxisAlignment.stretch,
- children: [
- VoiceTextField(
- key: userStoryFieldKey,
- controller: userStoryController,
- onChanged: (_) {
- if (!validationErrors.containsKey('user_story')) return;
- setDialogState(() {
- validationErrors =
- Map<String, String>.from(validationErrors)
- ..remove('user_story');
- });
- },
- decoration: InputDecoration(
- labelText: 'User Story/Task *',
- errorText: validationErrors['user_story'],
- border:
- fieldBorder(validationErrors['user_story'] != null),
- enabledBorder:
- fieldBorder(validationErrors['user_story'] != null),
- focusedBorder:
- fieldBorder(validationErrors['user_story'] != null),
- errorBorder: fieldBorder(true),
- focusedErrorBorder: fieldBorder(true),
- ),
- ),
- const SizedBox(height: 12),
- DropdownButtonFormField<String>(
- key: assignedRoleFieldKey,
- value: _availableRoles.isEmpty
- ? null
- : (_availableRoles.contains(selectedRole)
- ? selectedRole
- : null),
- decoration: InputDecoration(
- labelText: 'Assigned Role *',
- errorText: validationErrors['assigned_role'],
- border: fieldBorder(
- validationErrors['assigned_role'] != null),
- enabledBorder: fieldBorder(
- validationErrors['assigned_role'] != null),
- focusedBorder: fieldBorder(
- validationErrors['assigned_role'] != null),
- errorBorder: fieldBorder(true),
- focusedErrorBorder: fieldBorder(true),
- ),
- items: _availableRoles.map((role) {
- return DropdownMenuItem<String>(
- value: role, child: Text(role));
- }).toList(),
- onChanged: (value) {
- setDialogState(() {
- selectedRole = value ?? '';
- if (selectedRole.isNotEmpty) {
- validationErrors =
- Map<String, String>.from(validationErrors)
- ..remove('assigned_role');
- }
- });
- },
- ),
- const SizedBox(height: 12),
- DropdownButtonFormField<int>(
- value: selectedStoryPoints,
- decoration:
- const InputDecoration(labelText: 'Story Points *'),
- items: const [1, 2, 3, 5, 8].map((points) {
- return DropdownMenuItem<int>(
- value: points, child: Text('$points'));
- }).toList(),
- onChanged: (value) => selectedStoryPoints = value ?? 1,
- ),
- const SizedBox(height: 12),
- DropdownButtonFormField<String>(
- value: selectedPriority,
- decoration: const InputDecoration(labelText: 'Priority *'),
- items: const ['Critical', 'High', 'Medium', 'Low'].map((p) {
- return DropdownMenuItem<String>(value: p, child: Text(p));
- }).toList(),
- onChanged: (value) => selectedPriority = value ?? 'Medium',
- ),
- const SizedBox(height: 12),
- DropdownButtonFormField<String>(
- value: selectedStatus,
- decoration: const InputDecoration(labelText: 'Status *'),
- items: const ['To-Do', 'In-Progress', 'Testing', 'Done']
- .map((s) {
- return DropdownMenuItem<String>(value: s, child: Text(s));
- }).toList(),
- onChanged: (value) => selectedStatus = value ?? 'To-Do',
- ),
- const SizedBox(height: 12),
- const SizedBox(height: 6),
- VoiceTextField(
- controller: taskDescriptionController,
- decoration:
- const InputDecoration(labelText: 'Task Description'),
- maxLines: 3,
- ),
- const SizedBox(height: 12),
- const SizedBox(height: 6),
- VoiceTextField(
- controller: iterationNotesController,
- decoration: const InputDecoration(
- labelText: 'Iteration Notes (manual input only)'),
- maxLines: 2,
- ),
- ],
- ),
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.pop(dialogContext),
- child: const Text('Cancel'),
- ),
- ElevatedButton(
- onPressed: () async {
- final validation = FormValidationEngine.validateForm([
- ValidationFieldRule(
- id: 'user_story',
- label: 'User Story/Task',
- section: 'Task Details',
- type: ValidationFieldType.text,
- value: userStoryController.text,
- fieldKey: userStoryFieldKey,
- ),
- ValidationFieldRule(
- id: 'assigned_role',
- label: 'Assigned Role',
- section: 'Task Details',
- type: ValidationFieldType.dropdown,
- value: selectedRole,
- fieldKey: assignedRoleFieldKey,
- ),
- ]);
+  void _showAddTaskDialog(BuildContext context) {
+    final userStoryController = TextEditingController();
+    final taskDescriptionController = RichTextEditingController();
+    final acceptanceCriteriaController = RichAutoBulletTextController();
+    final iterationNotesController = RichTextEditingController();
+    final userStoryFieldKey = GlobalKey();
+    final assignedRoleFieldKey = GlobalKey();
+    String selectedRole = '';
+    int selectedStoryPoints = 1;
+    String selectedPriority = 'Medium';
+    String selectedStatus = 'To-Do';
+    Map<String, String> validationErrors = const {};
 
- if (!validation.isValid) {
- setDialogState(() {
- validationErrors = validation.errorByFieldId;
- });
- FormValidationEngine.showValidationSnackBar(
- this.context,
- validation,
- intro:
- 'Please complete the required task fields before adding this task.',
- backgroundColor: const Color(0xFFF59E0B),
- );
- return;
- }
+    OutlineInputBorder fieldBorder(bool hasError) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(
+          color: hasError ? const Color(0xFFEF4444) : const Color(0xFFCBD5E1),
+        ),
+      );
+    }
 
- final newTask = AgileTask(
- userStory: userStoryController.text,
- assignedRole: selectedRole,
- storyPoints: selectedStoryPoints,
- priority: selectedPriority,
- status: selectedStatus,
- taskDescription: taskDescriptionController.text,
- acceptanceCriteria: acceptanceCriteriaController.text,
- iterationNotes: iterationNotesController.text,
- );
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          return AlertDialog(
+            title: const Text('Add New Task'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  VoiceTextField(
+                    key: userStoryFieldKey,
+                    controller: userStoryController,
+                    onChanged: (_) {
+                      if (!validationErrors.containsKey('user_story')) return;
+                      setDialogState(() {
+                        validationErrors =
+                            Map<String, String>.from(validationErrors)
+                              ..remove('user_story');
+                      });
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'User Story/Task *',
+                      errorText: validationErrors['user_story'],
+                      border:
+                          fieldBorder(validationErrors['user_story'] != null),
+                      enabledBorder:
+                          fieldBorder(validationErrors['user_story'] != null),
+                      focusedBorder:
+                          fieldBorder(validationErrors['user_story'] != null),
+                      errorBorder: fieldBorder(true),
+                      focusedErrorBorder: fieldBorder(true),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    key: assignedRoleFieldKey,
+                    value: _availableRoles.isEmpty
+                        ? null
+                        : (_availableRoles.contains(selectedRole)
+                            ? selectedRole
+                            : null),
+                    decoration: InputDecoration(
+                      labelText: 'Assigned Role *',
+                      errorText: validationErrors['assigned_role'],
+                      border: fieldBorder(
+                          validationErrors['assigned_role'] != null),
+                      enabledBorder: fieldBorder(
+                          validationErrors['assigned_role'] != null),
+                      focusedBorder: fieldBorder(
+                          validationErrors['assigned_role'] != null),
+                      errorBorder: fieldBorder(true),
+                      focusedErrorBorder: fieldBorder(true),
+                    ),
+                    items: _availableRoles.map((role) {
+                      return DropdownMenuItem<String>(
+                          value: role, child: Text(role));
+                    }).toList(),
+                    onChanged: (value) {
+                      setDialogState(() {
+                        selectedRole = value ?? '';
+                        if (selectedRole.isNotEmpty) {
+                          validationErrors =
+                              Map<String, String>.from(validationErrors)
+                                ..remove('assigned_role');
+                        }
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<int>(
+                    value: selectedStoryPoints,
+                    decoration:
+                        const InputDecoration(labelText: 'Story Points *'),
+                    items: const [1, 2, 3, 5, 8].map((points) {
+                      return DropdownMenuItem<int>(
+                          value: points, child: Text('$points'));
+                    }).toList(),
+                    onChanged: (value) => selectedStoryPoints = value ?? 1,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedPriority,
+                    decoration: const InputDecoration(labelText: 'Priority *'),
+                    items: const ['Critical', 'High', 'Medium', 'Low'].map((p) {
+                      return DropdownMenuItem<String>(value: p, child: Text(p));
+                    }).toList(),
+                    onChanged: (value) => selectedPriority = value ?? 'Medium',
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: selectedStatus,
+                    decoration: const InputDecoration(labelText: 'Status *'),
+                    items: const ['To-Do', 'In-Progress', 'Testing', 'Done']
+                        .map((s) {
+                      return DropdownMenuItem<String>(value: s, child: Text(s));
+                    }).toList(),
+                    onChanged: (value) => selectedStatus = value ?? 'To-Do',
+                  ),
+                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
+                  VoiceTextField(
+                    controller: taskDescriptionController,
+                    decoration:
+                        const InputDecoration(labelText: 'Task Description'),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 12),
+                  const SizedBox(height: 6),
+                  VoiceTextField(
+                    controller: iterationNotesController,
+                    decoration: const InputDecoration(
+                        labelText: 'Iteration Notes (manual input only)'),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final validation = FormValidationEngine.validateForm([
+                    ValidationFieldRule(
+                      id: 'user_story',
+                      label: 'User Story/Task',
+                      section: 'Task Details',
+                      type: ValidationFieldType.text,
+                      value: userStoryController.text,
+                      fieldKey: userStoryFieldKey,
+                    ),
+                    ValidationFieldRule(
+                      id: 'assigned_role',
+                      label: 'Assigned Role',
+                      section: 'Task Details',
+                      type: ValidationFieldType.dropdown,
+                      value: selectedRole,
+                      fieldKey: assignedRoleFieldKey,
+                    ),
+                  ]);
 
- setState(() {
- _tasks.add(newTask);
- });
+                  if (!validation.isValid) {
+                    setDialogState(() {
+                      validationErrors = validation.errorByFieldId;
+                    });
+                    FormValidationEngine.showValidationSnackBar(
+                      this.context,
+                      validation,
+                      intro:
+                          'Please complete the required task fields before adding this task.',
+                      backgroundColor: const Color(0xFFF59E0B),
+                    );
+                    return;
+                  }
 
- final projectId = _projectId;
- if (projectId != null) {
- try {
- await ExecutionPhaseService.saveAgileTasks(
- projectId: projectId,
- tasks: _tasks,
- );
- } catch (e) {
- debugPrint('Error saving task: $e');
- }
- }
+                  final newTask = AgileTask(
+                    userStory: userStoryController.text,
+                    assignedRole: selectedRole,
+                    storyPoints: selectedStoryPoints,
+                    priority: selectedPriority,
+                    status: selectedStatus,
+                    taskDescription: taskDescriptionController.text,
+                    acceptanceCriteria: acceptanceCriteriaController.text,
+                    iterationNotes: iterationNotesController.text,
+                  );
 
- if (dialogContext.mounted) {
- Navigator.pop(dialogContext);
- }
- },
- child: const Text('Add'),
- ),
- ],
- );
- },
- ),
- );
- }
+                  setState(() {
+                    _tasks.add(newTask);
+                  });
 
- Widget _buildFooterNavigation(BuildContext context) {
- return LaunchPhaseNavigation(
- backLabel: 'Back: Detailed Design',
- nextLabel: 'Next: Scope Tracking Implementation',
- onBack: () => DetailedDesignScreen.open(context),
- onNext: () => ScopeTrackingImplementationScreen.open(context),
- );
- }
+                  final projectId = _projectId;
+                  if (projectId != null) {
+                    try {
+                      await ExecutionPhaseService.saveAgileTasks(
+                        projectId: projectId,
+                        tasks: _tasks,
+                      );
+                    } catch (e) {
+                      debugPrint('Error saving task: $e');
+                    }
+                  }
 
- Future<void> _exportPdf() async {
- final projectData = ProjectDataHelper.getData(context);
- await PdfExportHelper.exportScreenPdf(
- context: context,
- screenTitle: 'Agile Development Iterations',
- sections: [
- PdfSection.keyValue('Project Info', [
- {'Project Name': projectData.projectName ?? 'N/A'},
- {'Solution Title': projectData.solutionTitle ?? 'N/A'},
- ]),
- PdfSection.text('Notes', projectData.planningNotes['planning_agile_development_iterations_notes'] ?? 'No data recorded.'),
- ],
- );
- }
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
+                },
+                child: const Text('Add'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFooterNavigation(BuildContext context) {
+    return LaunchPhaseNavigation(
+      backLabel: 'Back: Detailed Design',
+      nextLabel: 'Next: Scope Tracking Implementation',
+      onBack: () => DetailedDesignScreen.open(context),
+      onNext: () => ScopeTrackingImplementationScreen.open(context),
+    );
+  }
+
+  Future<void> _exportPdf() async {
+    final projectData = ProjectDataHelper.getData(context);
+    await PdfExportHelper.exportScreenPdf(
+      context: context,
+      screenTitle: 'Agile Development Iterations',
+      sections: [
+        PdfSection.keyValue('Project Info', [
+          {'Project Name': projectData.projectName ?? 'N/A'},
+          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+        ]),
+        PdfSection.text(
+            'Notes',
+            projectData.planningNotes[
+                    'planning_agile_development_iterations_notes'] ??
+                'No data recorded.'),
+      ],
+    );
+  }
 }
 
 class _StatCardData {
- const _StatCardData(this.label, this.value, this.subtitle, this.color);
+  const _StatCardData(this.label, this.value, this.subtitle, this.color);
 
- final String label;
- final String value;
- final String subtitle;
- final Color color;
+  final String label;
+  final String value;
+  final String subtitle;
+  final Color color;
 }

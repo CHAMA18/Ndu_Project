@@ -1315,14 +1315,14 @@ class _AccessLogsViewState extends State<_AccessLogsView> {
  height: 48,
  child: ElevatedButton(
  onPressed: () {},
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- elevation: 0,
- padding: const EdgeInsets.symmetric(horizontal: 32),
- textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
- shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
- ),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  elevation: 0,
+  padding: const EdgeInsets.symmetric(horizontal: 32),
+  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  ),
  child: const Text('Search'),
  ),
  );
@@ -1764,14 +1764,14 @@ class _RolesView extends StatelessWidget {
  const SizedBox(width: 20),
  ElevatedButton(
  onPressed: onAdd,
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- elevation: 0,
- padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
- textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
- shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
- ),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  elevation: 0,
+  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  ),
  child: const Text('Create Role'),
  ),
  ],

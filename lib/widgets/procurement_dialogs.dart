@@ -189,7 +189,7 @@ class ProcurementDialogShell extends StatelessWidget {
                   ElevatedButton(
                     onPressed: onPrimary,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
+                      backgroundColor: const Color(0xFFFFC812),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 12),
@@ -1545,7 +1545,7 @@ class _AddVendorDialogState extends State<AddVendorDialog> {
                         max: 5,
                         divisions: 4,
                         label: _rating.round().toString(),
-                        activeColor: const Color(0xFF2563EB),
+                        activeColor: const Color(0xFFFFC812),
                         onChanged: (value) => setState(() => _rating = value),
                       ),
                     ],
@@ -2410,7 +2410,7 @@ class _CreatePoDialogState extends State<CreatePoDialog> {
               max: 1,
               divisions: 10,
               label: '${(_progress * 100).round()}%',
-              activeColor: const Color(0xFF2563EB),
+              activeColor: const Color(0xFFFFC812),
               onChanged: (value) => setState(() => _progress = value),
             ),
           ],

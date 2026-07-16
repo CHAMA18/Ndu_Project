@@ -517,16 +517,16 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
  icon: const Icon(Icons.add, size: 18),
  label: const Text('Add Scope Item'),
  style: FilledButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- padding:
- const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12)),
- ),
- ),
- const SizedBox(width: 12),
- if (_items.isNotEmpty)
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  padding:
+  const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12)),
+  ),
+  ),
+  const SizedBox(width: 12),
+  if (_items.isNotEmpty)
  OutlinedButton.icon(
  onPressed: _generateMissingScopeItems,
  icon: const Icon(Icons.auto_awesome, size: 16),

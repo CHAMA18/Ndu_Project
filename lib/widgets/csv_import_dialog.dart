@@ -867,8 +867,8 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
-                foregroundColor: const Color(0xFF2563EB),
-                side: const BorderSide(color: Color(0xFF2563EB)),
+                foregroundColor: const Color(0xFFFFC812),
+                side: const BorderSide(color: Color(0xFFFFC812)),
               ),
             ),
           if (hasValidData) ...[
@@ -883,7 +883,7 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
-                backgroundColor: const Color(0xFF2563EB),
+                backgroundColor: const Color(0xFFFFC812),
                 foregroundColor: Colors.white,
                 textStyle:
                     const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),

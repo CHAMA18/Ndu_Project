@@ -52,6 +52,8 @@ import 'package:ndu_project/screens/project_framework_screen.dart';
 import 'package:ndu_project/screens/project_plan_subsections_screen.dart';
 import 'package:ndu_project/screens/project_baseline_screen.dart';
 import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
+import 'package:ndu_project/screens/agile_capacity_planning_screen.dart';
+import 'package:ndu_project/screens/agile_scrum_config_screen.dart';
 import 'package:ndu_project/screens/agile_team_structure_screen.dart';
 import 'package:ndu_project/screens/agile_epics_features_screen.dart';
 import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
@@ -239,6 +241,8 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   static const Set<String> _agileWireframeLabels = {
     'Agile Delivery Model - Delivery Model',
+    'Agile Delivery Model - Scrum Configuration',
+    'Agile Delivery Model - Capacity Planning',
     'Agile Delivery Model - Backlog Governance',
     'Agile Delivery Model - Team Structure',
     'Agile Delivery Model - Kanban Configuration',
@@ -1101,6 +1105,16 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   void _openAgileDeliveryModel() {
     _navigateWithCheckpoint(
         'agile_delivery_model', const AgileDeliveryModelScreen());
+  }
+
+  void _openAgileScrumConfig() {
+    _navigateWithCheckpoint(
+        'agile_scrum_config', const AgileScrumConfigScreen());
+  }
+
+  void _openAgileCapacityPlanning() {
+    _navigateWithCheckpoint(
+        'agile_capacity_planning', const AgileCapacityPlanningScreen());
   }
 
   void _openAgileTeamStructure() {
@@ -2337,6 +2351,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               onTap: _openAgileDeliveryModel,
               isActive:
                   widget.activeItemLabel == 'Agile Delivery Model - Delivery Model'),
+          _buildSubSubMenuItem('Scrum Configuration',
+              onTap: _openAgileScrumConfig,
+              isActive: widget.activeItemLabel ==
+                  'Agile Delivery Model - Scrum Configuration'),
+          _buildSubSubMenuItem('Capacity Planning',
+              onTap: _openAgileCapacityPlanning,
+              isActive: widget.activeItemLabel ==
+                  'Agile Delivery Model - Capacity Planning'),
           _buildSubSubMenuItem('Backlog Governance',
               onTap: _openAgileBacklogGovernance,
               isActive: widget.activeItemLabel ==
@@ -3230,14 +3252,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isActive:
               widget.activeItemLabel == 'Agile Project Hub - Agile Roadmap'));
     }
-    if ('agile project baseline'.contains(query) ||
-        'agile baseline'.contains(query)) {
-      results.add(_buildMenuItem(Icons.grid_view_outlined,
-          'Agile Project Baseline',
-          onTap: _openAgileProjectBaseline,
-          isActive: widget.activeItemLabel ==
-              'Agile Delivery Model - Metrics Planning'));
-    }
+
     if ('agile metrics'.contains(query) || 'metrics'.contains(query) ||
         'velocity'.contains(query) || 'throughput'.contains(query) ||
         'cycle time'.contains(query) || 'lead time'.contains(query) ||
@@ -3281,6 +3296,26 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           onTap: _openAgileDeliveryModel,
           isActive:
               widget.activeItemLabel == 'Agile Delivery Model - Delivery Model'));
+    }
+    if ('scrum config'.contains(query) || 'scrum configuration'.contains(query) ||
+        'scrum roles'.contains(query) || 'daily scrum'.contains(query) ||
+        'sprint planning'.contains(query) || 'retro'.contains(query) ||
+        'working agreement'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.settings_applications_outlined, 'Scrum Configuration',
+          onTap: _openAgileScrumConfig,
+          isActive: widget.activeItemLabel ==
+              'Agile Delivery Model - Scrum Configuration'));
+    }
+    if ('capacity'.contains(query) || 'capacity planning'.contains(query) ||
+        'velocity'.contains(query) || 'focus factor'.contains(query) ||
+        'leave'.contains(query) || 'holiday'.contains(query) ||
+        'availability'.contains(query)) {
+      results.add(_buildMenuItem(
+          Icons.speed_outlined, 'Capacity Planning',
+          onTap: _openAgileCapacityPlanning,
+          isActive: widget.activeItemLabel ==
+              'Agile Delivery Model - Capacity Planning'));
     }
     if ('schedule'.contains(query)) {
       results.add(_buildMenuItem(Icons.calendar_today_outlined, 'Schedule',

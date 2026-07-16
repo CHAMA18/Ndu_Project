@@ -3195,7 +3195,7 @@ class _SectionHeader extends StatelessWidget {
  icon: const Icon(Icons.add, size: 16),
  label: Text(actionLabel),
  style: TextButton.styleFrom(
- foregroundColor: const Color(0xFF2563EB),
+  foregroundColor: const Color(0xFFFFC812),
  padding: EdgeInsets.zero,
  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
  minimumSize: const Size(0, 32),

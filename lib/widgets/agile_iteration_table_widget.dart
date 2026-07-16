@@ -7,6 +7,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
+import 'package:ndu_project/services/kanban_config_service.dart';
 
 /// Custom Agile Iteration Table with inline editing, CRUD actions, and AI capabilities
 class AgileIterationTableWidget extends StatelessWidget {
@@ -16,12 +17,14 @@ class AgileIterationTableWidget extends StatelessWidget {
     required this.onUpdated,
     required this.onDeleted,
     required this.availableRoles,
+    this.workflowColumns = const ['To Do', 'In Progress', 'Done'],
   });
 
   final List<AgileTask> tasks;
   final ValueChanged<AgileTask> onUpdated;
   final ValueChanged<AgileTask> onDeleted;
   final List<String> availableRoles;
+  final List<String> workflowColumns;
 
   @override
   Widget build(BuildContext context) {
@@ -127,6 +130,7 @@ class AgileIterationTableWidget extends StatelessWidget {
                       task: task,
                       column: _AgileTaskColumn.userStory,
                       availableRoles: availableRoles,
+                      workflowColumns: workflowColumns,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
@@ -134,6 +138,7 @@ class AgileIterationTableWidget extends StatelessWidget {
                       task: task,
                       column: _AgileTaskColumn.assignedRole,
                       availableRoles: availableRoles,
+                      workflowColumns: workflowColumns,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
@@ -141,6 +146,7 @@ class AgileIterationTableWidget extends StatelessWidget {
                       task: task,
                       column: _AgileTaskColumn.storyPoints,
                       availableRoles: availableRoles,
+                      workflowColumns: workflowColumns,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
@@ -148,6 +154,7 @@ class AgileIterationTableWidget extends StatelessWidget {
                       task: task,
                       column: _AgileTaskColumn.priority,
                       availableRoles: availableRoles,
+                      workflowColumns: workflowColumns,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
@@ -155,6 +162,7 @@ class AgileIterationTableWidget extends StatelessWidget {
                       task: task,
                       column: _AgileTaskColumn.status,
                       availableRoles: availableRoles,
+                      workflowColumns: workflowColumns,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
@@ -162,6 +170,7 @@ class AgileIterationTableWidget extends StatelessWidget {
                       task: task,
                       column: _AgileTaskColumn.actions,
                       availableRoles: availableRoles,
+                      workflowColumns: workflowColumns,
                       onUpdated: onUpdated,
                       onDeleted: onDeleted,
                     )),
@@ -190,6 +199,7 @@ class _AgileTaskRowWidget extends StatefulWidget {
     required this.task,
     required this.column,
     required this.availableRoles,
+    required this.workflowColumns,
     required this.onUpdated,
     required this.onDeleted,
   });
@@ -197,6 +207,7 @@ class _AgileTaskRowWidget extends StatefulWidget {
   final AgileTask task;
   final _AgileTaskColumn column;
   final List<String> availableRoles;
+  final List<String> workflowColumns;
   final ValueChanged<AgileTask> onUpdated;
   final ValueChanged<AgileTask> onDeleted;
 
@@ -277,7 +288,11 @@ class _AgileTaskRowWidgetState extends State<_AgileTaskRowWidget> {
       case _AgileTaskColumn.status:
         return Center(
           child: _StatusPill(
-            status: widget.task.status,
+            status: KanbanConfigService.coerceTaskStatus(
+              widget.task.status,
+              widget.workflowColumns,
+            ),
+            workflowColumns: widget.workflowColumns,
             onChanged: (value) =>
                 _updateTask(widget.task.copyWith(status: value)),
           ),
@@ -529,18 +544,28 @@ class _PriorityPill extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.status, required this.onChanged});
+  const _StatusPill({
+    required this.status,
+    required this.workflowColumns,
+    required this.onChanged,
+  });
 
   final String status;
+  final List<String> workflowColumns;
   final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
+    final statuses =
+        KanbanConfigService.alignStatusesToWorkflow(workflowColumns);
+    final selected = statuses.contains(status)
+        ? status
+        : KanbanConfigService.coerceTaskStatus(status, statuses);
     return DropdownButton<String>(
-      value: status,
+      value: selected,
       isExpanded: true,
       underline: const SizedBox(),
-      items: const ['To-Do', 'In-Progress', 'Testing', 'Done'].map((s) {
+      items: statuses.map((s) {
         return DropdownMenuItem<String>(
           value: s,
           child: Container(
@@ -566,13 +591,17 @@ class _StatusPill extends StatelessWidget {
   }
 
   static Color _getStaticColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'to-do':
+    switch (KanbanConfigService.normalizeStatus(status).toLowerCase()) {
+      case 'to do':
         return const Color(0xFF6B7280);
-      case 'in-progress':
+      case 'in progress':
         return const Color(0xFF3B82F6);
+      case 'code review':
+        return const Color(0xFF8B5CF6);
       case 'testing':
         return const Color(0xFFF59E0B);
+      case 'ready for release':
+        return const Color(0xFF14B8A6);
       case 'done':
         return const Color(0xFF10B981);
       default:

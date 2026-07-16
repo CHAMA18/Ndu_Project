@@ -10,6 +10,8 @@ String _normalizeStatusForStorage(String status) {
     case 'under_review':
     case 'approved':
     case 'executed':
+    case 'almost_complete':
+    case 'closed_out':
     case 'expired':
     case 'terminated':
       return normalized;
@@ -19,6 +21,8 @@ String _normalizeStatusForStorage(String status) {
   if (normalized.contains('review')) return 'under_review';
   if (normalized.contains('in progress')) return 'approved';
   if (normalized.contains('progress')) return 'approved';
+  if (normalized.contains('almost complete')) return 'almost_complete';
+  if (normalized.contains('closed out')) return 'closed_out';
   if (normalized.contains('complete')) return 'executed';
   if (normalized.contains('completed')) return 'executed';
   return 'draft';
@@ -36,6 +40,10 @@ String _normalizeStatusForDisplay(String status) {
       return 'In Progress';
     case 'executed':
       return 'Completed';
+    case 'almost_complete':
+      return 'Almost Complete';
+    case 'closed_out':
+      return 'Closed Out';
     case 'expired':
     case 'terminated':
       return 'Completed';
@@ -45,6 +53,8 @@ String _normalizeStatusForDisplay(String status) {
   if (normalized.contains('review')) return 'Pending Review';
   if (normalized.contains('in progress')) return 'In Progress';
   if (normalized.contains('progress')) return 'In Progress';
+  if (normalized.contains('almost complete')) return 'Almost Complete';
+  if (normalized.contains('closed out')) return 'Closed Out';
   if (normalized.contains('complete')) return 'Completed';
   if (normalized.contains('completed')) return 'Completed';
   return status.trim();

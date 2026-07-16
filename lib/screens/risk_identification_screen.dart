@@ -38,6 +38,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SafeSection — Build-time error boundary that prevents a single failing child
@@ -174,7 +175,7 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
  bool _isSaving = false;
  bool _hasUnsavedChanges = false;
  DateTime? _lastSavedAt;
- bool _reviewConfirmed = false;
+
 
  // Admin status
  bool _isAdmin = false;
@@ -1186,8 +1187,25 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
  );
  }
 
- Future<void> _handleNextPressed() async {
- FocusScope.of(context).unfocus();
+  Future<void> _handleNextPressed() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('risk_identification')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'risk_identification'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'risk_identification_confirmed');
+    }
+  FocusScope.of(context).unfocus();
 
  // Collect all risk data
  final solutionRisks = <SolutionRisk>[];
@@ -1560,19 +1578,13 @@ class _RiskIdentificationScreenState extends State<RiskIdentificationScreen> {
  ],
  ),
  const SizedBox(height: 24),
- BusinessCaseNavigationButtons(
- currentScreen: 'Risk Identification',
- padding:
- const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
- onNext: _handleNextPressed,
- isNextEnabled: _reviewConfirmed,
- showReviewGate: true,
- reviewConfirmed: _reviewConfirmed,
- onReviewChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- reviewScrollController: _reviewScrollController,
- ),
+  BusinessCaseNavigationButtons(
+  currentScreen: 'Risk Identification',
+  padding:
+  const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+  onNext: _handleNextPressed,
+  reviewScrollController: _reviewScrollController,
+  ),
  ],
  ),
  ),

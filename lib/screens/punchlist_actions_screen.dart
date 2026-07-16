@@ -782,11 +782,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  style: FilledButton.styleFrom(
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
- backgroundColor: const Color(0xFF2563EB),
- ),
- ),
- ],
- ),
+  backgroundColor: const Color(0xFFFFC812),
+  ),
+  ),
+  ],
+  ),
  ),
  const SizedBox(height: 10),
  // Full-width table
@@ -876,7 +876,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  DataCell(Row(
  mainAxisSize: MainAxisSize.min,
  children: [
- IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showDistributionDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
+ IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFFFC812)), onPressed: () => _showDistributionDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteDistributionRow(idx), splashRadius: 18, tooltip: 'Delete'),
  IconButton(
    onPressed: () {
@@ -959,11 +959,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  style: FilledButton.styleFrom(
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
- backgroundColor: const Color(0xFF2563EB),
- ),
- ),
- ],
- ),
+  backgroundColor: const Color(0xFFFFC812),
+  ),
+  ),
+  ],
+  ),
  ),
  const SizedBox(height: 10),
  // Full-width table
@@ -1071,7 +1071,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  DataCell(Row(
  mainAxisSize: MainAxisSize.min,
  children: [
- IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showVelocityDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
+ IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFFFC812)), onPressed: () => _showVelocityDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteVelocityRow(idx), splashRadius: 18, tooltip: 'Delete'),
  IconButton(
    onPressed: () {
@@ -1144,11 +1144,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  style: FilledButton.styleFrom(
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
- backgroundColor: const Color(0xFF2563EB),
- ),
- ),
- ],
- ),
+  backgroundColor: const Color(0xFFFFC812),
+  ),
+  ),
+  ],
+  ),
  ),
  const SizedBox(height: 10),
  // Full-width table
@@ -1293,7 +1293,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  DataCell(Row(
  mainAxisSize: MainAxisSize.min,
  children: [
- IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showCapacityHealthDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
+ IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFFFC812)), onPressed: () => _showCapacityHealthDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteCapacityHealthRow(idx), splashRadius: 18, tooltip: 'Delete'),
  IconButton(
    onPressed: () {
@@ -1366,11 +1366,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  style: FilledButton.styleFrom(
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
- backgroundColor: const Color(0xFF2563EB),
- ),
- ),
- ],
- ),
+  backgroundColor: const Color(0xFFFFC812),
+  ),
+  ),
+  ],
+  ),
  ),
  const SizedBox(height: 10),
  // Full-width table
@@ -1489,7 +1489,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  DataCell(Row(
  mainAxisSize: MainAxisSize.min,
  children: [
- IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)), onPressed: () => _showShiftCoverageDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
+ IconButton(icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFFFFC812)), onPressed: () => _showShiftCoverageDialog(context, editIndex: idx), splashRadius: 18, tooltip: 'Edit'),
  IconButton(icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)), onPressed: () => _deleteShiftCoverageRow(idx), splashRadius: 18, tooltip: 'Delete'),
  IconButton(
    onPressed: () {
@@ -2316,11 +2316,11 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  label: Text(footerButtonLabel),
  style: TextButton.styleFrom(
  padding: EdgeInsets.zero,
- foregroundColor: const Color(0xFF2563EB),
- textStyle: const TextStyle(fontWeight: FontWeight.w700),
- ),
- ),
- )
+  foregroundColor: const Color(0xFFFFC812),
+  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+  ),
+  ),
+  )
  ],
  ),
  );

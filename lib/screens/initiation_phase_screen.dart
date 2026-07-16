@@ -38,6 +38,7 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_hint_dialog.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 class InitiationPhaseScreen extends StatefulWidget {
  final bool scrollToBusinessCase;
@@ -58,7 +59,7 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  // Anchor key for sidebar navigation
  final GlobalKey _businessCaseSectionKey = GlobalKey();
  bool _initiationExpanded = true;
- bool _reviewConfirmed = false;
+
 
  bool get _isBusinessCaseValid =>
  _meetsBusinessMinimum(_businessCaseController.text.trim());
@@ -488,9 +489,26 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  void _retryBusinessSuggestions() =>
  _fetchBusinessSuggestions(_businessCaseController.text.trim());
 
- Future<void> _handleNextPressed() async {
- final notes = _notesController.text.trim();
- final business = _businessCaseController.text.trim();
+  Future<void> _handleNextPressed() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('initiation_phase')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'initiation_phase'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'initiation_phase_confirmed');
+    }
+  final notes = _notesController.text.trim();
+  final business = _businessCaseController.text.trim();
  const notesValid = true;
  final businessValid = _meetsBusinessMinimum(business);
 
@@ -2168,20 +2186,14 @@ class _InitiationPhaseScreenState extends State<InitiationPhaseScreen> {
  ),
  SizedBox(height: AppBreakpoints.sectionGap(context)),
  // Navigation Buttons
- BusinessCaseNavigationButtons(
- currentScreen: 'Business Case',
- padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
- onNext: _handleNextPressed,
- onSkip: _handleSkipPressed,
- skipLabel: 'Skip',
- isNextEnabled: _reviewConfirmed,
- showReviewGate: true,
- reviewConfirmed: _reviewConfirmed,
- onReviewChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- reviewScrollController: _reviewScrollController,
- ),
+  BusinessCaseNavigationButtons(
+  currentScreen: 'Business Case',
+  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+  onNext: _handleNextPressed,
+  onSkip: _handleSkipPressed,
+  skipLabel: 'Skip',
+  reviewScrollController: _reviewScrollController,
+  ),
  ],
  ),
  ),

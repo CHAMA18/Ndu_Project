@@ -118,9 +118,11 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
 
   // Controllers for notes
   final TextEditingController _notesCtrl = TextEditingController();
+  final TextEditingController _reviewCadenceCtrl = TextEditingController();
   final Map<String, TextEditingController> _nameCtrls = {};
   final Map<String, TextEditingController> _entryCtrls = {};
   final Map<String, TextEditingController> _exitCtrls = {};
+  String? _selectedColumnId;
 
   String? get _projectId {
     try {
@@ -140,6 +142,7 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
   void dispose() {
     _autoSaveDebounce?.cancel();
     _notesCtrl.dispose();
+    _reviewCadenceCtrl.dispose();
     for (final c in _nameCtrls.values) {
       c.dispose();
     }
@@ -192,7 +195,9 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
           (data['nextSprintReviewDays'] as num?)?.toInt() ?? 7;
       _enableSwimlanes = data['enableSwimlanes'] as bool? ?? true;
       _notesCtrl.text = data['notes'] as String? ?? '';
+      _reviewCadenceCtrl.text = _nextSprintReviewDays.toString();
       _rebuildCtrls();
+      _selectedColumnId = _columns.isNotEmpty ? _columns.first.id : null;
     } catch (e) {
       debugPrint('Error: $e');
     }
@@ -260,8 +265,10 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
 
   void _addColumn() {
     setState(() {
-      _columns.add(_KanbanColumn(name: 'New Column'));
+      final column = _KanbanColumn(name: 'New Stage');
+      _columns.add(column);
       _rebuildCtrls();
+      _selectedColumnId = column.id;
     });
     _scheduleAutoSave();
   }
@@ -272,15 +279,29 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
     _nameCtrls.remove(col.id)?.dispose();
     _entryCtrls.remove(col.id)?.dispose();
     _exitCtrls.remove(col.id)?.dispose();
-    setState(() => _columns.removeAt(index));
+    setState(() {
+      _columns.removeAt(index);
+      if (_selectedColumnId == col.id) {
+        _selectedColumnId = _columns.isNotEmpty ? _columns.first.id : null;
+      }
+    });
     _scheduleAutoSave();
   }
 
-  void _moveColumn(int oldIndex, int newIndex) {
+  void _moveColumnLeft(int index) {
+    if (index <= 0 || index >= _columns.length) return;
     setState(() {
-      if (newIndex > oldIndex) newIndex--;
-      final col = _columns.removeAt(oldIndex);
-      _columns.insert(newIndex, col);
+      final col = _columns.removeAt(index);
+      _columns.insert(index - 1, col);
+    });
+    _scheduleAutoSave();
+  }
+
+  void _moveColumnRight(int index) {
+    if (index < 0 || index >= _columns.length - 1) return;
+    setState(() {
+      final col = _columns.removeAt(index);
+      _columns.insert(index + 1, col);
     });
     _scheduleAutoSave();
   }
@@ -311,19 +332,16 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
                             'Agile Delivery Model - Kanban Configuration'),
                   ),
                   SingleChildScrollView(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: hp, vertical: 32),
+                    padding: EdgeInsets.symmetric(horizontal: hp, vertical: 32),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         PlanningPhaseHeader(
                           title: 'Kanban Configuration',
-                          onBack: () =>
-                              PlanningPhaseNavigation.goToPrevious(
-                                  context, 'agile_kanban_config'),
-                          onForward: () =>
-                              PlanningPhaseNavigation.goToNext(
-                                  context, 'agile_kanban_config'),
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
+                              context, 'agile_kanban_config'),
+                          onForward: () => PlanningPhaseNavigation.goToNext(
+                              context, 'agile_kanban_config'),
                           onExportPdf: _exportPdf,
                         ),
                         const SizedBox(height: 24),
@@ -344,12 +362,10 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
                               'agile_kanban_config'),
                           nextLabel: PlanningPhaseNavigation.nextLabel(
                               'agile_kanban_config'),
-                          onBack: () =>
-                              PlanningPhaseNavigation.goToPrevious(
-                                  context, 'agile_kanban_config'),
-                          onNext: () =>
-                              PlanningPhaseNavigation.goToNext(
-                                  context, 'agile_kanban_config'),
+                          onBack: () => PlanningPhaseNavigation.goToPrevious(
+                              context, 'agile_kanban_config'),
+                          onNext: () => PlanningPhaseNavigation.goToNext(
+                              context, 'agile_kanban_config'),
                         ),
                         const SizedBox(height: 40),
                       ],
@@ -370,6 +386,11 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
   }
 
   Widget _buildColumnsSection() {
+    final selected = _columns
+        .where((c) => c.id == _selectedColumnId)
+        .cast<_KanbanColumn?>()
+        .firstWhere((c) => c != null,
+            orElse: () => _columns.isNotEmpty ? _columns.first : null);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -379,163 +400,223 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Text('Workflow Columns',
-                  style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: _kHeadline)),
-              const Spacer(),
+              const Padding(
+                padding: EdgeInsets.only(right: 12),
+                child: Text('Board Workflow Setup',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: _kHeadline)),
+              ),
+              TextButton.icon(
+                onPressed: _applySimpleTemplate,
+                icon: const Icon(Icons.view_column_outlined, size: 16),
+                label: const Text('Simple Template'),
+              ),
+              TextButton.icon(
+                onPressed: _applySoftwareTemplate,
+                icon: const Icon(Icons.developer_board, size: 16),
+                label: const Text('Software Template'),
+              ),
               TextButton.icon(
                 onPressed: _addColumn,
                 icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Column'),
+                label: const Text('Add Stage'),
               ),
             ],
           ),
           const SizedBox(height: 8),
           const Text(
-            'Define the Kanban workflow stages. Drag to reorder.',
+            'Configure the workflow stages your team will use on the Kanban board. Drag stages left-to-right to set board order, then use Edit to define WIP limits and flow rules.',
             style: TextStyle(fontSize: 13, color: _kMuted),
           ),
-          const SizedBox(height: 12),
-          ReorderableListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _columns.length,
-            onReorder: _moveColumn,
-            proxyDecorator: (child, index, animation) => Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(8),
-              child: child,
-            ),
-            itemBuilder: (context, index) {
-              final col = _columns[index];
-              return Container(
-                key: ValueKey(col.id),
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _kBorder),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        ReorderableDragStartListener(
-                          index: index,
-                          child: const Icon(Icons.drag_handle,
-                              color: _kMuted, size: 20),
-                        ),
-                        const SizedBox(width: 8),
-                        Text('${index + 1}.',
-                            style: const TextStyle(
-                                fontSize: 13, color: _kMuted)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: VoiceTextField(
-                            controller: _nameCtrls[col.id] ??
-                                TextEditingController(),
-                            decoration: const InputDecoration(
-                              hintText: 'Column name',
-                              border: InputBorder.none,
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
+          const SizedBox(height: 14),
+          if (_columns.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: _kBorder),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'No workflow stages configured yet.',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _kHeadline),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Choose a template or add your first stage to start configuring the board.',
+                    style: TextStyle(fontSize: 13, color: _kMuted),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _applySimpleTemplate,
+                        icon: const Icon(Icons.view_column_outlined, size: 16),
+                        label: const Text('Simple Template'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _applySoftwareTemplate,
+                        icon: const Icon(Icons.developer_board, size: 16),
+                        label: const Text('Software Template'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _addColumn,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add Stage'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            )
+          else
+            SizedBox(
+              height: 240,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: List.generate(_columns.length, (index) {
+                    final col = _columns[index];
+                    final selectedCard = selected?.id == col.id;
+                    return Container(
+                      width: 260,
+                      margin: const EdgeInsets.only(right: 12),
+                      child: InkWell(
+                        onTap: () => setState(() => _selectedColumnId = col.id),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: selectedCard
+                                ? const Color(0xFFFFFBEB)
+                                : const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: selectedCard
+                                  ? const Color(0xFFD97706)
+                                  : _kBorder,
+                              width: selectedCard ? 1.5 : 1,
                             ),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 13),
-                            onChanged: (v) {
-                              col.name = v;
-                              _scheduleAutoSave();
-                            },
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: 90,
-                          child: VoiceTextField(
-                            controller: TextEditingController.fromValue(
-                              TextEditingValue(
-                                text: col.wipLimit.toString(),
-                                selection: const TextSelection.collapsed(
-                                    offset: 999),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.view_column_outlined,
+                                      color: _kMuted, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      col.name.trim().isEmpty
+                                          ? 'Untitled Stage'
+                                          : col.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: _kHeadline),
+                                    ),
+                                  ),
+                                  if (_columns.length > 2)
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18, color: Colors.red),
+                                      onPressed: () => _removeColumn(index),
+                                      tooltip: 'Delete stage',
+                                    ),
+                                ],
                               ),
-                            ),
-                            decoration: const InputDecoration(
-                              hintText: 'WIP',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 6),
-                            ),
-                            keyboardType: TextInputType.number,
-                            style: const TextStyle(fontSize: 12),
-                            onChanged: (v) {
-                              col.wipLimit = int.tryParse(v) ?? 0;
-                              _scheduleAutoSave();
-                            },
+                              const SizedBox(height: 10),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(999),
+                                      border: Border.all(color: _kBorder),
+                                    ),
+                                    child: Text(
+                                      col.wipLimit > 0
+                                          ? 'WIP ${col.wipLimit}'
+                                          : 'No WIP limit',
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: _kMuted),
+                                    ),
+                                  ),
+                                  if (index > 0)
+                                    IconButton(
+                                      onPressed: () => _moveColumnLeft(index),
+                                      icon: const Icon(Icons.arrow_back_ios_new,
+                                          size: 16),
+                                      tooltip: 'Move left',
+                                    ),
+                                  if (index < _columns.length - 1)
+                                    IconButton(
+                                      onPressed: () => _moveColumnRight(index),
+                                      icon: const Icon(Icons.arrow_forward_ios,
+                                          size: 16),
+                                      tooltip: 'Move right',
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.start,
+                                  children: [
+                                    _stagePolicyPreview(
+                                        'Entry', col.entryCriteria),
+                                    const SizedBox(height: 8),
+                                    _stagePolicyPreview(
+                                        'Exit', col.exitCriteria),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _editColumnDialog(col),
+                                  icon:
+                                      const Icon(Icons.edit_outlined, size: 16),
+                                  label: const Text('Edit'),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        if (_columns.length > 2)
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                size: 16, color: Colors.red),
-                            onPressed: () => _removeColumn(index),
-                            constraints: const BoxConstraints(
-                                minWidth: 28, minHeight: 28),
-                            padding: EdgeInsets.zero,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: VoiceTextField(
-                            controller: _entryCtrls[col.id] ??
-                                TextEditingController(),
-                            decoration: const InputDecoration(
-                              hintText: 'Entry criteria',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 6),
-                              labelText: 'Entry',
-                            ),
-                            style: const TextStyle(fontSize: 11),
-                            maxLines: 1,
-                            onChanged: (_) => _scheduleAutoSave(),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: VoiceTextField(
-                            controller: _exitCtrls[col.id] ??
-                                TextEditingController(),
-                            decoration: const InputDecoration(
-                              hintText: 'Exit criteria',
-                              border: OutlineInputBorder(),
-                              isDense: true,
-                              contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 6),
-                              labelText: 'Exit',
-                            ),
-                            style: const TextStyle(fontSize: 11),
-                            maxLines: 1,
-                            onChanged: (_) => _scheduleAutoSave(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    );
+                  }),
                 ),
-              );
-            },
-          ),
+              ),
+            ),
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -562,8 +643,7 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
             style: TextStyle(fontSize: 13, color: _kMuted),
           ),
           const SizedBox(height: 12),
-          ..._cosList.asMap().entries.map((e) =>
-              _buildCosRow(e.key, e.value)),
+          ..._cosList.asMap().entries.map((e) => _buildCosRow(e.key, e.value)),
         ],
       ),
     );
@@ -578,85 +658,209 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: _kBorder),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: DropdownButtonFormField<String>(
-              value: _cosOptions.contains(cos.name) ? cos.name : _cosOptions[0],
-              decoration: const InputDecoration(
-                labelText: 'Service Class',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 900;
+          final serviceClassField = DropdownButtonFormField<String>(
+            value: _cosOptions.contains(cos.name) ? cos.name : _cosOptions[0],
+            decoration: const InputDecoration(
+              labelText: 'Service Class',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            ),
+            items: _cosOptions
+                .map((o) => DropdownMenuItem(
+                    value: o,
+                    child: Text(o, style: const TextStyle(fontSize: 12))))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) {
+                setState(() => cos.name = v);
+                _scheduleAutoSave();
+              }
+            },
+          );
+          final slaField = TextFormField(
+            initialValue: cos.slaHours.toString(),
+            decoration: const InputDecoration(
+              labelText: 'SLA (hrs)',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            ),
+            keyboardType: TextInputType.number,
+            style: const TextStyle(fontSize: 12),
+            onChanged: (v) {
+              cos.slaHours = int.tryParse(v) ?? 24;
+              _scheduleAutoSave();
+            },
+          );
+          final descriptionField = TextFormField(
+            initialValue: cos.description,
+            decoration: const InputDecoration(
+              hintText: 'Description',
+              border: OutlineInputBorder(),
+              isDense: true,
+              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            ),
+            style: const TextStyle(fontSize: 11),
+            onChanged: (v) {
+              cos.description = v;
+              _scheduleAutoSave();
+            },
+          );
+          if (narrow) {
+            return Column(
+              children: [
+                serviceClassField,
+                const SizedBox(height: 8),
+                slaField,
+                const SizedBox(height: 8),
+                descriptionField,
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: serviceClassField,
               ),
-              items: _cosOptions
-                  .map((o) => DropdownMenuItem(
-                      value: o,
-                      child:
-                          Text(o, style: const TextStyle(fontSize: 12))))
-                  .toList(),
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() => cos.name = v);
-                  _scheduleAutoSave();
-                }
-              },
+              const SizedBox(width: 8),
+              Expanded(
+                child: slaField,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: descriptionField,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _stagePolicyPreview(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w700, color: _kMuted)),
+        const SizedBox(height: 4),
+        Text(
+          value.trim().isEmpty ? 'Not defined yet' : value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            color: value.trim().isEmpty ? _kMuted : _kHeadline,
+            fontStyle:
+                value.trim().isEmpty ? FontStyle.italic : FontStyle.normal,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _editColumnDialog(_KanbanColumn column) {
+    final nameCtrl = TextEditingController(text: column.name);
+    final entryCtrl = TextEditingController(text: column.entryCriteria);
+    final exitCtrl = TextEditingController(text: column.exitCriteria);
+    final wipCtrl = TextEditingController(text: column.wipLimit.toString());
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Stage'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Stage name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: wipCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'WIP limit'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: entryCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration:
+                      const InputDecoration(labelText: 'Entry criteria'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: exitCtrl,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(labelText: 'Exit criteria'),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: VoiceTextField(
-              controller: TextEditingController.fromValue(
-                TextEditingValue(
-                  text: cos.slaHours.toString(),
-                  selection: const TextSelection.collapsed(offset: 999),
-                ),
-              ),
-              decoration: const InputDecoration(
-                labelText: 'SLA (hrs)',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              ),
-              keyboardType: TextInputType.number,
-              style: const TextStyle(fontSize: 12),
-              onChanged: (v) {
-                cos.slaHours = int.tryParse(v) ?? 24;
-                _scheduleAutoSave();
-              },
-            ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 2,
-            child: VoiceTextField(
-              controller: TextEditingController.fromValue(
-                TextEditingValue(
-                  text: cos.description,
-                  selection:
-                      TextSelection.collapsed(offset: cos.description.length),
-                ),
-              ),
-              decoration: const InputDecoration(
-                hintText: 'Description',
-                border: OutlineInputBorder(),
-                isDense: true,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              ),
-              style: const TextStyle(fontSize: 11),
-              onChanged: (v) {
-                cos.description = v;
-                _scheduleAutoSave();
-              },
-            ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                column.name = nameCtrl.text.trim();
+                column.wipLimit = int.tryParse(wipCtrl.text.trim()) ?? 0;
+                column.entryCriteria = entryCtrl.text.trim();
+                column.exitCriteria = exitCtrl.text.trim();
+                _nameCtrls[column.id]?.text = column.name;
+                _entryCtrls[column.id]?.text = column.entryCriteria;
+                _exitCtrls[column.id]?.text = column.exitCriteria;
+              });
+              Navigator.pop(dialogContext);
+              _scheduleAutoSave();
+            },
+            child: const Text('Save'),
           ),
         ],
       ),
     );
+  }
+
+  void _applySimpleTemplate() {
+    setState(() {
+      _columns = [
+        _KanbanColumn(name: 'To Do'),
+        _KanbanColumn(name: 'In Progress', wipLimit: 3),
+        _KanbanColumn(name: 'Done'),
+      ];
+      _rebuildCtrls();
+      _selectedColumnId = _columns.first.id;
+    });
+    _scheduleAutoSave();
+  }
+
+  void _applySoftwareTemplate() {
+    setState(() {
+      _columns = _defaultColumns
+          .map((name) => _KanbanColumn(
+                name: name,
+                wipLimit: name == 'In Progress' ? 3 : 0,
+              ))
+          .toList();
+      _rebuildCtrls();
+      _selectedColumnId = _columns.first.id;
+    });
+    _scheduleAutoSave();
   }
 
   Widget _buildSettingsSection() {
@@ -675,31 +879,13 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
                   fontWeight: FontWeight.w700,
                   color: _kHeadline)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              const Text('Enable swimlanes',
-                  style: TextStyle(fontSize: 13, color: _kHeadline)),
-              const SizedBox(width: 12),
-              Switch(
-                value: _enableSwimlanes,
-                onChanged: (v) {
-                  setState(() => _enableSwimlanes = v);
-                  _scheduleAutoSave();
-                },
-              ),
-              const SizedBox(width: 24),
-              const Text('Sprint review cadence (days)',
-                  style: TextStyle(fontSize: 13, color: _kHeadline)),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 100,
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 760;
+              final cadenceField = SizedBox(
+                width: narrow ? double.infinity : 120,
                 child: VoiceTextField(
-                  controller: TextEditingController.fromValue(
-                    TextEditingValue(
-                      text: _nextSprintReviewDays.toString(),
-                      selection: const TextSelection.collapsed(offset: 999),
-                    ),
-                  ),
+                  controller: _reviewCadenceCtrl,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     isDense: true,
@@ -713,8 +899,53 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
                     _scheduleAutoSave();
                   },
                 ),
-              ),
-            ],
+              );
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('Enable swimlanes',
+                            style: TextStyle(fontSize: 13, color: _kHeadline)),
+                        const SizedBox(width: 12),
+                        Switch(
+                          value: _enableSwimlanes,
+                          onChanged: (v) {
+                            setState(() => _enableSwimlanes = v);
+                            _scheduleAutoSave();
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Sprint review cadence (days)',
+                        style: TextStyle(fontSize: 13, color: _kHeadline)),
+                    const SizedBox(height: 8),
+                    cadenceField,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  const Text('Enable swimlanes',
+                      style: TextStyle(fontSize: 13, color: _kHeadline)),
+                  const SizedBox(width: 12),
+                  Switch(
+                    value: _enableSwimlanes,
+                    onChanged: (v) {
+                      setState(() => _enableSwimlanes = v);
+                      _scheduleAutoSave();
+                    },
+                  ),
+                  const SizedBox(width: 24),
+                  const Text('Sprint review cadence (days)',
+                      style: TextStyle(fontSize: 13, color: _kHeadline)),
+                  const SizedBox(width: 8),
+                  cadenceField,
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -727,9 +958,7 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
       children: [
         const Text('Additional Notes',
             style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: _kHeadline)),
+                fontSize: 14, fontWeight: FontWeight.w600, color: _kHeadline)),
         const SizedBox(height: 8),
         VoiceTextField(
           controller: _notesCtrl,
@@ -752,12 +981,20 @@ class _AgileKanbanConfigScreenState extends State<AgileKanbanConfigScreen> {
       screenTitle: 'Kanban Configuration',
       sections: [
         PdfSection.keyValue('Project Info', [
-          {'Project Name': projectData.projectName ?? 'N/A'},
-          {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+          {
+            'Project Name': projectData.projectName.isEmpty
+                ? 'N/A'
+                : projectData.projectName
+          },
+          {
+            'Solution Title': projectData.solutionTitle.isEmpty
+                ? 'N/A'
+                : projectData.solutionTitle
+          },
         ]),
-        PdfSection.text('Notes',
-            projectData.planningNotes[
-                    'planning_agile_kanban_config_notes'] ??
+        PdfSection.text(
+            'Notes',
+            projectData.planningNotes['planning_agile_kanban_config_notes'] ??
                 'No data recorded.'),
       ],
     );

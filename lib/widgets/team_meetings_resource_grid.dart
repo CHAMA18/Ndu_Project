@@ -300,7 +300,7 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
                         horizontal: 12, vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    foregroundColor: const Color(0xFF2563EB),
+                    foregroundColor: const Color(0xFFFFC812),
                   ),
                 ),
               ],

@@ -60,7 +60,7 @@ class CsvTableImportButton extends StatelessWidget {
           onPressed: handleImport,
           icon: const Icon(Icons.upload_file_outlined, size: 18),
           style: IconButton.styleFrom(
-            foregroundColor: const Color(0xFF2563EB),
+            foregroundColor: const Color(0xFFFFC812),
             side: const BorderSide(color: Color(0xFF93C5FD)),
             padding: const EdgeInsets.all(8),
             minimumSize: const Size(36, 36),
@@ -76,7 +76,7 @@ class CsvTableImportButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        foregroundColor: const Color(0xFF2563EB),
+        foregroundColor: const Color(0xFFFFC812),
         side: const BorderSide(color: Color(0xFF93C5FD)),
       ),
     );

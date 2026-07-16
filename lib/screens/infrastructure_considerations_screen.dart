@@ -36,6 +36,7 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 enum _MissingInfrastructureAction { manual, autoFill, skip }
 
@@ -75,7 +76,7 @@ class _InfrastructureConsiderationsScreenState
  _isAdmin && AccessPolicy.isRestrictedAdminHost();
  final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
  bool _isGeneratingInfra = false;
- bool _reviewConfirmed = false;
+
 
  void _addNewItem() {
  if (!_canUseAdminControls) return;
@@ -1288,18 +1289,12 @@ class _InfrastructureConsiderationsScreenState
  ],
 
  // Navigation Buttons
- BusinessCaseNavigationButtons(
- currentScreen: 'Infrastructure Considerations',
- padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
- onNext: _handleNextPressed,
- isNextEnabled: _reviewConfirmed,
- showReviewGate: true,
- reviewConfirmed: _reviewConfirmed,
- onReviewChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- reviewScrollController: _reviewScrollController,
- ),
+  BusinessCaseNavigationButtons(
+  currentScreen: 'Infrastructure Considerations',
+  padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+  onNext: _handleNextPressed,
+  reviewScrollController: _reviewScrollController,
+  ),
  ]),
  ),
  );
@@ -1533,9 +1528,26 @@ class _InfrastructureConsiderationsScreenState
  }
  }
 
- Future<void> _handleNextPressed() async {
- // 1. Save data FIRST before validation
- await _saveInfrastructureConsiderationsData();
+  Future<void> _handleNextPressed() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('infrastructure_considerations')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'infrastructure_considerations'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'infrastructure_considerations_confirmed');
+    }
+  // 1. Save data FIRST before validation
+  await _saveInfrastructureConsiderationsData();
  if (!mounted) return;
 
  // 2. Validate data completeness

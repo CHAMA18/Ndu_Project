@@ -781,20 +781,20 @@ onBack: () =>
  ElevatedButton.icon(
  onPressed: _isGenerating ? null : _regenerateNotes,
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF4154F1),
- foregroundColor: Colors.white,
- padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
- elevation: 0,
- shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
- ),
- icon: _isGenerating
- ? const SizedBox(
- width: 16,
- height: 16,
- child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
- )
- : const Icon(Icons.auto_awesome, size: 16),
- label: const Text('AI Assist', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+  elevation: 0,
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  ),
+  icon: _isGenerating
+  ? const SizedBox(
+  width: 16,
+  height: 16,
+  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+  )
+  : const Icon(Icons.auto_awesome, size: 16),
+  label: const Text('AI Assist', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
  ),
  const SizedBox(width: 12),
  FilledButton.icon(

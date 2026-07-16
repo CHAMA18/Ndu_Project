@@ -1639,13 +1639,13 @@ bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
  'AI Suggestions',
  style: TextStyle(fontWeight: FontWeight.w700),
  ),
- style: OutlinedButton.styleFrom(
- foregroundColor: const Color(0xFF2563EB),
- side: const BorderSide(color: Color(0xFFBFDBFE)),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12)),
- padding: const EdgeInsets.symmetric(vertical: 13),
- ),
+  style: OutlinedButton.styleFrom(
+  foregroundColor: const Color(0xFFFFC812),
+  side: const BorderSide(color: Color(0xFFBFDBFE)),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12)),
+  padding: const EdgeInsets.symmetric(vertical: 13),
+  ),
  ),
  ),
  const SizedBox(width: 10),

@@ -235,6 +235,66 @@ class AgileWireframeService {
     }
   }
 
+  // ── Scrum Config ──
+
+  static Future<Map<String, dynamic>> loadScrumConfig(
+      String projectId) async {
+    try {
+      final doc = await _loadDoc(projectId);
+      if (doc == null) return {};
+      return (doc['scrumConfig'] as Map<String, dynamic>?) ?? {};
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadScrumConfig error: $error');
+      return {};
+    }
+  }
+
+  static Future<void> saveScrumConfig({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _agileDoc(projectId).set({
+        'scrumConfig': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      _invalidate(projectId);
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveScrumConfig error: $error');
+      rethrow;
+    }
+  }
+
+  // ── Capacity Planning ──
+
+  static Future<Map<String, dynamic>> loadCapacityPlanning(
+      String projectId) async {
+    try {
+      final doc = await _loadDoc(projectId);
+      if (doc == null) return {};
+      return (doc['capacityPlanning'] as Map<String, dynamic>?) ?? {};
+    } catch (error) {
+      debugPrint('AgileWireframeService.loadCapacityPlanning error: $error');
+      return {};
+    }
+  }
+
+  static Future<void> saveCapacityPlanning({
+    required String projectId,
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      await _agileDoc(projectId).set({
+        'capacityPlanning': data,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      _invalidate(projectId);
+    } catch (error) {
+      debugPrint('AgileWireframeService.saveCapacityPlanning error: $error');
+      rethrow;
+    }
+  }
+
   // ── Metrics Config ──
 
   static Future<Map<String, dynamic>> loadMetricsConfig(

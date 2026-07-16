@@ -11,6 +11,9 @@ class StaffingRow {
   String skillRequirements; // Bullet list with "." separator
   String notes; // Manual notes only, no AI generation
   String status;
+  // Rate tier linkage
+  String rateTierId; // Links to RateCard.rates[].id
+  double burdenRate; // Overhead multiplier (e.g., 1.35 = 35% burden)
 
   StaffingRow({
     String? id,
@@ -24,6 +27,8 @@ class StaffingRow {
     this.skillRequirements = '',
     this.notes = '',
     this.status = 'Not Started',
+    this.rateTierId = '',
+    this.burdenRate = 0,
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   /// Calculate subtotal: quantity × duration × monthlyCost
@@ -54,6 +59,8 @@ class StaffingRow {
     String? skillRequirements,
     String? notes,
     String? status,
+    String? rateTierId,
+    double? burdenRate,
   }) {
     return StaffingRow(
       id: id,
@@ -67,6 +74,8 @@ class StaffingRow {
       skillRequirements: skillRequirements ?? this.skillRequirements,
       notes: notes ?? this.notes,
       status: status ?? this.status,
+      rateTierId: rateTierId ?? this.rateTierId,
+      burdenRate: burdenRate ?? this.burdenRate,
     );
   }
 
@@ -82,6 +91,8 @@ class StaffingRow {
         'skillRequirements': skillRequirements,
         'notes': notes,
         'status': status,
+        'rateTierId': rateTierId,
+        'burdenRate': burdenRate,
       };
 
   factory StaffingRow.fromJson(Map<String, dynamic> json) {
@@ -102,6 +113,10 @@ class StaffingRow {
       skillRequirements: json['skillRequirements']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
       status: json['status']?.toString() ?? 'Not Started',
+      rateTierId: json['rateTierId']?.toString() ?? '',
+      burdenRate: json['burdenRate'] is num
+          ? (json['burdenRate'] as num).toDouble()
+          : 0,
     );
   }
 }

@@ -1323,16 +1323,16 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  shape: RoundedRectangleBorder(
  borderRadius: BorderRadius.circular(10),
  ),
- foregroundColor: const Color(0xFF2563EB),
- side: const BorderSide(color: Color(0xFF93C5FD)),
- ),
- ),
- ],
- ),
- const SizedBox(height: 20),
- _buildInventoryTableContent(),
- ],
- ),
+  foregroundColor: const Color(0xFFFFC812),
+  side: const BorderSide(color: Color(0xFF93C5FD)),
+  ),
+  ),
+  ],
+  ),
+  const SizedBox(height: 20),
+  _buildInventoryTableContent(),
+  ],
+  ),
  );
  }
 
@@ -2737,14 +2737,14 @@ Execution snapshot:
  shape: RoundedRectangleBorder(
  borderRadius: BorderRadius.circular(10),
  ),
- foregroundColor: const Color(0xFF2563EB),
- side: const BorderSide(color: Color(0xFF93C5FD)),
- ),
- ),
- ],
- ),
- const SizedBox(height: 20),
- LayoutBuilder(
+  foregroundColor: const Color(0xFFFFC812),
+  side: const BorderSide(color: Color(0xFF93C5FD)),
+  ),
+  ),
+  ],
+  ),
+  const SizedBox(height: 20),
+  LayoutBuilder(
  builder: (context, constraints) {
  Widget buildTable(List<_AllocationItem> items) {
  return SingleChildScrollView(

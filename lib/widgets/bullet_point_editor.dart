@@ -169,7 +169,7 @@ class _BulletPointEditorState extends State<BulletPointEditor> {
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add item'),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2563EB),
+                foregroundColor: const Color(0xFFFFC812),
                 textStyle: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),

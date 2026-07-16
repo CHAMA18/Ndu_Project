@@ -725,7 +725,7 @@ class _ExpandableCell extends StatelessWidget {
         text: text,
         maxLines: 1,
         style: const TextStyle(fontSize: 13),
-        expandButtonColor: Colors.blue,
+        expandButtonColor: const Color(0xFFFFC812),
       ),
     );
   }

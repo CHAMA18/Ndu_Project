@@ -91,7 +91,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
  bool _objectiveGenerationAttempted = false;
   bool _isGeneratingGoals = false;
   bool _goalsGenerationAttempted = false;
-  bool _reviewConfirmed = false;
   Timer? _saveDebounce;
 
   // ── KAZ AI Field History ──
@@ -617,9 +616,27 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
  });
  }
 
- Future<void> _handleNextPressed() async {
- final projectGoals = _goals
- .map((g) => ProjectGoal(
+  Future<void> _handleNextPressed() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('project_framework')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'project_framework'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'project_framework_confirmed');
+    }
+
+  final projectGoals = _goals
+  .map((g) => ProjectGoal(
  name: g.nameController.text.trim(),
  description: g.controller.text.trim(),
  framework: g.framework,
@@ -821,31 +838,23 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
           ),
  const SizedBox(height: 16),
 
- // ── Confirmation ──
- ProceedConfirmationGate(
- value: _reviewConfirmed,
- onChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- scrollController: _mainContentScrollController,
- ),
- ],
- ),
- ),
- ),
- ),
- ],
- ),
- ),
- // ── Fixed Bottom Navigation ──
- bottomNavigationBar: _MobileBottomNav(
- backLabel: PlanningPhaseNavigation.backLabel('project_framework'),
- nextLabel: PlanningPhaseNavigation.nextLabel('project_framework'),
- onBack: () =>
- PlanningPhaseNavigation.goToPrevious(context, 'project_framework'),
- onNext: () => _handleNextPressed(),
- nextEnabled: _reviewConfirmed,
- ),
+  ],
+  ),
+  ),
+  ),
+  ),
+  ],
+  ),
+  ),
+  // ── Fixed Bottom Navigation ──
+  bottomNavigationBar: _MobileBottomNav(
+  backLabel: PlanningPhaseNavigation.backLabel('project_framework'),
+  nextLabel: PlanningPhaseNavigation.nextLabel('project_framework'),
+  onBack: () =>
+  PlanningPhaseNavigation.goToPrevious(context, 'project_framework'),
+  onNext: () => _handleNextPressed(),
+  nextEnabled: true,
+  ),
  // ── Floating Chat Bubble ──
  floatingActionButton: const KazAiChatBubble(positioned: false),
  floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -977,32 +986,22 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
           ),
  const SizedBox(height: 16),
 
- // ── Confirmation ──
- ProceedConfirmationGate(
- value: _reviewConfirmed,
- onChanged: (value) {
- setState(
- () => _reviewConfirmed = value);
- },
- scrollController:
- _mainContentScrollController,
- ),
- const SizedBox(height: 16),
+  const SizedBox(height: 16),
 
- // ── Navigation (inline for desktop) ──
- LaunchPhaseNavigation(
- backLabel:
- PlanningPhaseNavigation.backLabel(
- 'project_framework'),
- nextLabel:
- PlanningPhaseNavigation.nextLabel(
- 'project_framework'),
- onBack: () =>
- PlanningPhaseNavigation.goToPrevious(
- context, 'project_framework'),
- onNext: () => _handleNextPressed(),
- nextEnabled: _reviewConfirmed,
- ),
+  // ── Navigation (inline for desktop) ──
+  LaunchPhaseNavigation(
+  backLabel:
+  PlanningPhaseNavigation.backLabel(
+  'project_framework'),
+  nextLabel:
+  PlanningPhaseNavigation.nextLabel(
+  'project_framework'),
+  onBack: () =>
+  PlanningPhaseNavigation.goToPrevious(
+  context, 'project_framework'),
+  onNext: () => _handleNextPressed(),
+  nextEnabled: true,
+  ),
  const SizedBox(height: 40),
  ],
  ),

@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/planning_contract.dart';
+import 'package:ndu_project/models/rate_card.dart';
+import 'package:ndu_project/models/cost_of_quality.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
@@ -664,6 +667,45 @@ class ProjectDataProvider extends ChangeNotifier {
   /// Update team members
   void updateTeamMembers(List<TeamMember> members) {
     _projectData = _projectData.copyWith(teamMembers: members);
+    notifyListeners();
+    _markDirty();
+  }
+
+  /// Update planning contracts
+  void updatePlanningContracts(List<PlanningContract> contracts) {
+    _projectData = _projectData.copyWith(planningContracts: contracts);
+    notifyListeners();
+    _markDirty();
+  }
+
+  /// Update rate cards
+  void updateRateCards(List<RateCard> cards) {
+    _projectData = _projectData.copyWith(rateCards: cards);
+    notifyListeners();
+    _markDirty();
+  }
+
+  /// Update cost of quality data
+  void updateCostOfQualityData(CostOfQualityData data) {
+    _projectData = _projectData.copyWith(costOfQualityData: data);
+    notifyListeners();
+    _markDirty();
+  }
+
+  /// Update organisation plan base configuration
+  void updateOrgPlanBase({
+    String? staffingSource,
+    String? workingHours,
+    String? location,
+    String? communicationMode,
+  }) {
+    _projectData = _projectData.copyWith(
+      orgStaffingSource: staffingSource ?? _projectData.orgStaffingSource,
+      orgWorkingHours: workingHours ?? _projectData.orgWorkingHours,
+      orgLocation: location ?? _projectData.orgLocation,
+      orgCommunicationMode:
+          communicationMode ?? _projectData.orgCommunicationMode,
+    );
     notifyListeners();
     _markDirty();
   }

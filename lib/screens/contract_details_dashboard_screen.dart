@@ -626,16 +626,31 @@ class _ContractRowTile extends StatelessWidget {
  final theme = Theme.of(context);
 
  Widget statusChip(String status) {
+ Color bgColor;
+ Color textColor;
+ switch (status.toLowerCase()) {
+ case 'almost complete':
+ bgColor = Colors.amber.shade50;
+ textColor = Colors.amber.shade800;
+ break;
+ case 'closed out':
+ bgColor = Colors.grey.shade100;
+ textColor = Colors.grey.shade700;
+ break;
+ default:
+ bgColor = AppSemanticColors.warningSurface;
+ textColor = AppSemanticColors.warning;
+ }
  return Container(
  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
  decoration: BoxDecoration(
- color: AppSemanticColors.warningSurface,
+ color: bgColor,
  borderRadius: BorderRadius.circular(999),
  ),
  child: Text(
  status,
  style: theme.textTheme.labelSmall?.copyWith(
- color: AppSemanticColors.warning,
+ color: textColor,
  fontWeight: FontWeight.w600,
  letterSpacing: 0.3,
  ),

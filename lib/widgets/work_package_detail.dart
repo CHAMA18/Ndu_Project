@@ -974,7 +974,7 @@ class _EwpReleaseGate extends StatelessWidget {
                 icon: const Icon(Icons.lock_open, size: 16),
                 label: const Text('Release for Execution'),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF1D4ED8),
+                  backgroundColor: const Color(0xFFFFC812),
                 ),
               ),
             ),

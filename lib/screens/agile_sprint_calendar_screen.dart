@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:ndu_project/models/feature_model.dart';
 import 'package:ndu_project/models/roadmap_sprint.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
+import 'package:ndu_project/services/epic_feature_service.dart';
 import 'package:ndu_project/services/roadmap_service.dart';
 import 'package:ndu_project/services/agile_wireframe_service.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -35,14 +37,15 @@ class AgileSprintCalendarScreen extends StatefulWidget {
 }
 
 class _AgileSprintCalendarScreenState
- extends State<AgileSprintCalendarScreen> {
- List<RoadmapSprint> _sprints = [];
- bool _isLoading = true;
- bool _isGenerating = false;
- TextEditingController _ceremonyController = TextEditingController();
- String _searchQuery = '';
- final TextEditingController _searchController = TextEditingController();
- Timer? _saveDebounce;
+    extends State<AgileSprintCalendarScreen> {
+  List<RoadmapSprint> _sprints = [];
+  List<Feature> _features = [];
+  bool _isLoading = true;
+  bool _isGenerating = false;
+  TextEditingController _ceremonyController = TextEditingController();
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _saveDebounce;
 
  final DateFormat _dateFormat = DateFormat('MMM dd, yyyy');
 
@@ -77,58 +80,131 @@ class _AgileSprintCalendarScreenState
  super.dispose();
  }
 
- Future<void> _loadData() async {
- final pid = _projectId;
- if (pid == null) return;
- setState(() => _isLoading = true);
- try {
- final sprints = await RoadmapService.loadSprints(projectId: pid);
- final calendarData =
- await AgileWireframeService.loadSprintCalendar(pid);
- if (!mounted) return;
- _ceremonyController.dispose();
- _ceremonyController = TextEditingController(
- text: calendarData['ceremonies'] as String? ?? '');
- setState(() {
- _sprints = sprints;
- _isLoading = false;
- });
- // ── Auto-populate ceremony schedule from AI when empty ────────
- if (_ceremonyController.text.trim().isEmpty && !_isGenerating) {
- _generateCeremonies();
- }
- } catch (e) {
- if (mounted) setState(() => _isLoading = false);
- }
- }
+  Future<void> _loadData() async {
+    final pid = _projectId;
+    if (pid == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final sprints = await RoadmapService.loadSprints(projectId: pid);
+      final calendarData =
+          await AgileWireframeService.loadSprintCalendar(pid);
+      final features = await EpicFeatureService.loadAllFeatures(pid);
+      if (!mounted) return;
+      _ceremonyController.dispose();
+      _ceremonyController = TextEditingController(
+          text: calendarData['ceremonies'] as String? ?? '');
+      setState(() {
+        _sprints = sprints;
+        _features = features;
+        _isLoading = false;
+      });
+      // ── Auto-populate ceremony schedule from AI when empty ────────
+      if (_ceremonyController.text.trim().isEmpty && !_isGenerating) {
+        _generateCeremonies();
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
- Future<void> _generateCeremonies() async {
- setState(() => _isGenerating = true);
- try {
- final projectData = ProjectDataHelper.getData(context);
- final contextText = ProjectDataHelper.buildProjectContextScan(
- projectData,
- sectionLabel: 'Sprint Ceremonies',
- );
- final openai = OpenAiServiceSecure();
- final result = await openai.generateCompletion(
- 'Based on this project context, suggest a sprint ceremony schedule.\n\n'
- 'Context:\n$contextText\n\n'
- 'Include: Sprint Planning, Daily Standup, Sprint Review, and Sprint Retrospective '
- 'with suggested days and times. Return ONLY the text (no JSON, no markdown headers).',
- maxTokens: 200,
- temperature: 0.5,
- );
- final cleaned = result.trim();
- if (cleaned.isNotEmpty && mounted) {
- _ceremonyController.text = cleaned;
- _saveCeremonies();
- }
- } catch (e) {
- debugPrint('Ceremony generation error: $e');
- }
- if (mounted) setState(() => _isGenerating = false);
- }
+  Future<void> _generateCeremonies() async {
+  setState(() => _isGenerating = true);
+  try {
+  final projectData = ProjectDataHelper.getData(context);
+  final contextText = ProjectDataHelper.buildProjectContextScan(
+  projectData,
+  sectionLabel: 'Sprint Ceremonies',
+  );
+  final openai = OpenAiServiceSecure();
+  final result = await openai.generateCompletion(
+  'Based on this project context, suggest a sprint ceremony schedule.\n\n'
+  'Context:\n$contextText\n\n'
+  'Include: Sprint Planning, Daily Standup, Sprint Review, and Sprint Retrospective '
+  'with suggested days and times. Return ONLY the text (no JSON, no markdown headers).',
+  maxTokens: 200,
+  temperature: 0.5,
+  );
+  final cleaned = result.trim();
+  if (cleaned.isNotEmpty && mounted) {
+  _ceremonyController.text = cleaned;
+  _saveCeremonies();
+  }
+  } catch (e) {
+  debugPrint('Ceremony generation error: $e');
+  }
+  if (mounted) setState(() => _isGenerating = false);
+  }
+
+  Future<void> _generateCeremonySchedule() async {
+  final pid = _projectId;
+  if (pid == null || _sprints.isEmpty) return;
+  setState(() => _isGenerating = true);
+  try {
+  final scrumConfig = await AgileWireframeService.loadScrumConfig(pid);
+
+  final sprintPlanningDur = scrumConfig['planning_duration'] as String? ?? '2 hrs';
+  final dailyScrumTime = scrumConfig['daily_scrum_time'] as String? ?? '09:00';
+  final dailyScrumDur = scrumConfig['daily_scrum_duration'] as String? ?? '15 min';
+  final reviewDur = scrumConfig['review_duration'] as String? ?? '1 hr';
+  final retroDur = scrumConfig['retro_duration'] as String? ?? '1 hr';
+  final refinementDur = scrumConfig['refinement_duration'] as String? ?? '1 hr';
+
+  final buffer = StringBuffer();
+  final df = DateFormat('EEE MMM dd');
+
+  for (final sprint in _sprints) {
+  final startLabel = sprint.startDate != null ? df.format(sprint.startDate!) : 'TBD';
+  final endLabel = sprint.endDate != null ? df.format(sprint.endDate!) : 'TBD';
+
+  buffer.writeln('Sprint ${sprint.order}: ${sprint.name.isNotEmpty ? sprint.name : ''}');
+  buffer.writeln('  $startLabel – $endLabel');
+
+  // Sprint Planning — first day
+  if (sprint.startDate != null) {
+  final dayName = DateFormat('EEEE').format(sprint.startDate!);
+  buffer.writeln('  Sprint Planning ($dayName @ $dailyScrumTime, $sprintPlanningDur)');
+  }
+
+  // Daily Standup — every day
+  if (sprint.startDate != null && sprint.endDate != null) {
+  final dayCount = sprint.endDate!.difference(sprint.startDate!).inDays + 1;
+  buffer.writeln('  Daily Standup ($dailyScrumTime daily, $dailyScrumDur, $dayCount sessions)');
+  }
+
+  // Sprint Review — last day
+  if (sprint.endDate != null) {
+  final reviewDay = DateFormat('EEEE').format(sprint.endDate!);
+  buffer.writeln('  Sprint Review ($reviewDay @ $dailyScrumTime, $reviewDur)');
+  }
+
+  // Sprint Retro — last day after review
+  if (sprint.endDate != null) {
+  final retroDay = DateFormat('EEEE').format(sprint.endDate!);
+  buffer.writeln('  Sprint Retrospective ($retroDay after Review, $retroDur)');
+  }
+
+  // Backlog Refinement — mid-sprint
+  if (sprint.startDate != null) {
+  final midPoint = sprint.startDate!.add(
+  Duration(days: sprint.endDate != null
+  ? (sprint.endDate!.difference(sprint.startDate!).inDays ~/ 2)
+  : 7));
+  final refineDay = DateFormat('EEEE').format(midPoint);
+  buffer.writeln('  Backlog Refinement ($refineDay @ $dailyScrumTime, $refinementDur)');
+  }
+
+  buffer.writeln('');
+  }
+
+  if (mounted) {
+  _ceremonyController.text = buffer.toString().trim();
+  _saveCeremonies();
+  }
+  } catch (e) {
+  debugPrint('Ceremony schedule generation error: $e');
+  }
+  if (mounted) setState(() => _isGenerating = false);
+  }
 
  Future<void> _saveCeremonies() async {
  final pid = _projectId;
@@ -172,16 +248,60 @@ class _AgileSprintCalendarScreenState
  );
  }
 
- Future<void> _deleteSprint(int index) async {
- final confirmed = await launchConfirmDelete(context, itemName: 'sprint');
- if (!confirmed || !mounted) return;
- final pid = _projectId;
- if (pid == null) return;
- final updatedList = [..._sprints];
- updatedList.removeAt(index);
- await RoadmapService.saveSprints(projectId: pid, sprints: updatedList);
- setState(() => _sprints = updatedList);
- }
+  Future<void> _deleteSprint(int index) async {
+    final confirmed = await launchConfirmDelete(context, itemName: 'sprint');
+    if (!confirmed || !mounted) return;
+    final pid = _projectId;
+    if (pid == null) return;
+    final sprintId = _sprints[index].id;
+    final updatedList = [..._sprints];
+    updatedList.removeAt(index);
+    await RoadmapService.saveSprints(projectId: pid, sprints: updatedList);
+    // Unassign features from deleted sprint
+    for (final f in _features.where((f) => f.sprintId == sprintId)) {
+      await EpicFeatureService.assignFeatureToSprint(
+        projectId: pid,
+        feature: f,
+        sprintId: null,
+      );
+    }
+    setState(() => _sprints = updatedList);
+  }
+
+  Future<void> _openAssignFeatures(String sprintId, String sprintName) async {
+    final pid = _projectId;
+    if (pid == null) return;
+
+    final unassigned =
+        _features.where((f) => f.sprintId == null || f.sprintId!.isEmpty).toList();
+    final assigned = _features.where((f) => f.sprintId == sprintId).toList();
+
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (ctx) => _AssignFeaturesDialog(
+        sprintName: sprintName,
+        unassigned: unassigned,
+        assigned: assigned,
+        onAssign: (feature) async {
+          await EpicFeatureService.assignFeatureToSprint(
+            projectId: pid,
+            feature: feature,
+            sprintId: sprintId,
+          );
+          setState(() {});
+        },
+        onUnassign: (feature) async {
+          await EpicFeatureService.assignFeatureToSprint(
+            projectId: pid,
+            feature: feature,
+            sprintId: null,
+          );
+          setState(() {});
+        },
+      ),
+    );
+  }
 
  @override
  Widget build(BuildContext context) {
@@ -207,7 +327,7 @@ class _AgileSprintCalendarScreenState
  children: [
  PlanningPhaseHeader(
  title: 'Sprint Cadence & Calendar',
-onBack: () => PlanningPhaseNavigation.goToPrevious(
+ onBack: () => PlanningPhaseNavigation.goToPrevious(
  context, 'agile_sprint_calendar'),
  onForward: () => PlanningPhaseNavigation.goToNext(
  context, 'agile_sprint_calendar'), onExportPdf: _exportPdf),
@@ -268,24 +388,42 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  suffixIcon: Row(
  mainAxisSize: MainAxisSize.min,
  children: [
- IconButton(
- tooltip: 'KAZ AI',
- icon: _isGenerating
- ? const SizedBox(
- width: 16,
- height: 16,
- child: CircularProgressIndicator(
- strokeWidth: 2),
- )
- : const Icon(Icons.auto_awesome,
- color: Color(0xFFF59E0B), size: 18),
- onPressed: _isGenerating
- ? null
- : _generateCeremonies,
- padding: const EdgeInsets.all(4),
- constraints: const BoxConstraints(
- minWidth: 32, minHeight: 32),
- ),
+  IconButton(
+  tooltip: 'Generate schedule from sprint dates + config',
+  icon: _isGenerating
+  ? const SizedBox(
+  width: 16,
+  height: 16,
+  child: CircularProgressIndicator(
+  strokeWidth: 2),
+  )
+  : const Icon(Icons.schedule,
+  color: Color(0xFF059669), size: 18),
+  onPressed: _isGenerating
+  ? null
+  : _generateCeremonySchedule,
+  padding: const EdgeInsets.all(4),
+  constraints: const BoxConstraints(
+  minWidth: 32, minHeight: 32),
+  ),
+  IconButton(
+  tooltip: 'KAZ AI',
+  icon: _isGenerating
+  ? const SizedBox(
+  width: 16,
+  height: 16,
+  child: CircularProgressIndicator(
+  strokeWidth: 2),
+  )
+  : const Icon(Icons.auto_awesome,
+  color: Color(0xFFF59E0B), size: 18),
+  onPressed: _isGenerating
+  ? null
+  : _generateCeremonies,
+  padding: const EdgeInsets.all(4),
+  constraints: const BoxConstraints(
+  minWidth: 32, minHeight: 32),
+  ),
  if (_ceremonyController.text.isNotEmpty)
  IconButton(
  tooltip: 'Clear all content',
@@ -340,9 +478,12 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  sprint.startDate != null ? _dateFormat.format(sprint.startDate!) : 'TBD';
  final endStr =
  sprint.endDate != null ? _dateFormat.format(sprint.endDate!) : 'TBD';
+ final assignedFeatures = _features.where((f) => f.sprintId == sprint.id).toList();
 
- return Card(
- margin: const EdgeInsets.only(bottom: 8),
+ return Column(
+ children: [
+ Card(
+ margin: const EdgeInsets.only(bottom: 4),
  shape: RoundedRectangleBorder(
  borderRadius: BorderRadius.circular(10),
  side: const BorderSide(color: _kBorder),
@@ -383,16 +524,29 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  maxLines: 1,
  overflow: TextOverflow.ellipsis),
  ),
+ if (assignedFeatures.isNotEmpty)
+ Padding(
+ padding: const EdgeInsets.only(top: 6),
+ child: Text(
+ '${assignedFeatures.length} feature${assignedFeatures.length == 1 ? '' : 's'} · '
+ '${assignedFeatures.fold<double>(0, (sum, f) => sum + f.storyPointEstimate).toStringAsFixed(0)} pts',
+ style: TextStyle(fontSize: 11, color: _kAccent),
+ ),
+ ),
  ],
  ),
  ),
  PopupMenuButton<String>(
  onSelected: (v) {
  if (v == 'edit') _editSprint(index);
+ if (v == 'assign') _openAssignFeatures(sprint.id, sprint.name);
  if (v == 'delete') _deleteSprint(index);
  },
  itemBuilder: (_) => [
  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+ const PopupMenuItem(
+ value: 'assign',
+ child: Text('Assign Features')),
  const PopupMenuItem(
  value: 'delete',
  child: Text('Delete', style: TextStyle(color: Colors.red))),
@@ -401,7 +555,61 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  ],
  ),
  ),
+ ),
+ if (assignedFeatures.isNotEmpty)
+ Container(
+ margin: const EdgeInsets.only(left: 50, bottom: 8),
+ padding: const EdgeInsets.all(10),
+ decoration: BoxDecoration(
+ color: Colors.grey.shade50,
+ borderRadius: BorderRadius.circular(8),
+ border: Border.all(color: _kBorder),
+ ),
+ child: Column(
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: assignedFeatures.map((f) {
+ return Padding(
+ padding: const EdgeInsets.only(bottom: 4),
+ child: Row(
+ children: [
+ Container(
+ width: 10,
+ height: 10,
+ decoration: BoxDecoration(
+ shape: BoxShape.circle,
+ color: _featureStatusColor(f.status),
+ ),
+ ),
+ const SizedBox(width: 8),
+ Expanded(
+ child: Text(
+ f.title.isNotEmpty ? f.title : '(untitled)',
+ style: const TextStyle(fontSize: 12),
+ maxLines: 1,
+ overflow: TextOverflow.ellipsis,
+ ),
+ ),
+ Text(
+ '${f.storyPointEstimate.toStringAsFixed(0)} pts',
+ style: TextStyle(fontSize: 11, color: _kMuted),
+ ),
+ ],
+ ),
  );
+ }).toList(),
+ ),
+ ),
+ ],
+ );
+ }
+
+ Color _featureStatusColor(String status) {
+ switch (status) {
+ case 'active': return Colors.blue;
+ case 'complete': return Colors.green;
+ case 'cancelled': return Colors.red;
+ default: return Colors.grey;
+ }
  }
 
  Widget _buildEmptyState(String message) {
@@ -563,6 +771,119 @@ class _SprintEditDialogState extends State<_SprintEditDialog> {
  child: const Text('Save'),
  ),
  ],
+ );
+ }
+}
+
+class _AssignFeaturesDialog extends StatefulWidget {
+ final String sprintName;
+ final List<Feature> unassigned;
+ final List<Feature> assigned;
+ final ValueChanged<Feature> onAssign;
+ final ValueChanged<Feature> onUnassign;
+
+ const _AssignFeaturesDialog({
+ required this.sprintName,
+ required this.unassigned,
+ required this.assigned,
+ required this.onAssign,
+ required this.onUnassign,
+ });
+
+ @override
+ State<_AssignFeaturesDialog> createState() => _AssignFeaturesDialogState();
+}
+
+class _AssignFeaturesDialogState extends State<_AssignFeaturesDialog> {
+ @override
+ Widget build(BuildContext context) {
+ return AlertDialog(
+ title: Text('Features for ${widget.sprintName}'),
+ content: SizedBox(
+ width: double.maxFinite,
+ child: Column(
+ mainAxisSize: MainAxisSize.min,
+ crossAxisAlignment: CrossAxisAlignment.start,
+ children: [
+ if (widget.assigned.isNotEmpty) ...[
+ Text('Assigned to this sprint',
+ style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kHeadline)),
+ const SizedBox(height: 8),
+ ...widget.assigned.map((f) => _buildFeatureTile(f, true)),
+ const Divider(height: 24),
+ ],
+ if (widget.unassigned.isNotEmpty) ...[
+ Text('Unassigned features',
+ style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _kHeadline)),
+ const SizedBox(height: 8),
+ ...widget.unassigned.map((f) => _buildFeatureTile(f, false)),
+ ],
+ if (widget.unassigned.isEmpty && widget.assigned.isEmpty)
+ const Padding(
+ padding: EdgeInsets.only(top: 16),
+ child: Text('No features found. Create features in Epics & Features first.'),
+ ),
+ ],
+ ),
+ ),
+ actions: [
+ TextButton(
+ onPressed: () => Navigator.pop(context),
+ child: const Text('Close'),
+ ),
+ ],
+ );
+ }
+
+ Widget _buildFeatureTile(Feature feature, bool isAssigned) {
+ return Padding(
+ padding: const EdgeInsets.only(bottom: 6),
+ child: Row(
+ children: [
+ Icon(
+ isAssigned ? Icons.check_circle : Icons.radio_button_unchecked,
+ size: 18,
+ color: isAssigned ? Colors.green : _kMuted,
+ ),
+ const SizedBox(width: 8),
+ Expanded(
+ child: Text(
+ feature.title.isNotEmpty ? feature.title : '(untitled)',
+ style: const TextStyle(fontSize: 13),
+ maxLines: 1,
+ overflow: TextOverflow.ellipsis,
+ ),
+ ),
+ Text(
+ '${feature.storyPointEstimate.toStringAsFixed(0)} pts',
+ style: TextStyle(fontSize: 11, color: _kMuted),
+ ),
+ const SizedBox(width: 8),
+ SizedBox(
+ height: 28,
+ child: TextButton(
+ onPressed: () {
+ if (isAssigned) {
+ widget.onUnassign(feature);
+ } else {
+ widget.onAssign(feature);
+ }
+ setState(() {});
+ },
+ style: TextButton.styleFrom(
+ padding: const EdgeInsets.symmetric(horizontal: 8),
+ ),
+ child: Text(
+ isAssigned ? 'Remove' : 'Assign',
+ style: TextStyle(
+ fontSize: 11,
+ color: isAssigned ? Colors.red : const Color(0xFF059669),
+ ),
+ ),
+ ),
+ ),
+ ],
+ ),
  );
  }
 }

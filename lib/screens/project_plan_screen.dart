@@ -480,12 +480,12 @@ class _ProjectPlanScreenState extends State<ProjectPlanScreen>
       child: TabBar(
         controller: _tabController,
         isScrollable: true,
-        labelColor: const Color(0xFF2563EB),
+        labelColor: const Color(0xFFFFC812),
         unselectedLabelColor: const Color(0xFF6B7280),
         labelStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         unselectedLabelStyle:
             const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-        indicatorColor: const Color(0xFF2563EB),
+        indicatorColor: const Color(0xFFFFC812),
         indicatorWeight: 2,
         tabAlignment: TabAlignment.start,
         tabs: const [

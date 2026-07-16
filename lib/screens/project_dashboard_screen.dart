@@ -912,11 +912,11 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
  ElevatedButton(
  onPressed: widget.onAddProject,
  style: ElevatedButton.styleFrom(
- backgroundColor: Colors.blue.shade600,
- foregroundColor: Colors.white,
- elevation: 2,
- shadowColor: Colors.black.withOpacity(0.1),
- padding: const EdgeInsets.symmetric(
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  elevation: 2,
+  shadowColor: Colors.black.withOpacity(0.1),
+  padding: const EdgeInsets.symmetric(
  horizontal: 26, vertical: 18),
  shape: RoundedRectangleBorder(
  borderRadius: BorderRadius.circular(12)),

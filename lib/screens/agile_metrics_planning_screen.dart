@@ -15,6 +15,16 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 
+const List<String> _recommendedScrumMetrics = [
+  'velocity', 'burndown', 'sprint_predictability', 'commitment_reliability',
+  'lead_time', 'cycle_time', 'defect_density', 'value_delivered',
+];
+
+const List<String> _recommendedKanbanMetrics = [
+  'throughput', 'lead_time', 'cycle_time', 'work_item_aging',
+  'delivery_confidence', 'defect_density', 'rework', 'feature_adoption',
+];
+
 const Color _kBackground = Colors.white;
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kMuted = Color(0xFF6B7280);
@@ -275,6 +285,95 @@ class _AgileMetricsPlanningScreenState
     if (mounted) setState(() => _isGenerating = false);
   }
 
+  Future<void> _loadFromConfig() async {
+    final pid = _projectId;
+    if (pid == null) return;
+    setState(() => _isLoading = true);
+    try {
+      final capacityData =
+          await AgileWireframeService.loadCapacityPlanning(pid);
+      final scrumConfig =
+          await AgileWireframeService.loadScrumConfig(pid);
+      final deliveryModel =
+          await AgileWireframeService.loadDeliveryModel(pid);
+
+      if (!mounted) return;
+
+      // Determine which metrics to pre-select based on framework
+      final framework =
+          (deliveryModel['framework'] as String?)?.toLowerCase() ?? 'scrum';
+      final recommended = framework.contains('kanban')
+          ? _recommendedKanbanMetrics
+          : _recommendedScrumMetrics;
+
+      for (final m in _allMetrics) {
+        m.selected = recommended.contains(m.key);
+      }
+
+      // Build notes with config data
+      final buf = StringBuffer();
+      buf.writeln('=== Configuration Context ===');
+
+      final velSource =
+          capacityData['velocitySource'] as String? ?? 'Historical';
+      final histVelocity =
+          capacityData['historicalVelocity'] as num?;
+      final focusFactor = capacityData['focusFactor'] as num?;
+      final workingDays = capacityData['workingDaysPerSprint'] as num?;
+
+      if (histVelocity != null) {
+        buf.writeln('Historical velocity: $histVelocity pts/sprint');
+      }
+      if (velSource != 'Historical' && velSource.isNotEmpty) {
+        buf.writeln('Velocity source: $velSource');
+      }
+      if (focusFactor != null) {
+        buf.writeln('Focus factor: ${(focusFactor * 100).toStringAsFixed(0)}%');
+      }
+      if (workingDays != null) {
+        buf.writeln(
+            'Working days per sprint: ${workingDays.toStringAsFixed(0)}');
+      }
+
+      final planningDur =
+          scrumConfig['planning_duration'] as String? ?? '';
+      final reviewDur = scrumConfig['review_duration'] as String? ?? '';
+      final retroDur = scrumConfig['retro_duration'] as String? ?? '';
+      if (planningDur.isNotEmpty || reviewDur.isNotEmpty) {
+        buf.writeln('');
+        buf.writeln('=== Scrum Event Durations ===');
+        if (planningDur.isNotEmpty) {
+          buf.writeln('Sprint Planning: $planningDur');
+        }
+        if (reviewDur.isNotEmpty) {
+          buf.writeln('Sprint Review: $reviewDur');
+        }
+        if (retroDur.isNotEmpty) {
+          buf.writeln('Sprint Retro: $retroDur');
+        }
+      }
+
+      buf.writeln('');
+      buf.writeln('=== Target Values (define per sprint) ===');
+      buf.writeln('Velocity target: ${histVelocity?.toStringAsFixed(0) ?? "TBD"} pts/sprint');
+      buf.writeln('Sprint predictability target: >80%');
+      buf.writeln('Cycle time target: TBD days');
+
+      final newNotes = buf.toString().trim();
+      if (_notesCtrl.text.isEmpty) {
+        _notesCtrl.text = newNotes;
+      } else {
+        _notesCtrl.text = '$_notesCtrl.text\n\n$newNotes';
+      }
+
+      setState(() {});
+      _performSave();
+    } catch (e) {
+      debugPrint('Error loading from config: $e');
+    }
+    if (mounted) setState(() => _isLoading = false);
+  }
+
   List<String> _parseAIResult(String text) {
     try {
       final start = text.indexOf('[');
@@ -350,6 +449,29 @@ class _AgileMetricsPlanningScreenState
                                   'Selections auto-configure the execution dashboard.',
                                   style: TextStyle(
                                       fontSize: 15, color: _kMuted),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              OutlinedButton.icon(
+                                onPressed: _isGenerating
+                                    ? null
+                                    : _loadFromConfig,
+                                icon: _isGenerating
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child:
+                                            CircularProgressIndicator(
+                                                strokeWidth: 2))
+                                    : const Icon(Icons.tune, size: 18),
+                                label: Text(_isGenerating
+                                    ? 'Loading...'
+                                    : 'Load from Config'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor:
+                                      const Color(0xFF059669),
+                                  side: const BorderSide(
+                                      color: Color(0xFF059669)),
                                 ),
                               ),
                               const SizedBox(width: 12),

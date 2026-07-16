@@ -819,14 +819,24 @@ $requirementsList
  .toList();
  }
 
- void _handleSubmit() async {
- final continueAnyway = await showProceedWithoutReviewDialog(
- context,
- title: 'Confirm before submitting requirements',
- message:
- 'You are about to continue to the next step. You can proceed now and return later to refine details, or cancel and review first.',
- );
- if (!continueAnyway) return;
+  void _handleSubmit() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('planning_requirements')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Confirm before submitting requirements',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'planning_requirements'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'planning_requirements_confirmed');
+    }
 
  final requirementItems = _buildRequirementItems();
  if (requirementItems.isEmpty) {
@@ -1811,25 +1821,25 @@ $requirementsList
  label: const Text('Import CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
  style: OutlinedButton.styleFrom(
  backgroundColor: Colors.white,
- foregroundColor: const Color(0xFF2563EB),
- side: const BorderSide(color: Color(0xFF93C5FD)),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12),
- ),
- padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
- ),
+  foregroundColor: const Color(0xFFFFC812),
+  side: const BorderSide(color: Color(0xFF93C5FD)),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12),
   ),
+  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
   ),
-  const SizedBox(width: 12),
-  SizedBox(
-  height: 44,
-  child: OutlinedButton.icon(
-  onPressed: _downloadTemplate,
-  icon: const Icon(Icons.download, size: 18),
-  label: const Text('Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-  style: OutlinedButton.styleFrom(
-  backgroundColor: Colors.white,
-  foregroundColor: const Color(0xFF2563EB),
+   ),
+   ),
+   const SizedBox(width: 12),
+   SizedBox(
+   height: 44,
+   child: OutlinedButton.icon(
+   onPressed: _downloadTemplate,
+   icon: const Icon(Icons.download, size: 18),
+   label: const Text('Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+   style: OutlinedButton.styleFrom(
+   backgroundColor: Colors.white,
+   foregroundColor: const Color(0xFFFFC812),
   side: const BorderSide(color: Color(0xFF93C5FD)),
   shape: RoundedRectangleBorder(
   borderRadius: BorderRadius.circular(12),

@@ -5,6 +5,9 @@ import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/models/control_account_model.dart';
 import 'package:ndu_project/models/obs_element_model.dart';
 import 'package:ndu_project/models/cbs_element_model.dart';
+import 'package:ndu_project/models/planning_contract.dart';
+import 'package:ndu_project/models/rate_card.dart';
+import 'package:ndu_project/models/cost_of_quality.dart';
 
 /// Comprehensive project data model that captures all information across the application flow
 class ProjectDataModel {
@@ -237,6 +240,24 @@ class ProjectDataModel {
   // Preferred Solution Reference
   String? preferredSolutionId;
 
+  // Page-level review confirmation tracking
+  Set<String> confirmedPages;
+
+  // ── Planning Phase: Contract Tracking ──
+  List<PlanningContract> planningContracts;
+
+  // ── Planning Phase: Personnel Rate Cards ──
+  List<RateCard> rateCards;
+
+  // ── Planning Phase: Cost of Quality ──
+  CostOfQualityData? costOfQualityData;
+
+  // ── Organisation Plan: Base Configuration ──
+  String orgStaffingSource; // 'Internal Department' | 'External Hire' | 'Contractor Pool' | 'Mixed'
+  String orgWorkingHours; // e.g., '40 hours/week'
+  String orgLocation; // 'Office' | 'Remote' | 'Hybrid' | 'Multi-site'
+  String orgCommunicationMode; // e.g., 'Email, Meetings, Slack'
+
   ProjectDataModel({
     this.projectName = '',
     this.solutionTitle = '',
@@ -336,6 +357,17 @@ class ProjectDataModel {
     List<ControlAccount>? controlAccounts,
     List<ObsElement>? obsElements,
     List<CbsElement>? cbsElements,
+    // Planning Phase: Contract Tracking
+    List<PlanningContract>? planningContracts,
+    // Planning Phase: Personnel Rate Cards
+    List<RateCard>? rateCards,
+    // Planning Phase: Cost of Quality
+    this.costOfQualityData,
+    // Organisation Plan: Base Configuration
+    this.orgStaffingSource = '',
+    this.orgWorkingHours = '40 hours/week',
+    this.orgLocation = '',
+    this.orgCommunicationMode = '',
     this.aggregateBac = 0,
     this.aggregatePlannedValue = 0,
     this.aggregateEarnedValue = 0,
@@ -349,7 +381,9 @@ class ProjectDataModel {
     this.aggregateSv = 0,
     this.aggregateTcpi = 0,
     this.evmLastRecalculated,
+    Set<String>? confirmedPages,
   })  : potentialSolutions = potentialSolutions ?? [],
+        confirmedPages = confirmedPages ?? {},
         solutionRisks = solutionRisks ?? [],
         contractors = contractors ?? [],
         vendors = vendors ?? [],
@@ -401,6 +435,8 @@ class ProjectDataModel {
         engagementPlanEntries = engagementPlanEntries ?? [],
         fieldHistories = fieldHistories ?? {},
         costBenefitCurrency = costBenefitCurrency ?? 'USD',
+        planningContracts = planningContracts ?? [],
+        rateCards = rateCards ?? [],
         withinScopeItems = withinScopeItems ??
             (withinScope
                     ?.map((e) => PlanningDashboardItem(description: e))
@@ -537,6 +573,18 @@ class ProjectDataModel {
     List<ScheduleActivity>? scheduleBaselineActivities,
     String? scheduleBaselineDate,
     List<WorkPackage>? workPackages,
+    Set<String>? confirmedPages,
+    // Planning Phase: Contract Tracking
+    List<PlanningContract>? planningContracts,
+    // Planning Phase: Personnel Rate Cards
+    List<RateCard>? rateCards,
+    // Planning Phase: Cost of Quality
+    CostOfQualityData? costOfQualityData,
+    // Organisation Plan: Base Configuration
+    String? orgStaffingSource,
+    String? orgWorkingHours,
+    String? orgLocation,
+    String? orgCommunicationMode,
   }) {
     List<PlanningDashboardItem> resolveDashboardItems({
       required List<PlanningDashboardItem>? explicitItems,
@@ -700,6 +748,15 @@ class ProjectDataModel {
         legacyItems: constraints,
         currentItems: this.constraintItems,
       ),
+      confirmedPages: confirmedPages ?? this.confirmedPages,
+      planningContracts: planningContracts ?? this.planningContracts,
+      rateCards: rateCards ?? this.rateCards,
+      costOfQualityData: costOfQualityData ?? this.costOfQualityData,
+      orgStaffingSource: orgStaffingSource ?? this.orgStaffingSource,
+      orgWorkingHours: orgWorkingHours ?? this.orgWorkingHours,
+      orgLocation: orgLocation ?? this.orgLocation,
+      orgCommunicationMode:
+          orgCommunicationMode ?? this.orgCommunicationMode,
     );
   }
 
@@ -822,6 +879,15 @@ class ProjectDataModel {
           fieldHistories.map((key, value) => MapEntry(key, value.toJson())),
       'costBenefitCurrency': costBenefitCurrency,
       'preferredSolutionId': preferredSolutionId,
+      'confirmedPages': confirmedPages.toList(),
+      'planningContracts': planningContracts.map((c) => c.toJson()).toList(),
+      'rateCards': rateCards.map((r) => r.toJson()).toList(),
+      if (costOfQualityData != null)
+        'costOfQualityData': costOfQualityData!.toJson(),
+      'orgStaffingSource': orgStaffingSource,
+      'orgWorkingHours': orgWorkingHours,
+      'orgLocation': orgLocation,
+      'orgCommunicationMode': orgCommunicationMode,
       'stakeholderEntries': stakeholderEntries.map((e) => e.toJson()).toList(),
       'engagementPlanEntries':
           engagementPlanEntries.map((e) => e.toJson()).toList(),
@@ -1148,6 +1214,19 @@ class ProjectDataModel {
           : {},
       costBenefitCurrency: json['costBenefitCurrency']?.toString() ?? 'USD',
       preferredSolutionId: json['preferredSolutionId']?.toString(),
+      confirmedPages: json['confirmedPages'] != null
+          ? Set<String>.from(json['confirmedPages'] as List)
+          : <String>{},
+      planningContracts:
+          safeParseList('planningContracts', PlanningContract.fromJson),
+      rateCards: safeParseList('rateCards', RateCard.fromJson),
+      costOfQualityData:
+          safeParseSingle('costOfQualityData', CostOfQualityData.fromJson),
+      orgStaffingSource: json['orgStaffingSource']?.toString() ?? '',
+      orgWorkingHours: json['orgWorkingHours']?.toString() ?? '40 hours/week',
+      orgLocation: json['orgLocation']?.toString() ?? '',
+      orgCommunicationMode:
+          json['orgCommunicationMode']?.toString() ?? '',
       stakeholderEntries: (json['stakeholderEntries'] as List?)
               ?.map((e) => StakeholderEntry.fromJson(e))
               .toList() ??
@@ -2106,6 +2185,8 @@ class FrontEndPlanningData {
   // Success Criteria items
   List<PlanningDashboardItem> successCriteriaItems;
   bool detailsConfirmed;
+  bool summaryConfirmed;
+  bool reqConfirmed;
 
   FrontEndPlanningData({
     this.requirements = '',
@@ -2125,6 +2206,8 @@ class FrontEndPlanningData {
     this.milestoneStartDate = '',
     this.milestoneEndDate = '',
     this.detailsConfirmed = false,
+    this.summaryConfirmed = false,
+    this.reqConfirmed = false,
     List<RequirementItem>? requirementItems,
     List<ScenarioRecord>? scenarioMatrixItems,
     List<RoleItem>? securityRoles,
@@ -2195,6 +2278,8 @@ class FrontEndPlanningData {
     List<OpportunityItem>? opportunityItems,
     List<PlanningDashboardItem>? successCriteriaItems,
     bool? detailsConfirmed,
+    bool? summaryConfirmed,
+    bool? reqConfirmed,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? this.requirements,
@@ -2233,6 +2318,8 @@ class FrontEndPlanningData {
       opportunityItems: opportunityItems ?? this.opportunityItems,
       successCriteriaItems: successCriteriaItems ?? this.successCriteriaItems,
       detailsConfirmed: detailsConfirmed ?? this.detailsConfirmed,
+      summaryConfirmed: summaryConfirmed ?? this.summaryConfirmed,
+      reqConfirmed: reqConfirmed ?? this.reqConfirmed,
     );
   }
 
@@ -2284,6 +2371,8 @@ class FrontEndPlanningData {
         'securityAccessLogs':
             securityAccessLogs.map((a) => a.toJson()).toList(),
         'detailsConfirmed': detailsConfirmed,
+        'summaryConfirmed': summaryConfirmed,
+        'reqConfirmed': reqConfirmed,
       };
 
   factory FrontEndPlanningData.fromJson(Map<String, dynamic> json) {
@@ -2386,6 +2475,8 @@ class FrontEndPlanningData {
               .toList() ??
           [],
       detailsConfirmed: json['detailsConfirmed'] ?? false,
+      summaryConfirmed: json['summaryConfirmed'] ?? false,
+      reqConfirmed: json['reqConfirmed'] ?? false,
     );
   }
 }
@@ -3175,6 +3266,10 @@ class SsherEntry {
   String concern;
   String riskLevel;
   String mitigation;
+  String linkedWbsId;
+  String linkedCostItemId;
+  String linkedRequirementId;
+  String traceabilityNotes;
 
   SsherEntry({
     String? id,
@@ -3184,6 +3279,10 @@ class SsherEntry {
     this.concern = '',
     this.riskLevel = '',
     this.mitigation = '',
+    this.linkedWbsId = '',
+    this.linkedCostItemId = '',
+    this.linkedRequirementId = '',
+    this.traceabilityNotes = '',
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   Map<String, dynamic> toJson() => {
@@ -3194,17 +3293,25 @@ class SsherEntry {
         'concern': concern,
         'riskLevel': riskLevel,
         'mitigation': mitigation,
+        'linkedWbsId': linkedWbsId,
+        'linkedCostItemId': linkedCostItemId,
+        'linkedRequirementId': linkedRequirementId,
+        'traceabilityNotes': traceabilityNotes,
       };
 
   factory SsherEntry.fromJson(Map<String, dynamic> json) {
     return SsherEntry(
-      id: json['id'] ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      category: json['category'] ?? '',
-      department: json['department'] ?? '',
-      teamMember: json['teamMember'] ?? '',
-      concern: json['concern'] ?? '',
-      riskLevel: json['riskLevel'] ?? '',
-      mitigation: json['mitigation'] ?? '',
+      id: json['id']?.toString(),
+      category: json['category']?.toString() ?? '',
+      department: json['department']?.toString() ?? '',
+      teamMember: json['teamMember']?.toString() ?? '',
+      concern: json['concern']?.toString() ?? '',
+      riskLevel: json['riskLevel']?.toString() ?? '',
+      mitigation: json['mitigation']?.toString() ?? '',
+      linkedWbsId: json['linkedWbsId']?.toString() ?? '',
+      linkedCostItemId: json['linkedCostItemId']?.toString() ?? '',
+      linkedRequirementId: json['linkedRequirementId']?.toString() ?? '',
+      traceabilityNotes: json['traceabilityNotes']?.toString() ?? '',
     );
   }
 }
@@ -5766,6 +5873,9 @@ class RoleDefinition {
   String description;
   String workstream;
   bool isPredefined;
+  // Auto-describe support
+  String standardDescription; // Pre-written description from role library
+  String source; // 'predefined' | 'security_import' | 'ai_generated' | 'custom'
 
   RoleDefinition({
     String? id,
@@ -5773,6 +5883,8 @@ class RoleDefinition {
     this.description = '',
     this.workstream = '',
     this.isPredefined = false,
+    this.standardDescription = '',
+    this.source = 'custom',
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   Map<String, dynamic> toJson() => {
@@ -5781,6 +5893,8 @@ class RoleDefinition {
         'description': description,
         'workstream': workstream,
         'isPredefined': isPredefined,
+        'standardDescription': standardDescription,
+        'source': source,
       };
 
   factory RoleDefinition.fromJson(Map<String, dynamic> json) {
@@ -5790,6 +5904,8 @@ class RoleDefinition {
       description: json['description']?.toString() ?? '',
       workstream: json['workstream']?.toString() ?? '',
       isPredefined: json['isPredefined'] == true,
+      standardDescription: json['standardDescription']?.toString() ?? '',
+      source: json['source']?.toString() ?? 'custom',
     );
   }
 }
@@ -5808,6 +5924,10 @@ class StaffingRequirement {
   String location;
   String employeeType; // e.g., Employee, Contractor
   String notes;
+  // Rate tier linkage
+  String rateTierId; // Links to RateCard.rates[].id
+  String rateCardRef; // Reference to which rate card was used
+  double burdenRate; // Overhead multiplier (e.g., 1.35 = 35% burden)
 
   StaffingRequirement({
     String? id,
@@ -5823,6 +5943,9 @@ class StaffingRequirement {
     this.location = '',
     this.employeeType = 'Employee',
     this.notes = '',
+    this.rateTierId = '',
+    this.rateCardRef = '',
+    this.burdenRate = 0,
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   double get estimatedTotal => headcount * monthlyCost * plannedMonths;
@@ -5841,6 +5964,9 @@ class StaffingRequirement {
         'location': location,
         'employeeType': employeeType,
         'notes': notes,
+        'rateTierId': rateTierId,
+        'rateCardRef': rateCardRef,
+        'burdenRate': burdenRate,
       };
 
   factory StaffingRequirement.fromJson(Map<String, dynamic> json) {
@@ -5862,6 +5988,11 @@ class StaffingRequirement {
       location: json['location']?.toString() ?? '',
       employeeType: json['employeeType']?.toString() ?? 'Employee',
       notes: json['notes']?.toString() ?? '',
+      rateTierId: json['rateTierId']?.toString() ?? '',
+      rateCardRef: json['rateCardRef']?.toString() ?? '',
+      burdenRate: json['burdenRate'] is num
+          ? (json['burdenRate'] as num).toDouble()
+          : 0,
     );
   }
 
@@ -5878,6 +6009,9 @@ class StaffingRequirement {
     String? location,
     String? employeeType,
     String? notes,
+    String? rateTierId,
+    String? rateCardRef,
+    double? burdenRate,
   }) {
     return StaffingRequirement(
       id: id,
@@ -5893,6 +6027,9 @@ class StaffingRequirement {
       location: location ?? this.location,
       employeeType: employeeType ?? this.employeeType,
       notes: notes ?? this.notes,
+      rateTierId: rateTierId ?? this.rateTierId,
+      rateCardRef: rateCardRef ?? this.rateCardRef,
+      burdenRate: burdenRate ?? this.burdenRate,
     );
   }
 }
@@ -6004,6 +6141,7 @@ class StakeholderEntry {
   final String contactInfo;
   final String owner;
   final String notes;
+  final String otherTeams;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -6018,6 +6156,7 @@ class StakeholderEntry {
     required this.contactInfo,
     required this.owner,
     required this.notes,
+    this.otherTeams = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -6035,6 +6174,7 @@ class StakeholderEntry {
       contactInfo: '',
       owner: '',
       notes: '',
+      otherTeams: '',
       createdAt: now,
       updatedAt: now,
     );
@@ -6050,6 +6190,7 @@ class StakeholderEntry {
     String? contactInfo,
     String? owner,
     String? notes,
+    String? otherTeams,
     DateTime? updatedAt,
   }) {
     return StakeholderEntry(
@@ -6063,6 +6204,7 @@ class StakeholderEntry {
       contactInfo: contactInfo ?? this.contactInfo,
       owner: owner ?? this.owner,
       notes: notes ?? this.notes,
+      otherTeams: otherTeams ?? this.otherTeams,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -6079,6 +6221,7 @@ class StakeholderEntry {
         'contactInfo': contactInfo,
         'owner': owner,
         'notes': notes,
+        'otherTeams': otherTeams,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -6095,6 +6238,7 @@ class StakeholderEntry {
       contactInfo: json['contactInfo']?.toString() ?? '',
       owner: json['owner']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
+      otherTeams: json['otherTeams']?.toString() ?? '',
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -6660,6 +6804,11 @@ class QualityWorkflowControl {
   final String frequency;
   final String owner;
   final String standardsReference;
+  // Scope & cost fields for Cost of Quality tracking
+  final String performerScope; // 'Internal' | '3rd Party' | 'Regulatory'
+  final double estimatedCost;
+  final double actualCost;
+  final String linkedWbsReference;
 
   QualityWorkflowControl({
     required this.id,
@@ -6671,6 +6820,10 @@ class QualityWorkflowControl {
     required this.frequency,
     required this.owner,
     required this.standardsReference,
+    this.performerScope = 'Internal',
+    this.estimatedCost = 0,
+    this.actualCost = 0,
+    this.linkedWbsReference = '',
   });
 
   factory QualityWorkflowControl.empty(QualityWorkflowType type) =>
@@ -6696,6 +6849,10 @@ class QualityWorkflowControl {
         'frequency': frequency,
         'owner': owner,
         'standardsReference': standardsReference,
+        'performerScope': performerScope,
+        'estimatedCost': estimatedCost,
+        'actualCost': actualCost,
+        'linkedWbsReference': linkedWbsReference,
       };
 
   factory QualityWorkflowControl.fromJson(Map<String, dynamic> json) {
@@ -6709,6 +6866,14 @@ class QualityWorkflowControl {
       frequency: json['frequency']?.toString() ?? '',
       owner: json['owner']?.toString() ?? '',
       standardsReference: json['standardsReference']?.toString() ?? '',
+      performerScope: json['performerScope']?.toString() ?? 'Internal',
+      estimatedCost: json['estimatedCost'] is num
+          ? (json['estimatedCost'] as num).toDouble()
+          : 0,
+      actualCost: json['actualCost'] is num
+          ? (json['actualCost'] as num).toDouble()
+          : 0,
+      linkedWbsReference: json['linkedWbsReference']?.toString() ?? '',
     );
   }
 
@@ -6721,6 +6886,10 @@ class QualityWorkflowControl {
     String? frequency,
     String? owner,
     String? standardsReference,
+    String? performerScope,
+    double? estimatedCost,
+    double? actualCost,
+    String? linkedWbsReference,
   }) {
     return QualityWorkflowControl(
       id: id,
@@ -6732,6 +6901,10 @@ class QualityWorkflowControl {
       frequency: frequency ?? this.frequency,
       owner: owner ?? this.owner,
       standardsReference: standardsReference ?? this.standardsReference,
+      performerScope: performerScope ?? this.performerScope,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      actualCost: actualCost ?? this.actualCost,
+      linkedWbsReference: linkedWbsReference ?? this.linkedWbsReference,
     );
   }
 }

@@ -35,6 +35,7 @@ import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
@@ -79,7 +80,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  bool _businessCaseExpanded = true;
  bool _isAdmin = false;
  bool _didInitFromProvider = false;
- bool _reviewConfirmed = false;
+
  bool get _canUseAdminControls =>
  _isAdmin && AccessPolicy.isRestrictedAdminHost();
 
@@ -916,7 +917,7 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  label: const Text('Clear',
  style: TextStyle(fontSize: 12)),
  style: TextButton.styleFrom(
- foregroundColor: const Color(0xFF1D4ED8),
+  foregroundColor: const Color(0xFFFFC812),
  ),
  ),
  ],
@@ -1177,19 +1178,13 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  const SizedBox(height: 24),
 
  // Navigation Buttons
- BusinessCaseNavigationButtons(
- currentScreen: 'Core Stakeholders',
- padding: const EdgeInsets.symmetric(
- horizontal: 0, vertical: 24),
- onNext: _handleNextPressed,
- isNextEnabled: _reviewConfirmed,
- showReviewGate: true,
- reviewConfirmed: _reviewConfirmed,
- onReviewChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- reviewScrollController: _reviewScrollController,
- ),
+  BusinessCaseNavigationButtons(
+  currentScreen: 'Core Stakeholders',
+  padding: const EdgeInsets.symmetric(
+  horizontal: 0, vertical: 24),
+  onNext: _handleNextPressed,
+  reviewScrollController: _reviewScrollController,
+  ),
  ],
  ),
  ],
@@ -1505,9 +1500,26 @@ class _CoreStakeholdersScreenState extends State<CoreStakeholdersScreen> {
  }
  }
 
- Future<void> _handleNextPressed() async {
- // 1. Save data FIRST before validation check
- await _saveCoreStakeholdersData();
+  Future<void> _handleNextPressed() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('core_stakeholders')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'core_stakeholders'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'core_stakeholders_confirmed');
+    }
+  // 1. Save data FIRST before validation check
+  await _saveCoreStakeholdersData();
 
  if (!mounted) return;
 

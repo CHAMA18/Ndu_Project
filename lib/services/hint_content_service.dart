@@ -128,7 +128,7 @@ class HintContentService {
           pageLabel: 'Design Planning',
           title: 'Guided Multi-Section Navigation',
           message:
-              'Design Planning is divided into 14 sequential sections. Use the navigation hint at the top to jump between sections. Complete or mark each section as "Not applicable" to unlock the next one.',
+              'Design Planning is divided into 15 guided sections. Use the navigation hint at the top to jump between sections. Complete each section at your own pace.',
           category: 'Design Phase',
           description:
               'Inner-page navigation guide for the Design Planning multi-section form.',

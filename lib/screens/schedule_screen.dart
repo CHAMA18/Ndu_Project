@@ -559,11 +559,70 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
  }));
  });
 
- _handleActivityChanged();
- _showInfo('Imported ${_activityRows.length} activities from WBS.');
- }
+  _handleActivityChanged();
+  _showInfo('Imported ${_activityRows.length} activities from WBS.');
+  }
 
- Future<void> _generateScheduleFromAi() async {
+  Future<void> _importAgilePackages() async {
+    final data = ProjectDataHelper.getData(context);
+    final agilePackages = data.workPackages.where(
+      (wp) => wp.packageClassification == IntegratedWorkPackageService.agileIterationPackage,
+    ).toList();
+
+    if (agilePackages.isEmpty) {
+      _showInfo('No agile iteration packages found. '
+          'Generate them from the Execution Work Packages screen first.');
+      return;
+    }
+
+    final generated = IntegratedWorkPackageService.generateScheduleActivitiesFromPackages(
+      packages: agilePackages,
+      existingActivities: _buildScheduleActivities(),
+    );
+
+    if (generated.isEmpty) {
+      _showInfo('All agile iteration packages are already in the schedule.');
+      return;
+    }
+
+    final count = generated.length;
+    final shouldImport = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Import Agile Iteration Packages'),
+        content: Text(
+          'Add $count agile iteration package${count > 1 ? 's' : ''} to the schedule?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Import'),
+          ),
+        ],
+      ),
+    );
+    if (shouldImport != true || !mounted) return;
+
+    setState(() {
+      _activityRows.addAll(
+        generated.map(
+          (activity) => _ScheduleRow.fromActivity(
+            activity,
+            onChanged: _handleActivityChanged,
+          ),
+        ),
+      );
+    });
+
+    _handleActivityChanged();
+    _showInfo('Imported $count agile iteration package${count > 1 ? 's' : ''} into the schedule.');
+  }
+
+  Future<void> _generateScheduleFromAi() async {
  if (_isGeneratingSchedule) return;
  final data = ProjectDataHelper.getData(context);
  if (data.wbsTree.isEmpty) {
@@ -2431,8 +2490,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
  },
  isGeneratingAi: _isGeneratingSchedule,
  baselineDate: _baselineDate,
- onImportFromWbs: () => _importFromWbs(),
- onGenerateAi: _generateScheduleFromAi,
+  onImportFromWbs: () => _importFromWbs(),
+  onImportAgile: _importAgilePackages,
+  onGenerateAi: _generateScheduleFromAi,
  onAddTask: _addTask,
  onSyncMilestones: _syncMilestonesFromSchedule,
  onValidate: _validateSchedule,
@@ -5876,31 +5936,33 @@ class _NotesCard extends StatelessWidget {
 }
 
 class _ScheduleTopBar extends StatelessWidget {
- const _ScheduleTopBar({
- required this.methodology,
- required this.onMethodologyChanged,
- required this.isGeneratingAi,
- required this.baselineDate,
- required this.onImportFromWbs,
- required this.onGenerateAi,
- required this.onAddTask,
- required this.onSyncMilestones,
- required this.onValidate,
- required this.onApproveBaseline,
- this.onCalculateCostImpact,
- });
+  const _ScheduleTopBar({
+    required this.methodology,
+    required this.onMethodologyChanged,
+    required this.isGeneratingAi,
+    required this.baselineDate,
+    required this.onImportFromWbs,
+    required this.onImportAgile,
+    required this.onGenerateAi,
+    required this.onAddTask,
+    required this.onSyncMilestones,
+    required this.onValidate,
+    required this.onApproveBaseline,
+    this.onCalculateCostImpact,
+  });
 
  final String methodology;
  final ValueChanged<String?> onMethodologyChanged;
  final bool isGeneratingAi;
  final DateTime? baselineDate;
- final VoidCallback onImportFromWbs;
- final VoidCallback onGenerateAi;
- final VoidCallback onAddTask;
- final VoidCallback onSyncMilestones;
- final VoidCallback onValidate;
- final VoidCallback onApproveBaseline;
- final VoidCallback? onCalculateCostImpact;
+  final VoidCallback onImportFromWbs;
+  final VoidCallback onImportAgile;
+  final VoidCallback onGenerateAi;
+  final VoidCallback onAddTask;
+  final VoidCallback onSyncMilestones;
+  final VoidCallback onValidate;
+  final VoidCallback onApproveBaseline;
+  final VoidCallback? onCalculateCostImpact;
 
  @override
  Widget build(BuildContext context) {
@@ -5969,12 +6031,17 @@ class _ScheduleTopBar extends StatelessWidget {
  spacing: 8,
  runSpacing: 8,
  children: [
- OutlinedButton.icon(
- onPressed: onImportFromWbs,
- icon: const Icon(Icons.download_outlined, size: 16),
- label: const Text('Import from WBS'),
- ),
- FilledButton.icon(
+      OutlinedButton.icon(
+        onPressed: onImportFromWbs,
+        icon: const Icon(Icons.download_outlined, size: 16),
+        label: const Text('Import from WBS'),
+      ),
+      OutlinedButton.icon(
+        onPressed: onImportAgile,
+        icon: const Icon(Icons.repeat_outlined, size: 16),
+        label: const Text('Import Agile'),
+      ),
+      FilledButton.icon(
  onPressed: isGeneratingAi ? null : onGenerateAi,
  icon: isGeneratingAi
  ? const SizedBox(

@@ -752,7 +752,7 @@ class _AiAssistChip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: const Color(0xFF4154F1),
+            color: const Color(0xFFFFC812),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(

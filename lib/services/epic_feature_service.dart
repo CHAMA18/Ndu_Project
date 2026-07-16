@@ -52,6 +52,37 @@ class EpicFeatureService {
             .toList());
   }
 
+  static Future<List<Feature>> loadAllFeatures(String projectId) async {
+    try {
+      final epics = await loadEpics(projectId);
+      final results = await Future.wait(
+        epics.map((e) => loadFeatures(projectId, e.id)),
+      );
+      return results.expand((f) => f).toList();
+    } catch (error) {
+      debugPrint('EpicFeatureService.loadAllFeatures error: $error');
+      return [];
+    }
+  }
+
+  static Future<void> assignFeatureToSprint({
+    required String projectId,
+    required Feature feature,
+    required String? sprintId,
+  }) async {
+    try {
+      feature.sprintId = sprintId;
+      await _featuresCol(projectId, feature.epicId)
+          .doc(feature.id)
+          .update({'sprintId': sprintId});
+      AgileCacheService.instance
+          .invalidate(_featuresCacheKey(projectId, feature.epicId));
+    } catch (error) {
+      debugPrint('EpicFeatureService.assignFeatureToSprint error: $error');
+      rethrow;
+    }
+  }
+
   static Future<void> saveEpic({
     required String projectId,
     required Epic epic,
@@ -80,6 +111,7 @@ class EpicFeatureService {
 
   // ── Features ──
 
+  /// Load features for a specific epic.
   static Future<List<Feature>> loadFeatures(
       String projectId, String epicId) async {
     try {

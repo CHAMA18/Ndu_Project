@@ -714,8 +714,8 @@ class _ProjectFrameworkNextScreenState
  label: 'Goal 2',
  value: 'Goal 2',
  isActive: _currentFilter == 'Goal 2',
- activeColor: const Color(0xFF2563EB),
- activeBgColor: _kLightBlue,
+  activeColor: const Color(0xFFFFC812),
+  activeBgColor: _kLightBlue,
  ),
  const SizedBox(width: 8),
  _buildFilterPill(

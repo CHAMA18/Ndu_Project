@@ -1,3 +1,5 @@
+import 'package:ndu_project/services/kanban_config_service.dart';
+
 /// Model for an agile task/user story in Agile Development Iterations page
 class AgileTask {
   final String id;
@@ -5,7 +7,7 @@ class AgileTask {
   String assignedRole; // Role from Staff Needs
   int storyPoints; // 1, 2, 3, 5, 8
   String priority; // Critical, High, Medium, Low
-  String status; // To-Do, In-Progress, Testing, Done
+  String status; // Config-driven Kanban workflow status
   String taskDescription; // Prose description
   String acceptanceCriteria; // "." bullet format
   String iterationNotes; // Prose, no bullets, manual input only
@@ -18,7 +20,7 @@ class AgileTask {
     this.assignedRole = '',
     this.storyPoints = 1,
     this.priority = 'Medium',
-    this.status = 'To-Do',
+    this.status = 'To Do',
     this.taskDescription = '',
     this.acceptanceCriteria = '',
     this.iterationNotes = '',
@@ -80,7 +82,8 @@ class AgileTask {
       assignedRole: json['assignedRole']?.toString() ?? '',
       storyPoints: parseStoryPoints(json['storyPoints']),
       priority: json['priority']?.toString() ?? 'Medium',
-      status: json['status']?.toString() ?? 'To-Do',
+      status: KanbanConfigService.normalizeStatus(
+          json['status']?.toString() ?? 'To Do'),
       taskDescription: json['taskDescription']?.toString() ?? '',
       acceptanceCriteria: json['acceptanceCriteria']?.toString() ?? '',
       iterationNotes: json['iterationNotes']?.toString() ?? '',

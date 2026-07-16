@@ -6570,7 +6570,7 @@ class _AddItemButton extends StatelessWidget {
  return ElevatedButton.icon(
  onPressed: onPressed,
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -8493,7 +8493,7 @@ class _VendorManagementView extends StatelessWidget {
  icon: const Icon(Icons.add_rounded, size: 18),
  label: const Text('Add Vendor'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(
  horizontal: 16, vertical: 12),
@@ -9002,7 +9002,7 @@ class _RfqWorkflowView extends StatelessWidget {
  icon: const Icon(Icons.add_rounded, size: 18),
  label: const Text('Create RFQ'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(
  horizontal: 16, vertical: 12),
@@ -9951,7 +9951,7 @@ class _PurchaseOrdersView extends StatelessWidget {
  icon: const Icon(Icons.add_rounded, size: 18),
  label: const Text('Create PO'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(
  horizontal: 16, vertical: 12),
@@ -10681,7 +10681,7 @@ class _ItemTrackingView extends StatelessWidget {
  icon: const Icon(Icons.sync_rounded, size: 18),
  label: const Text('Update Status'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding:
  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -11302,7 +11302,7 @@ class _ReportsView extends StatelessWidget {
  icon: const Icon(Icons.file_download_outlined, size: 18),
  label: const Text('Export PDF'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(
  horizontal: 16, vertical: 12),
@@ -11375,7 +11375,7 @@ class _ReportsView extends StatelessWidget {
  icon: const Icon(Icons.file_download_outlined, size: 18),
  label: const Text('Export PDF'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(
  horizontal: 16, vertical: 12),
@@ -11867,7 +11867,7 @@ class _EmptyStateBody extends StatelessWidget {
  ElevatedButton(
  onPressed: onAction,
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFC812),
  foregroundColor: Colors.white,
  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
  shape: RoundedRectangleBorder(

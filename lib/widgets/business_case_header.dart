@@ -140,7 +140,7 @@ class _AiAssistButton extends StatelessWidget {
     return ElevatedButton.icon(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF4154F1),
+        backgroundColor: const Color(0xFFFFC812),
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         elevation: 0,

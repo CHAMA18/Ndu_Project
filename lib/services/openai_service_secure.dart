@@ -464,6 +464,34 @@ class AiBenefitSavingsSuggestion {
   }
 }
 
+class AiSpecScopeMapping {
+  final String specTitle;
+  final String wbsItemTitle;
+  final double confidence;
+  final String rationale;
+
+  AiSpecScopeMapping({
+    required this.specTitle,
+    required this.wbsItemTitle,
+    required this.confidence,
+    required this.rationale,
+  });
+
+  factory AiSpecScopeMapping.fromMap(Map<String, dynamic> map) {
+    return AiSpecScopeMapping(
+      specTitle:
+          _stripAsterisks((map['specTitle'] ?? map['spec_title'] ?? '').toString().trim()),
+      wbsItemTitle: _stripAsterisks(
+          (map['wbsItemTitle'] ?? map['wbs_item_title'] ?? map['wbsItem'] ?? '').toString().trim()),
+      confidence: (map['confidence'] is num)
+          ? (map['confidence'] as num).toDouble().clamp(0.0, 1.0)
+          : 0.0,
+      rationale:
+          _stripAsterisks((map['rationale'] ?? '').toString().trim()),
+    );
+  }
+}
+
 class OpenAiServiceSecure {
   final http.Client _client;
   static const int maxRetries = 1;
@@ -7363,6 +7391,8 @@ $escaped
     int maxPermissions = 5,
     int maxTokens = 700,
     double temperature = 0.4,
+    String? projectType,
+    String? projectScale,
   }) async {
     final trimmedContext = context.trim();
     if (trimmedContext.isEmpty) {
@@ -7396,7 +7426,7 @@ $escaped
         {
           'role': 'user',
           'content': _securityRolesPermissionsPrompt(
-              trimmedContext, maxRoles, maxPermissions),
+              trimmedContext, maxRoles, maxPermissions, projectType: projectType, projectScale: projectScale),
         },
       ],
     }));
@@ -7432,8 +7462,14 @@ $escaped
   }
 
   String _securityRolesPermissionsPrompt(
-      String context, int maxRoles, int maxPermissions) {
+      String context, int maxRoles, int maxPermissions,
+      {String? projectType, String? projectScale}) {
     final escaped = _escape(context);
+    final typeScale = (projectType != null || projectScale != null)
+        ? '\nContext hints:'
+            '${projectType != null ? '\n- Project type: $projectType' : ''}'
+            '${projectScale != null ? '\n- Project scale: $projectScale' : ''}'
+        : '';
     return '''
 Create security governance seed data for the project below.
 
@@ -7451,6 +7487,7 @@ Guidelines:
 - Provide up to $maxRoles roles and up to $maxPermissions permissions.
 - Keep each item specific to the project context.
 - Permissions should mention the system/data area and the access level.
+$typeScale
 
 Project context:
 """
@@ -7568,6 +7605,267 @@ $escaped
       'roles': roles,
       'permissions': permissions,
     };
+  }
+
+  Future<List<AiSpecScopeMapping>> generateSpecScopeMappings({
+    required String context,
+    required List<String> specTitles,
+    required List<String> wbsTitles,
+    int maxTokens = 1500,
+    double temperature = 0.4,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty || specTitles.isEmpty || wbsTitles.isEmpty) {
+      return [];
+    }
+    if (!OpenAiConfig.isConfigured) {
+      return [];
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'scope management specialist mapping specifications to WBS deliverables',
+            strictJson: true,
+          ),
+        },
+        {
+          'role': 'user',
+          'content': _specScopeMappingsPrompt(
+              trimmedContext, specTitles, wbsTitles),
+        },
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
+        final parsed = _decodeJsonSafely(content);
+        if (parsed != null) {
+          final results = _parseSpecScopeMappings(parsed);
+          if (results.isNotEmpty) return results;
+        }
+      }
+    } catch (e) {
+      debugPrint('generateSpecScopeMappings failed: $e');
+    }
+
+    return [];
+  }
+
+  String _specScopeMappingsPrompt(String context, List<String> specTitles,
+      List<String> wbsTitles) {
+    final escapedCtx = _escape(context);
+    final specsStr = specTitles.map((s) => '- ${_escape(s)}').join('\n');
+    final wbsStr = wbsTitles.map((w) => '- ${_escape(w)}').join('\n');
+    return '''
+Given the project context, specification titles, and WBS deliverable titles below, suggest which specifications map to which WBS items.
+
+Return ONLY valid JSON with this structure:
+{
+  "mappings": [
+    {"specTitle": "...", "wbsItemTitle": "...", "confidence": 0.85, "rationale": "..."}
+  ]
+}
+
+Guidelines:
+- Only return mappings where there is a meaningful relationship.
+- confidence must be between 0.0 and 1.0.
+- Each specTitle should map to at most one wbsItemTitle, but a wbsItemTitle may map to multiple specTitles.
+
+Specification titles:
+$specsStr
+
+WBS deliverable titles:
+$wbsStr
+
+Project context:
+"""
+$escapedCtx
+"""
+''';
+  }
+
+  List<AiSpecScopeMapping> _parseSpecScopeMappings(
+      Map<String, dynamic> parsed) {
+    final mappingsRaw = parsed['mappings'] ?? parsed['specScopeMappings'];
+    final results = <AiSpecScopeMapping>[];
+    if (mappingsRaw is List) {
+      for (final entry in mappingsRaw) {
+        if (entry is Map) {
+          try {
+            results
+                .add(AiSpecScopeMapping.fromMap(Map<String, dynamic>.from(entry)));
+          } catch (_) {
+            // skip malformed entries
+          }
+        }
+      }
+    }
+    return results;
+  }
+
+  Future<List<Map<String, String>>> generateTeamCompositionSuggestions({
+    required String context,
+    required String projectType,
+    required String projectScale,
+    required List<String> existingRoles,
+    int maxRoles = 10,
+    int maxTokens = 1200,
+    double temperature = 0.5,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty || projectType.trim().isEmpty) {
+      return [];
+    }
+    if (!OpenAiConfig.isConfigured) {
+      return [];
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content': _nduProjectSystemPrompt(
+            specialistRole:
+                'project management team composition specialist',
+            strictJson: true,
+          ),
+        },
+        {
+          'role': 'user',
+          'content': _teamCompositionPrompt(
+              trimmedContext, projectType, projectScale, existingRoles, maxRoles),
+        },
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
+        final parsed = _decodeJsonSafely(content);
+        if (parsed != null) {
+          final results = _parseTeamCompositionSuggestions(parsed, maxRoles);
+          if (results.isNotEmpty) return results;
+        }
+      }
+    } catch (e) {
+      debugPrint('generateTeamCompositionSuggestions failed: $e');
+    }
+
+    return [];
+  }
+
+  String _teamCompositionPrompt(String context, String projectType,
+      String projectScale, List<String> existingRoles, int maxRoles) {
+    final escapedCtx = _escape(context);
+    final existingStr = existingRoles
+        .map((r) => '- ${_escape(r)}')
+        .join('\n')
+        .trim();
+    final existingSection = existingStr.isNotEmpty
+        ? '\nExisting team roles:\n$existingStr\n'
+        : '\nNo existing roles provided.\n';
+    return '''
+Given the project context, type, scale, and existing roles below, suggest additional team roles needed.
+
+Return ONLY valid JSON with this structure:
+{
+  "suggestions": [
+    {"role": "...", "description": "...", "justification": "..."}
+  ]
+}
+
+Guidelines:
+- Provide up to $maxRoles suggestions.
+- Only suggest roles NOT already in the existing roles list.
+- Ensure the role is realistic for a $projectScale project of type $projectType.
+
+Project type: $projectType
+Project scale: $projectScale
+$existingSection
+Project context:
+"""
+$escapedCtx
+"""
+''';
+  }
+
+  List<Map<String, String>> _parseTeamCompositionSuggestions(
+      Map<String, dynamic> parsed, int maxRoles) {
+    final suggestionsRaw =
+        parsed['suggestions'] ?? parsed['teamSuggestions'] ?? parsed['roles'];
+    final results = <Map<String, String>>[];
+    if (suggestionsRaw is List) {
+      for (final entry in suggestionsRaw) {
+        if (entry is Map) {
+          final role = _stripAsterisks(
+                  (entry['role'] ?? entry['title'] ?? entry['name'] ?? '')
+                      .toString()
+                      .trim());
+          if (role.isEmpty) continue;
+          final description = _stripAsterisks(
+              (entry['description'] ?? entry['desc'] ?? entry['summary'] ?? '')
+                  .toString()
+                  .trim());
+          final justification = _stripAsterisks(
+              (entry['justification'] ?? entry['justify'] ?? entry['reason'] ?? '')
+                  .toString()
+                  .trim());
+          results.add({
+            'role': role,
+            'description': description,
+            'justification': justification,
+          });
+        } else if (entry != null) {
+          final role = _stripAsterisks(entry.toString().trim());
+          if (role.isNotEmpty) {
+            results.add({
+              'role': role,
+              "description": "",
+              "justification": "",
+            });
+          }
+        }
+        if (results.length >= maxRoles) break;
+      }
+    }
+    return results;
   }
 
   /// Generate meeting objective/agenda based on meeting type and participant roles

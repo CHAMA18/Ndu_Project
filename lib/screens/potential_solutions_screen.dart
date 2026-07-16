@@ -37,6 +37,7 @@ import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SafeSection — Build-time error boundary that prevents a single failing child
@@ -180,7 +181,7 @@ class _PotentialSolutionsScreenState extends State<PotentialSolutionsScreen> {
  bool _initiationExpanded = true;
  bool _businessCaseExpanded = true;
  bool _frontEndExpanded = true;
- bool _reviewConfirmed = false;
+
  final Set<String> _expandedDescriptionRows = <String>{};
 
  bool get _isAdminHost => AccessPolicy.isRestrictedAdminHost();
@@ -1623,19 +1624,13 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  ),
  ],
  const SizedBox(height: 24),
- BusinessCaseNavigationButtons(
- currentScreen: 'Potential Solutions',
- padding: const EdgeInsets.symmetric(
- horizontal: 0, vertical: 24),
- onNext: _handleNextPressed,
- isNextEnabled: _reviewConfirmed,
- showReviewGate: true,
- reviewConfirmed: _reviewConfirmed,
- onReviewChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- reviewScrollController: _reviewScrollController,
- ),
+  BusinessCaseNavigationButtons(
+  currentScreen: 'Potential Solutions',
+  padding: const EdgeInsets.symmetric(
+  horizontal: 0, vertical: 24),
+  onNext: _handleNextPressed,
+  reviewScrollController: _reviewScrollController,
+  ),
  ],
  ),
  ),
@@ -2153,8 +2148,25 @@ ${contextScan.trim().isEmpty ? 'No additional project context available.' : cont
  );
  }
 
- Future<void> _handleNextPressed() async {
- if (_isLoadingSolutions) return;
+  Future<void> _handleNextPressed() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('potential_solutions')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'potential_solutions'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'potential_solutions_confirmed');
+    }
+  if (_isLoadingSolutions) return;
 
  final trimmedNotes = _notesController.text.trim();
  final solutions = _solutions

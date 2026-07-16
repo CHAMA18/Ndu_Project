@@ -11,7 +11,7 @@ class LightModeColors {
       Color(0xFFFFF4CC); // Soft yellow container
   static const lightOnPrimaryContainer = Color(0xFF3D2E00);
   static const lightSecondary =
-      Color(0xFF2563EB); // Info blue (links, highlights)
+      Color(0xFFFFC812); // Brand yellow
   static const lightOnSecondary = Color(0xFFFFFFFF);
   static const lightTertiary = Color(0xFF16A34A); // Success green
   static const lightOnTertiary = Color(0xFFFFFFFF);
@@ -33,7 +33,7 @@ class DarkModeColors {
   static const darkOnPrimary = Color(0xFF141414);
   static const darkPrimaryContainer = Color(0xFF3A3000);
   static const darkOnPrimaryContainer = Color(0xFFFFF4CC);
-  static const darkSecondary = Color(0xFF93C5FD); // Softer blue for dark mode
+  static const darkSecondary = Color(0xFFFFC812); // Brand yellow
   static const darkOnSecondary = Color(0xFF0B1220);
   static const darkTertiary = Color(0xFF34D399); // Emerald 400
   static const darkOnTertiary = Color(0xFF0B1220);

@@ -1198,19 +1198,20 @@ class _StakeholdersTable extends StatelessWidget {
 
  @override
  Widget build(BuildContext context) {
- final columns = [
- const _TableColumnDef('#', 72),
- const _TableColumnDef('Stakeholder', 200),
- const _TableColumnDef('Organization', 180),
- const _TableColumnDef('Role/Title', 160),
- const _TableColumnDef('Contact Info', 200),
- const _TableColumnDef('Influence', 140),
- const _TableColumnDef('Interest', 140),
- const _TableColumnDef('Channel', 180),
- const _TableColumnDef('Owner', 160),
- const _TableColumnDef('Notes', 240),
- const _TableColumnDef('', 70),
- ];
+  final columns = [
+    const _TableColumnDef('#', 72),
+    const _TableColumnDef('Stakeholder', 200),
+    const _TableColumnDef('Organization', 180),
+    const _TableColumnDef('Role/Title', 160),
+    const _TableColumnDef('Contact Info', 200),
+    const _TableColumnDef('Influence', 140),
+    const _TableColumnDef('Interest', 140),
+    const _TableColumnDef('Channel', 180),
+    const _TableColumnDef('Owner', 160),
+    const _TableColumnDef('Other Teams', 180),
+    const _TableColumnDef('Notes', 240),
+    const _TableColumnDef('', 70),
+  ];
 
  if (isLoading) {
  return const LinearProgressIndicator(minHeight: 2);
@@ -1282,15 +1283,22 @@ class _StakeholdersTable extends StatelessWidget {
  onChanged: (value) =>
  onChanged(entries[index].copyWith(channel: value)),
  ),
- _TextCell(
- value: entries[index].owner,
- fieldKey: '${entries[index].id}_owner',
- hintText: 'Owner',
- onChanged: (value) =>
- onChanged(entries[index].copyWith(owner: value)),
- ),
- _TextCell(
- value: entries[index].notes,
+  _TextCell(
+  value: entries[index].owner,
+  fieldKey: '${entries[index].id}_owner',
+  hintText: 'Owner',
+  onChanged: (value) =>
+  onChanged(entries[index].copyWith(owner: value)),
+  ),
+  _TextCell(
+  value: entries[index].otherTeams,
+  fieldKey: '${entries[index].id}_otherTeams',
+  hintText: 'Other Teams/Groups',
+  onChanged: (value) =>
+  onChanged(entries[index].copyWith(otherTeams: value)),
+  ),
+  _TextCell(
+  value: entries[index].notes,
  fieldKey: '${entries[index].id}_notes',
  hintText: 'Notes',
  minLines: 1,

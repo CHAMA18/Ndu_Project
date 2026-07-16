@@ -252,7 +252,7 @@ class ProcurementReportsView extends StatelessWidget {
               icon: const Icon(Icons.file_download_outlined, size: 18),
               label: const Text('Export PDF'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
+                backgroundColor: const Color(0xFFFFC812),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 12),

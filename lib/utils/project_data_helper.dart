@@ -1069,6 +1069,8 @@ class ProjectDataHelper {
     List<OpportunityItem>? opportunityItems,
     List<PlanningDashboardItem>? successCriteriaItems,
     bool? detailsConfirmed,
+    bool? summaryConfirmed,
+    bool? reqConfirmed,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? current.requirements,
@@ -1110,6 +1112,8 @@ class ProjectDataHelper {
       successCriteriaItems:
           successCriteriaItems ?? current.successCriteriaItems,
       detailsConfirmed: detailsConfirmed ?? current.detailsConfirmed,
+      summaryConfirmed: summaryConfirmed ?? current.summaryConfirmed,
+      reqConfirmed: reqConfirmed ?? current.reqConfirmed,
     );
   }
 

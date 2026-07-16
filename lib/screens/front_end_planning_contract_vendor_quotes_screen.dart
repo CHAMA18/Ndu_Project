@@ -2007,14 +2007,14 @@ class _FrontEndPlanningContractVendorQuotesScreenState
  ),
  icon: const Icon(Icons.play_arrow_rounded,
  size: 16),
- label: const Text(
- 'Start Process for this Scope'),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- ),
- ),
- ),
+  label: const Text(
+  'Start Process for this Scope'),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  ),
+  ),
+  ),
  ],
  ),
  );
@@ -7016,9 +7016,9 @@ class _SectionHeader extends StatelessWidget {
  onPressed: onAction,
  icon: const Icon(Icons.add, size: 16),
  label: Text(actionLabel),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFEFF6FF),
- foregroundColor: const Color(0xFF2563EB),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFEFF6FF),
+  foregroundColor: const Color(0xFFFFC812),
  elevation: 0,
  shape:
  RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -7334,11 +7334,11 @@ class _AiPreviewDialog extends StatelessWidget {
  ),
  ElevatedButton(
  onPressed: () => Navigator.of(context).pop(true),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- ),
- child: const Text('Confirm & Save'),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  ),
+  child: const Text('Confirm & Save'),
  ),
  ],
  );

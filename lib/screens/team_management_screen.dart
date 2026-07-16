@@ -47,14 +47,16 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
  final responsibilitiesController = TextEditingController();
  final formKey = GlobalKey<FormState>();
  final focusColor = const Color(0xFFFFD700);
- final List<String> suggestedRoles = const [
- 'Product Manager',
- 'Project Lead',
- 'Engineering Lead',
- 'QA Lead',
- 'Designer',
- 'Data Analyst',
- ];
+ final securityRoles = ProjectDataHelper.getData(context).frontEndPlanning.securityRoles;
+  final List<String> suggestedRoles = [
+  'Product Manager',
+  'Project Lead',
+  'Engineering Lead',
+  'QA Lead',
+  'Designer',
+  'Data Analyst',
+  ...securityRoles.map((r) => r.name).where((n) => n.isNotEmpty),
+  ];
 
  final result = await showDialog<TeamMember>(
  context: context,
@@ -246,13 +248,55 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
  final projectId = provider.projectData.projectId;
  if (projectId == null || projectId.isEmpty) return;
 
- await FirebaseFirestore.instance
- .collection('projects')
- .doc(projectId)
- .collection('team_members')
- .doc(member.id)
- .set(member.toJson(), SetOptions(merge: true));
- }
+  await FirebaseFirestore.instance
+  .collection('projects')
+  .doc(projectId)
+  .collection('team_members')
+  .doc(member.id)
+  .set(member.toJson(), SetOptions(merge: true));
+  }
+
+  void _importSecurityRoles() {
+  final projectData = ProjectDataHelper.getData(context);
+  final securityRoles = projectData.frontEndPlanning.securityRoles;
+  if (securityRoles.isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(content: Text('No security roles defined yet. Add roles in FEP Security first.')),
+  );
+  return;
+  }
+  final currentMembers = projectData.teamMembers;
+  final existingNames = currentMembers.map((m) => m.name.toLowerCase()).toSet();
+  final newMembers = <TeamMember>[];
+  for (final roleItem in securityRoles) {
+  if (roleItem.name.trim().isEmpty) continue;
+  if (existingNames.contains(roleItem.name.toLowerCase())) continue;
+  newMembers.add(TeamMember(
+  name: roleItem.name,
+  role: 'Security - ${roleItem.name}',
+  email: '',
+  responsibilities: roleItem.description,
+  ));
+  existingNames.add(roleItem.name.toLowerCase());
+  }
+  if (newMembers.isEmpty) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  const SnackBar(content: Text('All security roles are already in the team.')),
+  );
+  return;
+  }
+  final updated = [...currentMembers, ...newMembers];
+  ProjectDataHelper.updateAndSave(
+  context: context,
+  checkpoint: 'team_management',
+  dataUpdater: (data) => data.copyWith(teamMembers: updated),
+  showSnackbar: true,
+  );
+  for (final member in newMembers) {
+  _persistMember(member);
+  }
+  if (mounted) setState(() {});
+  }
 
  @override
  Widget build(BuildContext context) {
@@ -297,23 +341,38 @@ class _TeamManagementScreenState extends State<TeamManagementScreen> {
  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
  ),
  ),
- ElevatedButton.icon(
- onPressed: () => _openAddMemberDialog(members),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFFFD700),
- foregroundColor: const Color(0xFF111827),
- elevation: 0,
- padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
- shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
- ),
- icon: const Icon(Icons.add, size: 18),
- label: const Text(
- 'Add New Member',
- style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
- ),
- ),
- ],
- ),
+  ElevatedButton.icon(
+  onPressed: () => _openAddMemberDialog(members),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFD700),
+  foregroundColor: const Color(0xFF111827),
+  elevation: 0,
+  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  ),
+  icon: const Icon(Icons.add, size: 18),
+  label: const Text(
+  'Add New Member',
+  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+  ),
+  ),
+  const SizedBox(width: 10),
+  OutlinedButton.icon(
+  onPressed: _importSecurityRoles,
+  icon: const Icon(Icons.security, size: 16),
+  label: const Text(
+  'Import from Security',
+  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+  ),
+  style: OutlinedButton.styleFrom(
+  foregroundColor: const Color(0xFF111827),
+  side: const BorderSide(color: Color(0xFFE5E7EB)),
+  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  ),
+  ),
+  ],
+  ),
  const SizedBox(height: 24),
  const PlanningAiNotesCard(
  title: 'Notes',

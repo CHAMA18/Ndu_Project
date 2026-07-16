@@ -50,8 +50,7 @@ class _FrontEndPlanningSummaryScreenState
  final ScrollController _contentScrollController = ScrollController();
  final TextEditingController _notes = RichTextEditingController();
  final TextEditingController _summaryNotes = RichTextEditingController();
- bool _isSyncReady = false;
- bool _reviewConfirmed = false;
+  bool _isSyncReady = false;
 
  @override
  void initState() {
@@ -153,8 +152,29 @@ class _FrontEndPlanningSummaryScreenState
  super.dispose();
  }
 
- Future<void> _handleNext() async {
- await ProjectDataHelper.saveAndNavigate(
+  Future<void> _handleNext() async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.frontEndPlanning.summaryConfirmed) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm you have reviewed and understood this step',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          frontEndPlanning: ProjectDataHelper.updateFEPField(
+            current: d.frontEndPlanning,
+            summaryConfirmed: true,
+          ),
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'fep_summary_confirmed');
+    }
+
+    await ProjectDataHelper.saveAndNavigate(
  context: context,
  checkpoint: 'fep_summary',
  nextScreenBuilder: () => const FrontEndPlanningRequirementsScreen(),
@@ -232,15 +252,7 @@ class _FrontEndPlanningSummaryScreenState
  _SummaryPanel(controller: _summaryNotes),
  const SizedBox(height: 24),
  const _PlanningCardsSection(),
- const SizedBox(height: 24),
- ProceedConfirmationGate(
- value: _reviewConfirmed,
- onChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- scrollController: _contentScrollController,
- ),
- const SizedBox(height: 140),
+  const SizedBox(height: 140),
  ],
  ),
  ),
@@ -248,11 +260,10 @@ class _FrontEndPlanningSummaryScreenState
  ),
  ],
  ),
- _BottomOverlay(
- summaryController: _summaryNotes,
- onNext: _handleNext,
- nextEnabled: _reviewConfirmed,
- ),
+  _BottomOverlay(
+    summaryController: _summaryNotes,
+    onNext: _handleNext,
+  ),
  ],
  ),
  );
@@ -1545,81 +1556,69 @@ class _GoalsCard extends StatelessWidget {
 }
 
 class _BottomOverlay extends StatelessWidget {
- const _BottomOverlay({
- required this.summaryController,
- required this.onNext,
- required this.nextEnabled,
- });
+  const _BottomOverlay({
+    required this.summaryController,
+    required this.onNext,
+  });
 
- final TextEditingController summaryController;
- final Future<void> Function() onNext;
- final bool nextEnabled;
+  final TextEditingController summaryController;
+  final Future<void> Function() onNext;
 
- @override
- Widget build(BuildContext context) {
- return Positioned.fill(
- child: IgnorePointer(
- ignoring: false,
- child: Stack(
- children: [
- Positioned(
- left: 24,
- bottom: 24,
- child: Container(
- width: 48,
- height: 48,
- decoration: const BoxDecoration(
- color: Color(0xFFB3D9FF), shape: BoxShape.circle),
- child: const Icon(Icons.info_outline, color: Colors.white),
- ),
- ),
- Positioned(
- right: 24,
- bottom: 24,
- child: Row(
- children: [
- Container(
- padding: const EdgeInsets.symmetric(
- horizontal: 18, vertical: 16),
- decoration: BoxDecoration(
- color: const Color(0xFFE6F1FF),
- borderRadius: BorderRadius.circular(14),
- border: Border.all(color: const Color(0xFFD7E5FF)),
- ),
- child: Row(
- mainAxisSize: MainAxisSize.min,
- children: const [
- Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
- SizedBox(width: 10),
- Text('AI',
- style: TextStyle(
- fontWeight: FontWeight.w800,
- color: Color(0xFF2563EB))),
- SizedBox(width: 12),
- Text(
- 'Generate a summary of all front end planning activities.',
- style: TextStyle(color: Color(0xFF1F2937)),
- ),
- ],
- ),
- ),
- const SizedBox(width: 16),
- const KazAiChatBubble(positioned: false),
- const SizedBox(width: 16),
- ElevatedButton(
- onPressed: () async {
- if (!nextEnabled) {
- final continueAnyway =
- await showProceedWithoutReviewDialog(
- context,
- title: 'Please confirm you have reviewed and understood this step',
- message:
- 'You have not confirmed this page yet. You can continue now and return later to complete details, or stay and update information now.',
- );
- if (!continueAnyway || !context.mounted) return;
- }
- await onNext();
- },
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        ignoring: false,
+        child: Stack(
+          children: [
+            Positioned(
+              left: 24,
+              bottom: 24,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFB3D9FF), shape: BoxShape.circle),
+                child: const Icon(Icons.info_outline, color: Colors.white),
+              ),
+            ),
+            Positioned(
+              right: 24,
+              bottom: 24,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6F1FF),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFD7E5FF)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
+                        SizedBox(width: 10),
+                        Text('AI',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF2563EB))),
+                        SizedBox(width: 12),
+                        Text(
+                          'Generate a summary of all front end planning activities.',
+                          style: TextStyle(color: Color(0xFF1F2937)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const KazAiChatBubble(positioned: false),
+                  const SizedBox(width: 16),
+                  ElevatedButton(
+                    onPressed: () async {
+                      await onNext();
+                    },
  style: ElevatedButton.styleFrom(
  backgroundColor: const Color(0xFFFFC812),
  foregroundColor: const Color(0xFF111827),

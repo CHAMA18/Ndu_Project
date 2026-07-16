@@ -106,8 +106,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  bool _businessCaseExpanded = true;
  final GlobalKey _tablesSectionKey = GlobalKey();
  int _currentStepIndex = 0;
- bool _reviewConfirmed = false;
- bool _hasUnsavedChanges = false;
+  bool _hasUnsavedChanges = false;
  bool _suppressDirtyTracking = false;
  bool _syncingProjectValueEditors = false;
  bool _autosaveInFlight = false;
@@ -2276,24 +2275,32 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
  ),
  );
- final nextButton = ElevatedButton.icon(
- onPressed: () async {
- if (!_reviewConfirmed) {
- final continueAnyway = await showProceedWithoutReviewDialog(
- context,
- title: 'Please confirm before continuing',
- message:
- 'You have not confirmed this tab yet. You can continue now and come back to complete it, or stay and update it now.',
- );
- if (!continueAnyway || !mounted) return;
- }
+final nextButton = ElevatedButton.icon(
+  onPressed: () async {
+    final data = ProjectDataHelper.getData(context);
+    if (!data.confirmedPages.contains('cost_analysis')) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Please confirm before continuing',
+        message:
+          'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          confirmedPages: {...d.confirmedPages, 'cost_analysis'},
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'cost_analysis_confirmed');
+    }
 
- if (isLast) {
- await _openPreferredSolution();
- } else {
- await _handleNextStep();
- }
- },
+    if (isLast) {
+      await _openPreferredSolution();
+    } else {
+      await _handleNextStep();
+    }
+  },
  icon: Icon(primaryIcon, size: 16),
  label: Text(primaryLabel),
  style: ElevatedButton.styleFrom(
@@ -2311,14 +2318,7 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- ProceedConfirmationGate(
- value: _reviewConfirmed,
- onChanged: (value) {
- setState(() => _reviewConfirmed = value);
- },
- scrollController: _mainScrollController,
- padding: const EdgeInsets.only(bottom: 16),
- ),
+
  if (isMobile) ...[
  // Mobile: stack vertically to avoid overflow
  Row(
@@ -2392,10 +2392,9 @@ class _CostAnalysisScreenState extends State<CostAnalysisScreen>
  if (!mounted || index == _currentStepIndex) return;
  if (index < 0 || index >= _stepDefinitions.length) return;
  FocusScope.of(context).unfocus();
- setState(() {
- _currentStepIndex = index;
- _reviewConfirmed = false;
- });
+  setState(() {
+  _currentStepIndex = index;
+  });
  WidgetsBinding.instance.addPostFrameCallback((_) {
  if (!mounted) return;
  if (_mainScrollController.hasClients) {

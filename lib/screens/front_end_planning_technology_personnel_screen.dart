@@ -376,10 +376,10 @@ class _BottomOverlay extends StatelessWidget {
  child: SizedBox(
  height: 44,
  child: ElevatedButton(
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- ),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  ),
  onPressed: onSubmit,
  child: const Text('Continue'),
  ),

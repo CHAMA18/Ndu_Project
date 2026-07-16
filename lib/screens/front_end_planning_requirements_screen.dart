@@ -1418,7 +1418,7 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF2563EB),
+                        foregroundColor: const Color(0xFFFFC812),
                         side: const BorderSide(color: Color(0xFFBFDBFE)),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
@@ -1938,7 +1938,7 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
         label: const Text('Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF2563EB),
+          foregroundColor: const Color(0xFFFFC812),
           side: const BorderSide(color: Color(0xFF93C5FD)),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12)),
@@ -2022,13 +2022,26 @@ _RequirementRow _createRow(int number, {bool expanded = false}) {
   }
 
   void _handleSubmit() async {
-    final continueAnyway = await showProceedWithoutReviewDialog(
-      context,
-      title: 'Confirm before submitting requirements',
-      message:
-          'You are about to continue to the next step. You can proceed now and return later to refine details, or cancel and review first.',
-    );
-    if (!continueAnyway) return;
+    final data = ProjectDataHelper.getData(context);
+    if (!data.frontEndPlanning.reqConfirmed) {
+      final confirmed = await showProceedWithoutReviewDialog(
+        context,
+        title: 'Confirm before submitting requirements',
+        message:
+            'I confirm that I have reviewed all information on this page before proceeding.',
+      );
+      if (!confirmed || !mounted) return;
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField(
+        (d) => d.copyWith(
+          frontEndPlanning: ProjectDataHelper.updateFEPField(
+            current: d.frontEndPlanning,
+            reqConfirmed: true,
+          ),
+        ),
+      );
+      provider.saveToFirebase(checkpoint: 'fep_requirements_confirmed');
+    }
 
     final requirementItems = _buildRequirementItems();
     if (requirementItems.isEmpty) {
