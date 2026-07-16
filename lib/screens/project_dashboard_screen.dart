@@ -26,11 +26,11 @@ import '../utils/navigation_route_resolver.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
-import 'basic_plan_dashboard_screen.dart';
 import 'initiation_phase_screen.dart';
 import 'portfolio_dashboard_screen.dart';
 import 'program_dashboard_screen.dart';
 import 'project_dashboard_mobile_shell.dart';
+import 'project_workspace_dashboard_screen.dart';
 import 'project_activities_log_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -1056,14 +1056,16 @@ class _StatusStrip extends StatelessWidget {
  void openProjectDashboard() {
  Navigator.push(
  context,
- MaterialPageRoute(builder: (_) => const ProjectDashboardScreen()),
+ MaterialPageRoute(
+     builder: (_) => const ProjectWorkspaceDashboardScreen(isBasicPlan: false)),
  );
  }
 
  void openBasicDashboard() {
  Navigator.push(
  context,
- MaterialPageRoute(builder: (_) => const BasicPlanDashboardScreen()),
+ MaterialPageRoute(
+     builder: (_) => const ProjectWorkspaceDashboardScreen(isBasicPlan: true)),
  );
  }
 
@@ -1130,7 +1132,8 @@ class _StatusStrip extends StatelessWidget {
  stream: ProjectService.streamProjects(ownerId: user.uid, limit: 100),
  builder: (context, projectSnapshot) {
  final projects = projectSnapshot.data ?? const <ProjectRecord>[];
- final projectCount = projects.length;
+ final projectCount =
+ projects.where((project) => !project.isBasicPlanProject).length;
  final basicProjectCount =
  projects.where((project) => project.isBasicPlanProject).length;
 
@@ -4181,12 +4184,14 @@ class _CompactActionButtonState extends State<_CompactActionButton> {
  @override
  Widget build(BuildContext context) {
  return MouseRegion(
- onEnter: (_) => Future.microtask(() {
- if (mounted) setState(() => _isHovered = true);
- }),
- onExit: (_) => Future.microtask(() {
- if (mounted) setState(() => _isHovered = false);
- }),
+ onEnter: (_) {
+ if (!mounted || _isHovered) return;
+ setState(() => _isHovered = true);
+ },
+ onExit: (_) {
+ if (!mounted || !_isHovered) return;
+ setState(() => _isHovered = false);
+ },
  child: GestureDetector(
  onTap: widget.onTap,
  child: AnimatedContainer(

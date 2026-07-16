@@ -8,7 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../models/portfolio_model.dart';
 import '../models/program_model.dart';
 import '../providers/project_data_provider.dart';
-import '../routing/app_router.dart';
 import '../services/firebase_auth_service.dart';
 import '../services/portfolio_service.dart';
 import '../services/program_service.dart';
@@ -18,6 +17,7 @@ import '../utils/navigation_route_resolver.dart';
 import 'initiation_phase_screen.dart';
 import 'program_dashboard_mobile_screen.dart';
 import 'portfolio_dashboard_screen.dart';
+import 'project_workspace_dashboard_screen.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import '../widgets/dashboard_bottom_nav_bar.dart';
@@ -157,6 +157,22 @@ class _ProjectDashboardMobileShellState
  Navigator.push(
  context,
  MaterialPageRoute(builder: (_) => const ProgramDashboardMobileScreen()),
+ );
+ }
+
+ void _navigateToRegularProjects() {
+ Navigator.push(
+ context,
+ MaterialPageRoute(
+ builder: (_) => const ProjectWorkspaceDashboardScreen(isBasicPlan: true)),
+ );
+ }
+
+ void _navigateToProjects() {
+ Navigator.push(
+ context,
+ MaterialPageRoute(
+ builder: (_) => const ProjectWorkspaceDashboardScreen(isBasicPlan: false)),
  );
  }
 
@@ -782,7 +798,7 @@ class _ProjectDashboardMobileShellState
  iconBg: const Color(0xFFF0FDFA),
  iconColor: const Color(0xFF0D9488),
  filled: true,
- onTap: () {},
+ onTap: _navigateToRegularProjects,
  ),
  _statCard(
  label: 'Projects',
@@ -792,7 +808,7 @@ class _ProjectDashboardMobileShellState
  icon: Icons.folder,
  iconBg: const Color(0xFFEFF6FF),
  iconColor: _Tokens.primary,
- onTap: () {},
+ onTap: _navigateToProjects,
  ),
  _statCard(
  label: 'Programs',

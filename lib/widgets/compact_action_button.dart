@@ -70,12 +70,14 @@ class _CompactActionButtonState extends State<CompactActionButton>
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => Future.microtask(() {
-        if (mounted) setState(() => _isHovered = true);
-      }),
-      onExit: (_) => Future.microtask(() {
-        if (mounted) setState(() => _isHovered = false);
-      }),
+      onEnter: (_) {
+        if (!mounted || _isHovered) return;
+        setState(() => _isHovered = true);
+      },
+      onExit: (_) {
+        if (!mounted || !_isHovered) return;
+        setState(() => _isHovered = false);
+      },
       child: GestureDetector(
         onTap: widget.onTap,
         child: AnimatedBuilder(
