@@ -768,7 +768,7 @@ class _AgileProjectHubScreenState extends State<AgileProjectHubScreen>
           children: _sections.map((s) {
             final sidebarW = AppBreakpoints.sidebarWidth(context);
             final availableWidth =
-                MediaQuery.sizeOf(context).width - sidebarW - 80;
+                MediaQuery.sizeOf(context).width - sidebarW - 64;
             final width = crossAxisCount == 1
                 ? double.infinity
                 : (availableWidth - (crossAxisCount - 1) * 20) /
