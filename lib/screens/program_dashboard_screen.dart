@@ -771,6 +771,7 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
  );
  }
 
+<<<<<<< HEAD
  // ─── Action Buttons (Group Into Program + Project Logs) ─────────────────
  Widget _buildActionButtons(BuildContext context) {
  final screenWidth = MediaQuery.sizeOf(context).width;
@@ -833,6 +834,9 @@ class _ProgramDashboardScreenState extends State<ProgramDashboardScreen>
  }
 
  // ─── Hero Bento Grid ─────────────────────────────────────────────────────
+=======
+  // ─── Hero Bento Grid ─────────────────────────────────────────────────────
+>>>>>>> bdcd56d (feat: draggable Project Goals cards — toggle between List and Freeform (drag-anywhere) modes)
   Widget _buildHeroBento(BuildContext context, {_ProgramMetrics? metrics}) {
     final width = MediaQuery.sizeOf(context).width;
     // Desktop (>1180): 3-column hero bento
