@@ -70,7 +70,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   DashboardMetrics? _metrics;
   List<ProjectRecord> _projects = [];
   bool _loading = true;
-<<<<<<< HEAD
   String? _loadError;
   bool _loadTimedOut = false;
   static const _loadTimeout = Duration(seconds: 8);
@@ -91,8 +90,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
   // ── View-more toggles (show 7 by default, expand to all) ──
   bool _showAllProjects = false;
 
-=======
->>>>>>> bdcd56d (feat: draggable Project Goals cards — toggle between List and Freeform (drag-anywhere) modes)
 
  @override
  void initState() {
@@ -312,7 +309,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       ),
     );
   }
-<<<<<<< HEAD
 
   // ── Error / timeout state ──
   Widget _buildErrorState() {
@@ -363,8 +359,6 @@ class _PortfolioDashboardScreenState extends State<PortfolioDashboardScreen>
       ),
     );
   }
-=======
->>>>>>> bdcd56d (feat: draggable Project Goals cards — toggle between List and Freeform (drag-anywhere) modes)
 
  // ═══════════════════════════════════════════════════════════════════════
  // HEADER

@@ -986,15 +986,28 @@ class _PricingScreenState extends State<PricingScreen> {
   }
 
   Widget _buildPlansGrid(bool isDesktop, bool isTablet) {
-    if (isDesktop) {
-      // 4 columns on desktop
+    // User requirement: ALL pricing containers must appear in ONE ROW
+    // across the entire screen, regardless of viewport width.
+    //
+    // Strategy:
+    //   • Desktop / tablet (>= 800px): 4 cards in a single Row using
+    //     Expanded — cards stretch to fill available width equally.
+    //   • Mobile (< 800px): horizontal scrollable Row with fixed-width
+    //     cards so all 4 plans remain on the same row (page-pinch
+    //     scroll reveals the off-screen cards). This guarantees the
+    //     "one row" layout even on narrow phones.
+    final size = MediaQuery.of(context).size;
+    final isWideEnough = size.width >= 800;
+
+    if (isWideEnough) {
+      // Always 4 columns in one row
       return IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: _dynamicPlans
               .map((plan) => Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
                       child: _PlanColumn(
                         plan: plan,
                         isSelected: _selectedTier == plan.tier,
@@ -1009,98 +1022,36 @@ class _PricingScreenState extends State<PricingScreen> {
               .toList(),
         ),
       );
-    } else if (isTablet) {
-      // 2x2 grid on tablet
-      return Column(
-        children: [
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[0],
-                    isSelected: _selectedTier == _dynamicPlans[0].tier,
-                    price: _priceForPlan(_dynamicPlans[0]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[0].tier);
-                      _handlePlanSelection(context, _dynamicPlans[0]);
-                    },
-                  ),
-                )),
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[1],
-                    isSelected: _selectedTier == _dynamicPlans[1].tier,
-                    price: _priceForPlan(_dynamicPlans[1]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[1].tier);
-                      _handlePlanSelection(context, _dynamicPlans[1]);
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[2],
-                    isSelected: _selectedTier == _dynamicPlans[2].tier,
-                    price: _priceForPlan(_dynamicPlans[2]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[2].tier);
-                      _handlePlanSelection(context, _dynamicPlans[2]);
-                    },
-                  ),
-                )),
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[3],
-                    isSelected: _selectedTier == _dynamicPlans[3].tier,
-                    price: _priceForPlan(_dynamicPlans[3]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[3].tier);
-                      _handlePlanSelection(context, _dynamicPlans[3]);
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-        ],
-      );
-    } else {
-      // Single column on mobile
-      return Column(
-        children: _dynamicPlans
-            .map((plan) => Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: _PlanColumn(
-                    plan: plan,
-                    isSelected: _selectedTier == plan.tier,
-                    price: _priceForPlan(plan),
-                    onSelect: () {
-                      setState(() => _selectedTier = plan.tier);
-                      _handlePlanSelection(context, plan);
-                    },
-                  ),
-                ))
-            .toList(),
-      );
     }
+
+    // Narrow viewport — horizontal scroll with fixed-width cards.
+    // All 4 plans still render in one row; user scrolls horizontally
+    // to see plans that overflow the viewport.
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _dynamicPlans
+              .map((plan) => SizedBox(
+                    width: 280, // fixed card width on mobile
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: _PlanColumn(
+                        plan: plan,
+                        isSelected: _selectedTier == plan.tier,
+                        price: _priceForPlan(plan),
+                        onSelect: () {
+                          setState(() => _selectedTier = plan.tier);
+                          _handlePlanSelection(context, plan);
+                        },
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+      ),
+    );
   }
 }
 
