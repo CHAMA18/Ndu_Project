@@ -5,6 +5,9 @@ import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/models/control_account_model.dart';
 import 'package:ndu_project/models/obs_element_model.dart';
 import 'package:ndu_project/models/cbs_element_model.dart';
+import 'package:ndu_project/models/planning_contract.dart';
+import 'package:ndu_project/models/rate_card.dart';
+import 'package:ndu_project/models/cost_of_quality.dart';
 
 /// Comprehensive project data model that captures all information across the application flow
 class ProjectDataModel {
@@ -155,7 +158,6 @@ class ProjectDataModel {
 
   // Organisation Plan Data
   List<RoleDefinition> projectRoles;
-  List<RaciMatrixRow> raciMatrixRows;
   List<StaffingRequirement> staffingRequirements;
   List<InfrastructurePlanningItem> planningInfrastructureItems;
   List<TrainingActivity> trainingActivities;
@@ -192,40 +194,28 @@ class ProjectDataModel {
   // ── P2.5: Project-level EVM aggregate fields ──
   /// Aggregate Budget at Completion (sum of all control account BACs).
   double aggregateBac;
-
   /// Aggregate Planned Value to date.
   double aggregatePlannedValue;
-
   /// Aggregate Earned Value.
   double aggregateEarnedValue;
-
   /// Aggregate Actual Cost.
   double aggregateActualCost;
-
   /// Aggregate CPI (Cost Performance Index).
   double aggregateCpi;
-
   /// Aggregate SPI (Schedule Performance Index).
   double aggregateSpi;
-
   /// Aggregate EAC (Estimate at Completion).
   double aggregateEac;
-
   /// Aggregate ETC (Estimate to Complete).
   double aggregateEtc;
-
   /// Aggregate VAC (Variance at Completion).
   double aggregateVac;
-
   /// Aggregate CV (Cost Variance).
   double aggregateCv;
-
   /// Aggregate SV (Schedule Variance).
   double aggregateSv;
-
   /// Aggregate TCPI (To-Complete Performance Index).
   double aggregateTcpi;
-
   /// Last time project-level EVM was recalculated.
   DateTime? evmLastRecalculated;
 
@@ -249,6 +239,24 @@ class ProjectDataModel {
 
   // Preferred Solution Reference
   String? preferredSolutionId;
+
+  // Page-level review confirmation tracking
+  Set<String> confirmedPages;
+
+  // ── Planning Phase: Contract Tracking ──
+  List<PlanningContract> planningContracts;
+
+  // ── Planning Phase: Personnel Rate Cards ──
+  List<RateCard> rateCards;
+
+  // ── Planning Phase: Cost of Quality ──
+  CostOfQualityData? costOfQualityData;
+
+  // ── Organisation Plan: Base Configuration ──
+  String orgStaffingSource; // 'Internal Department' | 'External Hire' | 'Contractor Pool' | 'Mixed'
+  String orgWorkingHours; // e.g., '40 hours/week'
+  String orgLocation; // 'Office' | 'Remote' | 'Hybrid' | 'Multi-site'
+  String orgCommunicationMode; // e.g., 'Email, Meetings, Slack'
 
   ProjectDataModel({
     this.projectName = '',
@@ -320,7 +328,6 @@ class ProjectDataModel {
     this.infrastructureConsiderationsData,
     this.coreStakeholdersData,
     List<RoleDefinition>? projectRoles,
-    List<RaciMatrixRow>? raciMatrixRows,
     List<StaffingRequirement>? staffingRequirements,
     List<InfrastructurePlanningItem>? planningInfrastructureItems,
     List<TrainingActivity>? trainingActivities,
@@ -350,6 +357,17 @@ class ProjectDataModel {
     List<ControlAccount>? controlAccounts,
     List<ObsElement>? obsElements,
     List<CbsElement>? cbsElements,
+    // Planning Phase: Contract Tracking
+    List<PlanningContract>? planningContracts,
+    // Planning Phase: Personnel Rate Cards
+    List<RateCard>? rateCards,
+    // Planning Phase: Cost of Quality
+    this.costOfQualityData,
+    // Organisation Plan: Base Configuration
+    this.orgStaffingSource = '',
+    this.orgWorkingHours = '40 hours/week',
+    this.orgLocation = '',
+    this.orgCommunicationMode = '',
     this.aggregateBac = 0,
     this.aggregatePlannedValue = 0,
     this.aggregateEarnedValue = 0,
@@ -363,7 +381,9 @@ class ProjectDataModel {
     this.aggregateSv = 0,
     this.aggregateTcpi = 0,
     this.evmLastRecalculated,
+    Set<String>? confirmedPages,
   })  : potentialSolutions = potentialSolutions ?? [],
+        confirmedPages = confirmedPages ?? {},
         solutionRisks = solutionRisks ?? [],
         contractors = contractors ?? [],
         vendors = vendors ?? [],
@@ -404,7 +424,6 @@ class ProjectDataModel {
         designDeliverablesData =
             designDeliverablesData ?? DesignDeliverablesData(),
         projectRoles = projectRoles ?? [],
-        raciMatrixRows = raciMatrixRows ?? [],
         staffingRequirements = staffingRequirements ?? [],
         planningInfrastructureItems = planningInfrastructureItems ?? [],
         trainingActivities = trainingActivities ?? [],
@@ -416,6 +435,8 @@ class ProjectDataModel {
         engagementPlanEntries = engagementPlanEntries ?? [],
         fieldHistories = fieldHistories ?? {},
         costBenefitCurrency = costBenefitCurrency ?? 'USD',
+        planningContracts = planningContracts ?? [],
+        rateCards = rateCards ?? [],
         withinScopeItems = withinScopeItems ??
             (withinScope
                     ?.map((e) => PlanningDashboardItem(description: e))
@@ -501,7 +522,6 @@ class ProjectDataModel {
     InfrastructureConsiderationsData? infrastructureConsiderationsData,
     CoreStakeholdersData? coreStakeholdersData,
     List<RoleDefinition>? projectRoles,
-    List<RaciMatrixRow>? raciMatrixRows,
     List<StaffingRequirement>? staffingRequirements,
     List<InfrastructurePlanningItem>? planningInfrastructureItems,
     List<TrainingActivity>? trainingActivities,
@@ -553,6 +573,18 @@ class ProjectDataModel {
     List<ScheduleActivity>? scheduleBaselineActivities,
     String? scheduleBaselineDate,
     List<WorkPackage>? workPackages,
+    Set<String>? confirmedPages,
+    // Planning Phase: Contract Tracking
+    List<PlanningContract>? planningContracts,
+    // Planning Phase: Personnel Rate Cards
+    List<RateCard>? rateCards,
+    // Planning Phase: Cost of Quality
+    CostOfQualityData? costOfQualityData,
+    // Organisation Plan: Base Configuration
+    String? orgStaffingSource,
+    String? orgWorkingHours,
+    String? orgLocation,
+    String? orgCommunicationMode,
   }) {
     List<PlanningDashboardItem> resolveDashboardItems({
       required List<PlanningDashboardItem>? explicitItems,
@@ -652,7 +684,6 @@ class ProjectDataModel {
           this.infrastructureConsiderationsData,
       coreStakeholdersData: coreStakeholdersData ?? this.coreStakeholdersData,
       projectRoles: projectRoles ?? this.projectRoles,
-      raciMatrixRows: raciMatrixRows ?? this.raciMatrixRows,
       staffingRequirements: staffingRequirements ?? this.staffingRequirements,
       planningInfrastructureItems:
           planningInfrastructureItems ?? this.planningInfrastructureItems,
@@ -683,8 +714,7 @@ class ProjectDataModel {
       obsElements: obsElements ?? this.obsElements,
       cbsElements: cbsElements ?? this.cbsElements,
       aggregateBac: aggregateBac ?? this.aggregateBac,
-      aggregatePlannedValue:
-          aggregatePlannedValue ?? this.aggregatePlannedValue,
+      aggregatePlannedValue: aggregatePlannedValue ?? this.aggregatePlannedValue,
       aggregateEarnedValue: aggregateEarnedValue ?? this.aggregateEarnedValue,
       aggregateActualCost: aggregateActualCost ?? this.aggregateActualCost,
       aggregateCpi: aggregateCpi ?? this.aggregateCpi,
@@ -718,6 +748,15 @@ class ProjectDataModel {
         legacyItems: constraints,
         currentItems: this.constraintItems,
       ),
+      confirmedPages: confirmedPages ?? this.confirmedPages,
+      planningContracts: planningContracts ?? this.planningContracts,
+      rateCards: rateCards ?? this.rateCards,
+      costOfQualityData: costOfQualityData ?? this.costOfQualityData,
+      orgStaffingSource: orgStaffingSource ?? this.orgStaffingSource,
+      orgWorkingHours: orgWorkingHours ?? this.orgWorkingHours,
+      orgLocation: orgLocation ?? this.orgLocation,
+      orgCommunicationMode:
+          orgCommunicationMode ?? this.orgCommunicationMode,
     );
   }
 
@@ -804,8 +843,7 @@ class ProjectDataModel {
       'frontEndPlanning': frontEndPlanning.toJson(),
       'ssherData': ssherData.toJson(),
       'teamMembers': teamMembers.map((m) => m.toJson()).toList(),
-      'teamMemberEmails':
-          teamMembers.map((m) => m.email).where((e) => e.isNotEmpty).toList(),
+      'teamMemberEmails': teamMembers.map((m) => m.email).where((e) => e.isNotEmpty).toList(),
       'launchChecklistItems':
           launchChecklistItems.map((item) => item.toJson()).toList(),
       if (costAnalysisData != null)
@@ -821,7 +859,6 @@ class ProjectDataModel {
       if (coreStakeholdersData != null)
         'coreStakeholdersData': coreStakeholdersData!.toJson(),
       'projectRoles': projectRoles.map((r) => r.toJson()).toList(),
-      'raciMatrixRows': raciMatrixRows.map((r) => r.toJson()).toList(),
       'staffingRequirements':
           staffingRequirements.map((s) => s.toJson()).toList(),
       'planningInfrastructureItems':
@@ -842,6 +879,15 @@ class ProjectDataModel {
           fieldHistories.map((key, value) => MapEntry(key, value.toJson())),
       'costBenefitCurrency': costBenefitCurrency,
       'preferredSolutionId': preferredSolutionId,
+      'confirmedPages': confirmedPages.toList(),
+      'planningContracts': planningContracts.map((c) => c.toJson()).toList(),
+      'rateCards': rateCards.map((r) => r.toJson()).toList(),
+      if (costOfQualityData != null)
+        'costOfQualityData': costOfQualityData!.toJson(),
+      'orgStaffingSource': orgStaffingSource,
+      'orgWorkingHours': orgWorkingHours,
+      'orgLocation': orgLocation,
+      'orgCommunicationMode': orgCommunicationMode,
       'stakeholderEntries': stakeholderEntries.map((e) => e.toJson()).toList(),
       'engagementPlanEntries':
           engagementPlanEntries.map((e) => e.toJson()).toList(),
@@ -1090,9 +1136,8 @@ class ProjectDataModel {
           safeParseSingle('costAnalysisData', CostAnalysisData.fromJson),
       costEstimateItems:
           safeParseList('costEstimateItems', CostEstimateItem.fromJson),
-      managementReserve: (json['managementReserve'] is num)
-          ? (json['managementReserve'] as num).toDouble()
-          : 0.0,
+      managementReserve:
+          (json['managementReserve'] is num) ? (json['managementReserve'] as num).toDouble() : 0.0,
       itConsiderationsData: safeParseSingle(
           'itConsiderationsData', ITConsiderationsData.fromJson),
       infrastructureConsiderationsData: safeParseSingle(
@@ -1101,7 +1146,6 @@ class ProjectDataModel {
       coreStakeholdersData: safeParseSingle(
           'coreStakeholdersData', CoreStakeholdersData.fromJson),
       projectRoles: safeParseList('projectRoles', RoleDefinition.fromJson),
-      raciMatrixRows: safeParseList('raciMatrixRows', RaciMatrixRow.fromJson),
       staffingRequirements:
           safeParseList('staffingRequirements', StaffingRequirement.fromJson),
       planningInfrastructureItems: safeParseList(
@@ -1170,6 +1214,19 @@ class ProjectDataModel {
           : {},
       costBenefitCurrency: json['costBenefitCurrency']?.toString() ?? 'USD',
       preferredSolutionId: json['preferredSolutionId']?.toString(),
+      confirmedPages: json['confirmedPages'] != null
+          ? Set<String>.from(json['confirmedPages'] as List)
+          : <String>{},
+      planningContracts:
+          safeParseList('planningContracts', PlanningContract.fromJson),
+      rateCards: safeParseList('rateCards', RateCard.fromJson),
+      costOfQualityData:
+          safeParseSingle('costOfQualityData', CostOfQualityData.fromJson),
+      orgStaffingSource: json['orgStaffingSource']?.toString() ?? '',
+      orgWorkingHours: json['orgWorkingHours']?.toString() ?? '40 hours/week',
+      orgLocation: json['orgLocation']?.toString() ?? '',
+      orgCommunicationMode:
+          json['orgCommunicationMode']?.toString() ?? '',
       stakeholderEntries: (json['stakeholderEntries'] as List?)
               ?.map((e) => StakeholderEntry.fromJson(e))
               .toList() ??
@@ -1186,42 +1243,18 @@ class ProjectDataModel {
           safeParseList('controlAccounts', ControlAccount.fromJson),
       obsElements: safeParseList('obsElements', ObsElement.fromJson),
       cbsElements: safeParseList('cbsElements', CbsElement.fromJson),
-      aggregateBac: (json['aggregateBac'] is num)
-          ? (json['aggregateBac'] as num).toDouble()
-          : 0.0,
-      aggregatePlannedValue: (json['aggregatePlannedValue'] is num)
-          ? (json['aggregatePlannedValue'] as num).toDouble()
-          : 0.0,
-      aggregateEarnedValue: (json['aggregateEarnedValue'] is num)
-          ? (json['aggregateEarnedValue'] as num).toDouble()
-          : 0.0,
-      aggregateActualCost: (json['aggregateActualCost'] is num)
-          ? (json['aggregateActualCost'] as num).toDouble()
-          : 0.0,
-      aggregateCpi: (json['aggregateCpi'] is num)
-          ? (json['aggregateCpi'] as num).toDouble()
-          : 1.0,
-      aggregateSpi: (json['aggregateSpi'] is num)
-          ? (json['aggregateSpi'] as num).toDouble()
-          : 1.0,
-      aggregateEac: (json['aggregateEac'] is num)
-          ? (json['aggregateEac'] as num).toDouble()
-          : 0.0,
-      aggregateEtc: (json['aggregateEtc'] is num)
-          ? (json['aggregateEtc'] as num).toDouble()
-          : 0.0,
-      aggregateVac: (json['aggregateVac'] is num)
-          ? (json['aggregateVac'] as num).toDouble()
-          : 0.0,
-      aggregateCv: (json['aggregateCv'] is num)
-          ? (json['aggregateCv'] as num).toDouble()
-          : 0.0,
-      aggregateSv: (json['aggregateSv'] is num)
-          ? (json['aggregateSv'] as num).toDouble()
-          : 0.0,
-      aggregateTcpi: (json['aggregateTcpi'] is num)
-          ? (json['aggregateTcpi'] as num).toDouble()
-          : 0.0,
+      aggregateBac: (json['aggregateBac'] is num) ? (json['aggregateBac'] as num).toDouble() : 0.0,
+      aggregatePlannedValue: (json['aggregatePlannedValue'] is num) ? (json['aggregatePlannedValue'] as num).toDouble() : 0.0,
+      aggregateEarnedValue: (json['aggregateEarnedValue'] is num) ? (json['aggregateEarnedValue'] as num).toDouble() : 0.0,
+      aggregateActualCost: (json['aggregateActualCost'] is num) ? (json['aggregateActualCost'] as num).toDouble() : 0.0,
+      aggregateCpi: (json['aggregateCpi'] is num) ? (json['aggregateCpi'] as num).toDouble() : 1.0,
+      aggregateSpi: (json['aggregateSpi'] is num) ? (json['aggregateSpi'] as num).toDouble() : 1.0,
+      aggregateEac: (json['aggregateEac'] is num) ? (json['aggregateEac'] as num).toDouble() : 0.0,
+      aggregateEtc: (json['aggregateEtc'] is num) ? (json['aggregateEtc'] as num).toDouble() : 0.0,
+      aggregateVac: (json['aggregateVac'] is num) ? (json['aggregateVac'] as num).toDouble() : 0.0,
+      aggregateCv: (json['aggregateCv'] is num) ? (json['aggregateCv'] as num).toDouble() : 0.0,
+      aggregateSv: (json['aggregateSv'] is num) ? (json['aggregateSv'] as num).toDouble() : 0.0,
+      aggregateTcpi: (json['aggregateTcpi'] is num) ? (json['aggregateTcpi'] as num).toDouble() : 0.0,
       evmLastRecalculated: safeParseDateTime('evmLastRecalculated'),
 
       // Load New Structured Data
@@ -1249,7 +1282,8 @@ class ProjectDataModel {
       aggAc += ca.actualCost;
       // Sum planned value from period data
       final now = DateTime.now();
-      final currentKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+      final currentKey =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}';
       for (final entry in ca.plannedValueByPeriod.entries) {
         if (entry.key.compareTo(currentKey) <= 0) {
           aggPv += entry.value;
@@ -1387,37 +1421,29 @@ class ProjectGoal {
 }
 
 class PlanningGoal {
-  String id;
   int goalNumber;
   String title;
   String description;
   String targetYear;
   String priority;
-  List<String> milestoneIds;
   List<PlanningMilestone> milestones;
 
   PlanningGoal({
-    String? id,
     required this.goalNumber,
     this.title = '',
     this.description = '',
     this.targetYear = '',
     this.priority = 'Medium Priority',
-    List<String>? milestoneIds,
     List<PlanningMilestone>? milestones,
-  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        milestoneIds = milestoneIds ?? [],
-        milestones = milestones ?? [PlanningMilestone()];
+  }) : milestones = milestones ?? [PlanningMilestone()];
 
   Map<String, dynamic> toJson() => {
-        'id': id,
         'goalNumber': goalNumber,
         'title': title,
         'description': description,
         'targetYear': targetYear,
         'priority': priority,
         'isHighPriority': priority == 'High Priority',
-        'milestoneIds': milestoneIds,
         'milestones': milestones.map((m) => m.toJson()).toList(),
       };
 
@@ -1425,7 +1451,6 @@ class PlanningGoal {
     final rawPriority = json['priority']?.toString() ?? '';
     final legacyHigh = json['isHighPriority'] == true;
     return PlanningGoal(
-      id: json['id']?.toString(),
       goalNumber: json['goalNumber'] ?? 1,
       title: json['title'] ?? '',
       description: json['description'] ?? '',
@@ -1433,11 +1458,6 @@ class PlanningGoal {
       priority: rawPriority.isNotEmpty
           ? rawPriority
           : (legacyHigh ? 'High Priority' : 'Medium Priority'),
-      milestoneIds: (json['milestoneIds'] as List?)
-              ?.map((m) => m.toString())
-              .where((m) => m.trim().isNotEmpty)
-              .toList() ??
-          const [],
       milestones: (json['milestones'] as List?)
               ?.map((m) => PlanningMilestone.fromJson(m))
               .toList() ??
@@ -1537,7 +1557,6 @@ class LaunchChecklistItem {
 }
 
 class Milestone {
-  String id;
   String name;
   String discipline;
   String dueDate;
@@ -1545,18 +1564,14 @@ class Milestone {
   String comments;
 
   Milestone({
-    String? id,
     this.name = '',
     this.discipline = '',
     this.dueDate = '',
     this.references = '',
     this.comments = '',
-  }) : id = (id == null || id.trim().isEmpty)
-          ? DateTime.now().microsecondsSinceEpoch.toString()
-          : id;
+  });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
         'name': name,
         'discipline': discipline,
         'dueDate': dueDate,
@@ -1565,9 +1580,7 @@ class Milestone {
       };
 
   factory Milestone.fromJson(Map<String, dynamic> json) {
-    final rawId = json['id']?.toString();
     return Milestone(
-      id: (rawId == null || rawId.trim().isEmpty) ? null : rawId,
       name: json['name'] ?? '',
       discipline: json['discipline'] ?? '',
       dueDate: json['dueDate'] ?? '',
@@ -1785,8 +1798,7 @@ class ScheduleActivity {
   bool isCriticalPath;
   int totalFloat;
   String controlAccountId;
-  String
-      progressMeasurementMethod; // 'zeroHundred' | 'fiftyFifty' | 'percentComplete' | ...
+  String progressMeasurementMethod; // 'zeroHundred' | 'fiftyFifty' | 'percentComplete' | ...
 
   // ── P3.5: Percent complete, resource assignments, cost ──
   double percentComplete; // 0-1 for EVM calculation
@@ -1944,9 +1956,10 @@ class ScheduleActivity {
       percentComplete: json['percentComplete'] is num
           ? (json['percentComplete'] as num).toDouble().clamp(0, 1)
           : 0,
-      resourceIds:
-          (json['resourceIds'] as List?)?.map((e) => e.toString()).toList() ??
-              [],
+      resourceIds: (json['resourceIds'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
       estimatedCost: json['estimatedCost'] is num
           ? (json['estimatedCost'] as num).toDouble()
           : 0,
@@ -2186,6 +2199,8 @@ class FrontEndPlanningData {
   // Success Criteria items
   List<PlanningDashboardItem> successCriteriaItems;
   bool detailsConfirmed;
+  bool summaryConfirmed;
+  bool reqConfirmed;
 
   FrontEndPlanningData({
     this.requirements = '',
@@ -2211,6 +2226,8 @@ class FrontEndPlanningData {
     this.businessCaseLocked = false,
     this.skippedBusinessCase = false,
     this.detailsConfirmed = false,
+    this.summaryConfirmed = false,
+    this.reqConfirmed = false,
     List<RequirementItem>? requirementItems,
     List<ScenarioRecord>? scenarioMatrixItems,
     List<RoleItem>? securityRoles,
@@ -2287,6 +2304,8 @@ class FrontEndPlanningData {
     List<OpportunityItem>? opportunityItems,
     List<PlanningDashboardItem>? successCriteriaItems,
     bool? detailsConfirmed,
+    bool? summaryConfirmed,
+    bool? reqConfirmed,
   }) {
     return FrontEndPlanningData(
       requirements: requirements ?? this.requirements,
@@ -2331,6 +2350,8 @@ class FrontEndPlanningData {
       opportunityItems: opportunityItems ?? this.opportunityItems,
       successCriteriaItems: successCriteriaItems ?? this.successCriteriaItems,
       detailsConfirmed: detailsConfirmed ?? this.detailsConfirmed,
+      summaryConfirmed: summaryConfirmed ?? this.summaryConfirmed,
+      reqConfirmed: reqConfirmed ?? this.reqConfirmed,
     );
   }
 
@@ -2388,6 +2409,8 @@ class FrontEndPlanningData {
         'securityAccessLogs':
             securityAccessLogs.map((a) => a.toJson()).toList(),
         'detailsConfirmed': detailsConfirmed,
+        'summaryConfirmed': summaryConfirmed,
+        'reqConfirmed': reqConfirmed,
       };
 
   factory FrontEndPlanningData.fromJson(Map<String, dynamic> json) {
@@ -2496,6 +2519,8 @@ class FrontEndPlanningData {
               .toList() ??
           [],
       detailsConfirmed: json['detailsConfirmed'] ?? false,
+      summaryConfirmed: json['summaryConfirmed'] ?? false,
+      reqConfirmed: json['reqConfirmed'] ?? false,
     );
   }
 }
@@ -2773,9 +2798,6 @@ class OpportunityItem {
   String assignedTo;
   String impact;
 
-  /// Whether this opportunity has been accepted (applied to cost estimate)
-  bool isAccepted;
-
   OpportunityItem({
     required this.id,
     this.opportunity = '',
@@ -2791,32 +2813,7 @@ class OpportunityItem {
     this.appliesTo = const [],
     this.assignedTo = '',
     this.impact = 'Medium',
-    this.isAccepted = false,
   });
-
-  OpportunityItem copyWithAcceptance({required bool accepted}) {
-    // Build the appliesTo list immutably — add 'Estimate' when accepting
-    final newAppliesTo = accepted && !appliesTo.contains('Estimate')
-        ? [...appliesTo, 'Estimate']
-        : List<String>.from(appliesTo);
-    return OpportunityItem(
-      id: id,
-      opportunity: opportunity,
-      discipline: discipline,
-      stakeholder: stakeholder,
-      responsibleRole: responsibleRole,
-      potentialCostSavings: potentialCostSavings,
-      potentialScheduleSavings: potentialScheduleSavings,
-      implementationStrategy: implementationStrategy,
-      applicablePhase: applicablePhase,
-      owner: owner,
-      status: status,
-      appliesTo: newAppliesTo,
-      assignedTo: assignedTo,
-      impact: impact,
-      isAccepted: accepted,
-    );
-  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -2833,7 +2830,6 @@ class OpportunityItem {
         'appliesTo': appliesTo,
         'assignedTo': assignedTo,
         'impact': impact,
-        'isAccepted': isAccepted,
       };
 
   factory OpportunityItem.fromJson(Map<String, dynamic> json) {
@@ -2864,7 +2860,6 @@ class OpportunityItem {
       appliesTo: appliesTo,
       assignedTo: json['assignedTo']?.toString() ?? '',
       impact: json['impact']?.toString() ?? 'Medium',
-      isAccepted: json['isAccepted'] == true,
     );
   }
 }
@@ -2886,39 +2881,28 @@ class RiskRegisterItem {
   // ── P3.6: Quantitative risk analysis fields ──
   /// Numeric probability (0-1) for EMV and Monte Carlo calculations.
   double probabilityNumeric;
-
   /// Minimum cost impact if risk materializes.
   double costImpactMin;
-
   /// Most likely cost impact if risk materializes.
   double costImpactMostLikely;
-
   /// Maximum cost impact if risk materializes.
   double costImpactMax;
-
   /// Minimum schedule impact (days) if risk materializes.
   int scheduleImpactMin;
-
   /// Most likely schedule impact (days) if risk materializes.
   int scheduleImpactMostLikely;
-
   /// Maximum schedule impact (days) if risk materializes.
   int scheduleImpactMax;
-
   /// Control Account ID affected by this risk.
   String controlAccountId;
-
   /// CBS element ID for cost risk allocation.
   String cbsId;
-
   /// Whether this is a threat (negative) or opportunity (positive).
   String riskType; // 'threat' | 'opportunity'
   /// Risk response strategy category.
-  String
-      responseStrategy; // 'avoid' | 'mitigate' | 'transfer' | 'accept' | 'exploit' | 'enhance' | 'share'
+  String responseStrategy; // 'avoid' | 'mitigate' | 'transfer' | 'accept' | 'exploit' | 'enhance' | 'share'
   /// Residual probability after mitigation.
   double? residualProbability;
-
   /// Residual cost impact after mitigation.
   double? residualCostImpact;
 
@@ -2960,7 +2944,9 @@ class RiskRegisterItem {
 
   /// PERT mean of schedule impact = (min + 4×mostLikely + max) / 6.
   double get pertScheduleImpact =>
-      (scheduleImpactMin + 4 * scheduleImpactMostLikely + scheduleImpactMax) /
+      (scheduleImpactMin +
+          4 * scheduleImpactMostLikely +
+          scheduleImpactMax) /
       6;
 
   /// Residual EMV after mitigation.
@@ -3383,6 +3369,10 @@ class SsherEntry {
   String concern;
   String riskLevel;
   String mitigation;
+  String linkedWbsId;
+  String linkedCostItemId;
+  String linkedRequirementId;
+  String traceabilityNotes;
 
   SsherEntry({
     String? id,
@@ -3392,6 +3382,10 @@ class SsherEntry {
     this.concern = '',
     this.riskLevel = '',
     this.mitigation = '',
+    this.linkedWbsId = '',
+    this.linkedCostItemId = '',
+    this.linkedRequirementId = '',
+    this.traceabilityNotes = '',
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   Map<String, dynamic> toJson() => {
@@ -3402,17 +3396,25 @@ class SsherEntry {
         'concern': concern,
         'riskLevel': riskLevel,
         'mitigation': mitigation,
+        'linkedWbsId': linkedWbsId,
+        'linkedCostItemId': linkedCostItemId,
+        'linkedRequirementId': linkedRequirementId,
+        'traceabilityNotes': traceabilityNotes,
       };
 
   factory SsherEntry.fromJson(Map<String, dynamic> json) {
     return SsherEntry(
-      id: json['id'] ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      category: json['category'] ?? '',
-      department: json['department'] ?? '',
-      teamMember: json['teamMember'] ?? '',
-      concern: json['concern'] ?? '',
-      riskLevel: json['riskLevel'] ?? '',
-      mitigation: json['mitigation'] ?? '',
+      id: json['id']?.toString(),
+      category: json['category']?.toString() ?? '',
+      department: json['department']?.toString() ?? '',
+      teamMember: json['teamMember']?.toString() ?? '',
+      concern: json['concern']?.toString() ?? '',
+      riskLevel: json['riskLevel']?.toString() ?? '',
+      mitigation: json['mitigation']?.toString() ?? '',
+      linkedWbsId: json['linkedWbsId']?.toString() ?? '',
+      linkedCostItemId: json['linkedCostItemId']?.toString() ?? '',
+      linkedRequirementId: json['linkedRequirementId']?.toString() ?? '',
+      traceabilityNotes: json['traceabilityNotes']?.toString() ?? '',
     );
   }
 }
@@ -3841,11 +3843,9 @@ class CostEstimateItem {
   // Structured BOE fields (P1)
   String scopeIncluded;
   String scopeExcluded;
-  String
-      designMaturity; // '10%' | '30%' | '60%' | '90%' | 'IFC' | 'AsBuilt' | ''
+  String designMaturity; // '10%' | '30%' | '60%' | '90%' | 'IFC' | 'AsBuilt' | ''
   String designMaturityNote;
-  String
-      rateSource; // 'vendor_quote' | 'historical' | 'published_index' | 'benchmark' | 'expert_judgment' | ''
+  String rateSource; // 'vendor_quote' | 'historical' | 'published_index' | 'benchmark' | 'expert_judgment' | ''
   // PERT risk ranges (P1)
   double rangeLow;
   double rangeHigh;
@@ -4028,15 +4028,12 @@ class WorkPackage {
   String acceptingCriteria;
   String designPackageId;
   List<String> procurementItemIds;
-  List<String> milestoneIds;
   String areaOrSystem;
   String contractorOrCrew;
   String releaseStatus;
-
   /// Date when the EWP was released for execution (Guide Step 2 / Fix 1.4).
   /// Null means not yet released. Only set when releaseStatus is 'released'.
   String? releaseForExecutionDate;
-
   /// IDs of design specification rows from DesignPlanningDocument
   /// that are linked to this package (Guide Step 2 / Fix 1.2).
   /// For EWPs, these are the specs this package must produce deliverables for.
@@ -4095,7 +4092,6 @@ class WorkPackage {
     this.acceptingCriteria = '',
     this.designPackageId = '',
     List<String>? procurementItemIds,
-    List<String>? milestoneIds,
     this.areaOrSystem = '',
     this.contractorOrCrew = '',
     this.releaseStatus = 'draft',
@@ -4119,8 +4115,8 @@ class WorkPackage {
         requirementIds = requirementIds ?? [],
         deliverables = deliverables ?? [],
         procurementItemIds = procurementItemIds ?? [],
-        milestoneIds = milestoneIds ?? [],
-        linkedDesignSpecificationIds = linkedDesignSpecificationIds ?? [],
+        linkedDesignSpecificationIds =
+            linkedDesignSpecificationIds ?? [],
         readiness = readiness ?? PackageReadinessChecklist(),
         estimateBasis = estimateBasis ?? PackageEstimateBasis(),
         procurementBreakdown =
@@ -4165,7 +4161,6 @@ class WorkPackage {
         'acceptingCriteria': acceptingCriteria,
         'designPackageId': designPackageId,
         'procurementItemIds': procurementItemIds,
-        'milestoneIds': milestoneIds,
         'areaOrSystem': areaOrSystem,
         'contractorOrCrew': contractorOrCrew,
         'releaseStatus': releaseStatus,
@@ -4260,14 +4255,11 @@ class WorkPackage {
               ?.map((e) => e.toString())
               .toList() ??
           [],
-      milestoneIds: (json['milestoneIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
       areaOrSystem: json['areaOrSystem']?.toString() ?? '',
       contractorOrCrew: json['contractorOrCrew']?.toString() ?? '',
       releaseStatus: json['releaseStatus']?.toString() ?? 'draft',
-      releaseForExecutionDate: json['releaseForExecutionDate']?.toString(),
+      releaseForExecutionDate:
+          json['releaseForExecutionDate']?.toString(),
       linkedDesignSpecificationIds:
           (json['linkedDesignSpecificationIds'] as List?)
                   ?.map((e) => e.toString())
@@ -4335,7 +4327,6 @@ class WorkPackage {
     String? acceptingCriteria,
     String? designPackageId,
     List<String>? procurementItemIds,
-    List<String>? milestoneIds,
     String? areaOrSystem,
     String? contractorOrCrew,
     String? releaseStatus,
@@ -4389,14 +4380,14 @@ class WorkPackage {
       acceptingCriteria: acceptingCriteria ?? this.acceptingCriteria,
       designPackageId: designPackageId ?? this.designPackageId,
       procurementItemIds: procurementItemIds ?? this.procurementItemIds,
-      milestoneIds: milestoneIds ?? this.milestoneIds,
       areaOrSystem: areaOrSystem ?? this.areaOrSystem,
       contractorOrCrew: contractorOrCrew ?? this.contractorOrCrew,
       releaseStatus: releaseStatus ?? this.releaseStatus,
       releaseForExecutionDate:
           releaseForExecutionDate ?? this.releaseForExecutionDate,
       linkedDesignSpecificationIds:
-          linkedDesignSpecificationIds ?? this.linkedDesignSpecificationIds,
+          linkedDesignSpecificationIds ??
+              this.linkedDesignSpecificationIds,
       readiness: readiness ?? this.readiness,
       estimateBasis: estimateBasis ?? this.estimateBasis,
       procurementBreakdown: procurementBreakdown ?? this.procurementBreakdown,
@@ -4415,18 +4406,15 @@ class PackageDeliverable {
   String status;
   String reference;
   String notes;
-
   /// IDs of procurement packages that this deliverable feeds into.
   /// Enables design-to-procurement traceability (Guide Step 3):
   /// each EWP output that must be purchased or contracted links
   /// directly to the procurement package it triggers.
   List<String> feedsProcurementPackageIds;
-
   /// IDs of design specification rows from DesignPlanningDocument
   /// that this deliverable fulfills. Provides traceability from
   /// design specifications → EWP deliverables.
   List<String> linkedSpecificationIds;
-
   /// Whether this deliverable is required for procurement.
   /// When true, the linked procurement package cannot start
   /// until this deliverable reaches 'released' status.
@@ -4469,10 +4457,11 @@ class PackageDeliverable {
       status: json['status']?.toString() ?? 'planned',
       reference: json['reference']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
-      feedsProcurementPackageIds: (json['feedsProcurementPackageIds'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
+      feedsProcurementPackageIds:
+          (json['feedsProcurementPackageIds'] as List?)
+                  ?.map((e) => e.toString())
+                  .toList() ??
+              [],
       linkedSpecificationIds: (json['linkedSpecificationIds'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
@@ -4747,8 +4736,7 @@ class PackageProcurementBreakdown {
       rfqDate: rfqDate ?? this.rfqDate,
       awardDate: awardDate ?? this.awardDate,
       deliveryDate: deliveryDate ?? this.deliveryDate,
-      requiredByMilestoneId:
-          requiredByMilestoneId ?? this.requiredByMilestoneId,
+      requiredByMilestoneId: requiredByMilestoneId ?? this.requiredByMilestoneId,
       vendorScope: vendorScope ?? this.vendorScope,
       activities: activities ?? this.activities,
     );
@@ -5988,6 +5976,9 @@ class RoleDefinition {
   String description;
   String workstream;
   bool isPredefined;
+  // Auto-describe support
+  String standardDescription; // Pre-written description from role library
+  String source; // 'predefined' | 'security_import' | 'ai_generated' | 'custom'
 
   RoleDefinition({
     String? id,
@@ -5995,6 +5986,8 @@ class RoleDefinition {
     this.description = '',
     this.workstream = '',
     this.isPredefined = false,
+    this.standardDescription = '',
+    this.source = 'custom',
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   Map<String, dynamic> toJson() => {
@@ -6003,6 +5996,8 @@ class RoleDefinition {
         'description': description,
         'workstream': workstream,
         'isPredefined': isPredefined,
+        'standardDescription': standardDescription,
+        'source': source,
       };
 
   factory RoleDefinition.fromJson(Map<String, dynamic> json) {
@@ -6012,59 +6007,8 @@ class RoleDefinition {
       description: json['description']?.toString() ?? '',
       workstream: json['workstream']?.toString() ?? '',
       isPredefined: json['isPredefined'] == true,
-    );
-  }
-}
-
-class RaciMatrixRow {
-  String id;
-  String role;
-  String framework;
-  String discipline;
-  Map<String, String> assignments;
-
-  RaciMatrixRow({
-    String? id,
-    this.role = '',
-    this.framework = '',
-    this.discipline = '',
-    Map<String, String>? assignments,
-  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
-        assignments = assignments ?? <String, String>{};
-
-  RaciMatrixRow copyWith({
-    String? id,
-    String? role,
-    String? framework,
-    String? discipline,
-    Map<String, String>? assignments,
-  }) {
-    return RaciMatrixRow(
-      id: id ?? this.id,
-      role: role ?? this.role,
-      framework: framework ?? this.framework,
-      discipline: discipline ?? this.discipline,
-      assignments: assignments ?? Map<String, String>.from(this.assignments),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'role': role,
-        'framework': framework,
-        'discipline': discipline,
-        'assignments': assignments,
-      };
-
-  factory RaciMatrixRow.fromJson(Map<String, dynamic> json) {
-    return RaciMatrixRow(
-      id: json['id']?.toString(),
-      role: json['role']?.toString() ?? '',
-      framework: json['framework']?.toString() ?? '',
-      discipline: json['discipline']?.toString() ?? '',
-      assignments: (json['assignments'] as Map?)?.map((key, value) =>
-              MapEntry(key.toString(), value?.toString() ?? '')) ??
-          <String, String>{},
+      standardDescription: json['standardDescription']?.toString() ?? '',
+      source: json['source']?.toString() ?? 'custom',
     );
   }
 }
@@ -6083,6 +6027,10 @@ class StaffingRequirement {
   String location;
   String employeeType; // e.g., Employee, Contractor
   String notes;
+  // Rate tier linkage
+  String rateTierId; // Links to RateCard.rates[].id
+  String rateCardRef; // Reference to which rate card was used
+  double burdenRate; // Overhead multiplier (e.g., 1.35 = 35% burden)
 
   StaffingRequirement({
     String? id,
@@ -6098,6 +6046,9 @@ class StaffingRequirement {
     this.location = '',
     this.employeeType = 'Employee',
     this.notes = '',
+    this.rateTierId = '',
+    this.rateCardRef = '',
+    this.burdenRate = 0,
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   double get estimatedTotal => headcount * monthlyCost * plannedMonths;
@@ -6116,6 +6067,9 @@ class StaffingRequirement {
         'location': location,
         'employeeType': employeeType,
         'notes': notes,
+        'rateTierId': rateTierId,
+        'rateCardRef': rateCardRef,
+        'burdenRate': burdenRate,
       };
 
   factory StaffingRequirement.fromJson(Map<String, dynamic> json) {
@@ -6137,6 +6091,11 @@ class StaffingRequirement {
       location: json['location']?.toString() ?? '',
       employeeType: json['employeeType']?.toString() ?? 'Employee',
       notes: json['notes']?.toString() ?? '',
+      rateTierId: json['rateTierId']?.toString() ?? '',
+      rateCardRef: json['rateCardRef']?.toString() ?? '',
+      burdenRate: json['burdenRate'] is num
+          ? (json['burdenRate'] as num).toDouble()
+          : 0,
     );
   }
 
@@ -6153,6 +6112,9 @@ class StaffingRequirement {
     String? location,
     String? employeeType,
     String? notes,
+    String? rateTierId,
+    String? rateCardRef,
+    double? burdenRate,
   }) {
     return StaffingRequirement(
       id: id,
@@ -6168,6 +6130,9 @@ class StaffingRequirement {
       location: location ?? this.location,
       employeeType: employeeType ?? this.employeeType,
       notes: notes ?? this.notes,
+      rateTierId: rateTierId ?? this.rateTierId,
+      rateCardRef: rateCardRef ?? this.rateCardRef,
+      burdenRate: burdenRate ?? this.burdenRate,
     );
   }
 }
@@ -6279,6 +6244,7 @@ class StakeholderEntry {
   final String contactInfo;
   final String owner;
   final String notes;
+  final String otherTeams;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -6293,6 +6259,7 @@ class StakeholderEntry {
     required this.contactInfo,
     required this.owner,
     required this.notes,
+    this.otherTeams = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -6310,6 +6277,7 @@ class StakeholderEntry {
       contactInfo: '',
       owner: '',
       notes: '',
+      otherTeams: '',
       createdAt: now,
       updatedAt: now,
     );
@@ -6325,6 +6293,7 @@ class StakeholderEntry {
     String? contactInfo,
     String? owner,
     String? notes,
+    String? otherTeams,
     DateTime? updatedAt,
   }) {
     return StakeholderEntry(
@@ -6338,6 +6307,7 @@ class StakeholderEntry {
       contactInfo: contactInfo ?? this.contactInfo,
       owner: owner ?? this.owner,
       notes: notes ?? this.notes,
+      otherTeams: otherTeams ?? this.otherTeams,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -6354,6 +6324,7 @@ class StakeholderEntry {
         'contactInfo': contactInfo,
         'owner': owner,
         'notes': notes,
+        'otherTeams': otherTeams,
         'createdAt': createdAt.toIso8601String(),
         'updatedAt': updatedAt.toIso8601String(),
       };
@@ -6370,6 +6341,7 @@ class StakeholderEntry {
       contactInfo: json['contactInfo']?.toString() ?? '',
       owner: json['owner']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
+      otherTeams: json['otherTeams']?.toString() ?? '',
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? DateTime.now(),
     );
@@ -6935,6 +6907,11 @@ class QualityWorkflowControl {
   final String frequency;
   final String owner;
   final String standardsReference;
+  // Scope & cost fields for Cost of Quality tracking
+  final String performerScope; // 'Internal' | '3rd Party' | 'Regulatory'
+  final double estimatedCost;
+  final double actualCost;
+  final String linkedWbsReference;
 
   QualityWorkflowControl({
     required this.id,
@@ -6946,6 +6923,10 @@ class QualityWorkflowControl {
     required this.frequency,
     required this.owner,
     required this.standardsReference,
+    this.performerScope = 'Internal',
+    this.estimatedCost = 0,
+    this.actualCost = 0,
+    this.linkedWbsReference = '',
   });
 
   factory QualityWorkflowControl.empty(QualityWorkflowType type) =>
@@ -6971,6 +6952,10 @@ class QualityWorkflowControl {
         'frequency': frequency,
         'owner': owner,
         'standardsReference': standardsReference,
+        'performerScope': performerScope,
+        'estimatedCost': estimatedCost,
+        'actualCost': actualCost,
+        'linkedWbsReference': linkedWbsReference,
       };
 
   factory QualityWorkflowControl.fromJson(Map<String, dynamic> json) {
@@ -6984,6 +6969,14 @@ class QualityWorkflowControl {
       frequency: json['frequency']?.toString() ?? '',
       owner: json['owner']?.toString() ?? '',
       standardsReference: json['standardsReference']?.toString() ?? '',
+      performerScope: json['performerScope']?.toString() ?? 'Internal',
+      estimatedCost: json['estimatedCost'] is num
+          ? (json['estimatedCost'] as num).toDouble()
+          : 0,
+      actualCost: json['actualCost'] is num
+          ? (json['actualCost'] as num).toDouble()
+          : 0,
+      linkedWbsReference: json['linkedWbsReference']?.toString() ?? '',
     );
   }
 
@@ -6996,6 +6989,10 @@ class QualityWorkflowControl {
     String? frequency,
     String? owner,
     String? standardsReference,
+    String? performerScope,
+    double? estimatedCost,
+    double? actualCost,
+    String? linkedWbsReference,
   }) {
     return QualityWorkflowControl(
       id: id,
@@ -7007,6 +7004,10 @@ class QualityWorkflowControl {
       frequency: frequency ?? this.frequency,
       owner: owner ?? this.owner,
       standardsReference: standardsReference ?? this.standardsReference,
+      performerScope: performerScope ?? this.performerScope,
+      estimatedCost: estimatedCost ?? this.estimatedCost,
+      actualCost: actualCost ?? this.actualCost,
+      linkedWbsReference: linkedWbsReference ?? this.linkedWbsReference,
     );
   }
 }
@@ -8178,8 +8179,7 @@ class InterfaceEntry {
   final String notes;
 
   // PM-standard fields (Tier 1)
-  final String
-      interfaceType; // Technical, Contractual, Organizational, Physical, Procedural
+  final String interfaceType; // Technical, Contractual, Organizational, Physical, Procedural
   final String partyA; // Providing party
   final String partyB; // Receiving party
   final String priority; // High, Medium, Low
@@ -8283,8 +8283,7 @@ class InterfaceChangeLogEntry {
   final String id;
   final String interfaceId;
   final String interfaceName;
-  final String
-      action; // 'Created', 'Updated', 'Deleted', 'Status Changed', 'Imported'
+  final String action; // 'Created', 'Updated', 'Deleted', 'Status Changed', 'Imported'
   final String fieldName; // Which field changed (empty for Created/Deleted)
   final String oldValue; // Previous value (empty for Created)
   final String newValue; // New value (empty for Deleted)
