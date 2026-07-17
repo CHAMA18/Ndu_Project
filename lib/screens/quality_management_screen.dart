@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/cost_of_quality.dart';
 
 import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
@@ -23,7 +24,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
-enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics }
+enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics, coq }
 
 const _dateHint = 'Select date';
 
@@ -369,17 +370,26 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
  ? InnerPageSectionStatus.current
  : InnerPageSectionStatus.available,
  ),
- InnerPageSection(
- id: _QualityTab.metrics.name,
- label: 'Metrics',
- icon: Icons.analytics_outlined,
- stepNumber: 5,
- status: _selectedTab == _QualityTab.metrics
- ? InnerPageSectionStatus.current
- : InnerPageSectionStatus.available,
- ),
- ],
- );
+  InnerPageSection(
+  id: _QualityTab.metrics.name,
+  label: 'Metrics',
+  icon: Icons.analytics_outlined,
+  stepNumber: 5,
+  status: _selectedTab == _QualityTab.metrics
+  ? InnerPageSectionStatus.current
+  : InnerPageSectionStatus.available,
+  ),
+  InnerPageSection(
+  id: _QualityTab.coq.name,
+  label: 'Cost of Quality',
+  icon: Icons.account_balance_wallet_outlined,
+  stepNumber: 6,
+  status: _selectedTab == _QualityTab.coq
+  ? InnerPageSectionStatus.current
+  : InnerPageSectionStatus.available,
+  ),
+  ],
+  );
  }
 
  @override
@@ -685,12 +695,17 @@ class _TabStrip extends StatelessWidget {
  icon: Icons.fact_check_outlined,
  tab: _QualityTab.qcTracking,
  ),
- _TabData(
- label: 'Metrics',
- icon: Icons.analytics_outlined,
- tab: _QualityTab.metrics,
- ),
- ];
+  _TabData(
+  label: 'Metrics',
+  icon: Icons.analytics_outlined,
+  tab: _QualityTab.metrics,
+  ),
+  _TabData(
+  label: 'Cost of Quality',
+  icon: Icons.account_balance_wallet_outlined,
+  tab: _QualityTab.coq,
+  ),
+  ];
 
  return Container(
  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
@@ -799,8 +814,10 @@ class _TabContent extends StatelessWidget {
  return const _QaTrackingView();
  case _QualityTab.qcTracking:
  return const _QcTrackingView();
- case _QualityTab.metrics:
- return const _MetricsView();
+  case _QualityTab.metrics:
+  return const _MetricsView();
+  case _QualityTab.coq:
+  return const _CoqView();
  }
  }
 }
@@ -1306,10 +1323,10 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  : const Icon(Icons.auto_awesome),
  label: const Text('Generate from Context'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
- foregroundColor: Colors.white,
- elevation: 0,
- padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+  backgroundColor: const Color(0xFFFFC812),
+  foregroundColor: Colors.white,
+  elevation: 0,
+  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
  shape:
  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
  ),
@@ -1398,7 +1415,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
- style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFFFFC812), side: const BorderSide(color: Color(0xFF93C5FD))),
  ),
  const SizedBox(width: 8),
  ElevatedButton.icon(
@@ -5599,10 +5616,160 @@ class _TrendLinePainter extends CustomPainter {
  }
 
  @override
- bool shouldRepaint(covariant _TrendLinePainter oldDelegate) {
- return oldDelegate.values != values ||
- oldDelegate.lineColor != lineColor ||
- oldDelegate.areaColor != areaColor ||
- oldDelegate.maxYBuffer != maxYBuffer;
- }
+  bool shouldRepaint(covariant _TrendLinePainter oldDelegate) {
+  return oldDelegate.values != values ||
+  oldDelegate.lineColor != lineColor ||
+  oldDelegate.areaColor != areaColor ||
+  oldDelegate.maxYBuffer != maxYBuffer;
+  }
+}
+
+class _CoqView extends StatelessWidget {
+  const _CoqView();
+
+  @override
+  Widget build(BuildContext context) {
+    final data = ProjectDataHelper.getData(context);
+    final coq = data.costOfQualityData ?? CostOfQualityData();
+
+    Widget _buildCategoryCard({
+      required String title,
+      required String amount,
+      required IconData icon,
+      required Color color,
+    }) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0A000000),
+              blurRadius: 10,
+              offset: Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 12),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 13, color: Color(0xFF6B7280))),
+            const SizedBox(height: 4),
+            Text(amount,
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: color)),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Cost of Quality Summary',
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827))),
+          const SizedBox(height: 6),
+          const Text(
+            'Track prevention, appraisal, and failure costs across the project lifecycle.',
+            style:
+                TextStyle(fontSize: 13, color: Color(0xFF6B7280), height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              SizedBox(
+                width: 240,
+                child: _buildCategoryCard(
+                  title: 'Prevention Costs',
+                  amount: NumberFormat.simpleCurrency(decimalDigits: 0)
+                      .format(coq.totalPrevention),
+                  icon: Icons.shield_outlined,
+                  color: const Color(0xFF059669),
+                ),
+              ),
+              SizedBox(
+                width: 240,
+                child: _buildCategoryCard(
+                  title: 'Appraisal Costs',
+                  amount: NumberFormat.simpleCurrency(decimalDigits: 0)
+                      .format(coq.totalAppraisal),
+                  icon: Icons.search_outlined,
+                  color: const Color(0xFF0284C7),
+                ),
+              ),
+              SizedBox(
+                width: 240,
+                child: _buildCategoryCard(
+                  title: 'Internal Failure',
+                  amount: NumberFormat.simpleCurrency(decimalDigits: 0)
+                      .format(coq.totalInternalFailure),
+                  icon: Icons.warning_amber_outlined,
+                  color: const Color(0xFFD97706),
+                ),
+              ),
+              SizedBox(
+                width: 240,
+                child: _buildCategoryCard(
+                  title: 'External Failure',
+                  amount: NumberFormat.simpleCurrency(decimalDigits: 0)
+                      .format(coq.totalExternalFailure),
+                  icon: Icons.error_outline,
+                  color: const Color(0xFFDC2626),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E3A5F), Color(0xFF2D5F8A)],
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined,
+                    color: Colors.white, size: 32),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Total Cost of Quality',
+                        style: TextStyle(
+                            fontSize: 13, color: Colors.white70)),
+                    const SizedBox(height: 4),
+                    Text(
+                      NumberFormat.simpleCurrency(decimalDigits: 0)
+                          .format(coq.totalCoq),
+                      style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
