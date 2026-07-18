@@ -1053,20 +1053,23 @@ class _StatusStrip extends StatelessWidget {
  @override
  Widget build(BuildContext context) {
  final user = FirebaseAuth.instance.currentUser;
- void openProjectDashboard() {
+ void openWorkspaceDashboard({required bool isBasicPlan}) {
  Navigator.push(
  context,
  MaterialPageRoute(
-     builder: (_) => const ProjectWorkspaceDashboardScreen(isBasicPlan: false)),
+ builder: (_) => ProjectWorkspaceDashboardScreen(
+ isBasicPlan: isBasicPlan,
+ ),
+ ),
  );
  }
 
+ void openProjectDashboard() {
+ openWorkspaceDashboard(isBasicPlan: false);
+ }
+
  void openBasicDashboard() {
- Navigator.push(
- context,
- MaterialPageRoute(
-     builder: (_) => const ProjectWorkspaceDashboardScreen(isBasicPlan: true)),
- );
+ openWorkspaceDashboard(isBasicPlan: true);
  }
 
  void openProgramDashboard() {

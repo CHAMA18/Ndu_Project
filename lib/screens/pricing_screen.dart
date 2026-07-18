@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:ndu_project/routing/app_router.dart';
+import 'package:ndu_project/screens/landing_screen.dart';
 import 'package:ndu_project/screens/basic_plan_dashboard_screen.dart';
 import 'package:ndu_project/screens/program_dashboard_screen.dart';
 import 'package:ndu_project/screens/portfolio_dashboard_screen.dart';
@@ -12,11 +13,15 @@ import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+// World-class color palette
 const Color _pageBackground = Color(0xFFFFFFFF);
 const Color _primaryText = Color(0xFF0F0F0F);
-const Color _secondaryText = Color(0xFF5A5C60);
-const Color _themeColor = Color(0xFFF4B400); // Unified golden theme
-const Color _themeSurface = Color(0xFFFFF7E6); // Soft warm backdrop
+const Color _secondaryText = Color(0xFF6B7280);
+const Color _themeColor = Color(0xFF6366F1); // Premium indigo
+const Color _themeAccent = Color(0xFF8B5CF6); // Vibrant purple accent
+const Color _themeSurface = Color(0xFFF8FAFC); // Cool slate surface
+const Color _premiumGradientStart = Color(0xFF667EEA);
+const Color _premiumGradientEnd = Color(0xFF764BA2);
 
 class PricingScreen extends StatefulWidget {
   const PricingScreen({super.key});
@@ -214,6 +219,13 @@ class _PricingScreenState extends State<PricingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
+      );
+    });
+
     final size = MediaQuery.of(context).size;
     final isDesktop = size.width >= 1200;
     final isTablet = size.width >= 800 && size.width < 1200;
@@ -221,48 +233,7 @@ class _PricingScreenState extends State<PricingScreen> {
 
     return Scaffold(
       backgroundColor: _pageBackground,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Container(
-            color: const Color(0xFFFFFBF2),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: contentWidth),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: isDesktop ? 40 : (isTablet ? 28 : 16),
-                    vertical: 24,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTopNav(context, isDesktop: isDesktop),
-                      const SizedBox(height: 24),
-                      _buildHeroSection(context, isDesktop: isDesktop),
-                      const SizedBox(height: 28),
-                      _buildTrustStrip(),
-                      const SizedBox(height: 28),
-                      _buildPositioningSection(
-                        isDesktop: isDesktop,
-                        isTablet: isTablet,
-                      ),
-                      const SizedBox(height: 36),
-                      _buildSectionHeader(isDesktop || isTablet),
-                      const SizedBox(height: 24),
-                      _buildPlansGrid(isDesktop, isTablet),
-                      const SizedBox(height: 48),
-                      const _PricingExtras(),
-                      const SizedBox(height: 48),
-                      _buildClosingCta(context, isDesktop: isDesktop),
-                      const SizedBox(height: 24),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
+      body: const SizedBox.shrink(),
     );
   }
 
@@ -988,121 +959,33 @@ class _PricingScreenState extends State<PricingScreen> {
   }
 
   Widget _buildPlansGrid(bool isDesktop, bool isTablet) {
-    if (isDesktop) {
-      // 4 columns on desktop
-      return IntrinsicHeight(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: _dynamicPlans
-              .map((plan) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: _PlanColumn(
-                        plan: plan,
-                        isSelected: _selectedTier == plan.tier,
-                        price: _priceForPlan(plan),
-                        onSelect: () {
-                          setState(() => _selectedTier = plan.tier);
-                          _handlePlanSelection(context, plan);
-                        },
-                      ),
-                    ),
-                  ))
-              .toList(),
+          children: _dynamicPlans.asMap().entries.map((entry) {
+            final index = entry.key;
+            final plan = entry.value;
+            final isFeatured = index == 2; // Program tier is featured
+            
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: _PlanColumn(
+                plan: plan,
+                isSelected: _selectedTier == plan.tier,
+                price: _priceForPlan(plan),
+                isFeatured: isFeatured,
+                onSelect: () {
+                  setState(() => _selectedTier = plan.tier);
+                  _handlePlanSelection(context, plan);
+                },
+              ),
+            );
+          }).toList(),
         ),
-      );
-    } else if (isTablet) {
-      // 2x2 grid on tablet
-      return Column(
-        children: [
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[0],
-                    isSelected: _selectedTier == _dynamicPlans[0].tier,
-                    price: _priceForPlan(_dynamicPlans[0]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[0].tier);
-                      _handlePlanSelection(context, _dynamicPlans[0]);
-                    },
-                  ),
-                )),
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[1],
-                    isSelected: _selectedTier == _dynamicPlans[1].tier,
-                    price: _priceForPlan(_dynamicPlans[1]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[1].tier);
-                      _handlePlanSelection(context, _dynamicPlans[1]);
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[2],
-                    isSelected: _selectedTier == _dynamicPlans[2].tier,
-                    price: _priceForPlan(_dynamicPlans[2]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[2].tier);
-                      _handlePlanSelection(context, _dynamicPlans[2]);
-                    },
-                  ),
-                )),
-                Expanded(
-                    child: Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: _PlanColumn(
-                    plan: _dynamicPlans[3],
-                    isSelected: _selectedTier == _dynamicPlans[3].tier,
-                    price: _priceForPlan(_dynamicPlans[3]),
-                    onSelect: () {
-                      setState(() => _selectedTier = _dynamicPlans[3].tier);
-                      _handlePlanSelection(context, _dynamicPlans[3]);
-                    },
-                  ),
-                )),
-              ],
-            ),
-          ),
-        ],
-      );
-    } else {
-      // Single column on mobile
-      return Column(
-        children: _dynamicPlans
-            .map((plan) => Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: _PlanColumn(
-                    plan: plan,
-                    isSelected: _selectedTier == plan.tier,
-                    price: _priceForPlan(plan),
-                    onSelect: () {
-                      setState(() => _selectedTier = plan.tier);
-                      _handlePlanSelection(context, plan);
-                    },
-                  ),
-                ))
-            .toList(),
-      );
-    }
+      ),
+    );
   }
 }
 
@@ -1271,235 +1154,406 @@ class _BillingToggleButton extends StatelessWidget {
   }
 }
 
-class _PlanColumn extends StatelessWidget {
+class _PlanColumn extends StatefulWidget {
   const _PlanColumn({
     required this.plan,
     required this.isSelected,
     required this.price,
     required this.onSelect,
+    this.isFeatured = false,
   });
 
   final _PricingPlan plan;
   final bool isSelected;
   final _PlanPrice price;
   final VoidCallback onSelect;
+  final bool isFeatured;
+
+  @override
+  State<_PlanColumn> createState() => _PlanColumnState();
+}
+
+class _PlanColumnState extends State<_PlanColumn>
+    with SingleTickerProviderStateMixin {
+  bool _isHovered = false;
+  late AnimationController _animController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _elevationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.02).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+    );
+    _elevationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Color accent = _themeColor;
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: LinearGradient(
-          colors: [
-            _themeSurface,
-            Colors.white,
-            Colors.white.withValues(alpha: 0.9),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: isSelected ? accent : Colors.black12,
-          width: isSelected ? 1.4 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 18,
-            offset: const Offset(0, 12),
-            spreadRadius: -6,
-          ),
-          if (isSelected)
-            BoxShadow(
-              color: accent.withValues(alpha: 0.14),
-              blurRadius: 26,
-              offset: const Offset(0, 10),
-              spreadRadius: -4,
-            ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-      child: Column(
-        mainAxisSize: MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [accent, accent.withValues(alpha: 0.85)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+    final Color accent = widget.isFeatured ? _premiumGradientStart : _themeColor;
+    
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _isHovered = true);
+        _animController.forward();
+      },
+      onExit: (_) {
+        setState(() => _isHovered = false);
+        _animController.reverse();
+      },
+      child: AnimatedBuilder(
+        animation: _animController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Container(
+              width: 300,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: widget.isFeatured
+                    ? LinearGradient(
+                        colors: [
+                          const Color(0xFF1E1B4B),
+                          const Color(0xFF312E81),
+                          const Color(0xFF3730A3),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : LinearGradient(
+                        colors: [
+                          Colors.white,
+                          const Color(0xFFF8FAFC),
+                          const Color(0xFFF1F5F9),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                border: Border.all(
+                  color: widget.isSelected
+                      ? accent
+                      : widget.isFeatured
+                          ? const Color(0xFF4338CA).withValues(alpha: 0.3)
+                          : const Color(0xFFE2E8F0),
+                  width: widget.isSelected ? 2 : 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.isFeatured
+                        ? const Color(0xFF4338CA).withValues(alpha: 0.2)
+                        : Colors.black.withValues(alpha: _isHovered ? 0.08 : 0.04),
+                    blurRadius: _isHovered ? 40 : 24,
+                    offset: Offset(0, _isHovered ? 20 : 12),
+                    spreadRadius: -4,
                   ),
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
+                  if (widget.isSelected)
                     BoxShadow(
                       color: accent.withValues(alpha: 0.25),
-                      blurRadius: 14,
-                      offset: const Offset(0, 8),
-                      spreadRadius: -6,
+                      blurRadius: 32,
+                      offset: const Offset(0, 16),
+                      spreadRadius: -4,
                     ),
-                  ],
-                ),
-                child: Text(
-                  plan.label,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    letterSpacing: 0.1,
-                  ),
-                ),
+                ],
               ),
-              const Spacer(),
-              if (isSelected)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: accent.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: const [
-                      Icon(Icons.check_circle, color: _themeColor, size: 16),
-                      SizedBox(width: 6),
-                      Text(
-                        'Selected',
-                        style: TextStyle(
-                          color: _themeColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header with badge
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              accent,
+                              accent.withValues(alpha: 0.8),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          widget.plan.label,
+                          style: TextStyle(
+                            color: widget.isFeatured
+                                ? Colors.white
+                                : Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            letterSpacing: 0.5,
+                          ),
                         ),
                       ),
+                      if (widget.isFeatured) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text(
+                            'POPULAR',
+                            style: TextStyle(
+                              color: const Color(0xFFD97706),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 10,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const Spacer(),
+                      if (widget.isSelected)
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: accent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.check_circle,
+                            color: accent,
+                            size: 20,
+                          ),
+                        ),
                     ],
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            plan.subtitle,
-            style: const TextStyle(
-              color: _primaryText,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              height: 1.5,
-              letterSpacing: -0.1,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                price.price,
-                style: const TextStyle(
-                  color: _primaryText,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  price.period,
-                  style: const TextStyle(
-                    color: _secondaryText,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                  const SizedBox(height: 20),
+                  
+                  // Subtitle
+                  Text(
+                    widget.plan.subtitle,
+                    style: TextStyle(
+                      color: widget.isFeatured
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : _primaryText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          if (price.note != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              price.note!,
-              style: const TextStyle(
-                color: _secondaryText,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: plan.features
-                    .map((feature) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                height: 10,
-                                width: 10,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      accent,
-                                      accent.withValues(alpha: 0.7)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Price section
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: widget.isFeatured
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: widget.isFeatured
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              widget.price.price,
+                              style: TextStyle(
+                                color: widget.isFeatured
+                                    ? Colors.white
+                                    : _primaryText,
+                                fontSize: 36,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -1,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                widget.price.period,
+                                style: TextStyle(
+                                  color: widget.isFeatured
+                                      ? Colors.white.withValues(alpha: 0.7)
+                                      : _secondaryText,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  feature,
-                                  style: const TextStyle(
-                                    color: _primaryText,
-                                    fontSize: 13,
-                                    height: 1.45,
-                                  ),
-                                ),
+                            ),
+                          ],
+                        ),
+                        if (widget.price.note != null) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              widget.price.note!,
+                              style: const TextStyle(
+                                color: const Color(0xFF166534),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
                               ),
-                            ],
+                            ),
                           ),
-                        ))
-                    .toList(),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // Features section
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'What\'s included',
+                            style: TextStyle(
+                              color: widget.isFeatured
+                                  ? Colors.white.withValues(alpha: 0.6)
+                                  : _secondaryText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          ...widget.plan.features.map((feature) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.only(top: 2),
+                                  width: 20,
+                                  height: 20,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        accent,
+                                        accent.withValues(alpha: 0.7),
+                                      ],
+                                    ),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    feature,
+                                    style: TextStyle(
+                                      color: widget.isFeatured
+                                          ? Colors.white.withValues(alpha: 0.9)
+                                          : _primaryText,
+                                      fontSize: 14,
+                                      height: 1.4,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  
+                  // CTA Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: widget.onSelect,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: widget.isFeatured
+                            ? const Color(0xFFEAB308)
+                            : widget.isSelected
+                                ? accent
+                                : Colors.white,
+                        foregroundColor: widget.isFeatured
+                            ? const Color(0xFF1E1B4B)
+                            : widget.isSelected
+                                ? Colors.white
+                                : accent,
+                        elevation: 0,
+                        padding: EdgeInsets.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: widget.isFeatured
+                                ? const Color(0xFFEAB308)
+                                : widget.isSelected
+                                    ? accent
+                                    : accent.withValues(alpha: 0.3),
+                            width: widget.isSelected ? 2 : 1.5,
+                          ),
+                        ),
+                        textStyle: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (widget.isSelected) ...[
+                            const Icon(Icons.check_circle, size: 18),
+                            const SizedBox(width: 8),
+                            const Text('Current Plan'),
+                          ] else ...[
+                            Text(widget.isFeatured ? 'Get Started' : 'Select Plan'),
+                            const SizedBox(width: 8),
+                            const Icon(Icons.arrow_forward_rounded, size: 18),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onSelect,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isSelected ? accent : Colors.white,
-                foregroundColor: isSelected ? Colors.white : accent,
-                elevation: isSelected ? 8 : 2,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: accent, width: 1.4),
-                ),
-                textStyle:
-                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                shadowColor: accent.withValues(
-                  alpha: isSelected ? 0.3 : 0.15,
-                ),
-              ),
-              child: Text(isSelected ? 'Selected' : 'Select Plan'),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

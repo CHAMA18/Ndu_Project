@@ -6,12 +6,16 @@ class ResponsiveDataTableWrapper extends StatefulWidget {
   final Widget child;
   final double? minWidth;
   final double? maxHeight;
+  final String? title;
+  final bool enableFullscreen;
 
   const ResponsiveDataTableWrapper({
     super.key,
     required this.child,
     this.minWidth,
     this.maxHeight,
+    this.title,
+    this.enableFullscreen = false,
   });
 
   @override
@@ -25,6 +29,79 @@ class _ResponsiveDataTableWrapperState
   final ScrollController _verticalController = ScrollController();
   bool _canScrollRight = false;
   bool _canScrollDown = false;
+
+  Future<void> _scrollForMore() async {
+    if (_canScrollRight && _horizontalController.hasClients) {
+      final position = _horizontalController.position;
+      await _horizontalController.animateTo(
+        (position.pixels + 360).clamp(0.0, position.maxScrollExtent),
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+      return;
+    }
+    if (_canScrollDown && _verticalController.hasClients) {
+      final position = _verticalController.position;
+      await _verticalController.animateTo(
+        (position.pixels + 320).clamp(0.0, position.maxScrollExtent),
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _openFullscreenTable() {
+    final screenSize = MediaQuery.sizeOf(context);
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(18),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: screenSize.width - 36,
+            maxHeight: screenSize.height - 36,
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 10, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.title ?? 'Table view',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ResponsiveDataTableWrapper(
+                    minWidth: widget.minWidth,
+                    maxHeight: screenSize.height - 150,
+                    child: widget.child,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -101,6 +178,7 @@ class _ResponsiveDataTableWrapperState
                 child: Scrollbar(
                   controller: _verticalController,
                   thumbVisibility: true,
+                  interactive: true,
                   child: SingleChildScrollView(
                     controller: _verticalController,
                     child: horizontalChild,
@@ -108,11 +186,12 @@ class _ResponsiveDataTableWrapperState
                 ),
               );
 
-        return Stack(
+        final tableStack = Stack(
           children: [
             Scrollbar(
               controller: _horizontalController,
               thumbVisibility: true,
+              interactive: true,
               notificationPredicate: (notification) =>
                   notification.depth == 0 &&
                   notification.metrics.axis == Axis.horizontal,
@@ -154,19 +233,71 @@ class _ResponsiveDataTableWrapperState
                   ),
                 ),
               ),
-            if (_canScrollRight)
-              const Positioned(
+            if (_canScrollRight || _canScrollDown)
+              Positioned(
                 right: 8,
                 bottom: 2,
-                child: Text(
-                  'Scroll to see more ->',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF6B7280),
-                    fontWeight: FontWeight.w600,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    minimumSize: Size.zero,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    backgroundColor: Colors.white.withOpacity(0.92),
+                    foregroundColor: const Color(0xFF2563EB),
+                  ),
+                  onPressed: _scrollForMore,
+                  icon: Icon(
+                    _canScrollRight ? Icons.arrow_forward : Icons.arrow_downward,
+                    size: 14,
+                  ),
+                  label: Text(
+                    _canScrollRight ? 'Scroll right' : 'Scroll down',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
+          ],
+        );
+
+        if (!widget.enableFullscreen && widget.title == null) {
+          return tableStack;
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.title != null || widget.enableFullscreen)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    if (widget.title != null)
+                      Expanded(
+                        child: Text(
+                          widget.title!,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      )
+                    else
+                      const Spacer(),
+                    if (widget.enableFullscreen)
+                      OutlinedButton.icon(
+                        onPressed: _openFullscreenTable,
+                        icon: const Icon(Icons.open_in_full, size: 16),
+                        label: const Text('Full view'),
+                      ),
+                  ],
+                ),
+              ),
+            tableStack,
           ],
         );
       },

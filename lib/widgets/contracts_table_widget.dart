@@ -8,6 +8,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/rich_text_editing_controller.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
+import 'package:ndu_project/widgets/responsive_table_widgets.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -40,51 +41,57 @@ class ContractsTableWidget extends StatelessWidget {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Table Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
+    return ResponsiveDataTableWrapper(
+      minWidth: 1180,
+      maxHeight: 620,
+      title: 'Contracts tracking table',
+      enableFullscreen: true,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Table Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  _TableHeaderCell('Vendor/Party Name', flex: 2),
+                  _TableHeaderCell('Contract Type', flex: 2),
+                  _TableHeaderCell('Status', flex: 2),
+                  _TableHeaderCell('Effective Date', flex: 2),
+                  _TableHeaderCell('Expiry', flex: 2),
+                  _TableHeaderCell('Total Value', flex: 2),
+                  _TableHeaderCell('Actions', flex: 2),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                _TableHeaderCell('Vendor/Party Name', flex: 2),
-                _TableHeaderCell('Contract Type', flex: 2),
-                _TableHeaderCell('Status', flex: 2),
-                _TableHeaderCell('Effective Date', flex: 2),
-                _TableHeaderCell('Expiry', flex: 2),
-                _TableHeaderCell('Total Value', flex: 2),
-                _TableHeaderCell('Actions', flex: 2),
-              ],
-            ),
-          ),
-          // Table Rows
-          ...contracts.map((contract) => _ContractRowWidget(
-                contract: contract,
-                onUpdated: onContractUpdated,
-                onDeleted: onContractDeleted,
-                showDivider: contract != contracts.last,
-              )),
-        ],
+            // Table Rows
+            ...contracts.map((contract) => _ContractRowWidget(
+                  contract: contract,
+                  onUpdated: onContractUpdated,
+                  onDeleted: onContractDeleted,
+                  showDivider: contract != contracts.last,
+                )),
+          ],
+        ),
       ),
     );
   }
