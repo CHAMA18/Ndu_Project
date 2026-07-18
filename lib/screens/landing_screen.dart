@@ -6,6 +6,7 @@ import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/partner_screen.dart';
 import 'package:ndu_project/screens/use_cases_screen.dart';
 import 'package:ndu_project/screens/how_it_works_screen.dart';
+import 'package:ndu_project/screens/kaz_ai_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -570,7 +571,7 @@ class _LandingScreenState extends State<LandingScreen>
  _DropdownItem(icon: Icons.play_circle_outline, label: 'How It Works', onTap: _handleWorkflowTap),
  _DropdownItem(icon: Icons.star_outline, label: 'Differentiator', onTap: () => _scrollTo(_differentiatorsKey)),
  _DropdownItem(icon: Icons.verified_outlined, label: 'Trusted By', onTap: () => _scrollTo(_benefitsKey)),
- _DropdownItem(icon: Icons.auto_awesome, label: 'KAZ AI', onTap: () => _scrollTo(_aiKey)),
+ _DropdownItem(icon: Icons.auto_awesome, label: 'KAZ AI', onTap: () => KazAiScreen.open(context)),
  ],
  );
  }
