@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
 
 class UseCasesScreen extends StatelessWidget {
   const UseCasesScreen({super.key});
@@ -64,6 +65,7 @@ class UseCasesScreen extends StatelessWidget {
           ),
         ),
       ),
+      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 

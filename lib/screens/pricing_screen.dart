@@ -10,6 +10,7 @@ import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/services/subscription_pricing_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
+import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const Color _pageBackground = Color(0xFFFFFFFF);
@@ -261,6 +262,7 @@ class _PricingScreenState extends State<PricingScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/theme.dart';
+import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
 
 class PartnerScreen extends StatelessWidget {
   const PartnerScreen({super.key});
@@ -44,6 +45,7 @@ class PartnerScreen extends StatelessWidget {
           ),
         ),
       ),
+      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 

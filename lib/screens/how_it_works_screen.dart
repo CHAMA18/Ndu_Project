@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
 /// HOW IT WORKS — World-Class Standalone Page
@@ -48,6 +49,7 @@ class HowItWorksScreen extends StatelessWidget {
           ),
         ),
       ),
+      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 
