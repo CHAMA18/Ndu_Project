@@ -280,8 +280,6 @@ class _LandingScreenState extends State<LandingScreen>
  SizedBox(height: isDesktop ? 24 : 16),
  _buildHeroSection(context, isDesktop),
  SizedBox(height: isDesktop ? 80 : 60),
- _buildSocialProofBar(isDesktop),
- SizedBox(height: isDesktop ? 80 : 60),
  _buildProblemSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
  _buildSolutionSection(context, isDesktop || isTablet),
