@@ -581,12 +581,9 @@ class _LandingScreenState extends State<LandingScreen>
  return _buildPremiumDropdown(
  label: 'Solutions',
  items: [
- _DropdownItem(icon: Icons.play_circle_outline, label: 'How It Works', onTap: _handleWorkflowTap),
- _DropdownItem(icon: Icons.engineering_outlined, label: 'Initiation', onTap: () => _scrollTo(_solutionKey)),
- _DropdownItem(icon: Icons.architecture_outlined, label: 'Planning', onTap: () => _scrollTo(_solutionKey)),
- _DropdownItem(icon: Icons.design_services_outlined, label: 'Design', onTap: () => _scrollTo(_solutionKey)),
- _DropdownItem(icon: Icons.build_outlined, label: 'Execution', onTap: () => _scrollTo(_solutionKey)),
- _DropdownItem(icon: Icons.rocket_launch_outlined, label: 'Launch', onTap: () => _scrollTo(_solutionKey)),
+ _DropdownItem(icon: Icons.cases_outlined, label: 'Use Cases', onTap: () => UseCasesScreen.open(context)),
+ _DropdownItem(icon: Icons.slideshow_outlined, label: 'Demo', onTap: () => _scrollTo(_benefitsKey)),
+ _DropdownItem(icon: Icons.handshake_outlined, label: 'Partner with Us', onTap: () => PartnerScreen.open(context)),
  ],
  );
  }
