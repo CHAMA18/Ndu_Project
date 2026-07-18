@@ -1040,11 +1040,17 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  const SizedBox(height: 24),
  // 5-step process: Initiation → Planning → Design → Execution → Launch
- Wrap(
- alignment: WrapAlignment.center,
- crossAxisAlignment: WrapCrossAlignment.center,
- spacing: 6,
- runSpacing: 12,
+ // All 5 containers on a SINGLE HORIZONTAL ROW with horizontal arrows
+ // between them. The arrows point from the center of each container
+ // to the next (vertically centered on each container). On narrow
+ // screens the row scrolls horizontally instead of wrapping, so the
+ // containers never stack vertically.
+ SingleChildScrollView(
+ scrollDirection: Axis.horizontal,
+ child: IntrinsicHeight(
+ child: Row(
+ crossAxisAlignment: CrossAxisAlignment.center,
+ mainAxisSize: MainAxisSize.min,
  children: [
  _buildDiagramNode('Initiation', Icons.flag_rounded, const Color(0xFF3B82F6)),
  _buildDiagramArrow(const Color(0xFF3B82F6)),
@@ -1056,6 +1062,8 @@ class _LandingScreenState extends State<LandingScreen>
  _buildDiagramArrow(const Color(0xFFF59E0B)),
  _buildDiagramNode('Launch', Icons.rocket_launch_rounded, const Color(0xFF10B981)),
  ],
+ ),
+ ),
  ),
  const SizedBox(height: 24),
  // Bottom row: Continuous Delivery Loop + Unified platform
@@ -1177,21 +1185,15 @@ class _LandingScreenState extends State<LandingScreen>
  }
 
  Widget _buildDiagramArrow(Color color) {
- // Wrap the arrow icon in a container that matches the diagram node
- // height (~74px) so the arrow is vertically centered relative to
- // the containers it connects. Without this, the 24px icon would
- // align to the top of the Wrap run, making the arrow appear at a
- // "high position" instead of pointing from the center of each
- // container to the other.
+ // Horizontal arrow between two diagram containers. The parent Row
+ // uses IntrinsicHeight + CrossAxisAlignment.center, so this icon is
+ // automatically vertically centered relative to the containers —
+ // pointing from the center of one container horizontally to the
+ // center of the next.
  return Padding(
- padding: const EdgeInsets.symmetric(horizontal: 8),
- child: SizedBox(
- height: 74, // matches _buildDiagramNode total height
- child: Center(
+ padding: const EdgeInsets.symmetric(horizontal: 6),
  child: Icon(Icons.arrow_forward_rounded,
- color: color.withValues(alpha: 0.8), size: 28),
- ),
- ),
+ color: color.withValues(alpha: 0.85), size: 28),
  );
  }
 
