@@ -32,8 +32,24 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   WBSFramework? _framework;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final projectData = ProjectDataHelper.getData(context);
+      final mapped = ProjectDataHelper.projectMethodologyFromOverallFramework(
+        projectData.overallFramework,
+      );
+      if (mapped != null && mounted) {
+        setState(() {
+          _methodology = mapped;
+        });
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final totalSteps = 2;
+    final totalSteps = 1;
     return ResponsiveScaffold(
       activeItemLabel: 'Work Breakdown Structure',
       appBarTitle: 'Work Breakdown Structure',
@@ -133,9 +149,8 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(24)),
                     ),
-                    child: Text(_step == totalSteps - 1
-                        ? 'Create WBS'
-                        : 'Continue'),
+                    child: Text(
+                        _step == totalSteps - 1 ? 'Create WBS' : 'Continue'),
                   ),
                 ],
               ),
@@ -147,46 +162,57 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   }
 
   bool _canProceed() {
-    switch (_step) {
-      case 0:
-        return _methodology != null;
-      case 1:
-        return _framework != null;
-    }
-    return false;
+    return _framework != null;
   }
 
   void _handleNext() {
-    if (_step == 0 && _methodology != null) {
-      // Auto-select the default framework based on methodology
-      _framework ??= switch (_methodology!) {
-        ProjectMethodology.agile => WBSFramework.agile,
-        ProjectMethodology.waterfall => WBSFramework.waterfallDeliverable,
-        ProjectMethodology.hybrid => WBSFramework.waterfallDeliverable,
-      };
-      setState(() => _step = 1);
-    } else if (_step == 1 && _framework != null) {
-      final projectData = ProjectDataHelper.getData(context);
-      final resolvedProjectName =
-          projectData.projectName.trim().isNotEmpty
-              ? projectData.projectName.trim()
-              : 'Untitled Project';
-      context.read<WBSProvider>().setup(
-            projectName: resolvedProjectName,
-            framework: _framework!,
-            methodology: _methodology!,
+    if (_framework == null) return;
+    final projectData = ProjectDataHelper.getData(context);
+    final resolvedProjectName = projectData.projectName.trim().isNotEmpty
+        ? projectData.projectName.trim()
+        : 'Untitled Project';
+    context.read<WBSProvider>().setup(
+          projectName: resolvedProjectName,
+          framework: _framework!,
+          methodology: _methodology!,
+        );
+    // Populate Level 1 nodes from project goals
+    final goals = projectData.projectGoals;
+    final hasGoals =
+        goals.isNotEmpty && goals.any((g) => g.name.trim().isNotEmpty);
+    final planGoals = projectData.planningGoals;
+    final hasPlanGoals =
+        planGoals.isNotEmpty && planGoals.any((g) => g.title.trim().isNotEmpty);
+
+    if (hasGoals) {
+      final wbsProvider = context.read<WBSProvider>();
+      for (final goal in goals) {
+        final name = goal.name.trim();
+        if (name.isNotEmpty) {
+          wbsProvider.addChildNode(
+            wbsProvider.wbs!.level0.id,
+            name,
+            goal.description.trim(),
           );
+        }
+      }
+    } else if (hasPlanGoals) {
+      final wbsProvider = context.read<WBSProvider>();
+      for (final goal in planGoals) {
+        final name = goal.title.trim();
+        if (name.isNotEmpty) {
+          wbsProvider.addChildNode(
+            wbsProvider.wbs!.level0.id,
+            name,
+            goal.description.trim(),
+          );
+        }
+      }
     }
   }
 
   Widget _buildStepContent() {
-    switch (_step) {
-      case 0:
-        return _buildMethodologyStep();
-      case 1:
-        return _buildFrameworkStep();
-    }
-    return const SizedBox();
+    return _buildFrameworkStep();
   }
 
   // ── STEP 1: Methodology ────────────────────────────────────────────
@@ -226,14 +252,13 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                             : Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: selected
-                              ? m.color
-                              : const Color(0xFFE4E7EC),
+                          color: selected ? m.color : const Color(0xFFE4E7EC),
                           width: selected ? 2 : 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: selected ? 0.08 : 0.03),
+                            color: Colors.black
+                                .withValues(alpha: selected ? 0.08 : 0.03),
                             blurRadius: selected ? 16 : 8,
                             offset: const Offset(0, 3),
                           ),
@@ -252,7 +277,9 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: Icon(m.icon,
-                                color: selected ? m.color : const Color(0xFF6B7280),
+                                color: selected
+                                    ? m.color
+                                    : const Color(0xFF6B7280),
                                 size: 26),
                           ),
                           const SizedBox(width: 16),
@@ -306,13 +333,12 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
             decoration: BoxDecoration(
               color: _methodology!.color.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                  color: _methodology!.color.withValues(alpha: 0.2)),
+              border:
+                  Border.all(color: _methodology!.color.withValues(alpha: 0.2)),
             ),
             child: Row(
               children: [
-                Icon(_methodology!.icon,
-                    size: 16, color: _methodology!.color),
+                Icon(_methodology!.icon, size: 16, color: _methodology!.color),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -350,6 +376,32 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
             'The framework determines how your${_methodology != null ? ' ${_methodology!.label}' : ''} project is decomposed.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
+        const SizedBox(height: 12),
+        if (_methodology != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: _methodology!.color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border:
+                  Border.all(color: _methodology!.color.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(_methodology!.icon, size: 14, color: _methodology!.color),
+                const SizedBox(width: 6),
+                Text(
+                  'Methodology: ${_methodology!.label} (from Project Details)',
+                  style: TextStyle(
+                    color: _methodology!.color.withValues(alpha: 0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 24),
         Expanded(
           child: ListView(
@@ -414,8 +466,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                     ),
                                     const SizedBox(width: 6),
                                     Text(
-                                      '★' * f.rating +
-                                          '☆' * (5 - f.rating),
+                                      '★' * f.rating + '☆' * (5 - f.rating),
                                       style: const TextStyle(
                                           color: LightModeColors.accent,
                                           fontSize: 13,
@@ -428,8 +479,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                           horizontal: 6, vertical: 1),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFF3F4F6),
-                                        borderRadius:
-                                            BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
                                         'L0–L${f.maxDepth}',
@@ -459,8 +509,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFFB923C)
                                           .withValues(alpha: 0.08),
-                                      borderRadius:
-                                          BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
                                           color: const Color(0xFFFB923C)
                                               .withValues(alpha: 0.3)),
@@ -468,8 +517,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                                     child: const Row(
                                       children: [
                                         Icon(Icons.warning_amber,
-                                            size: 12,
-                                            color: Color(0xFFFB923C)),
+                                            size: 12, color: Color(0xFFFB923C)),
                                         SizedBox(width: 4),
                                         Expanded(
                                           child: Text(

@@ -1737,7 +1737,9 @@ class WorkItem {
     this.weight = 0,
     this.cbsId = '',
     this.obsId = '',
-  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+  })  : id = (id == null || id.trim().isEmpty)
+            ? DateTime.now().microsecondsSinceEpoch.toString()
+            : id,
         children = children ?? [],
         dependencies = dependencies ?? [];
 
@@ -1761,8 +1763,9 @@ class WorkItem {
       };
 
   factory WorkItem.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id']?.toString();
     return WorkItem(
-      id: json['id']?.toString(),
+      id: (rawId == null || rawId.trim().isEmpty) ? null : rawId,
       parentId: json['parentId']?.toString() ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
