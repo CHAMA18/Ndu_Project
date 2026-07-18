@@ -17,6 +17,19 @@ library;
 
 import 'package:flutter/material.dart';
 
+/// View mode for the WBS Builder screen.
+enum WBSViewMode {
+  advanced,
+  simple,
+  table;
+
+  String get label => switch (this) {
+        WBSViewMode.advanced => 'Advanced',
+        WBSViewMode.simple => 'Simple',
+        WBSViewMode.table => 'Table',
+      };
+}
+
 /// The overall project delivery methodology.
 enum ProjectMethodology {
   waterfall,

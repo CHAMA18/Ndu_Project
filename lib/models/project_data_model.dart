@@ -5,6 +5,9 @@ import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/models/control_account_model.dart';
 import 'package:ndu_project/models/obs_element_model.dart';
 import 'package:ndu_project/models/cbs_element_model.dart';
+import 'package:ndu_project/models/planning_contract.dart';
+import 'package:ndu_project/models/rate_card.dart';
+import 'package:ndu_project/models/cost_of_quality.dart';
 
 /// Comprehensive project data model that captures all information across the application flow
 class ProjectDataModel {
@@ -181,6 +184,24 @@ class ProjectDataModel {
 
   // Quality Management Data
   QualityManagementData? qualityManagementData;
+
+  // Page-level review confirmation tracking
+  Set<String> confirmedPages = <String>{};
+
+  // ── Planning Phase: Contract Tracking ──
+  List<PlanningContract> planningContracts = [];
+
+  // ── Planning Phase: Personnel Rate Cards ──
+  List<RateCard> rateCards = [];
+
+  // ── Planning Phase: Cost of Quality ──
+  CostOfQualityData? costOfQualityData;
+
+  // ── Organisation Plan: Base Configuration ──
+  String orgStaffingSource = ''; // 'Internal Department' | 'External Hire' | 'Contractor Pool' | 'Mixed'
+  String orgWorkingHours = '40 hours/week'; // e.g., '40 hours/week'
+  String orgLocation = ''; // 'Office' | 'Remote' | 'Hybrid' | 'Multi-site'
+  String orgCommunicationMode = ''; // e.g., 'Email, Meetings, Slack'
 
   // Control Accounts
   List<ControlAccount> controlAccounts;
@@ -363,7 +384,22 @@ class ProjectDataModel {
     this.aggregateSv = 0,
     this.aggregateTcpi = 0,
     this.evmLastRecalculated,
-  })  : potentialSolutions = potentialSolutions ?? [],
+    Set<String>? confirmedPages,
+    // Planning Phase: Contract Tracking
+    List<PlanningContract>? planningContracts,
+    // Planning Phase: Personnel Rate Cards
+    List<RateCard>? rateCards,
+    // Planning Phase: Cost of Quality
+    this.costOfQualityData,
+    // Organisation Plan: Base Configuration
+    this.orgStaffingSource = '',
+    this.orgWorkingHours = '40 hours/week',
+    this.orgLocation = '',
+    this.orgCommunicationMode = '',
+  })  : confirmedPages = confirmedPages ?? <String>{},
+        planningContracts = planningContracts ?? [],
+        rateCards = rateCards ?? [],
+        potentialSolutions = potentialSolutions ?? [],
         solutionRisks = solutionRisks ?? [],
         contractors = contractors ?? [],
         vendors = vendors ?? [],
@@ -525,6 +561,18 @@ class ProjectDataModel {
     List<StakeholderEntry>? stakeholderEntries,
     List<EngagementPlanEntry>? engagementPlanEntries,
     QualityManagementData? qualityManagementData,
+    Set<String>? confirmedPages,
+    // Planning Phase: Contract Tracking
+    List<PlanningContract>? planningContracts,
+    // Planning Phase: Personnel Rate Cards
+    List<RateCard>? rateCards,
+    // Planning Phase: Cost of Quality
+    CostOfQualityData? costOfQualityData,
+    // Organisation Plan: Base Configuration
+    String? orgStaffingSource,
+    String? orgWorkingHours,
+    String? orgLocation,
+    String? orgCommunicationMode,
     List<ControlAccount>? controlAccounts,
     List<ObsElement>? obsElements,
     List<CbsElement>? cbsElements,
@@ -679,6 +727,14 @@ class ProjectDataModel {
           engagementPlanEntries ?? this.engagementPlanEntries,
       qualityManagementData:
           qualityManagementData ?? this.qualityManagementData,
+      confirmedPages: confirmedPages ?? this.confirmedPages,
+      planningContracts: planningContracts ?? this.planningContracts,
+      rateCards: rateCards ?? this.rateCards,
+      costOfQualityData: costOfQualityData ?? this.costOfQualityData,
+      orgStaffingSource: orgStaffingSource ?? this.orgStaffingSource,
+      orgWorkingHours: orgWorkingHours ?? this.orgWorkingHours,
+      orgLocation: orgLocation ?? this.orgLocation,
+      orgCommunicationMode: orgCommunicationMode ?? this.orgCommunicationMode,
       controlAccounts: controlAccounts ?? this.controlAccounts,
       obsElements: obsElements ?? this.obsElements,
       cbsElements: cbsElements ?? this.cbsElements,
@@ -846,6 +902,15 @@ class ProjectDataModel {
       'engagementPlanEntries':
           engagementPlanEntries.map((e) => e.toJson()).toList(),
       'qualityManagementData': qualityManagementData?.toJson(),
+      'confirmedPages': confirmedPages.toList(),
+      'planningContracts': planningContracts.map((c) => c.toJson()).toList(),
+      'rateCards': rateCards.map((r) => r.toJson()).toList(),
+      if (costOfQualityData != null)
+        'costOfQualityData': costOfQualityData!.toJson(),
+      'orgStaffingSource': orgStaffingSource,
+      'orgWorkingHours': orgWorkingHours,
+      'orgLocation': orgLocation,
+      'orgCommunicationMode': orgCommunicationMode,
       'designManagementData': designManagementData?.toJson(),
       'executionPhaseData': executionPhaseData?.toJson(),
       'workPackages': workPackages.map((wp) => wp.toJson()).toList(),
@@ -1181,6 +1246,18 @@ class ProjectDataModel {
       qualityManagementData: json['qualityManagementData'] != null
           ? QualityManagementData.fromJson(json['qualityManagementData'])
           : null,
+      confirmedPages: json['confirmedPages'] != null
+          ? Set<String>.from(json['confirmedPages'] as List)
+          : <String>{},
+      planningContracts:
+          safeParseList('planningContracts', PlanningContract.fromJson),
+      rateCards: safeParseList('rateCards', RateCard.fromJson),
+      costOfQualityData:
+          safeParseSingle('costOfQualityData', CostOfQualityData.fromJson),
+      orgStaffingSource: json['orgStaffingSource']?.toString() ?? '',
+      orgWorkingHours: json['orgWorkingHours']?.toString() ?? '40 hours/week',
+      orgLocation: json['orgLocation']?.toString() ?? '',
+      orgCommunicationMode: json['orgCommunicationMode']?.toString() ?? '',
       workPackages: safeParseList('workPackages', WorkPackage.fromJson),
       controlAccounts:
           safeParseList('controlAccounts', ControlAccount.fromJson),
@@ -1660,7 +1737,9 @@ class WorkItem {
     this.weight = 0,
     this.cbsId = '',
     this.obsId = '',
-  })  : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+  })  : id = (id == null || id.trim().isEmpty)
+            ? DateTime.now().microsecondsSinceEpoch.toString()
+            : id,
         children = children ?? [],
         dependencies = dependencies ?? [];
 
@@ -1684,8 +1763,9 @@ class WorkItem {
       };
 
   factory WorkItem.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id']?.toString();
     return WorkItem(
-      id: json['id']?.toString(),
+      id: (rawId == null || rawId.trim().isEmpty) ? null : rawId,
       parentId: json['parentId']?.toString() ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',

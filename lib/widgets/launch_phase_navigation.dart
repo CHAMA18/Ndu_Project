@@ -20,16 +20,8 @@ class LaunchPhaseNavigation extends StatelessWidget {
 
   static const _kAccentColor = Color(0xFFFFC812);
 
-  Future<void> _handleNextTap(BuildContext context) async {
-    if (!nextEnabled) {
-      final continueAnyway = await showProceedWithoutReviewDialog(
-        context,
-        title: 'Please confirm you have reviewed and understood this step',
-        message:
-            'You have not confirmed this page yet. You can continue now and return to update missing information later, or stay and complete it now.',
-      );
-      if (!continueAnyway) return;
-    }
+  void _handleNextTap(BuildContext context) {
+    if (!nextEnabled) return;
     onNext();
   }
 

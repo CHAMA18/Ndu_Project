@@ -3080,6 +3080,7 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
       final isSelected = _selectedWbsNodeIds.contains(item.id);
       widgets.add(
         Padding(
+          key: ValueKey('wbs_${item.id}_d$depth'),
           padding: EdgeInsets.only(left: (depth - 1) * 20.0),
           child: Row(
             children: [
