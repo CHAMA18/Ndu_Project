@@ -287,8 +287,7 @@ class _LandingScreenState extends State<LandingScreen>
  SizedBox(height: isDesktop ? 80 : 56),
  _buildSolutionSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
- _buildHowItWorksSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
+ // How It Works section removed — content lives on the How It Works subpage
  // Differentiators + Feature Grid sections moved to Differentiator subpage
  _buildBenefitsSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
