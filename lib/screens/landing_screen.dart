@@ -1026,6 +1026,7 @@ class _LandingScreenState extends State<LandingScreen>
  icon: Icons.event_available_rounded,
  borderColor: const Color(0xFFFBBF24),
  iconColor: const Color(0xFFFBBF24),
+ onTap: () => _launchExternalLink('https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ3YLrj3bvaOPEFguUHp_Sk2X9q4KUZdK8A9rnfMTcKhayGCQrJJmcbeSYGnk71nj2TMdnHxxGTs'),
  ),
  const SizedBox(height: 12),
  _buildServiceCard(
@@ -1034,6 +1035,7 @@ class _LandingScreenState extends State<LandingScreen>
  icon: Icons.groups_rounded,
  borderColor: const Color(0xFF94A3B8),
  iconColor: Colors.white,
+ onTap: () => _launchExternalLink('https://docs.google.com/forms/d/e/1FAIpQLSc1gw6b-T5AlwYWZNO4fjK5KYdlGAmqo5ztQvnlDxSruHi3tQ/viewform'),
  ),
  const SizedBox(height: 24),
  // 5-step process: Initiation → Planning → Design → Execution → Launch
@@ -1961,8 +1963,11 @@ class _LandingScreenState extends State<LandingScreen>
  required IconData icon,
  required Color borderColor,
  required Color iconColor,
+ VoidCallback? onTap,
  }) {
- return Container(
+ return GestureDetector(
+ onTap: onTap,
+ child: Container(
  width: double.infinity,
  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
  decoration: BoxDecoration(
@@ -2000,7 +2005,10 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  ),
  ),
+ if (onTap != null)
+ Icon(Icons.open_in_new, size: 14, color: borderColor.withValues(alpha: 0.6)),
  ],
+ ),
  ),
  );
  }
