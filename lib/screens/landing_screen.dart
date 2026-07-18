@@ -592,7 +592,6 @@ class _LandingScreenState extends State<LandingScreen>
  return _buildPremiumDropdown(
  label: 'Services',
  items: [
- _DropdownItem(icon: Icons.miscellaneous_services, label: 'Services', onTap: () => _scrollTo(_benefitsKey)),
  _DropdownItem(icon: Icons.delivery_dining_outlined, label: 'Project Delivery', onTap: () => _scrollTo(_benefitsKey)),
  _DropdownItem(icon: Icons.school_outlined, label: 'Training', onTap: () => _scrollTo(_aiKey)),
  _DropdownItem(icon: Icons.support_agent, label: 'Consultation', onTap: () => _scrollTo(_ctaKey)),
