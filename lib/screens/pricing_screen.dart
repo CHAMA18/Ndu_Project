@@ -1381,48 +1381,50 @@ class _PlanColumn extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
+          // Features list — NOT scrollable so the card's natural height
+          // is determined by the feature count. IntrinsicHeight +
+          // CrossAxisAlignment.stretch in the parent Row makes all 4
+          // cards the same height (matching the tallest card).
           Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: plan.features
-                    .map((feature) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                height: 10,
-                                width: 10,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      accent,
-                                      accent.withValues(alpha: 0.7)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: plan.features
+                  .map((feature) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              height: 10,
+                              width: 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    accent,
+                                    accent.withValues(alpha: 0.7)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  feature,
-                                  style: const TextStyle(
-                                    color: _primaryText,
-                                    fontSize: 13,
-                                    height: 1.45,
-                                  ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                feature,
+                                style: const TextStyle(
+                                  color: _primaryText,
+                                  fontSize: 13,
+                                  height: 1.45,
                                 ),
                               ),
-                            ],
-                          ),
-                        ))
-                    .toList(),
-              ),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
           const SizedBox(height: 18),
