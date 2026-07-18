@@ -44,7 +44,7 @@ class _ProjectTeamActivitiesScreenState extends State<ProjectTeamActivitiesScree
   bool _isLoading = true;
 
   // Hub metrics loaded from prior phases
-  int _totalStaff = 0;
+  int _totalPersonnel = 0;
   int _totalRoles = 0;
   int _upcomingMeetings = 0;
   int _activeTrainings = 0;
@@ -90,7 +90,7 @@ class _ProjectTeamActivitiesScreenState extends State<ProjectTeamActivitiesScree
             .get();
         final staffData = staffDoc.data() ?? {};
         final rows = staffData['staffingRows'] as List? ?? [];
-        _totalStaff = rows.length;
+        _totalPersonnel = rows.length;
       } catch (_) {}
 
       // Load roles from planning phase (central project doc)
@@ -517,8 +517,8 @@ class _ProjectTeamActivitiesScreenState extends State<ProjectTeamActivitiesScree
       final isWide = constraints.maxWidth > 900;
       final metrics = [
         _MetricCard(
-          label: 'Total Staff',
-          value: '$_totalStaff',
+          label: 'Total Personnel',
+          value: '$_totalPersonnel',
           icon: Icons.badge_outlined,
           color: const Color(0xFF4F46E5),
         ),

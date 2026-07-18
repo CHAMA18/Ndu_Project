@@ -8,26 +8,7 @@ class SsherItemInput {
  final String concern;
  final String riskLevel; // 'Low' | 'Medium' | 'High'
  final String mitigation;
- 
- // Traceability fields
- final List<String> costItemIds;
- final List<String> scheduleActivityIds;
- final List<String> techScopeComponentIds;
- final String relatedWbsId;
- final String notes;
-
- SsherItemInput({
-   required this.department, 
-   required this.teamMember, 
-   required this.concern, 
-   required this.riskLevel, 
-   required this.mitigation,
-   this.costItemIds = const [],
-   this.scheduleActivityIds = const [],
-   this.techScopeComponentIds = const [],
-   this.relatedWbsId = '',
-   this.notes = '',
- });
+ SsherItemInput({required this.department, required this.teamMember, required this.concern, required this.riskLevel, required this.mitigation});
 }
 
 class AddSsherItemDialog extends StatefulWidget {
@@ -82,14 +63,8 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
  late TextEditingController _memberCtrl;
  late TextEditingController _concernCtrl;
  late TextEditingController _mitigationCtrl;
- late TextEditingController _costLinksCtrl;
- late TextEditingController _scheduleLinksCtrl;
- late TextEditingController _techScopeLinksCtrl;
- late TextEditingController _wbsIdCtrl;
- late TextEditingController _traceNotesCtrl;
  late String _department;
  late String _riskLevel;
- bool _showTraceability = false;
 
  @override
  void initState() {
@@ -97,20 +72,8 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
  _memberCtrl = TextEditingController(text: widget.initialData?.teamMember ?? '');
  _concernCtrl = TextEditingController(text: widget.initialData?.concern ?? '');
  _mitigationCtrl = TextEditingController(text: widget.initialData?.mitigation ?? '');
- _costLinksCtrl = TextEditingController(text: widget.initialData?.costItemIds.join(', ') ?? '');
- _scheduleLinksCtrl = TextEditingController(text: widget.initialData?.scheduleActivityIds.join(', ') ?? '');
- _techScopeLinksCtrl = TextEditingController(text: widget.initialData?.techScopeComponentIds.join(', ') ?? '');
- _wbsIdCtrl = TextEditingController(text: widget.initialData?.relatedWbsId ?? '');
- _traceNotesCtrl = TextEditingController(text: widget.initialData?.notes ?? '');
  _department = widget.initialData?.department ?? 'Operations';
  _riskLevel = widget.initialData?.riskLevel ?? 'High';
- 
- // Show traceability if initial data has any traceability info
- _showTraceability = (widget.initialData?.costItemIds.isNotEmpty ?? false) ||
-                      (widget.initialData?.scheduleActivityIds.isNotEmpty ?? false) ||
-                      (widget.initialData?.techScopeComponentIds.isNotEmpty ?? false) ||
-                      (widget.initialData?.relatedWbsId?.isNotEmpty ?? false) ||
-                      (widget.initialData?.notes?.isNotEmpty ?? false);
 
  if (!widget.departmentOptions.contains(_department)) {
  _department = widget.departmentOptions.first;
@@ -122,11 +85,6 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
  _memberCtrl.dispose();
  _concernCtrl.dispose();
  _mitigationCtrl.dispose();
- _costLinksCtrl.dispose();
- _scheduleLinksCtrl.dispose();
- _techScopeLinksCtrl.dispose();
- _wbsIdCtrl.dispose();
- _traceNotesCtrl.dispose();
  super.dispose();
  }
 
@@ -220,72 +178,6 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
  ]);
  }),
 
- // Traceability Section (expandable)
- const SizedBox(height: 16),
- Container(
- decoration: BoxDecoration(
- color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
- borderRadius: BorderRadius.circular(12),
- border: Border.all(color: colorScheme.outline.withOpacity(0.3)),
- ),
- child: Column(children: [
- ListTile(
- leading: Icon(Icons.link, color: widget.accentColor, size: 20),
- title: Text('Traceability Links', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
- subtitle: Text('Link to cost, schedule, and technical scope items', style: theme.textTheme.bodySmall),
- trailing: IconButton(
- icon: Icon(_showTraceability ? Icons.expand_less : Icons.expand_more),
- onPressed: () => setState(() => _showTraceability = !_showTraceability),
- ),
- if (_showTraceability) ...[
- const Divider(height: 1),
- Padding(
- padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
- children: [
- VoiceTextFormField(
- controller: _costLinksCtrl,
- decoration: _inputDecoration('Cost Item IDs / WBS Elements', theme, colorScheme).copyWith(
- helperText: 'Comma-separated cost line item references',
- hintText: 'e.g., COST-001, WBS-1.2.3',
- ),
- ),
- const SizedBox(height: 10),
- VoiceTextFormField(
- controller: _scheduleLinksCtrl,
- decoration: _inputDecoration('Schedule Activity IDs', theme, colorScheme).copyWith(
- helperText: 'Comma-separated activity or milestone references',
- hintText: 'e.g., MILE-001, ACT-100',
- ),
- ),
- const SizedBox(height: 10),
- VoiceTextFormField(
- controller: _techScopeLinksCtrl,
- decoration: _inputDecoration('Tech Scope Components', theme, colorScheme).copyWith(
- helperText: 'Comma-separated technology scope references',
- hintText: 'e.g., TECH-SYS-01, COMP-DATABASE',
- ),
- ),
- const SizedBox(height: 10),
- VoiceTextFormField(
- controller: _wbsIdCtrl,
- decoration: _inputDecoration('Primary WBS Reference', theme, colorScheme).copyWith(
- hintText: 'Main work breakdown structure element',
- ),
- ),
- const SizedBox(height: 10),
- VoiceTextFormField(
- controller: _traceNotesCtrl,
- maxLines: 2,
- decoration: _inputDecoration('Traceability Notes', theme, colorScheme).copyWith(
- hintText: 'Additional context about cross-references...',
- ),
- ),
- ],
- ),
- ],
- ]),
- ),
-
  const SizedBox(height: 20),
  Row(children: [
  OutlinedButton(
@@ -366,14 +258,6 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
 
  void _save() {
  if (!_formKey.currentState!.validate()) return;
- 
- // Parse comma-separated IDs
- final parseIds = (String text) => text
-     .split(',')
-     .map((s) => s.trim())
-     .where((s) => s.isNotEmpty)
-     .toList();
-
  Navigator.pop(
  context,
  SsherItemInput(
@@ -382,11 +266,6 @@ class _AddSsherItemDialogState extends State<AddSsherItemDialog> {
  concern: _concernCtrl.text.trim(),
  riskLevel: _riskLevel,
  mitigation: _mitigationCtrl.text.trim(),
- costItemIds: parseIds(_costLinksCtrl.text),
- scheduleActivityIds: parseIds(_scheduleLinksCtrl.text),
- techScopeComponentIds: parseIds(_techScopeLinksCtrl.text),
- relatedWbsId: _wbsIdCtrl.text.trim(),
- notes: _traceNotesCtrl.text.trim(),
  ),
  );
  }

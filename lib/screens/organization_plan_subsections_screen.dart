@@ -1930,7 +1930,7 @@ class _OrganizationStaffingPlanScreenState
                         Row(
                           children: [
                             _MetricCard(
-                                label: 'Total Staff',
+                                label: 'Total Personnel',
                                 value: requirements
                                     .fold<int>(0, (sum, r) => sum + r.headcount)
                                     .toString(),

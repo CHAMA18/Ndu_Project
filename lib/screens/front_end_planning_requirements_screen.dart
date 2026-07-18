@@ -350,14 +350,14 @@ class _FrontEndPlanningRequirementsScreenState
         if (data.businessCase.trim().isNotEmpty)
           'Business case: ${data.businessCase.trim()}',
         // Add Overall Framework context
-        if (data.overallFramework.trim().isNotEmpty)
-          'Overall Framework: ${data.overallFramework.trim()}',
+        if ((data.overallFramework ?? '').trim().isNotEmpty)
+          'Overall Framework: ${(data.overallFramework ?? '').trim()}',
         // Add existing requirements notes for continuity
         if (data.frontEndPlanning.requirementsNotes.trim().isNotEmpty)
           'Requirements Notes: ${data.frontEndPlanning.requirementsNotes.trim()}',
         // Add top risk considerations for context
-        if (data.frontEndPlanning.riskItems.isNotEmpty)
-          'Top Risks: ${data.frontEndPlanning.riskItems.take(3).map((r) => '${r.riskDescription} (Impact: ${r.impact})').join('; ')}',
+        if (data.frontEndPlanning.riskRegisterItems.isNotEmpty)
+          'Top Risks: ${data.frontEndPlanning.riskRegisterItems.take(3).map((r) => '${r.riskName} (Impact: ${r.impactLevel})').join('; ')}',
         // Add opportunity items for context
         if (data.frontEndPlanning.opportunityItems.isNotEmpty)
           'Opportunities: ${data.frontEndPlanning.opportunityItems.take(3).map((o) => o.opportunity).join('; ')}',

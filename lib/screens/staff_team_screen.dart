@@ -386,7 +386,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  const Text(
- 'Staff Plan',
+ 'Staffing Plan',
  style: TextStyle(
  fontSize: 22,
  fontWeight: FontWeight.w700,
@@ -394,9 +394,9 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  ),
  ),
  const SizedBox(height: 2),
- Text(
- "Strategize your project's human capital requirements. Identify core roles, determine resource allocation, and align staffing costs with your project's execution timeline.",
- style: const TextStyle(
+ const Text(
+ 'Reflect the planned allocation of project personnel by role and time to support resource planning, workload management, and successful project delivery.',
+ style: TextStyle(
  fontSize: 14,
  fontWeight: FontWeight.w500,
  color: Color(0xFF6B7280),
