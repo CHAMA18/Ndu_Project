@@ -492,6 +492,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
  concern: input.concern,
  riskLevel: input.riskLevel,
  mitigation: input.mitigation,
+ // Traceability fields
+ costItemIds: input.costItemIds,
+ scheduleActivityIds: input.scheduleActivityIds,
+ techScopeComponentIds: input.techScopeComponentIds,
+ relatedWbsId: input.relatedWbsId,
+ notes: input.notes,
  );
  setState(() => _entriesForCategory(category).add(entry));
  await _saveEntries();

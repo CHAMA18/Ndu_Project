@@ -857,6 +857,14 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     );
   }
 
+  /// Navigate to Initial Cost Estimate module (full cost estimate with Builder/BOE/AI/etc.)
+  void _openInitialCostEstimate() {
+    _navigateWithCheckpoint(
+      'initial_cost_estimate',
+      const CostEstimateModuleScreen(),
+    );
+  }
+
   List<AiSolutionItem> _buildSolutionItems(ProjectDataModel data) {
     final potential = data.potentialSolutions
         .map((s) => AiSolutionItem(
@@ -2249,7 +2257,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
               onTap: _openCoreStakeholders,
               isActive: widget.activeItemLabel == 'Core Stakeholders'),
           _buildSubSubMenuItem('Initial Cost Estimate',
-              onTap: _openCostAnalysis,
+              onTap: _openInitialCostEstimate,
               isActive: widget.activeItemLabel == 'Initial Cost Estimate'),
           _buildSubExpandableHeader(
             'Executive Summary',
@@ -3179,7 +3187,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         'financial metrics'.contains(query)) {
       results.add(_buildMenuItem(
           Icons.analytics_outlined, 'Initial Cost Estimate',
-          onTap: _openCostAnalysis,
+          onTap: _openInitialCostEstimate,
           isActive: widget.activeItemLabel == 'Initial Cost Estimate'));
     }
     if ('executive summary'.contains(query)) {

@@ -10,6 +10,10 @@ import 'package:ndu_project/widgets/program_workspace_scaffold.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/rate_card_management_dialog.dart';
+import 'package:ndu_project/models/rate_card.dart';
 class FrontEndPlanningPersonnelScreen extends StatefulWidget {
  const FrontEndPlanningPersonnelScreen({super.key});
 
@@ -61,6 +65,102 @@ class _FrontEndPlanningPersonnelScreenState
  ],
  );
  }
+  /// Open the Rate Card management dialog
+  Future<void> _openRateCardManager() async {
+    final data = ProjectDataHelper.getData(context);
+    final existingCards = List<RateCard>.from(data.rateCards);
+    
+    final result = await RateCardManagementDialog.show(
+      context,
+      existingCards: existingCards,
+    );
+    
+    if (result != null && mounted) {
+      // Save updated rate cards
+      final provider = ProjectDataHelper.getProvider(context);
+      provider.updateField((projectData) => projectData.copyWith(rateCards: result));
+      await provider.saveToFirebase(checkpoint: 'rate_cards');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.length.toString() + ' rate card(s) saved successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  /// Import staffing roles from CSV file
+  Future<void> _importFromCsv() async {
+    final rows = await showCsvImportDialog(
+      context,
+      tableTitle: 'Staffing Plan',
+      columns: [
+        CsvColumnSpec(key: 'role', label: 'Role Title', sampleValue: 'Project Manager'),
+        CsvColumnSpec(key: 'quantity', label: 'Quantity', sampleValue: '1'),
+        CsvColumnSpec(key: 'type', label: 'Type (Internal/External)', sampleValue: 'Internal'),
+        CsvColumnSpec(key: 'startDate', label: 'Start Date', sampleValue: '2024-01-15'),
+        CsvColumnSpec(key: 'durationMonths', label: 'Duration (months)', sampleValue: '12'),
+        CsvColumnSpec(key: 'monthlyCost', label: 'Monthly Cost (\$', sampleValue: '15000'),
+        CsvColumnSpec(key: 'description', label: 'Role Description', sampleValue: 'Responsible for overall project delivery...'),
+        CsvColumnSpec(key: 'skills', label: 'Skill Requirements', sampleValue: 'PMP certification, 10+ years experience'),
+        CsvColumnSpec(key: 'notes', label: 'Notes', sampleValue: 'Critical hire - must be filled before kickoff'),
+      ],
+    );
+
+    if (rows == null || !mounted) return;
+
+    final newRows = <StaffingRow>[];
+    for (final csvRow in rows) {
+      final row = StaffingRow(
+        role: (csvRow['role'] ?? '').toString().trim(),
+        quantity: int.tryParse((csvRow['quantity'] ?? '1').toString().trim()) ?? 1,
+        isInternal: (csvRow['type'] ?? 'Internal').toString().trim().toLowerCase() != 'external',
+        startDate: (csvRow['startDate'] ?? '').toString().trim(),
+        durationMonths: (csvRow['durationMonths'] ?? '12').toString().trim(),
+        monthlyCost: (csvRow['monthlyCost'] ?? '0').toString().trim(),
+        roleDescription: (csvRow['description'] ?? '').toString().trim(),
+        skillRequirements: (csvRow['skills'] ?? '').toString().trim(),
+        notes: (csvRow['notes'] ?? '').toString().trim(),
+        status: 'Planned',
+      );
+      if (row.role.isNotEmpty) {
+        newRows.add(row);
+      }
+    }
+
+    if (newRows.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid rows found in CSV'), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    setState(() {
+      _rows.addAll(newRows);
+    });
+    _syncRowsToProvider();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(newRows.length.toString() + ' staffing role(s) imported successfully'),
+        backgroundColor: Colors.green,
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: Colors.white,
+          onPressed: () {
+            setState(() {
+              _rows.removeRange(_rows.length - newRows.length, _rows.length);
+            });
+            _syncRowsToProvider();
+          },
+        ),
+      ),
+    );
+  }
+
 @override
  void dispose() {
  _notes.removeListener(_syncNotesToProvider);
@@ -404,6 +504,30 @@ class _FrontEndPlanningPersonnelScreenState
  const SizedBox(width: 12),
  _AddRoleButton(
  onPressed: () => _upsertRow(),
+ ),
+ const SizedBox(width: 8),
+ OutlinedButton.icon(
+ onPressed: _importFromCsv,
+ icon: const Icon(Icons.upload_file_outlined, size: 18),
+ label: const Text('Import CSV'),
+ style: OutlinedButton.styleFrom(
+ foregroundColor: const Color(0xFF2563EB),
+ side: const BorderSide(color: const Color(0xFF2563EB)),
+ shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+ ),
+ ),
+ const SizedBox(width: 8),
+ OutlinedButton.icon(
+ onPressed: _openRateCardManager,
+ icon: const Icon(Icons.attach_money, size: 18),
+ label: const Text('Rates'),
+ style: OutlinedButton.styleFrom(
+ foregroundColor: const Color(0xFF059669),
+ side: const BorderSide(color: const Color(0xFF059669)),
+ shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+ ),
  ),
  ],
  ),

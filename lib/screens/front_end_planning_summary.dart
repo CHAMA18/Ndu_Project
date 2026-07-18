@@ -53,6 +53,13 @@ class _FrontEndPlanningSummaryScreenState
  bool _isSyncReady = false;
  bool _reviewConfirmed = false;
 
+  // Drag-and-drop state for Objectives ↔ Success Criteria
+  String? _draggedItemType; // 'objective' or 'successCriteria'
+  String? _draggedItemTitle;
+  String? _draggedItemDescription;
+  bool _isDraggingOverObjectives = false;
+  bool _isDraggingOverSuccessCriteria = false;
+
  @override
  void initState() {
  super.initState();
@@ -81,6 +88,72 @@ class _FrontEndPlanningSummaryScreenState
  }
 
  
+  /// Handle drag-and-drop between Objectives and Success Criteria
+  void _handleCrossListDrop(Map<String, String> draggedData) {
+    final provider = Provider.of<ProjectDataProvider>(context, listen: false);
+    final data = provider.projectData;
+    final type = draggedData['type'] ?? '';
+    final title = draggedData['title'] ?? '';
+    final description = draggedData['description'] ?? '';
+
+    if (type == 'objective' && title.isNotEmpty) {
+      // Moving FROM Objectives TO Success Criteria
+      final updatedGoals = List<ProjectGoal>.from(data.projectGoals);
+      updatedGoals.removeWhere((g) => g.goal == description);
+      
+      final newCriteria = PlanningDashboardItem(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: title,
+        description: description,
+        createdAt: DateTime.now(),
+        isAiGenerated: false,
+      );
+      final updatedCriteria = List<PlanningDashboardItem>.from(data.frontEndPlanning.successCriteriaItems)..add(newCriteria);
+      
+      provider.updateProjectGoals(updatedGoals);
+      provider.updateSuccessCriteriaItems(updatedCriteria);
+      
+    } else if (type == 'successCriteria' && title.isNotEmpty) {
+      // Moving FROM Success Criteria TO Objectives
+      final updatedCriteria = List<PlanningDashboardItem>.from(data.frontEndPlanning.successCriteriaItems);
+      updatedCriteria.removeWhere((c) => c.title == title);
+      
+      final newGoal = ProjectGoal(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        goal: description,
+        title: title,
+      );
+      final updatedGoals = List<ProjectGoal>.from(data.projectGoals)..add(newGoal);
+      
+      provider.updateSuccessCriteriaItems(updatedCriteria);
+      provider.updateProjectGoals(updatedGoals);
+    }
+
+    setState(() {
+      _isDraggingOverObjectives = false;
+      _isDraggingOverSuccessCriteria = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Moved "' + title + '" to ' + (type == 'objective' ? 'Success Criteria' : 'Project Objectives')),
+        duration: const Duration(seconds: 2),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () => _undoLastCrossListMove(type, title, description),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _undoLastCrossListMove(String originalType, String title, String description) async {
+    await _handleCrossListDrop({
+      'type': originalType == 'objective' ? 'successCriteria' : 'objective',
+      'title': title,
+      'description': description,
+    });
+  }
+
  Future<void> _exportPdf() async {
  final projectData = ProjectDataHelper.getData(context);
  final fep = projectData.frontEndPlanning;
@@ -926,12 +999,13 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  Expanded(
- child: _GoalsCard(
+ child: _DraggableObjectivesCard(
  title: 'Project Objectives',
  description:
- 'Specific, measurable goals the project aims to achieve.',
+ 'Specific, measurable goals the project aims to achieve.\n\n💡 Drag items to Success Criteria to convert them.',
  items: data.projectGoals,
  isGenerating: _generatingStates['projectGoals'] ?? false,
+ isDraggingOver: _isDraggingOverObjectives,
  onAdd: () => _handleAddGoal(
  context, 'Project Objectives', data.projectGoals),
  onEdit: (item) =>
@@ -944,12 +1018,13 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
  ),
  const SizedBox(width: 16),
  Expanded(
- child: PlanningDashboardCard(
+ child: _DraggableSuccessCriteriaCard(
  title: 'Success Criteria',
  description:
- 'Standards by which the project success will be judged.',
+ 'Standards by which the project success will be judged.\n\n💡 Drag items from Project Objectives to convert them.',
  items: data.frontEndPlanning.successCriteriaItems,
  isGenerating: _generatingStates['successCriteria'] ?? false,
+ isDraggingOver: _isDraggingOverSuccessCriteria,
  onUndo: () => _undoListChange(context, 'successCriteriaItems'),
  canUndo: _canUndo('successCriteriaItems'),
  onAdd: () => _handleAddItem(
@@ -1641,6 +1716,514 @@ class _BottomOverlay extends StatelessWidget {
  ),
  );
  }
+}
+
+
+/// Project Objectives card with drag-and-drop support
+class _DraggableObjectivesCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final List<ProjectGoal> items;
+  final bool isGenerating;
+  final bool isDraggingOver;
+  final VoidCallback onAdd;
+  final Function(ProjectGoal) onEdit;
+  final Function(ProjectGoal) onDelete;
+  final VoidCallback onGenerateAI;
+
+  const _DraggableObjectivesCard({
+    required this.title,
+    required this.description,
+    required this.items,
+    required this.isGenerating,
+    required this.isDraggingOver,
+    required this.onAdd,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onGenerateAI,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<Map<String, String>>(
+      onWillAcceptWithDetails: (details) {
+        final data = details.data;
+        return data['type'] == 'successCriteria'; // Only accept from Success Criteria
+      },
+      onAcceptWithDetails: (details) {
+        // Handle drop - will be processed by parent
+        if (context.findAncestorStateOfType<_FrontEndPlanningSummaryScreenState>() != null) {
+          context.findAncestorStateOfType<_FrontEndPlanningSummaryScreenState>()!._handleCrossListDrop(details.data);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: candidateData.isNotEmpty 
+                  ? const Color(0xFF2563EB) 
+                  : const Color(0xFFE5E7EB),
+              width: candidateData.isNotEmpty ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: candidateData.isNotEmpty 
+                    ? const Color(0xFF2563EB).withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05),
+                blurRadius: candidateData.isNotEmpty ? 8 : 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildDraggableHeader(context, title, description, candidateData.isNotEmpty),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Column(
+                  children: items.asMap().entries.map((entry) {
+                    final goal = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _DraggableItemCard(
+                        title: goal.title.isNotEmpty ? goal.title : goal.goal,
+                        description: goal.goal,
+                        dragType: 'objective',
+                        child: _buildGoalItem(context, goal, entry.key),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              _buildActionRow(context),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDraggableHeader(BuildContext context, String title, String description, bool isActive) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFFEFF6FF) : const Color(0xFFF9FAFB),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          if (isActive)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.swap_vert, color: Color(0xFF2563EB), size: 18),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                const SizedBox(height: 4),
+                Text(description, style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.3)),
+              ],
+            ),
+          ),
+          if (!isGenerating)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Color(0xFF2563EB)),
+              onPressed: onAdd,
+              tooltip: 'Add Objective',
+            )
+          else
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF2563EB)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGoalItem(BuildContext context, ProjectGoal goal, int index) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.drag_indicator, color: Colors.grey[400], size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(goal.title.isNotEmpty ? goal.title : 'Objective ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                if (goal.goal.isNotEmpty)
+                  Text(goal.goal, style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6B7280)),
+            onPressed: () => onEdit(goal),
+            tooltip: 'Edit',
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+            onPressed: () => onDelete(goal),
+            tooltip: 'Delete',
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionRow(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          OutlinedButton.icon(
+            onPressed: onGenerateAI,
+            icon: const Icon(Icons.auto_awesome, size: 16),
+            label: const Text('AI', style: TextStyle(fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF2563EB)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Success Criteria card with drag-and-drop support
+class _DraggableSuccessCriteriaCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final List<PlanningDashboardItem> items;
+  final bool isGenerating;
+  final bool isDraggingOver;
+  final VoidCallback? onUndo;
+  final bool canUndo;
+  final VoidCallback onAdd;
+  final Function(PlanningDashboardItem) onEdit;
+  final Function(PlanningDashboardItem) onDelete;
+  final VoidCallback onGenerateAI;
+
+  const _DraggableSuccessCriteriaCard({
+    required this.title,
+    required this.description,
+    required this.items,
+    required this.isGenerating,
+    required this.isDraggingOver,
+    this.onUndo,
+    required this.canUndo,
+    required this.onAdd,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onGenerateAI,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<Map<String, String>>(
+      onWillAcceptWithDetails: (details) {
+        final data = details.data;
+        return data['type'] == 'objective'; // Only accept from Objectives
+      },
+      onAcceptWithDetails: (details) {
+        if (context.findAncestorStateOfType<_FrontEndPlanningSummaryScreenState>() != null) {
+          context.findAncestorStateOfType<_FrontEndPlanningSummaryScreenState>()!._handleCrossListDrop(details.data);
+        }
+      },
+      builder: (context, candidateData, rejectedData) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: candidateData.isNotEmpty 
+                  ? const Color(0xFF10B981) 
+                  : const Color(0xFFE5E7EB),
+              width: candidateData.isNotEmpty ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: candidateData.isNotEmpty 
+                    ? const Color(0xFF10B981).withOpacity(0.1)
+                    : Colors.black.withOpacity(0.05),
+                blurRadius: candidateData.isNotEmpty ? 8 : 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildDraggableHeader(context, title, description, candidateData.isNotEmpty),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Column(
+                  children: items.asMap().entries.map((entry) {
+                    final item = entry.value;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _DraggableItemCard(
+                        title: item.title,
+                        description: item.description,
+                        dragType: 'successCriteria',
+                        child: _buildCriteriaItem(context, item, entry.key),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              _buildActionRow(context),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDraggableHeader(BuildContext context, String title, String description, bool isActive) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFFECFDF5) : const Color(0xFFF9FAFB),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          if (isActive)
+            const Padding(
+              padding: EdgeInsets.only(right: 8),
+              child: Icon(Icons.swap_vert, color: Color(0xFF10B981), size: 18),
+            ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                const SizedBox(height: 4),
+                Text(description, style: TextStyle(fontSize: 12, color: Colors.grey[600], height: 1.3)),
+              ],
+            ),
+          ),
+          if (canUndo && onUndo != null)
+            IconButton(
+              icon: const Icon(Icons.undo_outlined, size: 18, color: Color(0xFF6B7280)),
+              onPressed: onUndo,
+              tooltip: 'Undo last change',
+            )
+          else
+            const SizedBox(width: 40),
+          if (!isGenerating)
+            IconButton(
+              icon: const Icon(Icons.add_circle_outline, color: Color(0xFF10B981)),
+              onPressed: onAdd,
+              tooltip: 'Add Criterion',
+            )
+          else
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCriteriaItem(BuildContext context, PlanningDashboardItem item, int index) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.drag_indicator, color: Colors.grey[400], size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.title.isNotEmpty ? item.title : 'Criterion ${index + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                if (item.description.isNotEmpty)
+                  Text(item.description, style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                      maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6B7280)),
+            onPressed: () => onEdit(item),
+            tooltip: 'Edit',
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFEF4444)),
+            onPressed: () => onDelete(item),
+            tooltip: 'Delete',
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            padding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionRow(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          if (canUndo && onUndo != null)
+            TextButton.icon(
+              onPressed: onUndo,
+              icon: const Icon(Icons.undo, size: 16),
+              label: const Text('Undo'),
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFF6B7280)),
+            )
+          else
+            const SizedBox.shrink(),
+          OutlinedButton.icon(
+            onPressed: onGenerateAI,
+            icon: const Icon(Icons.auto_awesome, size: 16),
+            label: const Text('AI', style: TextStyle(fontWeight: FontWeight.w700)),
+            style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF10B981)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Wraps an item in a Draggable for cross-list drag-and-drop
+class _DraggableItemCard extends StatelessWidget {
+  final String title;
+  final String description;
+  final String dragType; // 'objective' or 'successCriteria'
+  final Widget child;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+
+  const _DraggableItemCard({
+    required this.title,
+    required this.description,
+    required this.dragType,
+    required this.child,
+    this.onEdit,
+    this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Draggable<Map<String, String>>(
+      data: {
+        'type': dragType,
+        'title': title,
+        'description': description,
+      },
+      feedback: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        child: Container(
+          width: 280,
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Icon(Icons.drag_indicator, color: Colors.grey[400], size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(Icons.swap_vert, color: Color(0xFF2563EB), size: 16),
+            ],
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.4,
+        child: child,
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Drop target wrapper for objectives/success criteria lists
+class _DropTargetWrapper extends StatelessWidget {
+  final String targetType; // 'objective' or 'successCriteria'
+  final bool isDraggingOver;
+  final Widget child;
+
+  const _DropTargetWrapper({
+    required this.targetType,
+    required this.isDraggingOver,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<Map<String, String>>(
+      onWillAcceptWithDetails: (details) {
+        final data = details.data;
+        return data['type'] != targetType; // Only accept from other list
+      },
+      onAcceptWithDetails: (details) {
+        final data = details.data;
+        // Callback will be handled by parent via key
+        if (context is StatefulElement) {
+          final state = context.state as _FrontEndPlanningSummaryScreenState;
+          state._handleCrossListDrop(data);
+        }
+      },
+      onLeave: (data) {
+        // Visual feedback handled by parent state
+      },
+      builder: (context, candidateData, rejectedData) {
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: candidateData.isNotEmpty
+                ? Border.all(color: const Color(0xFF2563EB), width: 2)
+                : null,
+            color: candidateData.isNotEmpty
+                ? const Color(0xFFEFF6FF)
+                : null,
+          ),
+          child: child,
+        );
+      },
+    );
+  }
 }
 
 Widget _formattedNotesEditor(

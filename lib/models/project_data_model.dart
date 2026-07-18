@@ -3463,6 +3463,13 @@ class SsherEntry {
   String concern;
   String riskLevel;
   String mitigation;
+  
+  // Traceability links to other project areas
+  List<String> costItemIds; // Links to cost estimate line items/WBS elements
+  List<String> scheduleActivityIds; // Links to schedule activities/milestones
+  List<String> techScopeComponentIds; // Links to technology scope components
+  String relatedWbsId; // Primary WBS element reference
+  String notes; // Additional traceability notes
 
   SsherEntry({
     String? id,
@@ -3472,7 +3479,15 @@ class SsherEntry {
     this.concern = '',
     this.riskLevel = '',
     this.mitigation = '',
-  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+    List<String>? costItemIds,
+    List<String>? scheduleActivityIds,
+    List<String>? techScopeComponentIds,
+    this.relatedWbsId = '',
+    this.notes = '',
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+       costItemIds = costItemIds ?? [],
+       scheduleActivityIds = scheduleActivityIds ?? [],
+       techScopeComponentIds = techScopeComponentIds ?? [];
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -3482,17 +3497,27 @@ class SsherEntry {
         'concern': concern,
         'riskLevel': riskLevel,
         'mitigation': mitigation,
+        'costItemIds': costItemIds,
+        'scheduleActivityIds': scheduleActivityIds,
+        'techScopeComponentIds': techScopeComponentIds,
+        'relatedWbsId': relatedWbsId,
+        'notes': notes,
       };
 
   factory SsherEntry.fromJson(Map<String, dynamic> json) {
     return SsherEntry(
-      id: json['id'] ?? DateTime.now().microsecondsSinceEpoch.toString(),
-      category: json['category'] ?? '',
-      department: json['department'] ?? '',
-      teamMember: json['teamMember'] ?? '',
-      concern: json['concern'] ?? '',
-      riskLevel: json['riskLevel'] ?? '',
-      mitigation: json['mitigation'] ?? '',
+      id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
+      category: json['category'] as String? ?? '',
+      department: json['department'] as String? ?? '',
+      teamMember: json['teamMember'] as String? ?? '',
+      concern: json['concern'] as String? ?? '',
+      riskLevel: json['riskLevel'] as String? ?? '',
+      mitigation: json['mitigation'] as String? ?? '',
+      costItemIds: (json['costItemIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      scheduleActivityIds: (json['scheduleActivityIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      techScopeComponentIds: (json['techScopeComponentIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      relatedWbsId: json['relatedWbsId'] as String? ?? '',
+      notes: json['notes'] as String? ?? '',
     );
   }
 }
