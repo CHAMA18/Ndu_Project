@@ -45,7 +45,6 @@ class PartnerScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 
@@ -61,6 +60,8 @@ class PartnerScreen extends StatelessWidget {
         ),
         const Spacer(),
         _buildBackButton(context),
+        const SizedBox(width: 12),
+        const LandingSubpageActions(),
       ],
     );
   }

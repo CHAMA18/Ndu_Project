@@ -262,7 +262,6 @@ class _PricingScreenState extends State<PricingScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 

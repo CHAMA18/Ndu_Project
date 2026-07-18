@@ -49,7 +49,6 @@ class HowItWorksScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 
@@ -71,6 +70,8 @@ class HowItWorksScreen extends StatelessWidget {
           label: const Text('Back to Landing',
               style: TextStyle(color: Colors.white70, fontSize: 14)),
         ),
+        const SizedBox(width: 12),
+        const LandingSubpageActions(),
       ],
     );
   }

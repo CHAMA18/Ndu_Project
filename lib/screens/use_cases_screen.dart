@@ -65,7 +65,6 @@ class UseCasesScreen extends StatelessWidget {
           ),
         ),
       ),
-      bottomNavigationBar: const LandingSubpageActionBar(),
     );
   }
 
@@ -80,6 +79,8 @@ class UseCasesScreen extends StatelessWidget {
         ),
         const Spacer(),
         _backButton(context),
+        const SizedBox(width: 12),
+        const LandingSubpageActions(),
       ],
     );
   }
