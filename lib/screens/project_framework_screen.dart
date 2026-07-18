@@ -24,6 +24,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+import 'package:ndu_project/widgets/draggable_card_canvas.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 // ─── Design Tokens ───────────────────────────────────────────────────────────
@@ -818,6 +819,7 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
             redoField: _redoField,
             regenerateGoalDesc: _regenerateGoalDescription,
             regeneratingGoalIds: _regeneratingGoalIds,
+            projectId: ProjectDataHelper.getData(context).projectId ?? '',
           ),
  const SizedBox(height: 16),
 
@@ -974,6 +976,7 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
             redoField: _redoField,
             regenerateGoalDesc: _regenerateGoalDescription,
             regeneratingGoalIds: _regeneratingGoalIds,
+            projectId: ProjectDataHelper.getData(context).projectId ?? '',
           ),
  const SizedBox(height: 16),
 
@@ -1710,6 +1713,7 @@ class _MobileGoalsSection extends StatelessWidget {
     required this.redoField,
     required this.regenerateGoalDesc,
     required this.regeneratingGoalIds,
+    this.projectId = '',
   });
 
   final List<_Goal> goals;
@@ -1723,9 +1727,33 @@ class _MobileGoalsSection extends StatelessWidget {
   final void Function(String key, TextEditingController) redoField;
   final Future<void> Function(int goalId) regenerateGoalDesc;
   final Set<int> regeneratingGoalIds;
+  final String projectId;
 
  @override
  Widget build(BuildContext context) {
+ // Build the list of draggable card widgets (each goal becomes a card)
+ final cards = <({String id, Widget widget})>[
+   for (var i = 0; i < goals.length; i++)
+     (
+       id: 'goal_${goals[i].id}',
+       widget: _MobileGoalCard(
+         index: i,
+         goal: goals[i],
+         onDelete: () => onDeleteGoal(goals[i].id),
+         isDescriptionAiGenerated:
+             fieldIsAiGenerated['goal_desc_${goals[i].id}'] ?? false,
+         isRegeneratingDesc: regeneratingGoalIds.contains(goals[i].id),
+         canUndoDesc: canUndoField('goal_desc_${goals[i].id}'),
+         canRedoDesc: canRedoField('goal_desc_${goals[i].id}'),
+         onRegenerateDesc: () => regenerateGoalDesc(goals[i].id),
+         onUndoDesc: () => undoField(
+             'goal_desc_${goals[i].id}', goals[i].controller),
+         onRedoDesc: () => redoField(
+             'goal_desc_${goals[i].id}', goals[i].controller),
+       ),
+     ),
+ ];
+
  return Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
@@ -1789,26 +1817,15 @@ class _MobileGoalsSection extends StatelessWidget {
  ),
  const SizedBox(height: 12),
 
- // Goal cards
- ...goals.asMap().entries.map((entry) {
- final index = entry.key;
- final goal = entry.value;
- return Padding(
- padding: const EdgeInsets.only(bottom: 10),
- child:          _MobileGoalCard(
-            index: index,
-            goal: goal,
-            onDelete: () => onDeleteGoal(goal.id),
-            isDescriptionAiGenerated: fieldIsAiGenerated['goal_desc_${goal.id}'] ?? false,
-            isRegeneratingDesc: regeneratingGoalIds.contains(goal.id),
-            canUndoDesc: canUndoField('goal_desc_${goal.id}'),
-            canRedoDesc: canRedoField('goal_desc_${goal.id}'),
-            onRegenerateDesc: () => regenerateGoalDesc(goal.id),
-            onUndoDesc: () => undoField('goal_desc_${goal.id}', goal.controller),
-            onRedoDesc: () => redoField('goal_desc_${goal.id}', goal.controller),
-          ),
- );
- }),
+ // Goal cards — now hosted inside FreeformCardCanvas so they
+ // can be dragged freely across the entire screen surface
+ // when the user toggles to Freeform mode.
+ FreeformCardCanvas(
+   projectId: projectId,
+   section: 'project_goals',
+   cardWidth: 320.0,
+   cards: cards,
+ ),
  ],
  );
  }

@@ -11,6 +11,7 @@ import 'package:ndu_project/services/subscription_service.dart';
 import 'package:ndu_project/services/subscription_pricing_service.dart';
 import 'package:ndu_project/services/user_preferences_service.dart';
 import 'package:ndu_project/widgets/payment_dialog.dart';
+import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 // World-class color palette
@@ -233,7 +234,46 @@ class _PricingScreenState extends State<PricingScreen> {
 
     return Scaffold(
       backgroundColor: _pageBackground,
-      body: const SizedBox.shrink(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Container(
+            color: const Color(0xFFFFFBF2),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentWidth),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isDesktop ? 40 : (isTablet ? 28 : 16),
+                    vertical: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTopNav(context, isDesktop: isDesktop),
+                      const SizedBox(height: 24),
+                      _buildTrustStrip(),
+                      const SizedBox(height: 28),
+                      _buildPositioningSection(
+                        isDesktop: isDesktop,
+                        isTablet: isTablet,
+                      ),
+                      const SizedBox(height: 36),
+                      _buildSectionHeader(isDesktop || isTablet),
+                      const SizedBox(height: 24),
+                      _buildPlansGrid(isDesktop, isTablet),
+                      const SizedBox(height: 48),
+                      const _PricingExtras(),
+                      const SizedBox(height: 48),
+                      _buildClosingCta(context, isDesktop: isDesktop),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -959,30 +999,69 @@ class _PricingScreenState extends State<PricingScreen> {
   }
 
   Widget _buildPlansGrid(bool isDesktop, bool isTablet) {
+    // User requirement: ALL pricing containers must appear in ONE ROW
+    // across the entire screen, regardless of viewport width.
+    //
+    // Strategy:
+    //   • Desktop / tablet (>= 800px): 4 cards in a single Row using
+    //     Expanded — cards stretch to fill available width equally.
+    //   • Mobile (< 800px): horizontal scrollable Row with fixed-width
+    //     cards so all 4 plans remain on the same row (page-pinch
+    //     scroll reveals the off-screen cards). This guarantees the
+    //     "one row" layout even on narrow phones.
+    final size = MediaQuery.of(context).size;
+    final isWideEnough = size.width >= 800;
+
+    if (isWideEnough) {
+      // Always 4 columns in one row
+      return IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _dynamicPlans
+              .map((plan) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: _PlanColumn(
+                        plan: plan,
+                        isSelected: _selectedTier == plan.tier,
+                        price: _priceForPlan(plan),
+                        onSelect: () {
+                          setState(() => _selectedTier = plan.tier);
+                          _handlePlanSelection(context, plan);
+                        },
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+      );
+    }
+
+    // Narrow viewport — horizontal scroll with fixed-width cards.
+    // All 4 plans still render in one row; user scrolls horizontally
+    // to see plans that overflow the viewport.
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: _dynamicPlans.asMap().entries.map((entry) {
-            final index = entry.key;
-            final plan = entry.value;
-            final isFeatured = index == 2; // Program tier is featured
-            
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: _PlanColumn(
-                plan: plan,
-                isSelected: _selectedTier == plan.tier,
-                price: _priceForPlan(plan),
-                isFeatured: isFeatured,
-                onSelect: () {
-                  setState(() => _selectedTier = plan.tier);
-                  _handlePlanSelection(context, plan);
-                },
-              ),
-            );
-          }).toList(),
+          children: _dynamicPlans
+              .map((plan) => SizedBox(
+                    width: 280, // fixed card width on mobile
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: _PlanColumn(
+                        plan: plan,
+                        isSelected: _selectedTier == plan.tier,
+                        price: _priceForPlan(plan),
+                        onSelect: () {
+                          setState(() => _selectedTier = plan.tier);
+                          _handlePlanSelection(context, plan);
+                        },
+                      ),
+                    ),
+                  ))
+              .toList(),
         ),
       ),
     );
@@ -1359,199 +1438,114 @@ class _PlanColumnState extends State<_PlanColumn>
                       height: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  
-                  // Price section
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: widget.isFeatured
+                  ? Colors.white.withValues(alpha: 0.08)
+                  : const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: widget.isFeatured
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : const Color(0xFFE2E8F0),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      widget.price.price,
+                      style: TextStyle(
+                        color:
+                            widget.isFeatured ? Colors.white : _primaryText,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        widget.price.period,
+                        style: TextStyle(
+                          color: widget.isFeatured
+                              ? Colors.white.withValues(alpha: 0.7)
+                              : _secondaryText,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.price.note != null) ...[
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: widget.isFeatured
-                          ? Colors.white.withValues(alpha: 0.08)
-                          : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: widget.isFeatured
-                            ? Colors.white.withValues(alpha: 0.1)
-                            : const Color(0xFFE2E8F0),
-                      ),
+                      color: const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              widget.price.price,
-                              style: TextStyle(
-                                color: widget.isFeatured
-                                    ? Colors.white
-                                    : _primaryText,
-                                fontSize: 36,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -1,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                widget.price.period,
-                                style: TextStyle(
-                                  color: widget.isFeatured
-                                      ? Colors.white.withValues(alpha: 0.7)
-                                      : _secondaryText,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (widget.price.note != null) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFDCFCE7),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              widget.price.note!,
-                              style: const TextStyle(
-                                color: const Color(0xFF166534),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // Features section
-                  Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.zero,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'What\'s included',
-                            style: TextStyle(
-                              color: widget.isFeatured
-                                  ? Colors.white.withValues(alpha: 0.6)
-                                  : _secondaryText,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          ...widget.plan.features.map((feature) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  margin: const EdgeInsets.only(top: 2),
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        accent,
-                                        accent.withValues(alpha: 0.7),
-                                      ],
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Icon(
-                                    Icons.check,
-                                    color: Colors.white,
-                                    size: 14,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    feature,
-                                    style: TextStyle(
-                                      color: widget.isFeatured
-                                          ? Colors.white.withValues(alpha: 0.9)
-                                          : _primaryText,
-                                      fontSize: 14,
-                                      height: 1.4,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // CTA Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: widget.onSelect,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: widget.isFeatured
-                            ? const Color(0xFFEAB308)
-                            : widget.isSelected
-                                ? accent
-                                : Colors.white,
-                        foregroundColor: widget.isFeatured
-                            ? const Color(0xFF1E1B4B)
-                            : widget.isSelected
-                                ? Colors.white
-                                : accent,
-                        elevation: 0,
-                        padding: EdgeInsets.zero,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(
-                            color: widget.isFeatured
-                                ? const Color(0xFFEAB308)
-                                : widget.isSelected
-                                    ? accent
-                                    : accent.withValues(alpha: 0.3),
-                            width: widget.isSelected ? 2 : 1.5,
-                          ),
-                        ),
-                        textStyle: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (widget.isSelected) ...[
-                            const Icon(Icons.check_circle, size: 18),
-                            const SizedBox(width: 8),
-                            const Text('Current Plan'),
-                          ] else ...[
-                            Text(widget.isFeatured ? 'Get Started' : 'Select Plan'),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward_rounded, size: 18),
-                          ],
-                        ],
+                    child: Text(
+                      widget.price.note!,
+                      style: const TextStyle(
+                        color: Color(0xFF166534),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                 ],
-              ),
+              ],
             ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: plan.features
+                  .map((feature) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 4),
+                              height: 10,
+                              width: 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [accent, accent.withValues(alpha: 0.7)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                feature,
+                                style: const TextStyle(
+                                  color: _primaryText,
+                                  fontSize: 13,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
+            ),
+          ),
           );
         },
       ),

@@ -49,8 +49,11 @@ import 'package:ndu_project/screens/agile_acceptance_criteria_screen.dart';
 import 'package:ndu_project/screens/agile_kanban_config_screen.dart';
 import 'package:ndu_project/screens/agile_metrics_planning_screen.dart';
 import 'package:ndu_project/screens/agile_delivery_model_screen.dart';
+import 'package:ndu_project/screens/agile_scrum_config_screen.dart';
+import 'package:ndu_project/screens/agile_capacity_planning_screen.dart';
 import 'package:ndu_project/screens/agile_team_structure_screen.dart';
 import 'package:ndu_project/screens/agile_epics_features_screen.dart';
+import 'package:ndu_project/screens/agile_stories_backlog_screen.dart';
 import 'package:ndu_project/screens/agile_sprint_calendar_screen.dart';
 import 'package:ndu_project/screens/agile_release_plan_screen.dart';
 import 'package:ndu_project/screens/agile_backlog_governance_screen.dart';
@@ -146,6 +149,16 @@ class PlanningPhaseNavigation {
       builder: (_) => const AgileDeliveryModelScreen(),
     ),
     PlanningPage(
+      id: 'agile_scrum_config',
+      title: 'Scrum Configuration',
+      builder: (_) => const AgileScrumConfigScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_capacity_planning',
+      title: 'Capacity Planning',
+      builder: (_) => const AgileCapacityPlanningScreen(),
+    ),
+    PlanningPage(
       id: 'agile_backlog_governance',
       title: 'Backlog Governance',
       builder: (_) => const AgileBacklogGovernanceScreen(),
@@ -164,6 +177,11 @@ class PlanningPhaseNavigation {
       id: 'agile_epics_features',
       title: 'Epics & Features',
       builder: (_) => const AgileEpicsFeaturesScreen(),
+    ),
+    PlanningPage(
+      id: 'agile_stories_backlog',
+      title: 'Stories & Backlog Breakdown',
+      builder: (_) => const AgileStoriesBacklogScreen(),
     ),
     PlanningPage(
       id: 'agile_acceptance_criteria',

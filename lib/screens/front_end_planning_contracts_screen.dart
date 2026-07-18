@@ -744,6 +744,7 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
  content: Text('Please complete all required fields.')));
  return;
  }
+// Dates are optional in initiation phase - only validate if both are provided
  if (_startDate != null && _endDate != null && _endDate!.isBefore(_startDate!)) {
  messenger.showSnackBar(const SnackBar(
  content: Text('End Date cannot be before Start Date.')));
@@ -762,18 +763,16 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
  return;
  }
 
- final valueText = _estimatedValueController.text.trim();
- final double estValue = valueText.isEmpty ? 0 : (double.tryParse(valueText) ?? -1);
- if (estValue < 0) {
- messenger.showSnackBar(const SnackBar(
- content: Text('Total Value must be a positive number or left blank.')));
- return;
- }
- if (_contractStartPhase == 'Planning' && estValue <= 0) {
- messenger.showSnackBar(const SnackBar(
- content: Text('Planning phase contracts require a total value after bidding.')));
- return;
- }
+// Estimated value is optional in initiation phase - only validate if provided
+final double? estValue = _estimatedValueController.text.trim().isEmpty
+    ? null
+    : double.tryParse(_estimatedValueController.text.trim());
+if (_estimatedValueController.text.trim().isNotEmpty &&
+    (estValue == null || estValue <= 0)) {
+  messenger.showSnackBar(const SnackBar(
+      content: Text('Estimated Value must be a positive number if provided.')));
+  return;
+}
 
  try {
  if (_isEdit) {
@@ -785,9 +784,9 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
  contractType: _contractType,
  paymentType: _paymentType,
  status: _status,
- estimatedValue: estValue,
- startDate: _startDate!,
- endDate: _endDate!,
+ estimatedValue: estValue ?? 0,
+ startDate: _startDate,
+ endDate: _endDate,
  scope: _scopeController.text.trim(),
  discipline: _disciplineController.text.trim(),
  notes: _notesWithPhase(),
@@ -800,9 +799,9 @@ class _CreateContractScreenState extends State<CreateContractScreen> {
  contractType: _contractType,
  paymentType: _paymentType,
  status: _status,
- estimatedValue: estValue,
- startDate: _startDate!,
- endDate: _endDate!,
+ estimatedValue: estValue ?? 0,
+ startDate: _startDate,
+ endDate: _endDate,
  scope: _scopeController.text.trim(),
  discipline: _disciplineController.text.trim(),
  notes: _notesWithPhase(),

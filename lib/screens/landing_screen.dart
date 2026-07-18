@@ -6,6 +6,9 @@ import 'package:ndu_project/screens/pricing_screen.dart';
 import 'package:ndu_project/screens/partner_screen.dart';
 import 'package:ndu_project/screens/use_cases_screen.dart';
 import 'package:ndu_project/screens/how_it_works_screen.dart';
+import 'package:ndu_project/screens/kaz_ai_screen.dart';
+import 'package:ndu_project/screens/differentiator_screen.dart';
+import 'package:ndu_project/screens/trusted_by_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -280,18 +283,12 @@ class _LandingScreenState extends State<LandingScreen>
  SizedBox(height: isDesktop ? 24 : 16),
  _buildHeroSection(context, isDesktop),
  SizedBox(height: isDesktop ? 80 : 60),
- _buildSocialProofBar(isDesktop),
- SizedBox(height: isDesktop ? 80 : 60),
  _buildProblemSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
  _buildSolutionSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
- _buildHowItWorksSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
- _buildDifferentiatorsSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
- _buildFeatureGridSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
+ // How It Works section removed — content lives on the How It Works subpage
+ // Differentiators + Feature Grid sections moved to Differentiator subpage
  _buildBenefitsSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
  _buildKazAiSection(context, isDesktop || isTablet),
@@ -569,11 +566,10 @@ class _LandingScreenState extends State<LandingScreen>
  return _buildPremiumDropdown(
  label: 'Why Ndu Project?',
  items: [
- _DropdownItem(icon: Icons.lightbulb_outline, label: 'Why Ndu Project?', onTap: () => _scrollTo(_solutionKey)),
  _DropdownItem(icon: Icons.play_circle_outline, label: 'How It Works', onTap: _handleWorkflowTap),
- _DropdownItem(icon: Icons.star_outline, label: 'Differentiator', onTap: () => _scrollTo(_differentiatorsKey)),
- _DropdownItem(icon: Icons.verified_outlined, label: 'Trusted By', onTap: () => _scrollTo(_benefitsKey)),
- _DropdownItem(icon: Icons.auto_awesome, label: 'KAZ AI', onTap: () => _scrollTo(_aiKey)),
+ _DropdownItem(icon: Icons.star_outline, label: 'Differentiator', onTap: () => DifferentiatorScreen.open(context)),
+ _DropdownItem(icon: Icons.verified_outlined, label: 'Trusted By', onTap: () => TrustedByScreen.open(context)),
+ _DropdownItem(icon: Icons.auto_awesome, label: 'KAZ AI', onTap: () => KazAiScreen.open(context)),
  ],
  );
  }
@@ -593,7 +589,6 @@ class _LandingScreenState extends State<LandingScreen>
  return _buildPremiumDropdown(
  label: 'Services',
  items: [
- _DropdownItem(icon: Icons.miscellaneous_services, label: 'Services', onTap: () => _scrollTo(_benefitsKey)),
  _DropdownItem(icon: Icons.delivery_dining_outlined, label: 'Project Delivery', onTap: () => _scrollTo(_benefitsKey)),
  _DropdownItem(icon: Icons.school_outlined, label: 'Training', onTap: () => _scrollTo(_aiKey)),
  _DropdownItem(icon: Icons.support_agent, label: 'Consultation', onTap: () => _scrollTo(_ctaKey)),
@@ -1042,20 +1037,24 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  const SizedBox(height: 24),
  // 5-step process: Initiation → Planning → Design → Execution → Launch
+ // Cards wrap to the next line when there's not enough horizontal
+ // space, preventing overflow. Arrows are vertically centered on
+ // each container via WrapCrossAlignment.center.
  Wrap(
  alignment: WrapAlignment.center,
+ crossAxisAlignment: WrapCrossAlignment.center,
  spacing: 6,
  runSpacing: 12,
  children: [
  _buildDiagramNode('Initiation', Icons.flag_rounded, const Color(0xFF3B82F6)),
- _buildDiagramArrow(),
+ _buildDiagramArrow(const Color(0xFF3B82F6)),
  _buildDiagramNode('Planning', Icons.architecture_rounded, const Color(0xFF8B5CF6)),
- _buildDiagramArrow(),
- _buildDiagramNode('Design', Icons.design_services_rounded, const Color(0xFFF59E0B)),
- _buildDiagramArrow(),
+ _buildDiagramArrow(const Color(0xFF8B5CF6)),
+ _buildDiagramNode('Design', Icons.design_services_rounded, const Color(0xFFEC4899)),
+ _buildDiagramArrow(const Color(0xFFEC4899)),
  _buildDiagramNode('Execution', Icons.build_rounded, const Color(0xFFF59E0B)),
- _buildDiagramArrow(),
- _buildDiagramNode('Launch', Icons.rocket_launch_rounded, const Color(0xFFF59E0B)),
+ _buildDiagramArrow(const Color(0xFFF59E0B)),
+ _buildDiagramNode('Launch', Icons.rocket_launch_rounded, const Color(0xFF10B981)),
  ],
  ),
  const SizedBox(height: 24),
@@ -1177,11 +1176,16 @@ class _LandingScreenState extends State<LandingScreen>
  );
  }
 
- Widget _buildDiagramArrow() {
+ Widget _buildDiagramArrow(Color color) {
+ // Horizontal arrow between two diagram containers. The parent Row
+ // uses IntrinsicHeight + CrossAxisAlignment.center, so this icon is
+ // automatically vertically centered relative to the containers —
+ // pointing from the center of one container horizontally to the
+ // center of the next.
  return Padding(
- padding: const EdgeInsets.symmetric(horizontal: 8),
+ padding: const EdgeInsets.symmetric(horizontal: 6),
  child: Icon(Icons.arrow_forward_rounded,
- color: Colors.white.withValues(alpha: 0.5), size: 24),
+ color: color.withValues(alpha: 0.85), size: 28),
  );
  }
 
@@ -1656,62 +1660,8 @@ class _LandingScreenState extends State<LandingScreen>
  ],
  ),
  ),
- const SizedBox(height: 44),
- // ── Projects → Programs → Portfolios ──
- Text('How It Works — Project Delivers Results', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.9))),
- const SizedBox(height: 20),
- LayoutBuilder(builder: (context, c) {
- final horizontal = c.maxWidth >= 700;
- final cards = [
- _ScaleCard(num: '01', title: 'Projects', desc: 'Waterfall, Agile and Hybrid Project Delivery', icon: Icons.flag_rounded, color: const Color(0xFF3B82F6)),
- _ScaleCard(num: '02', title: 'Programs', desc: 'Multiple project implementation', icon: Icons.groups_rounded, color: const Color(0xFF8B5CF6)),
- _ScaleCard(num: '03', title: 'Portfolios', desc: 'Project and program stewardship in one glance', icon: Icons.rocket_launch_rounded, color: const Color(0xFF10B981)),
- ];
- if (horizontal) {
- return Row(children: [
- for (int i = 0; i < 3; i++) ...[
- if (i > 0) Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward, color: Colors.white.withValues(alpha: 0.4), size: 24)),
- Expanded(child: _scaleCardWidget(cards[i])),
- ],
- ]);
- }
- return Column(children: [
- for (int i = 0; i < 3; i++) ...[
- _scaleCardWidget(cards[i]),
- if (i < 2) const SizedBox(height: 12),
- ],
- ]);
- }),
- const SizedBox(height: 36),
- // ── 6-Step Delivery Process ──
- Text('Step-by-Step Project Delivery', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.9))),
- const SizedBox(height: 20),
- LayoutBuilder(builder: (context, c) {
- final cols = c.maxWidth >= 900 ? 3 : (c.maxWidth >= 600 ? 2 : 1);
- final w = cols == 1 ? c.maxWidth : (c.maxWidth - 40) / cols;
- final steps = [
- _DeliveryStep(num: '0', title: 'AI Assisted Due Diligence', color: const Color(0xFF3B82F6), items: ['Editable AI suggestions at every step that prompts the thought process', 'Continuity through all phases which eliminates fragmentation gap', 'Search access for similar applicable go-bys', 'Dynamic dashboards at project, program and portfolio levels', 'Core project delivery process integration with hints']),
- _DeliveryStep(num: '1', title: 'Start Right', color: const Color(0xFFF59E0B), items: ['Guided vital process to identify and analyze potential solutions, initial risks, internal and external stakeholders, IT and infrastructure, Project boundaries including in and out of scope, opportunities', 'Project requirements contracts, procurement and technical framework']),
- _DeliveryStep(num: '2', title: 'Meticulous Planning', color: const Color(0xFF10B981), items: ['Project framework, Team identification, Work Breakdown Structure', 'Safety, Security, Health, Environmental and Regulatory readiness', 'Quality requirements and early design planning', 'Execution planning, interface management, and set delivery plans', 'Cost, Schedule, Scope tracking, and change management alignment']),
- _DeliveryStep(num: '3', title: 'Build', color: const Color(0xFFF59E0B), items: ['Technical specifications, codes, and requirements mapping', 'Tool selection, onboarding, Design and engineering', 'Design and engineering execution (framework dependent)', 'Design work package development and execution mapping', 'Design implementation for success']),
- _DeliveryStep(num: '4', title: 'Execute', color: const Color(0xFF10B981), items: ['Work the plan, implement the design, build the product, facility, item', 'Monitor and control, cost, schedule and changes', 'Iterate as applicable', 'Plan for launch, develop handover plans, operations manuals, etc.']),
- _DeliveryStep(num: '5', title: 'Launch', color: const Color(0xFFF59E0B), items: ['Address punch list or technical debts', 'Commission and start up facility (waterfall). Final release (agile)', 'Close out contracts, vendor agreements, activate warranties', 'Hand over to operation or production team']),
- ];
- return Wrap(spacing: 20, runSpacing: 20, children: steps.map((s) => SizedBox(width: w, child: _deliveryStepCard(s))).toList());
- }),
- const SizedBox(height: 36),
- // ── 3 Pillar Cards ──
- LayoutBuilder(builder: (context, c) {
- final cols = c.maxWidth >= 900 ? 3 : 1;
- final w = cols == 1 ? c.maxWidth : (c.maxWidth - 40) / cols;
- final pillars = [
- _DeliveryStep(num: '', title: 'Proactive and Predictive Analytics', color: const Color(0xFFF59E0B), items: ['Identify risks, cost and schedule impacts in real time', 'Early warning indicators', 'Informed change management and stewardship', 'Variance tracking']),
- _DeliveryStep(num: '', title: 'Real-time Cross-functional Alignment', color: const Color(0xFF10B981), items: ['Keep every stakeholder and team aligned with live dashboards and governance', 'Stakeholder views', 'Approval workflows', 'Role-based access']),
- _DeliveryStep(num: '', title: 'Readiness-based Execution', color: const Color(0xFFF59E0B), items: ['Integrated process that ensures execution within plan launches', 'No-rushed execution', 'Visibility on changes and impact to scope', 'Stakeholder alignment']),
- ];
- return Wrap(spacing: 20, runSpacing: 20, children: pillars.map((p) => SizedBox(width: w, child: _deliveryStepCard(p))).toList());
- }),
- const SizedBox(height: 44),
+ // Moved to How It Works subpage (Step-by-Step Project Delivery section)
+
  // ── Existing capabilities grid ──
  LayoutBuilder(
  builder: (context, constraints) {
@@ -1771,84 +1721,9 @@ class _LandingScreenState extends State<LandingScreen>
  );
  }
 
- Widget _scaleCardWidget(_ScaleCard card) {
- return Container(
- padding: const EdgeInsets.all(20),
- decoration: BoxDecoration(
- color: card.color.withValues(alpha: 0.08),
- borderRadius: BorderRadius.circular(16),
- border: Border.all(color: card.color.withValues(alpha: 0.25)),
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Row(
- children: [
- Container(
- width: 36, height: 36,
- decoration: BoxDecoration(color: card.color, shape: BoxShape.circle),
- child: Center(child: Text(card.num, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.white))),
- ),
- const SizedBox(width: 12),
- Icon(card.icon, color: card.color, size: 22),
- ],
- ),
- const SizedBox(height: 12),
- Text(card.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
- const SizedBox(height: 6),
- Text(card.desc, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6), height: 1.4)),
- ],
- ),
- );
- }
 
- Widget _deliveryStepCard(_DeliveryStep step) {
- return Container(
- padding: const EdgeInsets.all(20),
- decoration: BoxDecoration(
- color: step.color.withValues(alpha: 0.06),
- borderRadius: BorderRadius.circular(16),
- border: Border.all(color: step.color.withValues(alpha: 0.2)),
- ),
- child: Column(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Row(
- children: [
- if (step.num.isNotEmpty)
- Container(
- width: 32, height: 32,
- decoration: BoxDecoration(color: step.color, shape: BoxShape.circle),
- child: Center(child: Text(step.num, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white))),
- )
- else
- Container(
- width: 32, height: 32,
- decoration: BoxDecoration(color: step.color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
- child: Icon(Icons.bolt, color: step.color, size: 18),
- ),
- const SizedBox(width: 12),
- Expanded(
- child: Text(step.title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: step.color)),
- ),
- ],
- ),
- const SizedBox(height: 12),
- ...step.items.map((item) => Padding(
- padding: const EdgeInsets.only(bottom: 6),
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Icon(Icons.circle, size: 5, color: step.color.withValues(alpha: 0.7)),
- const SizedBox(width: 8),
- Expanded(child: Text(item, style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.65), height: 1.4))),
- ],
- ),
- )),
- ],
- ),
- );
- }
+
+
 
  // ── Section 5: How It Works ───────────────────────────────────────────
  Widget _buildHowItWorksSection(BuildContext context, bool wideLayout) {
@@ -7231,22 +7106,7 @@ class _DemoData {
   const _DemoData({required this.title, required this.industry, required this.methodology, required this.icon, required this.color, required this.experience});
 }
 
-class _ScaleCard {
-  final String num;
-  final String title;
-  final String desc;
-  final IconData icon;
-  final Color color;
-  const _ScaleCard({required this.num, required this.title, required this.desc, required this.icon, required this.color});
-}
 
-class _DeliveryStep {
-  final String num;
-  final String title;
-  final Color color;
-  final List<String> items;
-  const _DeliveryStep({required this.num, required this.title, required this.color, required this.items});
-}
 
 class _PricingPlanData {
   final String name;

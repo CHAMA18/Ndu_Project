@@ -233,29 +233,32 @@ class _ResponsiveDataTableWrapperState
                   ),
                 ),
               ),
-            if (_canScrollRight || _canScrollDown)
+            if (_canScrollRight)
               Positioned(
                 right: 8,
                 bottom: 2,
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    minimumSize: Size.zero,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: Colors.white.withOpacity(0.92),
-                    foregroundColor: const Color(0xFF2563EB),
-                  ),
-                  onPressed: _scrollForMore,
-                  icon: Icon(
-                    _canScrollRight ? Icons.arrow_forward : Icons.arrow_downward,
-                    size: 14,
-                  ),
-                  label: Text(
-                    _canScrollRight ? 'Scroll right' : 'Scroll down',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                child: GestureDetector(
+                  onTap: () {
+                    _horizontalController.animateTo(
+                      _horizontalController.offset + 300,
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOut,
+                    );
+                  },
+                    child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFC812).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFFC812).withValues(alpha: 0.3)),
+                    ),
+                    child: const Text(
+                      'Scroll to see more ->',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFD97706),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
