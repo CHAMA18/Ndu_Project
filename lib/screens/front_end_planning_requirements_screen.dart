@@ -339,6 +339,7 @@ class _FrontEndPlanningRequirementsScreenState
         data,
         sectionLabel: 'Project Requirements',
       ).trim();
+      // Enhanced fallback context to prevent "Data not available" errors
       final fallbackContext = <String>[
         if (data.projectName.trim().isNotEmpty)
           'Project name: ${data.projectName.trim()}',
@@ -348,6 +349,18 @@ class _FrontEndPlanningRequirementsScreenState
           'Description: ${data.solutionDescription.trim()}',
         if (data.businessCase.trim().isNotEmpty)
           'Business case: ${data.businessCase.trim()}',
+        // Add Overall Framework context
+        if (data.overallFramework.trim().isNotEmpty)
+          'Overall Framework: ${data.overallFramework.trim()}',
+        // Add existing requirements notes for continuity
+        if (data.frontEndPlanning.requirementsNotes.trim().isNotEmpty)
+          'Requirements Notes: ${data.frontEndPlanning.requirementsNotes.trim()}',
+        // Add top risk considerations for context
+        if (data.frontEndPlanning.riskItems.isNotEmpty)
+          'Top Risks: ${data.frontEndPlanning.riskItems.take(3).map((r) => '${r.riskDescription} (Impact: ${r.impact})').join('; ')}',
+        // Add opportunity items for context
+        if (data.frontEndPlanning.opportunityItems.isNotEmpty)
+          'Opportunities: ${data.frontEndPlanning.opportunityItems.take(3).map((o) => o.opportunity).join('; ')}',
       ].join('\n');
 
       final combinedContext = [
@@ -457,6 +470,13 @@ class _FrontEndPlanningRequirementsScreenState
           } else if (message.contains('response_format')) {
             _initialGenerationError =
                 'AI response formatting failed. Please retry or check your OpenAI proxy configuration.';
+          } else if (message.contains('Data not available') ||
+              message.contains('insufficient context') ||
+              message.contains('no data') ||
+              message.toLowerCase().contains('context.*empty')) {
+            // Specific handling for "Data not available in current context" error
+            _initialGenerationError =
+                'Insufficient project data for AI generation. Please fill in more project details (Business Case, Solution, or Risks) and try again.';
           } else {
             _initialGenerationError =
                 'AI requirements suggestion failed. Please try again.';

@@ -128,8 +128,11 @@ class _FrontEndPlanningOpportunitiesScreenState
 
   void _loadSavedOpportunities(ProjectDataModel data) {
     if (data.frontEndPlanning.opportunityItems.isNotEmpty) {
+      // FIX: Pass index to ensure unique IDs per row (prevents checkbox select-all bug)
       _rows = data.frontEndPlanning.opportunityItems
-          .map(_normalizeOpportunityItem)
+          .asMap()
+          .entries
+          .map((entry) => _normalizeOpportunityItem(entry.value, index: entry.key))
           .toList();
     } else {
       // Migration: Try to parse legacy string format "opportunity: discipline"
