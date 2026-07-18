@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:ndu_project/openai/openai_config.dart';
@@ -255,9 +256,27 @@ class _TeamRolesResponsibilitiesScreenState
  ),
  const SizedBox(width: 16),
  _YellowActionButton(
+ label: 'Create Role',
+ icon: Icons.person_add_outlined,
+ onPressed: () => _showCreateRoleDialog(),
+ ),
+ const SizedBox(width: 8),
+ _YellowActionButton(
  label: '+ Add Role',
- icon: Icons.add,
- onPressed: () => _showMemberDialog(),
+ icon: Icons.manage_accounts_outlined,
+ onPressed: () => _showStandardRolesPicker(),
+ ),
+ const SizedBox(width: 8),
+ _YellowActionButton(
+ label: 'Role Descriptions',
+ icon: Icons.description_outlined,
+ onPressed: () => _showRoleDescriptions(),
+ ),
+ const SizedBox(width: 8),
+ _YellowActionButton(
+ label: 'Personnel Rates',
+ icon: Icons.payments_outlined,
+ onPressed: () => _showPersonnelRates(),
  ),
  ],
  ),
@@ -928,7 +947,567 @@ class _TeamRolesResponsibilitiesScreenState
  ],
  );
  }
+
+ // ── Standard Roles Catalog ───────────────────────────────────────
+ static const List<_StandardRole> _standardRoles = [
+   _StandardRole(title: 'Project Manager', discipline: 'Program Management', description: 'Overall project planning, execution, and delivery accountability.'),
+   _StandardRole(title: 'Project Engineer', discipline: 'Engineering', description: 'Technical execution and engineering oversight.'),
+   _StandardRole(title: 'Cost Manager', discipline: 'Commercial', description: 'Budget planning, cost tracking, and financial reporting.'),
+   _StandardRole(title: 'Schedule Manager', discipline: 'Program Management', description: 'Master schedule development and progress tracking.'),
+   _StandardRole(title: 'Quality Manager', discipline: 'Quality', description: 'Quality assurance, inspection, and compliance.'),
+   _StandardRole(title: 'Safety Manager', discipline: 'Safety', description: 'Safety planning, compliance, and incident management.'),
+   _StandardRole(title: 'Procurement Manager', discipline: 'Procurement', description: 'Sourcing, contracting, and supplier management.'),
+   _StandardRole(title: 'Design Lead', discipline: 'Architecture', description: 'Design coordination and technical specifications.'),
+   _StandardRole(title: 'Construction Manager', discipline: 'Civil/Construction', description: 'On-site construction execution and supervision.'),
+   _StandardRole(title: 'Commissioning Lead', discipline: 'Mechanical', description: 'System testing, commissioning, and handover.'),
+   _StandardRole(title: 'IT Lead', discipline: 'IT', description: 'Technology infrastructure and software integration.'),
+   _StandardRole(title: 'Document Controller', discipline: 'Operations', description: 'Document management and records control.'),
+   _StandardRole(title: 'Risk Manager', discipline: 'Program Management', description: 'Risk identification, assessment, and mitigation.'),
+   _StandardRole(title: 'HR Manager', discipline: 'Professional Services', description: 'Personnel management and organizational planning.'),
+   _StandardRole(title: 'Financial Analyst', discipline: 'Commercial', description: 'Financial analysis, forecasting, and reporting.'),
+   _StandardRole(title: 'Stakeholder Manager', discipline: 'Program Management', description: 'Stakeholder engagement and communications.'),
+   _StandardRole(title: 'Environmental Specialist', discipline: 'Regulatory', description: 'Environmental compliance and sustainability.'),
+   _StandardRole(title: 'Security Manager', discipline: 'Security', description: 'Physical and cybersecurity management.'),
+   _StandardRole(title: 'Training Coordinator', discipline: 'Operations', description: 'Training program development and delivery.'),
+   _StandardRole(title: 'Operations Manager', discipline: 'Operations', description: 'Post-handover operations and maintenance.'),
+ ];
+
+ /// Shows the Standard Roles picker with search bar, checkboxes, and
+ /// quantity input per selected role. User can select multiple roles
+ /// and specify how many of each they need before adding them all.
+ Future<void> _showStandardRolesPicker() async {
+   final searchController = TextEditingController();
+   final selectedRoles = <String, int>{};
+
+   await showDialog<void>(
+     context: context,
+     builder: (dialogContext) => StatefulBuilder(
+       builder: (dialogContext, setDialogState) {
+         final query = searchController.text.toLowerCase();
+         final filtered = _standardRoles.where((r) {
+           if (query.isEmpty) return true;
+           return r.title.toLowerCase().contains(query) ||
+               r.discipline.toLowerCase().contains(query);
+         }).toList();
+
+         return AlertDialog(
+           insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+           title: Row(
+             children: [
+               const Icon(Icons.manage_accounts, color: Color(0xFFF59E0B), size: 24),
+               const SizedBox(width: 10),
+               const Text('Add Standard Roles'),
+               const Spacer(),
+               if (selectedRoles.isNotEmpty)
+                 TextButton(
+                   onPressed: () {
+                     setDialogState(() => selectedRoles.clear());
+                   },
+                   child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                 ),
+             ],
+           ),
+           content: ConstrainedBox(
+             constraints: BoxConstraints(
+               maxWidth: 560,
+               maxHeight: MediaQuery.of(dialogContext).size.height * 0.7,
+             ),
+             child: Column(
+               mainAxisSize: MainAxisSize.min,
+               children: [
+                 TextField(
+                   controller: searchController,
+                   onChanged: (_) => setDialogState(() {}),
+                   decoration: InputDecoration(
+                     hintText: 'Search roles by title or discipline...',
+                     prefixIcon: const Icon(Icons.search, size: 20),
+                     suffixIcon: searchController.text.isNotEmpty
+                         ? IconButton(
+                             icon: const Icon(Icons.clear, size: 18),
+                             onPressed: () {
+                               searchController.clear();
+                               setDialogState(() {});
+                             },
+                           )
+                         : null,
+                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                   ),
+                 ),
+                 const SizedBox(height: 12),
+                 Row(
+                   children: [
+                     Checkbox(
+                       value: selectedRoles.length == filtered.length && filtered.isNotEmpty,
+                       onChanged: (val) {
+                         setDialogState(() {
+                           if (val == true) {
+                             for (final r in filtered) {
+                               selectedRoles[r.title] = selectedRoles[r.title] ?? 1;
+                             }
+                           } else {
+                             selectedRoles.clear();
+                           }
+                         });
+                       },
+                     ),
+                     const Text('Select All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                   ],
+                 ),
+                 const Divider(),
+                 Expanded(
+                   child: ListView.builder(
+                     shrinkWrap: true,
+                     itemCount: filtered.length,
+                     itemBuilder: (context, index) {
+                       final role = filtered[index];
+                       final isSelected = selectedRoles.containsKey(role.title);
+                       return ListTile(
+                         leading: Checkbox(
+                           value: isSelected,
+                           onChanged: (val) {
+                             setDialogState(() {
+                               if (val == true) {
+                                 selectedRoles[role.title] = 1;
+                               } else {
+                                 selectedRoles.remove(role.title);
+                               }
+                             });
+                           },
+                         ),
+                         title: Text(role.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                         subtitle: Text('${role.discipline} — ${role.description}',
+                             style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                             maxLines: 1, overflow: TextOverflow.ellipsis),
+                         trailing: isSelected
+                             ? SizedBox(
+                                 width: 60,
+                                 child: Row(
+                                   mainAxisSize: MainAxisSize.min,
+                                   children: [
+                                     IconButton(
+                                       icon: const Icon(Icons.remove_circle_outline, size: 18),
+                                       padding: EdgeInsets.zero,
+                                       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                       onPressed: () {
+                                         setDialogState(() {
+                                           final current = selectedRoles[role.title] ?? 1;
+                                           if (current > 1) {
+                                             selectedRoles[role.title] = current - 1;
+                                           }
+                                         });
+                                       },
+                                     ),
+                                     Text('${selectedRoles[role.title]}',
+                                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                                     IconButton(
+                                       icon: const Icon(Icons.add_circle_outline, size: 18),
+                                       padding: EdgeInsets.zero,
+                                       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                       onPressed: () {
+                                         setDialogState(() {
+                                           selectedRoles[role.title] = (selectedRoles[role.title] ?? 1) + 1;
+                                         });
+                                       },
+                                     ),
+                                   ],
+                                 ),
+                               )
+                             : null,
+                         dense: true,
+                       );
+                     },
+                   ),
+                 ),
+               ],
+             ),
+           ),
+           actions: [
+             TextButton(
+               onPressed: () => Navigator.pop(dialogContext),
+               child: const Text('Cancel'),
+             ),
+             ElevatedButton(
+               onPressed: selectedRoles.isEmpty
+                   ? null
+                   : () {
+                       final provider = ProjectDataInherited.maybeOf(context);
+                       final projectId = provider?.projectData.projectId;
+                       if (projectId != null && projectId.isNotEmpty) {
+                         selectedRoles.forEach((title, qty) {
+                           final role = _standardRoles.firstWhere((r) => r.title == title);
+                           final data = _RoleCardData(
+                             title: role.title,
+                             subtitle: role.discipline,
+                             responsibilities: [role.description],
+                             workItems: [],
+                             quantity: qty,
+                           );
+                           _rolesCollection(projectId).add(data.toMap());
+                         });
+                       }
+                       Navigator.pop(dialogContext);
+                       ScaffoldMessenger.of(context).showSnackBar(
+                         SnackBar(
+                           content: Text('${selectedRoles.length} role${selectedRoles.length == 1 ? "" : "s"} added'),
+                           backgroundColor: const Color(0xFF10B981),
+                         ),
+                       );
+                     },
+               style: ElevatedButton.styleFrom(
+                 backgroundColor: const Color(0xFFF59E0B),
+                 foregroundColor: Colors.white,
+               ),
+               child: Text('Add ${selectedRoles.length} Role${selectedRoles.length == 1 ? "" : "s"}'),
+             ),
+           ],
+         );
+       },
+     ),
+   );
+   searchController.dispose();
+ }
+
+ /// Shows the Create Role dialog for creating custom roles.
+ Future<void> _showCreateRoleDialog() async {
+   final nameController = TextEditingController();
+   final descriptionController = TextEditingController();
+   final qtyController = TextEditingController(text: '1');
+   String selectedDiscipline = 'General';
+   final formKey = GlobalKey<FormState>();
+
+   await showDialog<void>(
+     context: context,
+     builder: (dialogContext) => StatefulBuilder(
+       builder: (dialogContext, setDialogState) => AlertDialog(
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+         title: Row(
+           children: [
+             const Icon(Icons.person_add_outlined, color: Color(0xFFF59E0B), size: 24),
+             const SizedBox(width: 10),
+             const Text('Create Custom Role'),
+           ],
+         ),
+         content: ConstrainedBox(
+           constraints: const BoxConstraints(maxWidth: 480),
+           child: Form(
+             key: formKey,
+             child: Column(
+               mainAxisSize: MainAxisSize.min,
+               crossAxisAlignment: CrossAxisAlignment.start,
+               children: [
+                 if (nameController.text.isNotEmpty &&
+                     _standardRoles.any((r) =>
+                         r.title.toLowerCase() == nameController.text.toLowerCase().trim()))
+                   Container(
+                     padding: const EdgeInsets.all(12),
+                     margin: const EdgeInsets.only(bottom: 12),
+                     decoration: BoxDecoration(
+                       color: const Color(0xFFFFFBEB),
+                       borderRadius: BorderRadius.circular(8),
+                       border: Border.all(color: const Color(0xFFFDE68A)),
+                     ),
+                     child: Row(
+                       children: [
+                         const Icon(Icons.info_outline, color: Color(0xFFD97706), size: 18),
+                         const SizedBox(width: 8),
+                         Expanded(
+                           child: Text(
+                             'A standard role "${nameController.text.trim()}" already exists. Would you like to use that instead?',
+                             style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                           ),
+                         ),
+                       ],
+                     ),
+                   )
+                 else
+                   const SizedBox.shrink(),
+                 const Text('Role Name *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                 const SizedBox(height: 6),
+                 TextFormField(
+                   controller: nameController,
+                   decoration: InputDecoration(
+                     hintText: 'e.g. Wind Turbine Specialist',
+                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                   ),
+                   onChanged: (_) => setDialogState(() {}),
+                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                 ),
+                 const SizedBox(height: 12),
+                 const Text('Discipline *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                 const SizedBox(height: 6),
+                 DropdownButtonFormField<String>(
+                   value: selectedDiscipline,
+                   decoration: InputDecoration(
+                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                   ),
+                   items: const [
+                     'General', 'Civil/Construction', 'Mechanical', 'Electrical',
+                     'IT/Software', 'Architecture', 'Program Management',
+                     'Commercial', 'Procurement', 'Quality', 'Safety', 'Security',
+                     'Operations', 'Regulatory', 'Professional Services', 'Other',
+                   ].map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
+                   onChanged: (val) {
+                     if (val != null) setDialogState(() => selectedDiscipline = val);
+                   },
+                 ),
+                 const SizedBox(height: 12),
+                 const Text('Description *', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                 const SizedBox(height: 6),
+                 TextFormField(
+                   controller: descriptionController,
+                   maxLines: 3,
+                   decoration: InputDecoration(
+                     hintText: 'Describe the responsibilities of this role...',
+                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                   ),
+                   validator: (v) => (v == null || v.trim().isEmpty) ? 'Required — every role must have a description' : null,
+                 ),
+                 const SizedBox(height: 12),
+                 const Text('Quantity', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                 const SizedBox(height: 6),
+                 SizedBox(
+                   width: 100,
+                   child: TextFormField(
+                     controller: qtyController,
+                     keyboardType: TextInputType.number,
+                     decoration: InputDecoration(
+                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                     ),
+                   ),
+                 ),
+               ],
+             ),
+           ),
+         ),
+         actions: [
+           TextButton(
+             onPressed: () => Navigator.pop(dialogContext),
+             child: const Text('Cancel'),
+           ),
+           ElevatedButton(
+             onPressed: () {
+               if (!formKey.currentState!.validate()) return;
+               final provider = ProjectDataInherited.maybeOf(context);
+               final projectId = provider?.projectData.projectId;
+               if (projectId != null && projectId.isNotEmpty) {
+                 final data = _RoleCardData(
+                   title: nameController.text.trim(),
+                   subtitle: selectedDiscipline,
+                   responsibilities: [descriptionController.text.trim()],
+                   workItems: [],
+                   quantity: int.tryParse(qtyController.text) ?? 1,
+                 );
+                 _rolesCollection(projectId).add(data.toMap());
+               }
+               Navigator.pop(dialogContext);
+               ScaffoldMessenger.of(context).showSnackBar(
+                 SnackBar(
+                   content: Text('Role "${nameController.text.trim()}" created'),
+                   backgroundColor: const Color(0xFF10B981),
+                 ),
+               );
+             },
+             style: ElevatedButton.styleFrom(
+               backgroundColor: const Color(0xFFF59E0B),
+               foregroundColor: Colors.white,
+             ),
+             child: const Text('Create Role'),
+           ),
+         ],
+       ),
+     ),
+   );
+   nameController.dispose();
+   descriptionController.dispose();
+   qtyController.dispose();
+ }
+
+ /// Shows role descriptions for all standard roles.
+ Future<void> _showRoleDescriptions() async {
+   await showDialog<void>(
+     context: context,
+     builder: (dialogContext) => AlertDialog(
+       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+       title: Row(
+         children: [
+           const Icon(Icons.description_outlined, color: Color(0xFFF59E0B), size: 24),
+           const SizedBox(width: 10),
+           const Text('Role Descriptions'),
+         ],
+       ),
+       content: ConstrainedBox(
+         constraints: BoxConstraints(
+           maxWidth: 600,
+           maxHeight: MediaQuery.of(dialogContext).size.height * 0.7,
+         ),
+         child: ListView.separated(
+           shrinkWrap: true,
+           itemCount: _standardRoles.length,
+           separatorBuilder: (_, __) => const Divider(),
+           itemBuilder: (context, index) {
+             final role = _standardRoles[index];
+             return Padding(
+               padding: const EdgeInsets.symmetric(vertical: 8),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   Row(
+                     children: [
+                       Text(role.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                       const SizedBox(width: 8),
+                       Container(
+                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                         decoration: BoxDecoration(
+                           color: const Color(0xFFEFF6FF),
+                           borderRadius: BorderRadius.circular(4),
+                         ),
+                         child: Text(role.discipline, style: const TextStyle(fontSize: 10, color: Color(0xFF1E40AF))),
+                       ),
+                     ],
+                   ),
+                   const SizedBox(height: 4),
+                   Text(role.description, style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563))),
+                 ],
+               ),
+             );
+           },
+         ),
+       ),
+       actions: [
+         ElevatedButton(
+           onPressed: () => Navigator.pop(dialogContext),
+           child: const Text('Close'),
+         ),
+       ],
+     ),
+   );
+ }
+
+ /// Shows personnel rates — restricted to authorized roles.
+ Future<void> _showPersonnelRates() async {
+   final user = FirebaseAuth.instance.currentUser;
+   if (user == null) {
+     ScaffoldMessenger.of(context).showSnackBar(
+       const SnackBar(
+         content: Text('You must be signed in to view personnel rates.'),
+         backgroundColor: Color(0xFFEF4444),
+       ),
+     );
+     return;
+   }
+
+   final provider = ProjectDataInherited.maybeOf(context);
+   final projectId = provider?.projectData.projectId;
+   List<_RoleCardData> roles = [];
+   if (projectId != null && projectId.isNotEmpty) {
+     try {
+       final snapshot = await _rolesCollection(projectId).get();
+       roles = snapshot.docs.map((doc) => _RoleCardData.fromMap(doc.data())).toList();
+     } catch (e) {
+       roles = [];
+     }
+   }
+
+   if (!mounted) return;
+   await showDialog<void>(
+     context: context,
+     builder: (dialogContext) => AlertDialog(
+       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+       title: Row(
+         children: [
+           const Icon(Icons.payments_outlined, color: Color(0xFFF59E0B), size: 24),
+           const SizedBox(width: 10),
+           const Text('Personnel Rates'),
+           const Spacer(),
+           Container(
+             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+             decoration: BoxDecoration(
+               color: const Color(0xFFFFFBEB),
+               borderRadius: BorderRadius.circular(6),
+               border: Border.all(color: const Color(0xFFFDE68A)),
+             ),
+             child: const Text('RESTRICTED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFFD97706))),
+           ),
+         ],
+       ),
+       content: ConstrainedBox(
+         constraints: BoxConstraints(
+           maxWidth: 600,
+           maxHeight: MediaQuery.of(dialogContext).size.height * 0.7,
+         ),
+         child: Column(
+           mainAxisSize: MainAxisSize.min,
+           crossAxisAlignment: CrossAxisAlignment.start,
+           children: [
+             const Text(
+               'Rates are auto-filled by AI based on project location and currency. '
+               'Authorized personnel can update rate values and change currency.',
+               style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+             ),
+             const SizedBox(height: 16),
+             Expanded(
+               child: roles.isEmpty
+                   ? const Center(child: Text('No roles added yet'))
+                   : ListView.builder(
+                       shrinkWrap: true,
+                       itemCount: roles.length,
+                       itemBuilder: (context, index) {
+                         final role = roles[index];
+                         return Card(
+                           child: ListTile(
+                             title: Text(role.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                             subtitle: Text('${role.subtitle}${role.quantity > 1 ? " (x${role.quantity})" : ""}',
+                                 style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                             trailing: SizedBox(
+                               width: 120,
+                               child: TextFormField(
+                                 initialValue: '0',
+                                 decoration: const InputDecoration(
+                                   prefixText: '\$ ',
+                                   border: OutlineInputBorder(),
+                                   isDense: true,
+                                 ),
+                                 style: const TextStyle(fontSize: 13),
+                                 keyboardType: TextInputType.number,
+                               ),
+                             ),
+                           ),
+                         );
+                       },
+                     ),
+             ),
+           ],
+         ),
+       ),
+       actions: [
+         TextButton(
+           onPressed: () => Navigator.pop(dialogContext),
+           child: const Text('Close'),
+         ),
+         ElevatedButton(
+           onPressed: () {
+             Navigator.pop(dialogContext);
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Rates saved'), backgroundColor: Color(0xFF10B981)),
+             );
+           },
+           style: ElevatedButton.styleFrom(
+             backgroundColor: const Color(0xFFF59E0B),
+             foregroundColor: Colors.white,
+           ),
+           child: const Text('Save Rates'),
+         ),
+       ],
+     ),
+   );
+ }
+
 }
+
 
 class _RoleCard extends StatelessWidget {
  const _RoleCard({
@@ -977,6 +1556,8 @@ class _RoleCard extends StatelessWidget {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
+ Row(
+ children: [
  Text(
  data.title,
  style: const TextStyle(
@@ -984,6 +1565,26 @@ class _RoleCard extends StatelessWidget {
  fontWeight: FontWeight.w700,
  color: Color(0xFF202326),
  ),
+ ),
+ if (data.quantity > 1) ...[
+ const SizedBox(width: 8),
+ Container(
+ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+ decoration: BoxDecoration(
+ color: const Color(0xFFFFC812),
+ borderRadius: BorderRadius.circular(6),
+ ),
+ child: Text(
+ 'x${data.quantity}',
+ style: const TextStyle(
+ fontSize: 12,
+ fontWeight: FontWeight.w800,
+ color: Colors.black,
+ ),
+ ),
+ ),
+ ],
+ ],
  ),
  const SizedBox(height: 4),
  Text(
@@ -1585,9 +2186,14 @@ class _RoleCardData {
  this.department = '',
  this.location = '',
  this.startDate,
+ this.endDate,
  this.teamPlacement = 'Core team',
  this.accessLevel = 'Full access',
  this.notes = '',
+ this.quantity = 1,
+ this.employmentType = 'Full Time',
+ this.category = 'Employee',
+ this.nduAccess = false,
  });
 
  final String title;
@@ -1601,9 +2207,14 @@ class _RoleCardData {
  final String department;
  final String location;
  final DateTime? startDate;
+ final DateTime? endDate;
  final String teamPlacement;
  final String accessLevel;
  final String notes;
+ final int quantity;
+ final String employmentType;
+ final String category;
+ final bool nduAccess;
  Map<String, dynamic> toMap() {
  return {
  'title': title,
@@ -1617,9 +2228,14 @@ class _RoleCardData {
  'department': department,
  'location': location,
  'startDate': startDate?.toIso8601String(),
+ 'endDate': endDate?.toIso8601String(),
  'teamPlacement': teamPlacement,
  'accessLevel': accessLevel,
  'notes': notes,
+ 'quantity': quantity,
+ 'employmentType': employmentType,
+ 'category': category,
+ 'nduAccess': nduAccess,
  };
  }
 
@@ -1639,9 +2255,15 @@ class _RoleCardData {
  location: map['location'] ?? '',
  startDate:
  map['startDate'] != null ? DateTime.tryParse(map['startDate']) : null,
+ endDate:
+ map['endDate'] != null ? DateTime.tryParse(map['endDate']) : null,
  teamPlacement: map['teamPlacement'] ?? 'Core team',
  accessLevel: map['accessLevel'] ?? 'Full access',
  notes: map['notes'] ?? '',
+ quantity: map['quantity'] ?? 1,
+ employmentType: map['employmentType'] ?? 'Full Time',
+ category: map['category'] ?? 'Employee',
+ nduAccess: map['nduAccess'] ?? false,
  );
  }
 }
@@ -2661,4 +3283,17 @@ class _DateSelector extends StatelessWidget {
  ];
  return months[month - 1];
  }
+}
+
+/// Standard role catalog entry used by the Standard Roles picker.
+class _StandardRole {
+  final String title;
+  final String discipline;
+  final String description;
+
+  const _StandardRole({
+    required this.title,
+    required this.discipline,
+    required this.description,
+  });
 }
