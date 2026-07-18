@@ -1038,17 +1038,14 @@ class _LandingScreenState extends State<LandingScreen>
  ),
  const SizedBox(height: 24),
  // 5-step process: Initiation → Planning → Design → Execution → Launch
- // All 5 containers on a SINGLE HORIZONTAL ROW with horizontal arrows
- // between them. The arrows point from the center of each container
- // to the next (vertically centered on each container). On narrow
- // screens the row scrolls horizontally instead of wrapping, so the
- // containers never stack vertically.
- SingleChildScrollView(
- scrollDirection: Axis.horizontal,
- child: IntrinsicHeight(
- child: Row(
- crossAxisAlignment: CrossAxisAlignment.center,
- mainAxisSize: MainAxisSize.min,
+ // Cards wrap to the next line when there's not enough horizontal
+ // space, preventing overflow. Arrows are vertically centered on
+ // each container via WrapCrossAlignment.center.
+ Wrap(
+ alignment: WrapAlignment.center,
+ crossAxisAlignment: WrapCrossAlignment.center,
+ spacing: 6,
+ runSpacing: 12,
  children: [
  _buildDiagramNode('Initiation', Icons.flag_rounded, const Color(0xFF3B82F6)),
  _buildDiagramArrow(const Color(0xFF3B82F6)),
@@ -1060,8 +1057,6 @@ class _LandingScreenState extends State<LandingScreen>
  _buildDiagramArrow(const Color(0xFFF59E0B)),
  _buildDiagramNode('Launch', Icons.rocket_launch_rounded, const Color(0xFF10B981)),
  ],
- ),
- ),
  ),
  const SizedBox(height: 24),
  // Bottom row: Continuous Delivery Loop + Unified platform
