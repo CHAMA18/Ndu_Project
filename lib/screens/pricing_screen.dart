@@ -1510,7 +1510,7 @@ class _PlanColumnState extends State<_PlanColumn>
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: plan.features
+              children: widget.plan.features
                   .map((feature) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
                         child: Row(
@@ -1546,7 +1546,10 @@ class _PlanColumnState extends State<_PlanColumn>
                   .toList(),
             ),
           ),
-          );
+          ],
+            ),
+          ),
+        );
         },
       ),
     );
