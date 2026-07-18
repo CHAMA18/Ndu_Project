@@ -569,13 +569,10 @@ class _LandingScreenState extends State<LandingScreen>
  return _buildPremiumDropdown(
  label: 'Why Ndu Project?',
  items: [
- _DropdownItem(icon: Icons.lightbulb_outline, label: 'Why Ndu Project?', onTap: () => _scrollTo(_solutionKey)),
+ _DropdownItem(icon: Icons.play_circle_outline, label: 'How It Works', onTap: _handleWorkflowTap),
  _DropdownItem(icon: Icons.star_outline, label: 'Differentiator', onTap: () => _scrollTo(_differentiatorsKey)),
  _DropdownItem(icon: Icons.verified_outlined, label: 'Trusted By', onTap: () => _scrollTo(_benefitsKey)),
  _DropdownItem(icon: Icons.auto_awesome, label: 'KAZ AI', onTap: () => _scrollTo(_aiKey)),
- _DropdownItem(icon: Icons.cases_outlined, label: 'Use Cases', onTap: () => UseCasesScreen.open(context)),
- _DropdownItem(icon: Icons.slideshow_outlined, label: 'Demo', onTap: () => _scrollTo(_benefitsKey)),
- _DropdownItem(icon: Icons.handshake_outlined, label: 'Partner with Us', onTap: () => PartnerScreen.open(context)),
  ],
  );
  }
