@@ -7,6 +7,7 @@ import 'package:ndu_project/screens/partner_screen.dart';
 import 'package:ndu_project/screens/use_cases_screen.dart';
 import 'package:ndu_project/screens/how_it_works_screen.dart';
 import 'package:ndu_project/screens/kaz_ai_screen.dart';
+import 'package:ndu_project/screens/differentiator_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
@@ -287,10 +288,7 @@ class _LandingScreenState extends State<LandingScreen>
  SizedBox(height: isDesktop ? 80 : 56),
  _buildHowItWorksSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
- _buildDifferentiatorsSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
- _buildFeatureGridSection(context, isDesktop || isTablet),
- SizedBox(height: isDesktop ? 80 : 56),
+ // Differentiators + Feature Grid sections moved to Differentiator subpage
  _buildBenefitsSection(context, isDesktop || isTablet),
  SizedBox(height: isDesktop ? 80 : 56),
  _buildKazAiSection(context, isDesktop || isTablet),
@@ -569,7 +567,7 @@ class _LandingScreenState extends State<LandingScreen>
  label: 'Why Ndu Project?',
  items: [
  _DropdownItem(icon: Icons.play_circle_outline, label: 'How It Works', onTap: _handleWorkflowTap),
- _DropdownItem(icon: Icons.star_outline, label: 'Differentiator', onTap: () => _scrollTo(_differentiatorsKey)),
+ _DropdownItem(icon: Icons.star_outline, label: 'Differentiator', onTap: () => DifferentiatorScreen.open(context)),
  _DropdownItem(icon: Icons.verified_outlined, label: 'Trusted By', onTap: () => _scrollTo(_benefitsKey)),
  _DropdownItem(icon: Icons.auto_awesome, label: 'KAZ AI', onTap: () => KazAiScreen.open(context)),
  ],
