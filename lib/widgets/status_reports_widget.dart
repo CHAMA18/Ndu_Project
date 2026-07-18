@@ -60,7 +60,7 @@ class _StatusReportsWidgetState extends State<StatusReportsWidget> {
           children: [
             Icon(Icons.delete_outline, color: Colors.white, size: 18),
             SizedBox(width: 8),
-            Text('Status report deleted'),
+            Text('Status report deleted successfully.'),
             Spacer(),
           ],
         ),

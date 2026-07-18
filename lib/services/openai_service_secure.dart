@@ -6625,7 +6625,7 @@ ${contextNotes.trim().isEmpty ? 'None provided.' : contextNotes}
   }
 
   String _requirementsPrompt(String businessCase) => '''
-Based on this project context, generate 10-20 specific project requirements that must be met for the project to be considered successful.
+Based on this project context, generate 7-20 specific project requirements that must be met for the project to be considered successful.
 
 Each requirement should be:
 - Clear and specific
@@ -6634,6 +6634,7 @@ Each requirement should be:
 - Assigned to a relevant discipline, role, and/or person
 - Tagged to one implementation phase (Initiation, Planning, Design, Execution, Launch, or ALL)
 - Include a short requirement source note or source link
+- Avoid frivolous, duplicate, or low-value items. Keep the list scope-relevant and practical.
 
 Discipline rules:
 - Use a specific discipline value, not a placeholder.

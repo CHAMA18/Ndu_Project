@@ -61,14 +61,14 @@ class _FrontEndPlanningContractVendorQuotesScreenState
  'Unsure',
  ];
  static const List<String> _biddingOptions = ['Yes', 'No', 'Not Sure'];
- static const List<String> _startStageOptions = [
- 'Initiation',
+static const List<String> _startStageOptions = [
  'Planning',
- 'Execution',
- 'Launch',
- 'Operations',
+ 'Internal Review',
+ 'Contractor Review',
+ 'Bidding and Contract Review',
+ 'Contract Award',
  'Unsure',
- ];
+];
  static const List<String> _trackingStatusOptions = [
  'RFQ Drafted',
  'RFQ Sent',
@@ -2453,13 +2453,14 @@ class _FrontEndPlanningContractVendorQuotesScreenState
  ),
  const SizedBox(height: 12),
  VoiceTextField(
- controller: contractorsController,
- decoration: const InputDecoration(
- labelText:
- 'Potential Contractors (comma-separated names)',
- ),
- maxLines: 2,
- textCapitalization: TextCapitalization.words,
+  controller: contractorsController,
+  decoration: const InputDecoration(
+   labelText:
+   'Potential Contractors (comma-separated names)',
+   hintText: 'Optional during initiation; bidding can fill this in later.',
+  ),
+  maxLines: 2,
+  textCapitalization: TextCapitalization.words,
  ),
  const SizedBox(height: 12),
  DropdownButtonFormField<String>(
@@ -2479,19 +2480,23 @@ class _FrontEndPlanningContractVendorQuotesScreenState
  ),
  const SizedBox(height: 12),
  VoiceTextField(
- controller: valueController,
- decoration: const InputDecoration(
- labelText: 'Estimated Value (USD)',
- ),
- keyboardType:
- const TextInputType.numberWithOptions(decimal: true),
+  controller: valueController,
+  decoration: const InputDecoration(
+   labelText: 'Estimated Value (USD)',
+   hintText: 'Optional if value is not known yet.',
+  ),
+  keyboardType:
+  const TextInputType.numberWithOptions(decimal: true),
  ),
  const SizedBox(height: 12),
  VoiceTextField(
- controller: durationController,
- decoration:
- const InputDecoration(labelText: 'Estimated Duration'),
- textCapitalization: TextCapitalization.sentences,
+  controller: durationController,
+  decoration:
+   const InputDecoration(
+    labelText: 'Estimated Duration',
+    hintText: 'Optional if duration is not known yet.',
+   ),
+  textCapitalization: TextCapitalization.sentences,
  ),
  const SizedBox(height: 12),
  DropdownButtonFormField<String>(
@@ -2523,7 +2528,8 @@ class _FrontEndPlanningContractVendorQuotesScreenState
  setState(() => startStage = value);
  },
  decoration: const InputDecoration(
- labelText: 'Contracting Start Stage',
+  labelText: 'Contracting Start Stage',
+  helperText: 'Use the stage where bidding should begin for this scope.',
  ),
  ),
  ],
@@ -2537,34 +2543,35 @@ class _FrontEndPlanningContractVendorQuotesScreenState
  ),
  ElevatedButton(
  onPressed: () {
- final scope = scopeController.text.trim();
- if (scope.isEmpty) return;
- final budget =
- double.tryParse(valueController.text.trim()) ?? 0.0;
- final base = existing ??
- ProcurementItemModel(
- id: '',
+  final scope = scopeController.text.trim();
+  if (scope.isEmpty) return;
+  final rawBudget = valueController.text.trim();
+  final budget = rawBudget.isEmpty ? 0.0 : double.tryParse(rawBudget) ?? 0.0;
+  final rawDuration = durationController.text.trim();
+  final base = existing ??
+   ProcurementItemModel(
+    id: '',
  projectId: '',
- name: '',
- description: '',
- category: contractType,
- createdAt: DateTime.now(),
- updatedAt: DateTime.now(),
- );
+   name: '',
+   description: '',
+   category: contractType,
+   createdAt: DateTime.now(),
+   updatedAt: DateTime.now(),
+   );
 
- Navigator.pop(
- dialogContext,
- base.copyWith(
- name: scope,
- description: descriptionController.text.trim(),
- category: contractType,
- budget: budget,
- notes: contractorsController.text.trim(),
- comments: durationController.text.trim(),
- responsibleMember: biddingRequired,
- projectPhase: startStage,
- status: ProcurementItemStatus.planning,
- updatedAt: DateTime.now(),
+  Navigator.pop(
+   dialogContext,
+   base.copyWith(
+    name: scope,
+    description: descriptionController.text.trim(),
+    category: contractType,
+    budget: budget,
+    notes: contractorsController.text.trim(),
+    comments: rawDuration,
+    responsibleMember: biddingRequired,
+    projectPhase: startStage,
+    status: ProcurementItemStatus.planning,
+    updatedAt: DateTime.now(),
  ),
  );
  },

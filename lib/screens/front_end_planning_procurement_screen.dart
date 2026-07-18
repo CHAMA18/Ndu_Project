@@ -5053,7 +5053,7 @@ class _FrontEndPlanningProcurementScreenState
  }
  }
 
- Future<void> _startProcessForScope(ProcurementItemModel item) async {
+  Future<void> _startProcessForScope(ProcurementItemModel item) async {
  if (!_canCommenceContractingActivities) {
  if (mounted) {
  ScaffoldMessenger.of(context).showSnackBar(
@@ -5076,9 +5076,9 @@ class _FrontEndPlanningProcurementScreenState
  return;
  }
 
- try {
- final projectId = _resolveProjectId();
- if (projectId.isEmpty) {
+    try {
+      final projectId = _resolveProjectId();
+      if (projectId.isEmpty) {
  if (mounted) {
  ScaffoldMessenger.of(context).showSnackBar(
  const SnackBar(
@@ -5089,34 +5089,74 @@ class _FrontEndPlanningProcurementScreenState
  ),
  );
  }
- return;
- }
+        return;
+      }
 
- final nextDelivery = item.estimatedDelivery ??
- DateTime.now().add(
- Duration(days: _defaultLeadTimeDaysForCategory(item.category)),
- );
+      final vendorCount = _vendors.isNotEmpty ? _vendors.length : 0;
+      final nextDelivery = item.estimatedDelivery ??
+          DateTime.now().add(
+            Duration(days: _defaultLeadTimeDaysForCategory(item.category)),
+          );
+      final updatedWorkflowSteps = _scopeWorkflowOverrides[item.id] ??
+          _cloneWorkflowSteps(_globalWorkflowSteps);
+      final startDate = DateTime.now();
+      final dueDate = startDate.add(const Duration(days: 14));
 
- await ProcurementService.updateItem(
- projectId,
- item.id,
- {
+      await ProcurementService.updateItem(
+        projectId,
+        item.id,
+        {
  'status': ProcurementItemStatus.rfqReview.name,
  'progress': item.progress < 0.2 ? 0.2 : item.progress.clamp(0.0, 1.0),
  if (item.estimatedDelivery == null) 'estimatedDelivery': nextDelivery,
- },
- );
- _refreshSubscriptionsForActiveProject();
- if (!mounted) return;
- setState(() => _selectedTab = _ProcurementTab.purchaseOrders);
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(
- content: Text(
- 'Started process for "${item.name}". Purchase Orders and Reports are now available.',
- ),
- backgroundColor: const Color(0xFF16A34A),
- ),
- );
+        },
+      );
+
+      if (_customizeWorkflowByScope) {
+        _selectedWorkflowScopeId = item.id;
+        _workflowDraftSteps = _cloneWorkflowSteps(updatedWorkflowSteps);
+        _scopeWorkflowOverrides[item.id] = _cloneWorkflowSteps(updatedWorkflowSteps);
+        await _persistProcurementWorkflowData(
+          successMessage: 'Started procurement workflow for "${item.name}".',
+        );
+      } else {
+        _selectedWorkflowScopeId = item.id;
+        _workflowDraftSteps = _cloneWorkflowSteps(_globalWorkflowSteps);
+      }
+
+      await ProcurementService.createRfq(
+        RfqModel(
+          id: '',
+          projectId: projectId,
+          title: item.name.trim().isEmpty ? 'RFQ for Scope' : item.name.trim(),
+          category: item.category.trim(),
+          owner: FirebaseAuth.instance.currentUser?.displayName ?? '',
+          dueDate: dueDate,
+          invitedCount: vendorCount,
+          responseCount: 0,
+          budget: item.budget,
+          status: RfqStatus.review,
+          priority: item.priority,
+          createdAt: startDate,
+        ),
+      );
+
+      _refreshSubscriptionsForActiveProject();
+      if (!mounted) return;
+      setState(() {
+        _selectedTab = _ProcurementTab.rfqWorkflow;
+        _customizeWorkflowByScope = true;
+        _selectedWorkflowScopeId = item.id;
+        _hydrateWorkflowDraftForSelection();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Started procurement workflow for "${item.name}". RFQ setup is ready.',
+          ),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
  } catch (e) {
  if (mounted) {
  ScaffoldMessenger.of(context).showSnackBar(

@@ -255,7 +255,7 @@ class _TeamRolesResponsibilitiesScreenState
  ),
  const SizedBox(width: 16),
  _YellowActionButton(
- label: 'Add New Member',
+ label: '+ Add Role',
  icon: Icons.add,
  onPressed: () => _showMemberDialog(),
  ),
@@ -263,7 +263,7 @@ class _TeamRolesResponsibilitiesScreenState
  ),
  const SizedBox(height: 8),
  const Text(
- 'Clarify ownership across workstreams and decision points.',
+ 'Identify all project team roles required for successful delivery, regardless of platform access, to support a complete organization and accurate personnel cost estimate.',
  style: TextStyle(
  fontSize: 14,
  color: Color(0xFF6B7280),
@@ -314,7 +314,7 @@ class _TeamRolesResponsibilitiesScreenState
  ),
  const SizedBox(height: 12),
  const Text(
- 'Capture ownership, staffing needs, and role coverage.',
+ 'Capture ownership, staffing needs, role coverage, and personnel assignment details.',
  style: TextStyle(
  fontSize: 13,
  color: Color(0xFF6B7280),
@@ -2032,7 +2032,7 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
  width: fieldWidth,
  child: _DialogTextField(
  controller: _departmentController,
- label: 'Department',
+ label: 'Discipline',
  hint: 'e.g. Product',
  icon: Icons.apartment_outlined,
  ),

@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/work_package_dialog.dart';
 import 'package:ndu_project/widgets/work_package_detail.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_success_snackbar.dart';
 import 'package:ndu_project/theme.dart';
 
 class PlanningWorkPackagesTab extends StatefulWidget {
@@ -303,7 +304,7 @@ class _PlanningWorkPackagesTabState extends State<PlanningWorkPackagesTab> {
         showSnackbar: false,
       );
       setState(() {});
-      _showInfo('Work package deleted.');
+      showDeleteSuccessSnackBar(context, itemLabel: 'Work package');
     }
   }
 

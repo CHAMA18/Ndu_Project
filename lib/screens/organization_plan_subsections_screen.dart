@@ -1926,58 +1926,6 @@ class _OrganizationStaffingPlanScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        PlanningPhaseHeader(
-                            title: 'Staffing Plan', onExportPdf: _exportPdf),
-                        const SizedBox(height: 16),
-                        // Header row
-                        Row(
-                          children: [
-                            _CircleIconButton(
-                              icon: Icons.arrow_back_ios_new_rounded,
-                              onTap: () => PlanningPhaseNavigation.goToPrevious(
-                                context,
-                                'organization_staffing_plan',
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            _CircleIconButton(
-                              icon: Icons.arrow_forward_ios_rounded,
-                              onTap: () async {
-                                final nextScreen =
-                                    PlanningPhaseNavigation.resolveNextScreen(
-                                          context,
-                                          'organization_staffing_plan',
-                                        ) ??
-                                        const TeamTrainingAndBuildingScreen();
-                                await ProjectDataHelper.saveAndNavigate(
-                                  context: context,
-                                  checkpoint: 'organization_staffing_plan',
-                                  saveInBackground: true,
-                                  nextScreenBuilder: () => nextScreen,
-                                  dataUpdater: (d) => d,
-                                );
-                              },
-                            ),
-                            const SizedBox(width: 16),
-                            const Text(
-                              'Staffing Plan',
-                              style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF111827)),
-                            ),
-                            const Spacer(),
-                            const _UserChip(),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Plan resource needs, staffing timeline, and onboarding cadence.',
-                          style:
-                              TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                        ),
-                        const SizedBox(height: 24),
-
                         // Metrics row
                         Row(
                           children: [

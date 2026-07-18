@@ -59,7 +59,7 @@ class _DeliverablesTrackingWidgetState
           children: [
             Icon(Icons.delete_outline, color: Colors.white, size: 18),
             SizedBox(width: 8),
-            Text('Deliverable deleted'),
+            Text('Deliverable deleted successfully.'),
             Spacer(),
           ],
         ),

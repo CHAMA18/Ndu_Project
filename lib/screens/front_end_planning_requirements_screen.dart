@@ -72,6 +72,7 @@ class _FrontEndPlanningRequirementsScreenState
   bool _showHorizontalScrollHint = false;
   bool _showVerticalScrollHint = false;
   List<_AssignableMember> _memberOptions = const <_AssignableMember>[];
+  final List<_RequirementRow> _deletedRequirements = [];
 
   static const Set<String> _authorizedRequirementSubmitRoles = {
     'owner',
@@ -746,6 +747,18 @@ class _FrontEndPlanningRequirementsScreenState
                                       ],
                                     ),
                                     const SizedBox(height: 10),
+                                    if (_deletedRequirements.isNotEmpty)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: OutlinedButton.icon(
+                                          onPressed:
+                                              _undoLastDeletedRequirement,
+                                          icon: const Icon(Icons.undo, size: 16),
+                                          label: const Text('Undo last delete'),
+                                        ),
+                                      ),
+                                    if (_deletedRequirements.isNotEmpty)
+                                      const SizedBox(height: 10),
                                     _buildRequirementsTable(context),
                                     const SizedBox(height: 16),
                                     _buildAddButton(),
@@ -1898,8 +1911,9 @@ class _FrontEndPlanningRequirementsScreenState
     );
     if (!confirmed) return;
 
+    final deleted = _rows[index];
     setState(() {
-      _rows[index].dispose();
+      _deletedRequirements.add(deleted);
       _rows.removeAt(index);
       // Renumber remaining rows
       for (int i = 0; i < _rows.length; i++) {
@@ -1908,6 +1922,34 @@ class _FrontEndPlanningRequirementsScreenState
     });
 
     // Update provider state and Firebase
+    _commitAutoSave(showSnack: false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Requirement "${requirementTitle.isEmpty ? 'Requirement ${index + 1}' : requirementTitle}" deleted successfully.',
+          ),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: Colors.white,
+            onPressed: _undoLastDeletedRequirement,
+          ),
+          duration: const Duration(seconds: 5),
+          backgroundColor: const Color(0xFF111827),
+        ),
+      );
+    }
+  }
+
+  Future<void> _undoLastDeletedRequirement() async {
+    if (_deletedRequirements.isEmpty) return;
+    final restored = _deletedRequirements.removeLast();
+    setState(() {
+      _rows.add(restored);
+      for (var i = 0; i < _rows.length; i++) {
+        _rows[i].number = i + 1;
+      }
+    });
     _commitAutoSave(showSnack: false);
   }
 

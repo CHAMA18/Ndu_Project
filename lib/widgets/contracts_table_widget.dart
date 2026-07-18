@@ -375,7 +375,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
             children: [
               Icon(Icons.delete_outline, color: Colors.white, size: 18),
               SizedBox(width: 8),
-              Text('Contract deleted'),
+              Text('Contract deleted successfully.'),
               Spacer(),
             ],
           ),
@@ -383,7 +383,6 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
             label: 'Undo',
             textColor: Colors.white,
             onPressed: () async {
-              // Restore the contract
               try {
                 final user = FirebaseAuth.instance.currentUser;
                 await ContractService.createContract(
@@ -403,7 +402,6 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
                   createdByEmail: deleted.createdByEmail,
                   createdByName: deleted.createdByName,
                 );
-                // Sync to budget
                 await ExecutionPhaseService.syncContractValueToBudget(
                   projectId: deleted.projectId,
                   contractValue: deleted.estimatedValue,
