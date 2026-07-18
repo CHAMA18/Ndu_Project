@@ -1042,6 +1042,7 @@ class _LandingScreenState extends State<LandingScreen>
  // 5-step process: Initiation → Planning → Design → Execution → Launch
  Wrap(
  alignment: WrapAlignment.center,
+ crossAxisAlignment: WrapCrossAlignment.center,
  spacing: 6,
  runSpacing: 12,
  children: [
@@ -1176,10 +1177,21 @@ class _LandingScreenState extends State<LandingScreen>
  }
 
  Widget _buildDiagramArrow(Color color) {
+ // Wrap the arrow icon in a container that matches the diagram node
+ // height (~74px) so the arrow is vertically centered relative to
+ // the containers it connects. Without this, the 24px icon would
+ // align to the top of the Wrap run, making the arrow appear at a
+ // "high position" instead of pointing from the center of each
+ // container to the other.
  return Padding(
  padding: const EdgeInsets.symmetric(horizontal: 8),
+ child: SizedBox(
+ height: 74, // matches _buildDiagramNode total height
+ child: Center(
  child: Icon(Icons.arrow_forward_rounded,
- color: color.withValues(alpha: 0.8), size: 24),
+ color: color.withValues(alpha: 0.8), size: 28),
+ ),
+ ),
  );
  }
 
