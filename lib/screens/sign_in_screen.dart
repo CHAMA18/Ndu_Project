@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -82,11 +84,14 @@ class _SignInScreenState extends State<SignInScreen> {
       await SecurityAuditLogger.logSignIn(email: _emailController.text.trim());
       // #6: Start session manager
       SessionManager.instance.start();
-      // #20: Check for login anomalies
-      await AnomalyDetector.checkLoginAnomaly(
+      // #20: Check for login anomalies (non-blocking — don't let
+      // Firestore index issues block the sign-in flow)
+      unawaited(AnomalyDetector.checkLoginAnomaly(
         userId: cred.user?.uid ?? '',
         email: _emailController.text.trim(),
-      );
+      ).catchError((e) {
+        debugPrint('Anomaly check failed (non-blocking): $e');
+      }));
       final user = cred.user;
       await user?.reload();
       if (!mounted) return;
