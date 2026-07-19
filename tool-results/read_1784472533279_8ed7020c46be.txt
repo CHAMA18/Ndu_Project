@@ -1,0 +1,1875 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:ndu_project/models/project_data_model.dart';
+     3→import 'package:ndu_project/providers/project_data_provider.dart';
+     4→import 'package:ndu_project/services/api_key_manager.dart';
+     5→import 'package:ndu_project/services/openai_service_secure.dart';
+     6→import 'package:ndu_project/utils/planning_phase_navigation.dart';
+     7→import 'package:ndu_project/utils/text_sanitizer.dart';
+     8→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+     9→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+    10→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    11→import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+    12→import 'package:ndu_project/widgets/planning_phase_header.dart';
+    13→import 'package:ndu_project/widgets/responsive.dart';
+    14→import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+    15→import 'package:provider/provider.dart';
+    16→
+    17→import 'package:ndu_project/widgets/voice_text_field.dart';
+    18→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    19→import 'package:ndu_project/utils/project_data_helper.dart';
+    20→import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+    21→import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+    22→enum _TechnologyTab {
+    23→ inventory('Technology Inventory'),
+    24→ techStack('Tech Stack'),
+    25→ externalIntegrations('External Integrations'),
+    26→ definitions('Technology Definitions'),
+    27→ aiRecommendations('AI Recommendations');
+    28→
+    29→ const _TechnologyTab(this.label);
+    30→ final String label;
+    31→}
+    32→
+    33→class PlanningTechnologyScreen extends StatefulWidget {
+    34→ const PlanningTechnologyScreen({super.key});
+    35→
+    36→ static void open(BuildContext context) {
+    37→ Navigator.of(context).push(
+    38→ MaterialPageRoute(builder: (_) => const PlanningTechnologyScreen()),
+    39→ );
+    40→ }
+    41→
+    42→ @override
+    43→ State<PlanningTechnologyScreen> createState() =>
+    44→ _PlanningTechnologyScreenState();
+    45→}
+    46→
+    47→class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
+    48→ static const List<String> _statusOptions = <String>[
+    49→ 'Proposed/Pending',
+    50→ 'Deployed',
+    51→ 'Implemented',
+    52→ 'Dismissed',
+    53→ ];
+    54→
+    55→ final List<Map<String, dynamic>> _inventory = [];
+    56→ final List<Map<String, dynamic>> _aiIntegrations = [];
+    57→ final List<Map<String, dynamic>> _externalIntegrations = [];
+    58→ final List<Map<String, dynamic>> _definitions = [];
+    59→ final List<Map<String, dynamic>> _recommendations = [];
+    60→
+    61→ _TechnologyTab _selectedTab = _TechnologyTab.inventory;
+    62→ bool _loading = true;
+    63→ bool _regenerating = false;
+    64→
+    65→ String _inventorySearch = '';
+    66→ String _inventoryCategory = 'All Categories';
+    67→
+    68→ @override
+    69→ void initState() {
+    70→ super.initState();
+    71→ ApiKeyManager.initializeApiKey();
+    72→ WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    73→ }
+    74→
+    75→ void _load() {
+    76→ final provider = ProjectDataInherited.maybeOf(context);
+    77→ if (provider == null) {
+    78→ if (mounted) setState(() => _loading = false);
+    79→ return;
+    80→ }
+    81→
+    82→ final data = provider.projectData;
+    83→ _inventory
+    84→ ..clear()
+    85→ ..addAll(
+    86→ data.technologyInventory.map((e) => Map<String, dynamic>.from(e)));
+    87→ _aiIntegrations
+    88→ ..clear()
+    89→ ..addAll(data.aiIntegrations.map((e) => Map<String, dynamic>.from(e)));
+    90→ _externalIntegrations
+    91→ ..clear()
+    92→ ..addAll(
+    93→ data.externalIntegrations.map((e) => Map<String, dynamic>.from(e)));
+    94→ _definitions
+    95→ ..clear()
+    96→ ..addAll(
+    97→ data.technologyDefinitions.map((e) => Map<String, dynamic>.from(e)));
+    98→ _recommendations
+    99→ ..clear()
+   100→ ..addAll(data.aiRecommendations.map((e) => Map<String, dynamic>.from(e)));
+   101→
+   102→ if (mounted) setState(() => _loading = false);
+   103→ }
+   104→
+   105→ Future<void> _save({String checkpoint = 'technology'}) async {
+   106→ final provider = ProjectDataInherited.maybeOf(context);
+   107→ if (provider == null) return;
+   108→ provider.updateField(
+   109→ (d) => d.copyWith(
+   110→ technologyInventory: _inventory,
+   111→ aiIntegrations: _aiIntegrations,
+   112→ externalIntegrations: _externalIntegrations,
+   113→ technologyDefinitions: _definitions,
+   114→ aiRecommendations: _recommendations,
+   115→ ),
+   116→ );
+   117→ await provider.saveToFirebase(checkpoint: checkpoint);
+   118→ }
+   119→
+   120→ Future<void> _regenerateCurrentTab() async {
+   121→ if (_regenerating) return;
+   122→ final provider = ProjectDataInherited.maybeOf(context);
+   123→ if (provider == null) return;
+   124→
+   125→ setState(() => _regenerating = true);
+   126→ final ai = OpenAiServiceSecure();
+   127→ final ctx = _buildAiContextForCurrentTab(provider.projectData);
+   128→
+   129→ try {
+   130→ switch (_selectedTab) {
+   131→ case _TechnologyTab.inventory:
+   132→ final text = await ai.generateFepSectionText(
+   133→ section: 'Technology Inventory',
+   134→ context:
+   135→ '$ctx\nOutput format (one per line): Name | Category | Cost | Status | Vendor | Added Date (YYYY-MM-DD) | Notes',
+   136→ maxTokens: 700,
+   137→ );
+   138→ final lines = TextSanitizer.sanitizeAiText(text)
+   139→ .split('\n')
+   140→ .where((l) => l.trim().isNotEmpty);
+   141→ _inventory
+   142→ ..clear()
+   143→ ..addAll(lines.map((line) {
+   144→ final parts = line.split('|').map((p) => p.trim()).toList();
+   145→ return {
+   146→ 'name': parts.isNotEmpty ? parts[0] : line.trim(),
+   147→ 'category': parts.length > 1 ? parts[1] : 'Software',
+   148→ 'cost': parts.length > 2 ? parts[2] : '',
+   149→ 'status': _normalizeStatus(
+   150→ parts.length > 3 ? parts[3] : 'Proposed/Pending'),
+   151→ 'vendor': parts.length > 4 ? parts[4] : '',
+   152→ 'added': parts.length > 5 ? parts[5] : '',
+   153→ 'notes': parts.length > 6 ? parts.sublist(6).join(' | ') : '',
+   154→ };
+   155→ }));
+   156→ break;
+   157→ case _TechnologyTab.techStack:
+   158→ final text = await ai.generateFepSectionText(
+   159→ section: 'Tech Stack',
+   160→ context:
+   161→ '$ctx\nOutput format (one per line): Name | Description | Status | Cost',
+   162→ maxTokens: 700,
+   163→ );
+   164→ final lines = TextSanitizer.sanitizeAiText(text)
+   165→ .split('\n')
+   166→ .where((l) => l.trim().isNotEmpty);
+   167→ _aiIntegrations
+   168→ ..clear()
+   169→ ..addAll(lines.map((line) {
+   170→ final parts = line.split('|').map((p) => p.trim()).toList();
+   171→ return {
+   172→ 'name': parts.isNotEmpty ? parts[0] : line.trim(),
+   173→ 'description': parts.length > 1 ? parts[1] : '',
+   174→ 'status': _normalizeStatus(
+   175→ parts.length > 2 ? parts[2] : 'Proposed/Pending'),
+   176→ 'cost': parts.length > 3 ? parts[3] : '',
+   177→ };
+   178→ }));
+   179→ break;
+   180→ case _TechnologyTab.externalIntegrations:
+   181→ final text = await ai.generateFepSectionText(
+   182→ section: 'External Integrations',
+   183→ context:
+   184→ '$ctx\nOutput format (one per line): Name | Description | Status | Connection Type | Complexity | Implementation Cost',
+   185→ maxTokens: 700,
+   186→ );
+   187→ final lines = TextSanitizer.sanitizeAiText(text)
+   188→ .split('\n')
+   189→ .where((l) => l.trim().isNotEmpty);
+   190→ _externalIntegrations
+   191→ ..clear()
+   192→ ..addAll(lines.map((line) {
+   193→ final parts = line.split('|').map((p) => p.trim()).toList();
+   194→ return {
+   195→ 'name': parts.isNotEmpty ? parts[0] : line.trim(),
+   196→ 'description': parts.length > 1 ? parts[1] : '',
+   197→ 'status': _normalizeStatus(
+   198→ parts.length > 2 ? parts[2] : 'Proposed/Pending'),
+   199→ 'connectionType': parts.length > 3 ? parts[3] : 'API',
+   200→ 'complexity': parts.length > 4 ? parts[4] : 'Medium',
+   201→ 'implementationCost': parts.length > 5 ? parts[5] : '',
+   202→ };
+   203→ }));
+   204→ break;
+   205→ case _TechnologyTab.definitions:
+   206→ final text = await ai.generateFepSectionText(
+   207→ section: 'Technology Definitions',
+   208→ context: '$ctx\nOutput format (one per line): Term - Definition',
+   209→ maxTokens: 700,
+   210→ );
+   211→ final lines = TextSanitizer.sanitizeAiText(text)
+   212→ .split('\n')
+   213→ .where((l) => l.trim().isNotEmpty);
+   214→ _definitions
+   215→ ..clear()
+   216→ ..addAll(lines.map((line) {
+   217→ final parts = line.split('-').map((p) => p.trim()).toList();
+   218→ return {
+   219→ 'term': parts.isNotEmpty ? parts[0] : line.trim(),
+   220→ 'definition':
+   221→ parts.length > 1 ? parts.sublist(1).join(' - ') : '',
+   222→ };
+   223→ }));
+   224→ break;
+   225→ case _TechnologyTab.aiRecommendations:
+   226→ final text = await ai.generateFepSectionText(
+   227→ section: 'AI Recommendations',
+   228→ context:
+   229→ '$ctx\nOutput format (one per line): Recommendation | Description | Estimated Cost | Suggested Vendor',
+   230→ maxTokens: 900,
+   231→ );
+   232→ final lines = TextSanitizer.sanitizeAiText(text)
+   233→ .split('\n')
+   234→ .where((l) => l.trim().isNotEmpty);
+   235→ _recommendations
+   236→ ..clear()
+   237→ ..addAll(lines.map((line) {
+   238→ final parts = line.split('|').map((p) => p.trim()).toList();
+   239→ return {
+   240→ 'recommendation': parts.isNotEmpty ? parts[0] : line.trim(),
+   241→ 'description': parts.length > 1 ? parts[1] : '',
+   242→ 'estimatedCost': parts.length > 2 ? parts[2] : '',
+   243→ 'vendor': parts.length > 3 ? parts[3] : '',
+   244→ 'status': 'Proposed/Pending',
+   245→ };
+   246→ }));
+   247→ break;
+   248→ }
+   249→
+   250→ await _save();
+   251→ } catch (e) {
+   252→ if (!mounted) return;
+   253→ ScaffoldMessenger.of(context).showSnackBar(
+   254→ SnackBar(content: Text('Regenerate failed: $e')),
+   255→ );
+   256→ } finally {
+   257→ if (mounted) setState(() => _regenerating = false);
+   258→ }
+   259→ }
+   260→
+   261→ Future<void> _openAddDialog() async {
+   262→ switch (_selectedTab) {
+   263→ case _TechnologyTab.inventory:
+   264→ await _openInventoryDialog();
+   265→ break;
+   266→ case _TechnologyTab.techStack:
+   267→ await _openIntegrationDialog(isExternal: false);
+   268→ break;
+   269→ case _TechnologyTab.externalIntegrations:
+   270→ await _openIntegrationDialog(isExternal: true);
+   271→ break;
+   272→ case _TechnologyTab.definitions:
+   273→ await _openDefinitionDialog();
+   274→ break;
+   275→ case _TechnologyTab.aiRecommendations:
+   276→ await _openRecommendationDialog();
+   277→ break;
+   278→ }
+   279→ }
+   280→
+   281→ Future<void> _openInventoryDialog({int? index}) async {
+   282→ final existing = index != null ? _inventory[index] : <String, dynamic>{};
+   283→ final name =
+   284→ TextEditingController(text: existing['name']?.toString() ?? '');
+   285→ final category =
+   286→ TextEditingController(text: existing['category']?.toString() ?? '');
+   287→ final cost =
+   288→ TextEditingController(text: existing['cost']?.toString() ?? '');
+   289→ final vendor =
+   290→ TextEditingController(text: existing['vendor']?.toString() ?? '');
+   291→
+   292→ String status =
+   293→ _normalizeStatus(existing['status']?.toString() ?? 'Proposed/Pending');
+   294→ String date = existing['added']?.toString() ?? '';
+   295→
+   296→ final save = await showDialog<bool>(
+   297→ context: context,
+   298→ builder: (dialogContext) => StatefulBuilder(
+   299→ builder: (context, setLocalState) => AlertDialog(
+   300→ title: Text(
+   301→ index == null ? 'Add technology item' : 'Edit technology item'),
+   302→ content: SizedBox(
+   303→ width: MediaQuery.of(context).size.width * 0.82,
+   304→ child: ConstrainedBox(
+   305→ constraints: const BoxConstraints(maxWidth: 1100),
+   306→ child: Column(
+   307→ mainAxisSize: MainAxisSize.min,
+   308→ children: [
+   309→ VoiceTextField(
+   310→ controller: name,
+   311→ decoration: const InputDecoration(labelText: 'Name'),
+   312→ ),
+   313→ VoiceTextField(
+   314→ controller: category,
+   315→ decoration: const InputDecoration(labelText: 'Category'),
+   316→ ),
+   317→ VoiceTextField(
+   318→ controller: cost,
+   319→ decoration: const InputDecoration(labelText: 'Cost'),
+   320→ ),
+   321→ DropdownButtonFormField<String>(
+   322→ value: status,
+   323→ decoration: const InputDecoration(labelText: 'Status'),
+   324→ items: _statusOptions
+   325→ .map((s) => DropdownMenuItem<String>(
+   326→ value: s,
+   327→ child: Text(s),
+   328→ ))
+   329→ .toList(),
+   330→ onChanged: (value) {
+   331→ if (value == null) return;
+   332→ setLocalState(() => status = value);
+   333→ },
+   334→ ),
+   335→ VoiceTextField(
+   336→ controller: vendor,
+   337→ decoration: const InputDecoration(labelText: 'Vendor'),
+   338→ ),
+   339→ const SizedBox(height: 12),
+   340→ Row(
+   341→ children: [
+   342→ Expanded(
+   343→ child: Text(
+   344→ date.isEmpty
+   345→ ? 'Added Date: Not set'
+   346→ : 'Added Date: $date',
+   347→ style: const TextStyle(
+   348→ fontSize: 13,
+   349→ color: Color(0xFF4B5563),
+   350→ ),
+   351→ ),
+   352→ ),
+   353→ OutlinedButton.icon(
+   354→ onPressed: () async {
+   355→ final now = DateTime.now();
+   356→ final picked = await showDatePicker(
+   357→ context: dialogContext,
+   358→ initialDate: _parseDateOrNow(date),
+   359→ firstDate: DateTime(now.year - 15),
+   360→ lastDate: DateTime(now.year + 15),
+   361→ );
+   362→ if (picked == null) return;
+   363→ setLocalState(() {
+   364→ date = picked.toIso8601String().split('T').first;
+   365→ });
+   366→ },
+   367→ icon:
+   368→ const Icon(Icons.calendar_today_outlined, size: 16),
+   369→ label: const Text('Select date'),
+   370→ ),
+   371→ ],
+   372→ ),
+   373→ ],
+   374→ ),
+   375→ ),
+   376→ ),
+   377→ actions: [
+   378→ TextButton(
+   379→ onPressed: () => Navigator.of(dialogContext).pop(false),
+   380→ child: const Text('Cancel'),
+   381→ ),
+   382→ ElevatedButton(
+   383→ onPressed: () => Navigator.of(dialogContext).pop(true),
+   384→ child: const Text('Save'),
+   385→ ),
+   386→ ],
+   387→ ),
+   388→ ),
+   389→ );
+   390→
+   391→ if (save != true) return;
+   392→
+   393→ final item = <String, dynamic>{
+   394→ 'name': name.text.trim(),
+   395→ 'category': category.text.trim(),
+   396→ 'cost': cost.text.trim(),
+   397→ 'status': status,
+   398→ 'vendor': vendor.text.trim(),
+   399→ 'added': date,
+   400→ };
+   401→
+   402→ setState(() {
+   403→ if (index == null) {
+   404→ _inventory.add(item);
+   405→ } else {
+   406→ _inventory[index] = item;
+   407→ }
+   408→ });
+   409→ await _save();
+   410→ }
+   411→
+   412→ Future<void> _openIntegrationDialog(
+   413→ {required bool isExternal, int? index}) async {
+   414→ final list = isExternal ? _externalIntegrations : _aiIntegrations;
+   415→ final existing = index != null ? list[index] : <String, dynamic>{};
+   416→
+   417→ final name =
+   418→ TextEditingController(text: existing['name']?.toString() ?? '');
+   419→ final description =
+   420→ TextEditingController(text: existing['description']?.toString() ?? '');
+   421→ final cost = TextEditingController(
+   422→ text: existing['cost']?.toString() ??
+   423→ existing['implementationCost']?.toString() ??
+   424→ '',
+   425→ );
+   426→
+   427→ String status =
+   428→ _normalizeStatus(existing['status']?.toString() ?? 'Proposed/Pending');
+   429→
+   430→ final save = await showDialog<bool>(
+   431→ context: context,
+   432→ builder: (dialogContext) => StatefulBuilder(
+   433→ builder: (context, setLocalState) => AlertDialog(
+   434→ title: Text(index == null ? 'Add integration' : 'Edit integration'),
+   435→ content: SizedBox(
+   436→ width: MediaQuery.of(context).size.width * 0.75,
+   437→ child: ConstrainedBox(
+   438→ constraints: const BoxConstraints(maxWidth: 900),
+   439→ child: Column(
+   440→ mainAxisSize: MainAxisSize.min,
+   441→ children: [
+   442→ VoiceTextField(
+   443→ controller: name,
+   444→ decoration: const InputDecoration(labelText: 'Name'),
+   445→ ),
+   446→ VoiceTextField(
+   447→ controller: description,
+   448→ decoration: const InputDecoration(labelText: 'Description'),
+   449→ ),
+   450→ DropdownButtonFormField<String>(
+   451→ value: status,
+   452→ decoration: const InputDecoration(labelText: 'Status'),
+   453→ items: _statusOptions
+   454→ .map((s) => DropdownMenuItem<String>(
+   455→ value: s,
+   456→ child: Text(s),
+   457→ ))
+   458→ .toList(),
+   459→ onChanged: (value) {
+   460→ if (value == null) return;
+   461→ setLocalState(() => status = value);
+   462→ },
+   463→ ),
+   464→ VoiceTextField(
+   465→ controller: cost,
+   466→ decoration: InputDecoration(
+   467→ labelText: isExternal
+   468→ ? 'Implementation Cost'
+   469→ : 'Integration Cost',
+   470→ ),
+   471→ ),
+   472→ ],
+   473→ ),
+   474→ ),
+   475→ ),
+   476→ actions: [
+   477→ TextButton(
+   478→ onPressed: () => Navigator.of(dialogContext).pop(false),
+   479→ child: const Text('Cancel'),
+   480→ ),
+   481→ ElevatedButton(
+   482→ onPressed: () => Navigator.of(dialogContext).pop(true),
+   483→ child: const Text('Save'),
+   484→ ),
+   485→ ],
+   486→ ),
+   487→ ),
+   488→ );
+   489→
+   490→ if (save != true) return;
+   491→
+   492→ final item = <String, dynamic>{
+   493→ ...existing,
+   494→ 'name': name.text.trim(),
+   495→ 'description': description.text.trim(),
+   496→ 'status': status,
+   497→ if (isExternal)
+   498→ 'implementationCost': cost.text.trim()
+   499→ else
+   500→ 'cost': cost.text.trim(),
+   501→ };
+   502→
+   503→ setState(() {
+   504→ if (index == null) {
+   505→ list.add(item);
+   506→ } else {
+   507→ list[index] = item;
+   508→ }
+   509→ });
+   510→ await _save();
+   511→ }
+   512→
+   513→ Future<void> _openDefinitionDialog({int? index}) async {
+   514→ final existing = index != null ? _definitions[index] : <String, dynamic>{};
+   515→ final term = TextEditingController(
+   516→ text: existing['term']?.toString() ?? existing['name']?.toString() ?? '',
+   517→ );
+   518→ final definition = TextEditingController(
+   519→ text: existing['definition']?.toString() ??
+   520→ existing['description']?.toString() ??
+   521→ '',
+   522→ );
+   523→
+   524→ final save = await showDialog<bool>(
+   525→ context: context,
+   526→ builder: (c) => AlertDialog(
+   527→ title: Text(index == null
+   528→ ? 'Add technology definition'
+   529→ : 'Edit technology definition'),
+   530→ content: SizedBox(
+   531→ width: MediaQuery.of(context).size.width * 0.7,
+   532→ child: Column(
+   533→ mainAxisSize: MainAxisSize.min,
+   534→ children: [
+   535→ VoiceTextField(
+   536→ controller: term,
+   537→ decoration: const InputDecoration(labelText: 'Term'),
+   538→ ),
+   539→ VoiceTextField(
+   540→ controller: definition,
+   541→ maxLines: 5,
+   542→ decoration: const InputDecoration(labelText: 'Definition'),
+   543→ ),
+   544→ ],
+   545→ ),
+   546→ ),
+   547→ actions: [
+   548→ TextButton(
+   549→ onPressed: () => Navigator.of(c).pop(false),
+   550→ child: const Text('Cancel'),
+   551→ ),
+   552→ ElevatedButton(
+   553→ onPressed: () => Navigator.of(c).pop(true),
+   554→ child: const Text('Save'),
+   555→ ),
+   556→ ],
+   557→ ),
+   558→ );
+   559→
+   560→ if (save != true) return;
+   561→
+   562→ final item = <String, dynamic>{
+   563→ ...existing,
+   564→ 'term': term.text.trim(),
+   565→ 'definition': definition.text.trim(),
+   566→ };
+   567→
+   568→ setState(() {
+   569→ if (index == null) {
+   570→ _definitions.add(item);
+   571→ } else {
+   572→ _definitions[index] = item;
+   573→ }
+   574→ });
+   575→ await _save();
+   576→ }
+   577→
+   578→ Future<void> _openRecommendationDialog({int? index}) async {
+   579→ final existing =
+   580→ index != null ? _recommendations[index] : <String, dynamic>{};
+   581→ final recommendation = TextEditingController(
+   582→ text: existing['recommendation']?.toString() ??
+   583→ existing['title']?.toString() ??
+   584→ '',
+   585→ );
+   586→ final description =
+   587→ TextEditingController(text: existing['description']?.toString() ?? '');
+   588→ final cost = TextEditingController(
+   589→ text: existing['estimatedCost']?.toString() ?? '');
+   590→ final vendor =
+   591→ TextEditingController(text: existing['vendor']?.toString() ?? '');
+   592→
+   593→ final save = await showDialog<bool>(
+   594→ context: context,
+   595→ builder: (c) => AlertDialog(
+   596→ title:
+   597→ Text(index == null ? 'Add recommendation' : 'Edit recommendation'),
+   598→ content: SizedBox(
+   599→ width: MediaQuery.of(context).size.width * 0.75,
+   600→ child: Column(
+   601→ mainAxisSize: MainAxisSize.min,
+   602→ children: [
+   603→ VoiceTextField(
+   604→ controller: recommendation,
+   605→ decoration: const InputDecoration(labelText: 'Recommendation'),
+   606→ ),
+   607→ VoiceTextField(
+   608→ controller: description,
+   609→ decoration: const InputDecoration(labelText: 'Description'),
+   610→ ),
+   611→ VoiceTextField(
+   612→ controller: cost,
+   613→ decoration: const InputDecoration(labelText: 'Estimated Cost'),
+   614→ ),
+   615→ VoiceTextField(
+   616→ controller: vendor,
+   617→ decoration:
+   618→ const InputDecoration(labelText: 'Suggested Vendor'),
+   619→ ),
+   620→ ],
+   621→ ),
+   622→ ),
+   623→ actions: [
+   624→ TextButton(
+   625→ onPressed: () => Navigator.of(c).pop(false),
+   626→ child: const Text('Cancel'),
+   627→ ),
+   628→ ElevatedButton(
+   629→ onPressed: () => Navigator.of(c).pop(true),
+   630→ child: const Text('Save'),
+   631→ ),
+   632→ ],
+   633→ ),
+   634→ );
+   635→
+   636→ if (save != true) return;
+   637→
+   638→ final item = <String, dynamic>{
+   639→ ...existing,
+   640→ 'recommendation': recommendation.text.trim(),
+   641→ 'description': description.text.trim(),
+   642→ 'estimatedCost': cost.text.trim(),
+   643→ 'vendor': vendor.text.trim(),
+   644→ 'status': existing['status']?.toString().isNotEmpty == true
+   645→ ? existing['status']
+   646→ : 'Proposed/Pending',
+   647→ };
+   648→
+   649→ setState(() {
+   650→ if (index == null) {
+   651→ _recommendations.add(item);
+   652→ } else {
+   653→ _recommendations[index] = item;
+   654→ }
+   655→ });
+   656→ await _save();
+   657→ }
+   658→
+   659→ Future<bool> _confirmDelete() async {
+   660→ final result = await showDialog<bool>(
+   661→ context: context,
+   662→ builder: (c) => AlertDialog(
+   663→ title: const Text('Delete item'),
+   664→ content: const Text(
+   665→ 'Are you sure you want to delete this item? This action cannot be undone.'),
+   666→ actions: [
+   667→ TextButton(
+   668→ onPressed: () => Navigator.of(c).pop(false),
+   669→ child: const Text('Cancel'),
+   670→ ),
+   671→ ElevatedButton(
+   672→ onPressed: () => Navigator.of(c).pop(true),
+   673→ style: ElevatedButton.styleFrom(
+   674→ backgroundColor: const Color(0xFFDC2626)),
+   675→ child: const Text('Delete'),
+   676→ ),
+   677→ ],
+   678→ ),
+   679→ );
+   680→ return result == true;
+   681→ }
+   682→
+   683→ Future<void> _removeAtCurrentTab(int index) async {
+   684→ final confirmed = await _confirmDelete();
+   685→ if (!confirmed) return;
+   686→
+   687→ setState(() {
+   688→ switch (_selectedTab) {
+   689→ case _TechnologyTab.inventory:
+   690→ _inventory.removeAt(index);
+   691→ break;
+   692→ case _TechnologyTab.techStack:
+   693→ _aiIntegrations.removeAt(index);
+   694→ break;
+   695→ case _TechnologyTab.externalIntegrations:
+   696→ _externalIntegrations.removeAt(index);
+   697→ break;
+   698→ case _TechnologyTab.definitions:
+   699→ _definitions.removeAt(index);
+   700→ break;
+   701→ case _TechnologyTab.aiRecommendations:
+   702→ _recommendations.removeAt(index);
+   703→ break;
+   704→ }
+   705→ });
+   706→ await _save();
+   707→ }
+   708→
+   709→ Future<void> _implementRecommendation(int index) async {
+   710→ if (index < 0 || index >= _recommendations.length) return;
+   711→ final recommendation = Map<String, dynamic>.from(_recommendations[index]);
+   712→ final title = _recommendationTitle(recommendation);
+   713→ final desc = recommendation['description']?.toString() ?? '';
+   714→ final estimatedCost = recommendation['estimatedCost']?.toString() ?? '';
+   715→
+   716→ final hasInventoryItem = _inventory.any(
+   717→ (item) =>
+   718→ item['name']?.toString().trim().toLowerCase() ==
+   719→ title.trim().toLowerCase(),
+   720→ );
+   721→ if (!hasInventoryItem) {
+   722→ _inventory.add({
+   723→ 'name': title,
+   724→ 'category': 'AI Recommendation',
+   725→ 'cost': estimatedCost,
+   726→ 'status': 'Proposed/Pending',
+   727→ 'vendor': recommendation['vendor']?.toString() ?? '',
+   728→ 'added': DateTime.now().toIso8601String().split('T').first,
+   729→ 'notes': desc,
+   730→ });
+   731→ }
+   732→
+   733→ final hasAiIntegration = _aiIntegrations.any(
+   734→ (item) =>
+   735→ item['name']?.toString().trim().toLowerCase() ==
+   736→ title.trim().toLowerCase(),
+   737→ );
+   738→ if (!hasAiIntegration) {
+   739→ _aiIntegrations.add({
+   740→ 'name': title,
+   741→ 'description': desc,
+   742→ 'status': 'Proposed/Pending',
+   743→ 'cost': estimatedCost,
+   744→ });
+   745→ }
+   746→
+   747→ _recommendations[index] = {
+   748→ ...recommendation,
+   749→ 'status': 'Implemented',
+   750→ };
+   751→
+   752→ setState(() {});
+   753→ await _save();
+   754→ }
+   755→
+   756→ Future<void> _dismissRecommendation(int index) async {
+   757→ if (index < 0 || index >= _recommendations.length) return;
+   758→ setState(() {
+   759→ _recommendations[index] = {
+   760→ ..._recommendations[index],
+   761→ 'status': 'Dismissed',
+   762→ };
+   763→ });
+   764→ await _save();
+   765→ }
+   766→
+   767→ List<Map<String, dynamic>> get _filteredInventory {
+   768→ return _inventory.where((item) {
+   769→ final name = (item['name'] ?? '').toString().toLowerCase();
+   770→ final category = (item['category'] ?? '').toString();
+   771→ final searchOk = _inventorySearch.trim().isEmpty ||
+   772→ name.contains(_inventorySearch.trim().toLowerCase());
+   773→ final categoryOk = _inventoryCategory == 'All Categories' ||
+   774→ category == _inventoryCategory;
+   775→ return searchOk && categoryOk;
+   776→ }).toList();
+   777→ }
+   778→
+   779→ List<String> get _categories {
+   780→ final set = <String>{'All Categories'};
+   781→ for (final item in _inventory) {
+   782→ final category = item['category']?.toString().trim() ?? '';
+   783→ if (category.isNotEmpty) set.add(category);
+   784→ }
+   785→ return set.toList();
+   786→ }
+   787→
+   788→ String _recommendationTitle(Map<String, dynamic> rec) {
+   789→ final title = rec['recommendation']?.toString().trim();
+   790→ if (title != null && title.isNotEmpty) return title;
+   791→ final fallback = rec['title']?.toString().trim();
+   792→ if (fallback != null && fallback.isNotEmpty) return fallback;
+   793→ return 'Untitled Recommendation';
+   794→ }
+   795→
+   796→ String _normalizeStatus(String raw) {
+   797→ final lower = raw.trim().toLowerCase();
+   798→ if (lower.contains('deploy')) return 'Deployed';
+   799→ if (lower.contains('implement')) return 'Implemented';
+   800→ if (lower.contains('dismiss')) return 'Dismissed';
+   801→ return 'Proposed/Pending';
+   802→ }
+   803→
+   804→ String _statusOf(Map<String, dynamic> item) {
+   805→ return _normalizeStatus(item['status']?.toString() ?? 'Proposed/Pending');
+   806→ }
+   807→
+   808→ DateTime _parseDateOrNow(String raw) {
+   809→ final parsed = DateTime.tryParse(raw);
+   810→ return parsed ?? DateTime.now();
+   811→ }
+   812→
+   813→ double _parseAmount(String raw) {
+   814→ final cleaned = raw.replaceAll(',', '');
+   815→ final match = RegExp(r'(-?\d+(?:\.\d+)?)').firstMatch(cleaned);
+   816→ if (match == null) return 0;
+   817→ return double.tryParse(match.group(1) ?? '') ?? 0;
+   818→ }
+   819→
+   820→ (double oneTime, double annual) _computeBudget() {
+   821→ double oneTime = 0;
+   822→ double annual = 0;
+   823→
+   824→ void absorb(Map<String, dynamic> item, String key) {
+   825→ final value = item[key]?.toString() ?? '';
+   826→ if (value.trim().isEmpty) return;
+   827→ final amount = _parseAmount(value);
+   828→ final normalized = value.toLowerCase();
+   829→ if (normalized.contains('/month') || normalized.contains('monthly')) {
+   830→ annual += amount * 12;
+   831→ } else if (normalized.contains('/year') ||
+   832→ normalized.contains('annual')) {
+   833→ annual += amount;
+   834→ } else {
+   835→ oneTime += amount;
+   836→ }
+   837→ }
+   838→
+   839→ for (final item in _inventory) {
+   840→ absorb(item, 'cost');
+   841→ }
+   842→ for (final item in _aiIntegrations) {
+   843→ absorb(item, 'cost');
+   844→ }
+   845→ for (final item in _externalIntegrations) {
+   846→ absorb(item, 'implementationCost');
+   847→ }
+   848→
+   849→ return (oneTime, annual);
+   850→ }
+   851→
+   852→ int _countByCategory(String category) {
+   853→ return _inventory
+   854→ .where((item) =>
+   855→ (item['category']?.toString().toLowerCase() ?? '') ==
+   856→ category.toLowerCase())
+   857→ .length;
+   858→ }
+   859→
+   860→ int get _deployedCount => _aiIntegrations
+   861→ .where((item) => _statusOf(item).toLowerCase().contains('deployed'))
+   862→ .length;
+   863→
+   864→ int get _proposedPendingCount => _aiIntegrations
+   865→ .where((item) => _statusOf(item).toLowerCase().contains('proposed'))
+   866→ .length;
+   867→
+   868→ int get _availableRecommendationCount => _recommendations.where((item) {
+   869→ final status = _statusOf(item).toLowerCase();
+   870→ return !status.contains('dismissed') && !status.contains('implemented');
+   871→ }).length;
+   872→
+   873→ String _formatCurrency(double value) {
+   874→ final rounded = value.round();
+   875→ final s = rounded.toString();
+   876→ final withCommas = s.replaceAllMapped(
+   877→ RegExp(r'\B(?=(\d{3})+(?!\d))'),
+   878→ (match) => ',',
+   879→ );
+   880→ return '\$$withCommas';
+   881→ }
+   882→
+   883→String _buildAiContextForCurrentTab(ProjectDataModel data) {
+   884→  String takeNames(List<Map<String, dynamic>> list, String key) {
+   885→    if (list.isEmpty) return 'none';
+   886→    return list
+   887→        .take(8)
+   888→        .map((item) => (item[key] ?? '').toString().trim())
+   889→        .where((e) => e.isNotEmpty)
+   890→        .join(', ');
+   891→  }
+   892→
+   893→  String collectSolutionTechSignals() {
+   894→    return <String>{
+   895→      data.solutionTitle.trim(),
+   896→      data.solutionDescription.trim(),
+   897→      data.frontEndPlanning.technology.trim(),
+   898→      data.frontEndPlanning.requirements.trim(),
+   899→      data.frontEndPlanning.security.trim(),
+   900→      data.notes.trim(),
+   901→      ..._inventory
+   902→          .map((item) => item['name']?.toString().trim() ?? '')
+   903→          .where((value) => value.isNotEmpty),
+   904→      ..._aiIntegrations
+   905→          .map((item) => item['name']?.toString().trim() ?? '')
+   906→          .where((value) => value.isNotEmpty),
+   907→      ..._externalIntegrations
+   908→          .map((item) => item['name']?.toString().trim() ?? '')
+   909→          .where((value) => value.isNotEmpty),
+   910→    }.join(', ');
+   911→  }
+   912→  
+   913→  // AUTO-FEED FROM INITIATION PHASE: IT Considerations
+   914→  String collectInitiationTechData() {
+   915→    final parts = <String>[];
+   916→    
+   917→    // Pull IT Considerations from Project Charter/Initiation
+   918→    if (data.itConsiderationsData != null) {
+   919→      final it = data.itConsiderationsData!;
+   920→      if (it.notes.isNotEmpty) parts.add('IT Notes: \${it.notes}');
+   921→      if (it.hardwareRequirements.isNotEmpty) parts.add('Hardware Requirements: \${it.hardwareRequirements}');
+   922→      if (it.softwareRequirements.isNotEmpty) parts.add('Software Requirements: \${it.softwareRequirements}');
+   923→      if (it.networkRequirements.isNotEmpty) parts.add('Network Requirements: \${it.networkRequirements}');
+   924→      
+   925→      // Pull individual solution IT data items
+   926→      if (it.solutionITData.isNotEmpty) {
+   927→        final solutionItems = it.solutionITData
+   928→            .where((s) => s.coreTechnology.isNotEmpty)
+   929→            .map((s) => '\${s.solutionTitle}: \${s.coreTechnology}')
+   930→            .join('; ');
+   931→        if (solutionItems.isNotEmpty) parts.add('Solution Technologies: $solutionItems');
+   932→      }
+   933→    }
+   934→    
+   935→    // Pull Infrastructure Considerations
+   936→    if (data.infrastructureConsiderationsData != null) {
+   937→      final infra = data.infrastructureConsiderationsData!;
+   938→      if (infra.physicalSpaceRequirements.isNotEmpty) parts.add('Infrastructure Space: \${infra.physicalSpaceRequirements}');
+   939→      if (infra.powerCoolingRequirements.isNotEmpty) parts.add('Power/Cooling: \${infra.powerCoolingRequirements}');
+   940→      if (infra.connectivityRequirements.isNotEmpty) parts.add('Connectivity: \${infra.connectivityRequirements}');
+   941→    }
+   942→    
+   943→    // Pull tech mentions from other planning areas
+   944→    if (data.frontEndPlanning.technology.isNotEmpty) {
+   945→      parts.add('FEP Technology Notes: \${data.frontEndPlanning.technology}');
+   946→    }
+   947→    
+   948→    return parts.isEmpty ? 'No initiation tech data available' : parts.join('\\n');
+   949→  }
+   950→
+   951→  final methodology =
+   952→  ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
+   953→  final location = data.orgLocation.trim();
+   954→
+   955→  return [
+   956→    'You are preparing enterprise technology planning data.',
+   957→    'IMPORTANT: Incorporate all technology mentions from the Initiation phase into your recommendations.',
+   958→    '',
+   959→    '=== PROJECT IDENTITY ===',
+   960→    'Project Name: \${data.projectName}',
+   961→    'Solution Title: \${data.solutionTitle}',
+   962→    'Solution Description: \${data.solutionDescription}',
+   963→    'Project Objective: \${data.projectObjective}',
+   964→    'Business Case: \${data.businessCase}',
+   965→    '',
+   966→    '=== PROJECT CLASSIFICATION ===',
+   967→    'Industry / Sector: ${data.overallFramework ?? 'Not specified'}',
+   968→    'Delivery Framework: $methodology',
+   969→    'Project Location: \${location.isEmpty ? "Not specified" : location}',
+   970→    '',
+   971→    '=== INITIATION PHASE TECHNOLOGY DATA (Auto-fed from Charter) ===',
+   972→    '\${collectInitiationTechData()}',
+   973→    '',
+   974→    '=== CURRENT PLANNING TECHNOLOGY SIGNALS ===',
+   975→    'Initiation Notes: \${data.notes}',
+   976→    'FEP Technology Notes: \${data.frontEndPlanning.technology}',
+   977→    'Broader Technology Signals: \${collectSolutionTechSignals()}',
+   978→    '',
+   979→    '=== EXISTING TECHNOLOGY INVENTORY ===',
+   980→    'Existing Inventory: \${takeNames(_inventory, "name")}',
+   981→    'Existing Tech Stack: \${takeNames(_aiIntegrations, "name")}',
+   982→    'Existing External Integrations: \${takeNames(_externalIntegrations, "name")}',
+   983→    'Existing Definitions: \${takeNames(_definitions, "term")}',
+   984→    '',
+   985→    '=== GENERATION GUIDELINES ===',
+   986→    if (_selectedTab == _TechnologyTab.techStack)
+   987→      'Return a practical project tech stack covering applications, frameworks, cloud services, data stores, delivery tooling, integrations, and operations tooling.',
+   988→    if (_selectedTab == _TechnologyTab.techStack &&
+   989→        methodology == 'AGILE')
+   990→      'For agile delivery, include backlog, CI/CD, testing, environments, release, observability, and collaboration tooling.',
+   991→    'CRITICAL: Any technology mentioned in the Initiation phase above MUST be included in the Tech Stack.',
+   992→    'Generate concise, realistic entries specific to this project context.',
+   993→  ].join('\\n');
+   994→}
+   995→
+   996→ Future<void> _syncTechnologyCostsToEstimate() async {
+   997→ final costProvider = Provider.of<CostEstimateProvider>(context, listen: false);
+   998→ final estimate = costProvider.estimate;
+   999→ if (estimate == null) {
+  1000→ ScaffoldMessenger.of(context).showSnackBar(
+  1001→ const SnackBar(content: Text('Cost Estimate is not initialized yet.')),
+  1002→ );
+  1003→ return;
+  1004→ }
+  1005→
+  1006→ double? parseAmount(dynamic raw) {
+  1007→ final token = raw?.toString() ?? '';
+  1008→ final cleaned = token.replaceAll(RegExp(r'[^0-9.]'), '');
+  1009→ if (cleaned.isEmpty) return null;
+  1010→ return double.tryParse(cleaned);
+  1011→ }
+  1012→
+  1013→ final existingDescriptions = estimate.lines
+  1014→ .map((line) => line.description.trim().toLowerCase())
+  1015→ .toSet();
+  1016→ final additions = <CostLine>[];
+  1017→
+  1018→ void addCandidate({
+  1019→ required String description,
+  1020→ required String subCategory,
+  1021→ required dynamic amount,
+  1022→ }) {
+  1023→ final total = parseAmount(amount);
+  1024→ if (total == null || total <= 0) return;
+  1025→ if (existingDescriptions.contains(description.toLowerCase())) return;
+  1026→ additions.add(
+  1027→ CostLine(
+  1028→ id: '${DateTime.now().microsecondsSinceEpoch}-${additions.length}',
+  1029→ category: CostCategory.software,
+  1030→ subCategory: subCategory,
+  1031→ description: description,
+  1032→ total: total,
+  1033→ basisSource: CostSourceType.kazAI,
+  1034→ basisReference: 'Technology Planning',
+  1035→ aiGenerated: true,
+  1036→ inSchedule: false,
+  1037→ ),
+  1038→ );
+  1039→ existingDescriptions.add(description.toLowerCase());
+  1040→ }
+  1041→
+  1042→ for (final item in _inventory) {
+  1043→ final name = item['name']?.toString().trim() ?? '';
+  1044→ if (name.isEmpty) continue;
+  1045→ addCandidate(
+  1046→ description: 'Technology Inventory: $name',
+  1047→ subCategory: item['category']?.toString().trim().isNotEmpty == true
+  1048→ ? item['category'].toString().trim()
+  1049→ : 'Technology Inventory',
+  1050→ amount: item['cost'],
+  1051→ );
+  1052→ }
+  1053→ for (final item in _aiIntegrations) {
+  1054→ final name = item['name']?.toString().trim() ?? '';
+  1055→ if (name.isEmpty) continue;
+  1056→ addCandidate(
+  1057→ description: 'Tech Stack: $name',
+  1058→ subCategory: 'Tech Stack',
+  1059→ amount: item['cost'],
+  1060→ );
+  1061→ }
+  1062→ for (final item in _externalIntegrations) {
+  1063→ final name = item['name']?.toString().trim() ?? '';
+  1064→ if (name.isEmpty) continue;
+  1065→ addCandidate(
+  1066→ description: 'External Integration: $name',
+  1067→ subCategory: 'External Integrations',
+  1068→ amount: item['implementationCost'],
+  1069→ );
+  1070→ }
+  1071→ for (final item in _recommendations) {
+  1072→ final name = _recommendationTitle(item).trim();
+  1073→ if (name.isEmpty) continue;
+  1074→ addCandidate(
+  1075→ description: 'Technology Recommendation: $name',
+  1076→ subCategory: 'AI Recommendations',
+  1077→ amount: item['estimatedCost'],
+  1078→ );
+  1079→ }
+  1080→
+  1081→ for (final line in additions) {
+  1082→ costProvider.addLine(line);
+  1083→ }
+  1084→
+  1085→ ScaffoldMessenger.of(context).showSnackBar(
+  1086→ SnackBar(
+  1087→ content: Text(
+  1088→ additions.isEmpty
+  1089→ ? 'No new technology costs were found to sync.'
+  1090→ : 'Technology costs synced to Cost Estimate.',
+  1091→ ),
+  1092→ ),
+  1093→ );
+  1094→ }
+  1095→
+  1096→ @override
+  1097→ Widget build(BuildContext context) {
+  1098→ final isMobile = AppBreakpoints.isMobile(context);
+  1099→ final padding = EdgeInsets.fromLTRB(
+  1100→ isMobile ? 16 : 28,
+  1101→ 24,
+  1102→ isMobile ? 16 : 28,
+  1103→ 120,
+  1104→ );
+  1105→
+  1106→ return Scaffold(
+  1107→ backgroundColor: Colors.white,
+  1108→ body: SafeArea(
+  1109→ child: Stack(
+  1110→ children: [
+  1111→ Row(
+  1112→ crossAxisAlignment: CrossAxisAlignment.start,
+  1113→ children: [
+  1114→ DraggableSidebar(
+  1115→ openWidth: AppBreakpoints.sidebarWidth(context),
+  1116→ child: const InitiationLikeSidebar(
+  1117→ activeItemLabel: 'Technology Planning',
+  1118→ ),
+  1119→ ),
+  1120→ Expanded(
+  1121→ child: _loading
+  1122→ ? const Center(child: CircularProgressIndicator())
+  1123→ : SingleChildScrollView(
+  1124→ padding: padding,
+  1125→ child: Column(
+  1126→ crossAxisAlignment: CrossAxisAlignment.start,
+  1127→ children: [
+  1128→ PlanningPhaseHeader(
+  1129→ title: 'Technology Planning',
+  1130→onBack: () =>
+  1131→ PlanningPhaseNavigation.goToPrevious(
+  1132→ context,
+  1133→ 'technology',
+  1134→ ),
+  1135→ onForward: () =>
+  1136→ PlanningPhaseNavigation.goToNext(
+  1137→ context,
+  1138→ 'technology',
+  1139→ ), onExportPdf: _exportPdf),
+  1140→ const SizedBox(height: 18),
+  1141→ _buildTopMetrics(),
+  1142→ const SizedBox(height: 14),
+  1143→ _buildTabsBar(),
+  1144→ const SizedBox(height: 12),
+  1145→ InnerPageNavigationHint(
+  1146→ pageId: 'planning_technology',
+  1147→ pageTitle: 'Tech Sections',
+  1148→ sections: _TechnologyTab.values.map((tab) => InnerPageSection(
+  1149→ id: tab.name,
+  1150→ label: tab.label,
+  1151→ status: tab == _selectedTab
+  1152→ ? InnerPageSectionStatus.current
+  1153→ : InnerPageSectionStatus.available,
+  1154→ stepNumber: _TechnologyTab.values.indexOf(tab) + 1,
+  1155→ )).toList(),
+  1156→ currentSectionId: _selectedTab.name,
+  1157→ onSectionTap: (sectionId) {
+  1158→ final tab = _TechnologyTab.values.firstWhere(
+  1159→ (t) => t.name == sectionId);
+  1160→ setState(() => _selectedTab = tab);
+  1161→ },
+  1162→ ),
+  1163→ _buildCurrentTabContent(),
+  1164→ const SizedBox(height: 24),
+  1165→ LaunchPhaseNavigation(
+  1166→ backLabel: PlanningPhaseNavigation.backLabel(
+  1167→ 'technology'),
+  1168→ nextLabel: PlanningPhaseNavigation.nextLabel(
+  1169→ 'technology'),
+  1170→ onBack: () =>
+  1171→ PlanningPhaseNavigation.goToPrevious(
+  1172→ context,
+  1173→ 'technology',
+  1174→ ),
+  1175→ onNext: () => PlanningPhaseNavigation.goToNext(
+  1176→ context,
+  1177→ 'technology',
+  1178→ ),
+  1179→ ),
+  1180→ ],
+  1181→ ),
+  1182→ ),
+  1183→ ),
+  1184→ ],
+  1185→ ),
+  1186→ MobileSidebarHamburger(
+  1187→ sidebar: const InitiationLikeSidebar(
+  1188→ activeItemLabel: 'Technology Planning',
+  1189→ ),
+  1190→ ),
+  1191→ const KazAiChatBubble(),
+  1192→ ],
+  1193→ ),
+  1194→ ),
+  1195→ );
+  1196→ }
+  1197→
+  1198→ Widget _buildTopMetrics() {
+  1199→ final budget = _computeBudget();
+  1200→ return Row(
+  1201→ children: [
+  1202→ Expanded(
+  1203→ child: _MetricCard(
+  1204→ title: 'Total Technology Items',
+  1205→ value: '${_inventory.length}',
+  1206→ rows: [
+  1207→ _MetricRow(
+  1208→ label: 'Hardware',
+  1209→ value: _countByCategory('Hardware').toString()),
+  1210→ _MetricRow(
+  1211→ label: 'Software',
+  1212→ value: _countByCategory('Software').toString()),
+  1213→ _MetricRow(
+  1214→ label: 'Development Tools',
+  1215→ value: _countByCategory('Development Tools').toString()),
+  1216→ ],
+  1217→ ),
+  1218→ ),
+  1219→ const SizedBox(width: 12),
+  1220→ Expanded(
+  1221→ child: _MetricCard(
+  1222→ title: 'Total Technology Budget',
+  1223→ value: _formatCurrency(budget.$1),
+  1224→ rows: [
+  1225→ _MetricRow(
+  1226→ label: 'One-time Costs', value: _formatCurrency(budget.$1)),
+  1227→ _MetricRow(
+  1228→ label: 'Annual Running Costs',
+  1229→ value: '${_formatCurrency(budget.$2)}/year'),
+  1230→ ],
+  1231→ ),
+  1232→ ),
+  1233→ const SizedBox(width: 12),
+  1234→ Expanded(
+  1235→ child: _MetricCard(
+  1236→ title: 'Tech Stack',
+  1237→ value: '${_aiIntegrations.length}',
+  1238→ rows: [
+  1239→ _MetricRow(label: 'Deployed', value: '$_deployedCount'),
+  1240→ _MetricRow(
+  1241→ label: 'Proposed/Pending', value: '$_proposedPendingCount'),
+  1242→ _MetricRow(
+  1243→ label: 'Available Recommendations',
+  1244→ value: '$_availableRecommendationCount'),
+  1245→ ],
+  1246→ ),
+  1247→ ),
+  1248→ ],
+  1249→ );
+  1250→ }
+  1251→
+  1252→ Widget _buildTabsBar() {
+  1253→ return Container(
+  1254→ padding: const EdgeInsets.all(6),
+  1255→ decoration: BoxDecoration(
+  1256→ color: const Color(0xFFF4B422),
+  1257→ borderRadius: BorderRadius.circular(8),
+  1258→ ),
+  1259→ child: Row(
+  1260→ children: _TechnologyTab.values.map((tab) {
+  1261→ final selected = tab == _selectedTab;
+  1262→ return Expanded(
+  1263→ child: InkWell(
+  1264→ onTap: () => setState(() => _selectedTab = tab),
+  1265→ borderRadius: BorderRadius.circular(8),
+  1266→ child: AnimatedContainer(
+  1267→ duration: const Duration(milliseconds: 160),
+  1268→ padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
+  1269→ decoration: BoxDecoration(
+  1270→ color: selected ? Colors.white : Colors.transparent,
+  1271→ borderRadius: BorderRadius.circular(8),
+  1272→ ),
+  1273→ child: Text(
+  1274→ tab.label,
+  1275→ textAlign: TextAlign.center,
+  1276→ style: TextStyle(
+  1277→ fontSize: 12,
+  1278→ fontWeight: FontWeight.w600,
+  1279→ color: selected ? const Color(0xFF111827) : Colors.white,
+  1280→ ),
+  1281→ ),
+  1282→ ),
+  1283→ ),
+  1284→ );
+  1285→ }).toList(),
+  1286→ ),
+  1287→ );
+  1288→ }
+  1289→
+  1290→ Widget _buildCurrentTabContent() {
+  1291→ return Container(
+  1292→ width: double.infinity,
+  1293→ padding: const EdgeInsets.all(18),
+  1294→ decoration: BoxDecoration(
+  1295→ color: Colors.white,
+  1296→ borderRadius: BorderRadius.circular(12),
+  1297→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1298→ ),
+  1299→ child: Column(
+  1300→ crossAxisAlignment: CrossAxisAlignment.start,
+  1301→ children: [
+  1302→ Row(
+  1303→ children: [
+  1304→ Expanded(
+  1305→ child: Text(
+  1306→ _selectedTab.label,
+  1307→ style: const TextStyle(
+  1308→ fontSize: 22,
+  1309→ fontWeight: FontWeight.w700,
+  1310→ color: Color(0xFF111827),
+  1311→ ),
+  1312→ ),
+  1313→ ),
+  1314→ OutlinedButton.icon(
+  1315→ onPressed: _syncTechnologyCostsToEstimate,
+  1316→ icon: const Icon(Icons.sync_outlined, size: 16),
+  1317→ label: const Text('Sync Costs'),
+  1318→ ),
+  1319→ const SizedBox(width: 8),
+  1320→ OutlinedButton.icon(
+  1321→ onPressed: _regenerating ? null : _regenerateCurrentTab,
+  1322→ icon: const Icon(Icons.auto_awesome_outlined, size: 16),
+  1323→ label: Text(_regenerating ? 'Regenerating...' : 'Regenerate'),
+  1324→ ),
+  1325→ const SizedBox(width: 8),
+  1326→ ElevatedButton.icon(
+  1327→ onPressed: _openAddDialog,
+  1328→ icon: const Icon(Icons.add, size: 16),
+  1329→ label: const Text('Add'),
+  1330→ ),
+  1331→ ],
+  1332→ ),
+  1333→ const SizedBox(height: 16),
+  1334→ const Text(
+  1335→ 'Use the yellow tab bar above to move between technology planning sections.',
+  1336→ style: TextStyle(
+  1337→ fontSize: 13,
+  1338→ color: Color(0xFF6B7280),
+  1339→ ),
+  1340→ ),
+  1341→ const SizedBox(height: 16),
+  1342→ switch (_selectedTab) {
+  1343→ _TechnologyTab.inventory => _buildInventoryContent(),
+  1344→ _TechnologyTab.techStack => _buildIntegrationsContent(false),
+  1345→ _TechnologyTab.externalIntegrations =>
+  1346→ _buildIntegrationsContent(true),
+  1347→ _TechnologyTab.definitions => _buildDefinitionsContent(),
+  1348→ _TechnologyTab.aiRecommendations => _buildRecommendationsContent(),
+  1349→ },
+  1350→ ],
+  1351→ ),
+  1352→ );
+  1353→ }
+  1354→
+  1355→ Widget _buildInventoryContent() {
+  1356→ final rows = _filteredInventory;
+  1357→ return Column(
+  1358→ children: [
+  1359→ Row(
+  1360→ children: [
+  1361→ Expanded(
+  1362→ child: VoiceTextField(
+  1363→ onChanged: (value) => setState(() => _inventorySearch = value),
+  1364→ decoration: const InputDecoration(
+  1365→ hintText: 'Search technology...',
+  1366→ prefixIcon: Icon(Icons.search, size: 18),
+  1367→ border: OutlineInputBorder(),
+  1368→ isDense: true,
+  1369→ ),
+  1370→ ),
+  1371→ ),
+  1372→ const SizedBox(width: 12),
+  1373→ SizedBox(
+  1374→ width: 280,
+  1375→ child: DropdownButtonFormField<String>(
+  1376→ isExpanded: true,
+  1377→ value: _categories.contains(_inventoryCategory)
+  1378→ ? _inventoryCategory
+  1379→ : 'All Categories',
+  1380→ items: _categories
+  1381→ .map((category) => DropdownMenuItem<String>(
+  1382→ value: category,
+  1383→ child: Text(
+  1384→ category,
+  1385→ overflow: TextOverflow.ellipsis,
+  1386→ ),
+  1387→ ))
+  1388→ .toList(),
+  1389→ onChanged: (value) {
+  1390→ if (value == null) return;
+  1391→ setState(() => _inventoryCategory = value);
+  1392→ },
+  1393→ decoration: const InputDecoration(
+  1394→ border: OutlineInputBorder(),
+  1395→ isDense: true,
+  1396→ ),
+  1397→ ),
+  1398→ ),
+  1399→ ],
+  1400→ ),
+  1401→ const SizedBox(height: 14),
+  1402→ _buildTableHeader(
+  1403→ const [
+  1404→ 'Name',
+  1405→ 'Category',
+  1406→ 'Cost',
+  1407→ 'Status',
+  1408→ 'Vendor',
+  1409→ 'Added',
+  1410→ 'Actions'
+  1411→ ],
+  1412→ const [5, 2, 2, 2, 2, 2, 2],
+  1413→ ),
+  1414→ ...List.generate(rows.length, (index) {
+  1415→ final item = rows[index];
+  1416→ final sourceIndex = _inventory.indexOf(item);
+  1417→ return _buildTableRow(
+  1418→ [
+  1419→ Text(
+  1420→ item['name']?.toString() ?? '',
+  1421→ maxLines: 3,
+  1422→ overflow: TextOverflow.ellipsis,
+  1423→ style: const TextStyle(fontSize: 12),
+  1424→ ),
+  1425→ Text(item['category']?.toString() ?? '',
+  1426→ style: const TextStyle(fontSize: 12)),
+  1427→ Text(item['cost']?.toString() ?? '',
+  1428→ style: const TextStyle(fontSize: 12)),
+  1429→ _StatusBadge(label: _statusOf(item)),
+  1430→ Text(item['vendor']?.toString() ?? '',
+  1431→ style: const TextStyle(fontSize: 12)),
+  1432→ Text(item['added']?.toString() ?? '',
+  1433→ style: const TextStyle(fontSize: 12)),
+  1434→ Wrap(
+  1435→ spacing: 2,
+  1436→ children: [
+  1437→ IconButton(
+  1438→ tooltip: 'Edit',
+  1439→ onPressed: () => _openInventoryDialog(index: sourceIndex),
+  1440→ icon: const Icon(Icons.edit_outlined, size: 16),
+  1441→ ),
+  1442→ IconButton(
+  1443→ tooltip: 'Delete',
+  1444→ onPressed: () => _removeAtCurrentTab(sourceIndex),
+  1445→ icon: const Icon(Icons.delete_outline, size: 16),
+  1446→ ),
+  1447→ IconButton(
+  1448→   onPressed: () {
+  1449→     ScaffoldMessenger.of(context).showSnackBar(
+  1450→       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+  1451→     );
+  1452→   },
+  1453→   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+  1454→   tooltip: 'KAZ AI',
+  1455→   padding: EdgeInsets.zero,
+  1456→   constraints: const BoxConstraints(minWidth: 28),
+  1457→ ),
+  1458→ ],
+  1459→ ),
+  1460→ ],
+  1461→ const [5, 2, 2, 2, 2, 2, 2],
+  1462→ );
+  1463→ }),
+  1464→ ],
+  1465→ );
+  1466→ }
+  1467→
+  1468→ Widget _buildIntegrationsContent(bool external) {
+  1469→ final list = external ? _externalIntegrations : _aiIntegrations;
+  1470→ final heading = external ? 'External Integrations' : 'Tech Stack';
+  1471→ final headers = external
+  1472→ ? const [
+  1473→ 'Name',
+  1474→ 'Description',
+  1475→ 'Status',
+  1476→ 'Connection',
+  1477→ 'Complexity',
+  1478→ 'Cost',
+  1479→ 'Actions'
+  1480→ ]
+  1481→ : const ['Name', 'Description', 'Status', 'Cost', 'Actions'];
+  1482→ final flexes =
+  1483→ external ? const [3, 4, 2, 2, 2, 2, 2] : const [3, 5, 2, 2, 2];
+  1484→
+  1485→ return Column(
+  1486→ children: [
+  1487→ Align(
+  1488→ alignment: Alignment.centerLeft,
+  1489→ child: Padding(
+  1490→ padding: const EdgeInsets.only(bottom: 12),
+  1491→ child: Text(
+  1492→ heading,
+  1493→ style: const TextStyle(
+  1494→ fontSize: 16,
+  1495→ fontWeight: FontWeight.w700,
+  1496→ color: Color(0xFF111827),
+  1497→ ),
+  1498→ ),
+  1499→ ),
+  1500→ ),
+  1501→ _buildTableHeader(headers, flexes),
+  1502→ ...List.generate(list.length, (index) {
+  1503→ final item = list[index];
+  1504→ final cells = <Widget>[
+  1505→ Text(item['name']?.toString() ?? '',
+  1506→ maxLines: 2,
+  1507→ overflow: TextOverflow.ellipsis,
+  1508→ style: const TextStyle(fontSize: 12)),
+  1509→ Text(item['description']?.toString() ?? '',
+  1510→ maxLines: 3,
+  1511→ overflow: TextOverflow.ellipsis,
+  1512→ style: const TextStyle(fontSize: 12)),
+  1513→ _StatusBadge(label: _statusOf(item)),
+  1514→ if (external)
+  1515→ Text(item['connectionType']?.toString() ?? 'API',
+  1516→ style: const TextStyle(fontSize: 12)),
+  1517→ if (external)
+  1518→ Text(item['complexity']?.toString() ?? 'Medium',
+  1519→ style: const TextStyle(fontSize: 12)),
+  1520→ Text(
+  1521→ (external ? item['implementationCost'] : item['cost'])
+  1522→ ?.toString() ??
+  1523→ '',
+  1524→ style: const TextStyle(fontSize: 12)),
+  1525→ Wrap(
+  1526→ spacing: 2,
+  1527→ children: [
+  1528→ IconButton(
+  1529→ tooltip: 'Edit',
+  1530→ onPressed: () => _openIntegrationDialog(
+  1531→ isExternal: external,
+  1532→ index: index,
+  1533→ ),
+  1534→ icon: const Icon(Icons.edit_outlined, size: 16),
+  1535→ ),
+  1536→ IconButton(
+  1537→ tooltip: 'Delete',
+  1538→ onPressed: () => _removeAtCurrentTab(index),
+  1539→ icon: const Icon(Icons.delete_outline, size: 16),
+  1540→ ),
+  1541→ IconButton(
+  1542→   onPressed: () {
+  1543→     ScaffoldMessenger.of(context).showSnackBar(
+  1544→       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+  1545→     );
+  1546→   },
+  1547→   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+  1548→   tooltip: 'KAZ AI',
+  1549→   padding: EdgeInsets.zero,
+  1550→   constraints: const BoxConstraints(minWidth: 28),
+  1551→ ),
+  1552→ ],
+  1553→ ),
+  1554→ ];
+  1555→ return _buildTableRow(cells, flexes);
+  1556→ }),
+  1557→ ],
+  1558→ );
+  1559→ }
+  1560→
+  1561→ Widget _buildDefinitionsContent() {
+  1562→ return Column(
+  1563→ children: [
+  1564→ _buildTableHeader(
+  1565→ const ['Term', 'Definition', 'Actions'], const [2, 7, 2]),
+  1566→ ...List.generate(_definitions.length, (index) {
+  1567→ final item = _definitions[index];
+  1568→ final title =
+  1569→ item['term']?.toString() ?? item['name']?.toString() ?? '';
+  1570→ final definition = item['definition']?.toString() ??
+  1571→ item['description']?.toString() ??
+  1572→ '';
+  1573→ return _buildTableRow(
+  1574→ [
+  1575→ Text(title,
+  1576→ maxLines: 2,
+  1577→ overflow: TextOverflow.ellipsis,
+  1578→ style: const TextStyle(fontSize: 12)),
+  1579→ Text(definition,
+  1580→ maxLines: 4,
+  1581→ overflow: TextOverflow.ellipsis,
+  1582→ style: const TextStyle(fontSize: 12)),
+  1583→ Wrap(
+  1584→ spacing: 2,
+  1585→ children: [
+  1586→ IconButton(
+  1587→ tooltip: 'Edit',
+  1588→ onPressed: () => _openDefinitionDialog(index: index),
+  1589→ icon: const Icon(Icons.edit_outlined, size: 16),
+  1590→ ),
+  1591→ IconButton(
+  1592→ tooltip: 'Delete',
+  1593→ onPressed: () => _removeAtCurrentTab(index),
+  1594→ icon: const Icon(Icons.delete_outline, size: 16),
+  1595→ ),
+  1596→ IconButton(
+  1597→   onPressed: () {
+  1598→     ScaffoldMessenger.of(context).showSnackBar(
+  1599→       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+  1600→     );
+  1601→   },
+  1602→   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+  1603→   tooltip: 'KAZ AI',
+  1604→   padding: EdgeInsets.zero,
+  1605→   constraints: const BoxConstraints(minWidth: 28),
+  1606→ ),
+  1607→ ],
+  1608→ ),
+  1609→ ],
+  1610→ const [2, 7, 2],
+  1611→ );
+  1612→ }),
+  1613→ ],
+  1614→ );
+  1615→ }
+  1616→
+  1617→ Widget _buildRecommendationsContent() {
+  1618→ return Column(
+  1619→ children: [
+  1620→ _buildTableHeader(
+  1621→ const [
+  1622→ 'Recommendation',
+  1623→ 'Description',
+  1624→ 'Est. Cost',
+  1625→ 'Status',
+  1626→ 'Actions'
+  1627→ ],
+  1628→ const [4, 4, 2, 2, 3],
+  1629→ ),
+  1630→ ...List.generate(_recommendations.length, (index) {
+  1631→ final item = _recommendations[index];
+  1632→ final title = _recommendationTitle(item);
+  1633→ final status = _statusOf(item);
+  1634→ final isImplemented = status.toLowerCase().contains('implemented');
+  1635→ final isDismissed = status.toLowerCase().contains('dismissed');
+  1636→ return _buildTableRow(
+  1637→ [
+  1638→ Text(title,
+  1639→ maxLines: 2,
+  1640→ overflow: TextOverflow.ellipsis,
+  1641→ style: const TextStyle(fontSize: 12)),
+  1642→ Text(item['description']?.toString() ?? '',
+  1643→ maxLines: 3,
+  1644→ overflow: TextOverflow.ellipsis,
+  1645→ style: const TextStyle(fontSize: 12)),
+  1646→ Text(item['estimatedCost']?.toString() ?? '',
+  1647→ style: const TextStyle(fontSize: 12)),
+  1648→ _StatusBadge(label: status),
+  1649→ Wrap(
+  1650→ spacing: 2,
+  1651→ runSpacing: 2,
+  1652→ children: [
+  1653→ ElevatedButton.icon(
+  1654→ onPressed: (isImplemented || isDismissed)
+  1655→ ? null
+  1656→ : () => _implementRecommendation(index),
+  1657→ icon: const Icon(Icons.check, size: 14),
+  1658→ label: const Text('Implement'),
+  1659→ ),
+  1660→ TextButton(
+  1661→ onPressed: isDismissed
+  1662→ ? null
+  1663→ : () => _dismissRecommendation(index),
+  1664→ child: const Text('Dismiss'),
+  1665→ ),
+  1666→ IconButton(
+  1667→ tooltip: 'Edit',
+  1668→ onPressed: () => _openRecommendationDialog(index: index),
+  1669→ icon: const Icon(Icons.edit_outlined, size: 16),
+  1670→ ),
+  1671→ IconButton(
+  1672→ tooltip: 'Delete',
+  1673→ onPressed: () => _removeAtCurrentTab(index),
+  1674→ icon: const Icon(Icons.delete_outline, size: 16),
+  1675→ ),
+  1676→ IconButton(
+  1677→   onPressed: () {
+  1678→     ScaffoldMessenger.of(context).showSnackBar(
+  1679→       const SnackBar(content: Text('KAZ AI: Generating suggestions...'), duration: Duration(seconds: 2)),
+  1680→     );
+  1681→   },
+  1682→   icon: const Icon(Icons.auto_awesome, size: 16, color: Color(0xFFF59E0B)),
+  1683→   tooltip: 'KAZ AI',
+  1684→   padding: EdgeInsets.zero,
+  1685→   constraints: const BoxConstraints(minWidth: 28),
+  1686→ ),
+  1687→ ],
+  1688→ ),
+  1689→ ],
+  1690→ const [4, 4, 2, 2, 3],
+  1691→ );
+  1692→ }),
+  1693→ ],
+  1694→ );
+  1695→ }
+  1696→
+  1697→ Widget _buildTableHeader(List<String> headers, List<int> flexes) {
+  1698→ return Container(
+  1699→ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+  1700→ decoration: BoxDecoration(
+  1701→ color: const Color(0xFFF8FAFC),
+  1702→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1703→ borderRadius: const BorderRadius.only(
+  1704→ topLeft: Radius.circular(8),
+  1705→ topRight: Radius.circular(8),
+  1706→ ),
+  1707→ ),
+  1708→ child: Row(
+  1709→ children: List.generate(headers.length, (index) {
+  1710→ return Expanded(
+  1711→ flex: flexes[index],
+  1712→ child: Text(
+  1713→ headers[index],
+  1714→ textAlign: TextAlign.center,
+  1715→ style: const TextStyle(
+  1716→ fontSize: 12,
+  1717→ fontWeight: FontWeight.w700,
+  1718→ color: Color(0xFF374151),
+  1719→ ),
+  1720→ ),
+  1721→ );
+  1722→ }),
+  1723→ ),
+  1724→ );
+  1725→ }
+  1726→
+  1727→ Widget _buildTableRow(List<Widget> cells, List<int> flexes) {
+  1728→ return Container(
+  1729→ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+  1730→ decoration: const BoxDecoration(
+  1731→ border: Border(
+  1732→ left: BorderSide(color: Color(0xFFE5E7EB)),
+  1733→ right: BorderSide(color: Color(0xFFE5E7EB)),
+  1734→ bottom: BorderSide(color: Color(0xFFE5E7EB)),
+  1735→ ),
+  1736→ ),
+  1737→ child: Row(
+  1738→ crossAxisAlignment: CrossAxisAlignment.start,
+  1739→ children: List.generate(cells.length, (index) {
+  1740→ return Expanded(
+  1741→ flex: flexes[index],
+  1742→ child: Padding(
+  1743→ padding: const EdgeInsets.only(right: 6),
+  1744→ child: cells[index],
+  1745→ ),
+  1746→ );
+  1747→ }),
+  1748→ ),
+  1749→ );
+  1750→ }
+  1751→
+  1752→ Future<void> _exportPdf() async {
+  1753→ final projectData = ProjectDataHelper.getData(context);
+  1754→ await PdfExportHelper.exportScreenPdf(
+  1755→ context: context,
+  1756→ screenTitle: 'Planning Technology',
+  1757→ sections: [
+  1758→ PdfSection.keyValue('Project Info', [
+  1759→ {'Project Name': projectData.projectName ?? 'N/A'},
+  1760→ {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+  1761→ ]),
+  1762→ PdfSection.text('Notes', projectData.planningNotes['planning_technology_notes'] ?? 'No data recorded.'),
+  1763→ ],
+  1764→ );
+  1765→ }
+  1766→}
+  1767→
+  1768→class _MetricCard extends StatelessWidget {
+  1769→ const _MetricCard({
+  1770→ required this.title,
+  1771→ required this.value,
+  1772→ required this.rows,
+  1773→ });
+  1774→
+  1775→ final String title;
+  1776→ final String value;
+  1777→ final List<_MetricRow> rows;
+  1778→
+  1779→ @override
+  1780→ Widget build(BuildContext context) {
+  1781→ return Container(
+  1782→ padding: const EdgeInsets.all(14),
+  1783→ decoration: BoxDecoration(
+  1784→ color: Colors.white,
+  1785→ borderRadius: BorderRadius.circular(10),
+  1786→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1787→ ),
+  1788→ child: Column(
+  1789→ crossAxisAlignment: CrossAxisAlignment.start,
+  1790→ children: [
+  1791→ Text(
+  1792→ title,
+  1793→ style: const TextStyle(
+  1794→ fontSize: 16,
+  1795→ fontWeight: FontWeight.w700,
+  1796→ color: Color(0xFF1F2937),
+  1797→ ),
+  1798→ ),
+  1799→ const SizedBox(height: 10),
+  1800→ Text(
+  1801→ value,
+  1802→ style: const TextStyle(
+  1803→ fontSize: 32,
+  1804→ fontWeight: FontWeight.w800,
+  1805→ color: Color(0xFF111827),
+  1806→ ),
+  1807→ ),
+  1808→ const SizedBox(height: 10),
+  1809→ for (int i = 0; i < rows.length; i++) ...[
+  1810→ Row(
+  1811→ children: [
+  1812→ Expanded(
+  1813→ child: Text(
+  1814→ rows[i].label,
+  1815→ style:
+  1816→ const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+  1817→ ),
+  1818→ ),
+  1819→ Text(
+  1820→ rows[i].value,
+  1821→ style:
+  1822→ const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+  1823→ ),
+  1824→ ],
+  1825→ ),
+  1826→ if (i != rows.length - 1) const SizedBox(height: 4),
+  1827→ ],
+  1828→ ],
+  1829→ ),
+  1830→ );
+  1831→ }
+  1832→}
+  1833→
+  1834→class _MetricRow {
+  1835→ const _MetricRow({required this.label, required this.value});
+  1836→
+  1837→ final String label;
+  1838→ final String value;
+  1839→}
+  1840→
+  1841→class _StatusBadge extends StatelessWidget {
+  1842→ const _StatusBadge({required this.label});
+  1843→
+  1844→ final String label;
+  1845→
+  1846→ @override
+  1847→ Widget build(BuildContext context) {
+  1848→ final normalized = label.toLowerCase();
+  1849→ final color = normalized.contains('deployed')
+  1850→ ? const Color(0xFF166534)
+  1851→ : normalized.contains('implemented')
+  1852→ ? const Color(0xFFD97706)
+  1853→ : normalized.contains('dismissed')
+  1854→ ? const Color(0xFF991B1B)
+  1855→ : const Color(0xFF92400E);
+  1856→
+  1857→ final bg = Color.alphaBlend(color.withOpacity(0.12), Colors.white);
+  1858→ return Container(
+  1859→ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+  1860→ decoration: BoxDecoration(
+  1861→ color: bg,
+  1862→ borderRadius: BorderRadius.circular(999),
+  1863→ ),
+  1864→ child: Text(
+  1865→ label,
+  1866→ style: TextStyle(
+  1867→ fontSize: 11,
+  1868→ fontWeight: FontWeight.w700,
+  1869→ color: color,
+  1870→ ),
+  1871→ ),
+  1872→ );
+  1873→ }
+  1874→}
+  1875→

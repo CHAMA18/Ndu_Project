@@ -1,0 +1,778 @@
+     1→import 'package:firebase_auth/firebase_auth.dart';
+     2→import 'package:flutter/material.dart';
+     3→import 'package:flutter/services.dart';
+     4→import 'package:go_router/go_router.dart';
+     5→import 'package:ndu_project/screens/project_activities_log_screen.dart';
+     6→import 'package:ndu_project/screens/settings_screen.dart';
+     7→import 'package:ndu_project/services/auth_nav.dart';
+     8→import 'package:ndu_project/services/firebase_auth_service.dart';
+     9→import 'package:ndu_project/services/user_service.dart';
+    10→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    11→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    12→import 'package:ndu_project/utils/ai_assist_helper.dart';
+    13→import 'package:ndu_project/widgets/responsive.dart';
+    14→
+    15→// ─────────────────────────────────────────────────────────────────────────────
+    16→// Brand design tokens (matching the HTML source / Material You spec)
+    17→// ─────────────────────────────────────────────────────────────────────────────
+    18→class _Tokens {
+    19→  static const background = Color(0xFFF7F9FB);
+    20→  static const surface = Color(0xFFFFFFFF);
+    21→  static const onSurface = Color(0xFF191C1E);
+    22→  static const onSurfaceVariant = Color(0xFF414754);
+    23→  static const outline = Color(0xFF717786);
+    24→  static const outlineVariant = Color(0xFFC0C6D6);
+    25→  static const primary = Color(0xFFB45309);
+    26→  static const tertiaryFixedDim = Color(0xFFFABD00);
+    27→  static const tertiary = Color(0xFF755700);
+    28→}
+    29→
+    30→class UnifiedPhaseHeader extends StatelessWidget {
+    31→  const UnifiedPhaseHeader({
+    32→    super.key,
+    33→    required this.title,
+    34→    this.scaffoldKey,
+    35→    this.onBackPressed,
+    36→    this.onForwardPressed,
+    37→    this.trailingActions = const <Widget>[],
+    38→    this.showActivityLogAction = true,
+    39→    this.onOpenActivityLog,
+    40→    this.backgroundColor = Colors.white,
+    41→    this.showDrawerButton = true,
+    42→    this.breadcrumbPhase,
+    43→    this.breadcrumbTitle,
+    44→    this.showExportPdf = false,
+    45→    this.showAiAssist = false,
+    46→    this.onExportPdf,
+    47→    this.onAiAssist,
+    48→  });
+    49→
+    50→  final String title;
+    51→  final GlobalKey<ScaffoldState>? scaffoldKey;
+    52→  final VoidCallback? onBackPressed;
+    53→  final VoidCallback? onForwardPressed;
+    54→  final List<Widget> trailingActions;
+    55→  final bool showActivityLogAction;
+    56→  final VoidCallback? onOpenActivityLog;
+    57→  final Color backgroundColor;
+    58→  final bool showDrawerButton;
+    59→
+    60→  /// Optional phase label for the breadcrumb bar (e.g. "Planning Phase").
+    61→  /// Falls back to "Phase" if not provided.
+    62→  final String? breadcrumbPhase;
+    63→
+    64→  /// Optional page title for the breadcrumb bar (e.g. "Risk Assessment").
+    65→  /// Falls back to [title] if not provided.
+    66→  final String? breadcrumbTitle;
+    67→
+    68→  /// Show Export PDF button in the header.
+    69→  final bool showExportPdf;
+    70→
+    71→  /// Show AI Assist button in the header.
+    72→  final bool showAiAssist;
+    73→
+    74→  /// Callback for Export PDF button.
+    75→  final VoidCallback? onExportPdf;
+    76→
+    77→  /// Callback for AI Assist button.
+    78→  final VoidCallback? onAiAssist;
+    79→
+    80→  void _openDrawer(BuildContext context) {
+    81→    HapticFeedback.selectionClick();
+    82→    if (scaffoldKey?.currentState != null) {
+    83→      scaffoldKey!.currentState!.openDrawer();
+    84→    } else {
+    85→      final scaffold = Scaffold.maybeOf(context);
+    86→      if (scaffold != null && scaffold.hasDrawer) {
+    87→        scaffold.openDrawer();
+    88→      }
+    89→    }
+    90→  }
+    91→
+    92→  @override
+    93→  Widget build(BuildContext context) {
+    94→    final isMobile = AppBreakpoints.isMobile(context);
+    95→
+    96→    if (isMobile) {
+    97→      return _buildMobileHeader(context);
+    98→    }
+    99→    return _buildDesktopHeader(context);
+   100→  }
+   101→
+   102→  // ─── Mobile: Top bar + breadcrumb bar (matching the screenshot) ─────────
+   103→  Widget _buildMobileHeader(BuildContext context) {
+   104→    final phaseLabel = breadcrumbPhase ?? 'Phase';
+   105→    final pageLabel = breadcrumbTitle ?? title;
+   106→
+   107→    return Column(
+   108→      mainAxisSize: MainAxisSize.min,
+   109→      children: [
+   110→        // ── Top app bar: hamburger | NDUPROJECT | bell + chat ────────────
+   111→        Container(
+   112→          height: 56,
+   113→          decoration: BoxDecoration(
+   114→            color: _Tokens.surface,
+   115→            border: Border(
+   116→              bottom: BorderSide(color: _Tokens.outlineVariant.withOpacity(0.5)),
+   117→            ),
+   118→          ),
+   119→          child: Padding(
+   120→            padding: const EdgeInsets.symmetric(horizontal: 12),
+   121→            child: Row(
+   122→              children: [
+   123→                // Left: Hamburger menu
+   124→                if (showDrawerButton)
+   125→                  IconButton(
+   126→                    icon: const Icon(Icons.menu, color: _Tokens.onSurface, size: 24),
+   127→                    tooltip: 'Open menu',
+   128→                    padding: const EdgeInsets.all(8),
+   129→                    constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+   130→                    onPressed: () => _openDrawer(context),
+   131→                  ),
+   132→                const Spacer(),
+   133→                // Center: NDUPROJECT brand
+   134→                const Text(
+   135→                  'NDUPROJECT',
+   136→                  style: TextStyle(
+   137→                    fontSize: 18,
+   138→                    fontWeight: FontWeight.w800,
+   139→                    color: _Tokens.onSurface,
+   140→                    letterSpacing: -0.01,
+   141→                  ),
+   142→                ),
+   143→                const Spacer(),
+   144→                // Right: Notification bell
+   145→                IconButton(
+   146→                  icon: const Icon(Icons.notifications_none_rounded,
+   147→                      color: _Tokens.onSurface, size: 22),
+   148→                  tooltip: 'Notifications',
+   149→                  padding: const EdgeInsets.all(8),
+   150→                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+   151→                  onPressed: () {
+   152→                    // Placeholder for notification action
+   153→                  },
+   154→                ),
+   155→                const SizedBox(width: 4),
+   156→                // Right: Yellow chat "C" button
+   157→                GestureDetector(
+   158→                  onTap: () => KazAiChatBubble.openChat(context),
+   159→                  child: Container(
+   160→                    width: 32,
+   161→                    height: 32,
+   162→                    decoration: const BoxDecoration(
+   163→                      color: _Tokens.tertiaryFixedDim,
+   164→                      shape: BoxShape.circle,
+   165→                    ),
+   166→                    alignment: Alignment.center,
+   167→                    child: const Text(
+   168→                      'C',
+   169→                      style: TextStyle(
+   170→                        fontSize: 15,
+   171→                        fontWeight: FontWeight.w800,
+   172→                        color: Colors.white,
+   173→                      ),
+   174→                    ),
+   175→                  ),
+   176→                ),
+   177→              ],
+   178→            ),
+   179→          ),
+   180→        ),
+   181→
+   182→        // ── Breadcrumb bar: back | Phase > Page | forward ─────────────────
+   183→        Container(
+   184→          height: 40,
+   185→          decoration: BoxDecoration(
+   186→            color: _Tokens.surface,
+   187→            border: Border(
+   188→              bottom: BorderSide(color: _Tokens.outlineVariant.withOpacity(0.5)),
+   189→            ),
+   190→          ),
+   191→          padding: const EdgeInsets.symmetric(horizontal: 8),
+   192→          child: Row(
+   193→            children: [
+   194→              // Back navigation
+   195→              _BreadcrumbNavButton(
+   196→                icon: Icons.chevron_left_rounded,
+   197→                onTap: onBackPressed ?? () => Navigator.maybePop(context),
+   198→              ),
+   199→              const SizedBox(width: 4),
+   200→              // Breadcrumb text
+   201→              Expanded(
+   202→                child: Row(
+   203→                  children: [
+   204→                    Flexible(
+   205→                      child: Text(
+   206→                        phaseLabel,
+   207→                        style: const TextStyle(
+   208→                          fontSize: 13,
+   209→                          fontWeight: FontWeight.w500,
+   210→                          color: _Tokens.onSurfaceVariant,
+   211→                        ),
+   212→                        overflow: TextOverflow.ellipsis,
+   213→                      ),
+   214→                    ),
+   215→                    const SizedBox(width: 6),
+   216→                    const Icon(
+   217→                      Icons.chevron_right_rounded,
+   218→                      size: 16,
+   219→                      color: _Tokens.outline,
+   220→                    ),
+   221→                    const SizedBox(width: 6),
+   222→                    Flexible(
+   223→                      child: Text(
+   224→                        pageLabel,
+   225→                        style: const TextStyle(
+   226→                          fontSize: 13,
+   227→                          fontWeight: FontWeight.w600,
+   228→                          color: _Tokens.primary,
+   229→                        ),
+   230→                        overflow: TextOverflow.ellipsis,
+   231→                      ),
+   232→                    ),
+   233→                  ],
+   234→                ),
+   235→              ),
+   236→              const SizedBox(width: 4),
+   237→              // Forward navigation
+   238→              _BreadcrumbNavButton(
+   239→                icon: Icons.chevron_right_rounded,
+   240→                onTap: onForwardPressed,
+   241→                enabled: onForwardPressed != null,
+   242→              ),
+   243→            ],
+   244→          ),
+   245→        ),
+   246→      ],
+   247→    );
+   248→  }
+   249→
+   250→  // ─── Desktop: original layout (back/forward | title | activity log + profile) ─
+   251→  Widget _buildDesktopHeader(BuildContext context) {
+   252→    return Container(
+   253→      height: 72,
+   254→      decoration: BoxDecoration(
+   255→        color: backgroundColor,
+   256→        border: const Border(
+   257→          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+   258→        ),
+   259→      ),
+   260→      padding: const EdgeInsets.symmetric(horizontal: 16),
+   261→      child: Row(
+   262→        children: [
+   263→          IconButton(
+   264→            icon: const Icon(Icons.arrow_back_ios, size: 16),
+   265→            tooltip: 'Back',
+   266→            onPressed: onBackPressed ?? () => context.pop(),
+   267→          ),
+   268→          if (onForwardPressed != null)
+   269→            IconButton(
+   270→              icon: const Icon(Icons.arrow_forward_ios, size: 16),
+   271→              tooltip: 'Forward',
+   272→              onPressed: onForwardPressed,
+   273→            ),
+   274→          const Spacer(),
+   275→          Flexible(
+   276→            child: Text(
+   277→              title,
+   278→              style: const TextStyle(
+   279→                fontSize: 18,
+   280→                fontWeight: FontWeight.w700,
+   281→                color: Color(0xFF2D3748),
+   282→              ),
+   283→              overflow: TextOverflow.ellipsis,
+   284→              maxLines: 2,
+   285→              textAlign: TextAlign.center,
+   286→            ),
+   287→          ),
+   288→          const Spacer(),
+   289→          if (showExportPdf)
+   290→            _HeaderActionChip(
+   291→              icon: Icons.picture_as_pdf_outlined,
+   292→              label: 'Export PDF',
+   293→              onTap: onExportPdf ??
+   294→                  () {
+   295→                    PdfExportHelper.exportScreenPdf(
+   296→                      context: context,
+   297→                      screenTitle: title,
+   298→                      sections: [
+   299→                        PdfSection.text(title, 'Project section export from Ndu Project.'),
+   300→                      ],
+   301→                    );
+   302→                  },
+   303→            ),
+   304→          if (showExportPdf) const SizedBox(width: 8),
+   305→          if (showAiAssist)
+   306→            _AiAssistChip(
+   307→              label: 'AI Assist',
+   308→              onTap: onAiAssist ??
+   309→                  () {
+   310→                    AiAssistHelper.generateForSection(context, sectionLabel: title);
+   311→                  },
+   312→            ),
+   313→          if (showAiAssist) const SizedBox(width: 8),
+   314→          if (showActivityLogAction)
+   315→            _ActivityLogAction(
+   316→              compact: false,
+   317→              onTap: onOpenActivityLog ??
+   318→                  () => ProjectActivitiesLogScreen.open(context),
+   319→            ),
+   320→          if (showActivityLogAction) const SizedBox(width: 12),
+   321→          ...trailingActions,
+   322→          if (trailingActions.isNotEmpty) const SizedBox(width: 12),
+   323→          const UnifiedProfileMenu(compact: true),
+   324→        ],
+   325→      ),
+   326→    );
+   327→  }
+   328→}
+   329→
+   330→// ─── Breadcrumb nav button (back/forward chevron) ─────────────────────────
+   331→class _BreadcrumbNavButton extends StatelessWidget {
+   332→  const _BreadcrumbNavButton({
+   333→    required this.icon,
+   334→    this.onTap,
+   335→    this.enabled = true,
+   336→  });
+   337→
+   338→  final IconData icon;
+   339→  final VoidCallback? onTap;
+   340→  final bool enabled;
+   341→
+   342→  @override
+   343→  Widget build(BuildContext context) {
+   344→    return GestureDetector(
+   345→      onTap: onTap,
+   346→      child: Container(
+   347→        width: 28,
+   348→        height: 28,
+   349→        decoration: BoxDecoration(
+   350→          color: _Tokens.surface,
+   351→          shape: BoxShape.circle,
+   352→          border: Border.all(
+   353→            color: enabled
+   354→                ? _Tokens.outlineVariant
+   355→                : _Tokens.outlineVariant.withOpacity(0.3),
+   356→          ),
+   357→        ),
+   358→        alignment: Alignment.center,
+   359→        child: Icon(
+   360→          icon,
+   361→          size: 18,
+   362→          color: enabled
+   363→              ? _Tokens.onSurfaceVariant
+   364→              : _Tokens.outlineVariant.withOpacity(0.4),
+   365→        ),
+   366→      ),
+   367→    );
+   368→  }
+   369→}
+   370→
+   371→// ─── Legacy circle nav button (kept for backward compatibility) ───────────
+   372→class _CircleNavButton extends StatelessWidget {
+   373→  const _CircleNavButton({
+   374→    required this.icon,
+   375→    required this.iconSize,
+   376→    this.onTap,
+   377→    this.enabled = true,
+   378→  });
+   379→
+   380→  final IconData icon;
+   381→  final double iconSize;
+   382→  final VoidCallback? onTap;
+   383→  final bool enabled;
+   384→
+   385→  @override
+   386→  Widget build(BuildContext context) {
+   387→    return GestureDetector(
+   388→      onTap: onTap,
+   389→      child: Container(
+   390→        width: 36,
+   391→        height: 36,
+   392→        decoration: BoxDecoration(
+   393→          color: Colors.white,
+   394→          shape: BoxShape.circle,
+   395→          border: Border.all(
+   396→            color: const Color(0xFFE2E8F0),
+   397→          ),
+   398→        ),
+   399→        alignment: Alignment.center,
+   400→        child: Icon(
+   401→          icon,
+   402→          size: iconSize,
+   403→          color: enabled ? const Color(0xFF374151) : const Color(0xFFCBD5E0),
+   404→        ),
+   405→      ),
+   406→    );
+   407→  }
+   408→}
+   409→
+   410→// ─── UnifiedScaffoldAppBar — AppBar wrapper for screens needing Scaffold.appBar ─
+   411→class UnifiedScaffoldAppBar extends StatelessWidget
+   412→    implements PreferredSizeWidget {
+   413→  const UnifiedScaffoldAppBar({
+   414→    super.key,
+   415→    this.backgroundColor,
+   416→    this.title,
+   417→    this.onMenuTap,
+   418→    this.showActivityLogAction = true,
+   419→    this.onOpenActivityLog,
+   420→  });
+   421→
+   422→  final Color? backgroundColor;
+   423→  final String? title;
+   424→  final VoidCallback? onMenuTap;
+   425→  final bool showActivityLogAction;
+   426→  final VoidCallback? onOpenActivityLog;
+   427→
+   428→  @override
+   429→  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+   430→
+   431→  @override
+   432→  Widget build(BuildContext context) {
+   433→    final bg = backgroundColor ?? Theme.of(context).scaffoldBackgroundColor;
+   434→    final isMobile = AppBreakpoints.isMobile(context);
+   435→
+   436→    return AppBar(
+   437→      backgroundColor: bg,
+   438→      elevation: 0,
+   439→      leading: Builder(
+   440→        builder: (context) => IconButton(
+   441→          icon: const Icon(Icons.menu, color: Color(0xFF374151)),
+   442→          tooltip: 'Open menu',
+   443→          onPressed: onMenuTap ?? () {
+   444→            final scaffold = Scaffold.maybeOf(context);
+   445→            if (scaffold != null && scaffold.hasDrawer) {
+   446→              scaffold.openDrawer();
+   447→            }
+   448→          },
+   449→        ),
+   450→      ),
+   451→      title: title == null
+   452→          ? null
+   453→          : Text(
+   454→              title!,
+   455→              style: const TextStyle(
+   456→                color: Color(0xFF111827),
+   457→                fontWeight: FontWeight.w600,
+   458→                fontSize: 14,
+   459→              ),
+   460→              overflow: TextOverflow.ellipsis,
+   461→            ),
+   462→      centerTitle: true,
+   463→      actions: [
+   464→        if (showActivityLogAction)
+   465→          Padding(
+   466→            padding: EdgeInsets.only(right: isMobile ? 8 : 10),
+   467→            child: _ActivityLogAction(
+   468→              compact: isMobile,
+   469→              onTap: onOpenActivityLog ??
+   470→                  () => ProjectActivitiesLogScreen.open(context),
+   471→            ),
+   472→          ),
+   473→        Padding(
+   474→          padding: EdgeInsets.only(right: isMobile ? 8 : 12),
+   475→          child: const UnifiedProfileMenu(compact: true),
+   476→        ),
+   477→      ],
+   478→    );
+   479→  }
+   480→}
+   481→
+   482→// ─── Unified profile menu (avatar + popup) ────────────────────────────────
+   483→class UnifiedProfileMenu extends StatelessWidget {
+   484→  const UnifiedProfileMenu({super.key, this.compact = false});
+   485→
+   486→  final bool compact;
+   487→
+   488→  @override
+   489→  Widget build(BuildContext context) {
+   490→    User? user;
+   491→    try {
+   492→      user = FirebaseAuth.instance.currentUser;
+   493→    } catch (_) {
+   494→      user = null;
+   495→    }
+   496→    final displayName = () {
+   497→      try {
+   498→        return FirebaseAuthService.displayNameOrEmail(fallback: 'Unknown User');
+   499→      } catch (_) {
+   500→        return 'Unknown User';
+   501→      }
+   502→    }();
+   503→    final email = user?.email?.trim() ?? '';
+   504→    final avatarInitial = displayName.trim().isNotEmpty
+   505→        ? displayName.trim().characters.first.toUpperCase()
+   506→        : 'U';
+   507→    final photoUrl = user?.photoURL;
+   508→    Stream<bool> adminStatusStream;
+   509→    try {
+   510→      adminStatusStream = UserService.watchAdminStatus();
+   511→    } catch (_) {
+   512→      adminStatusStream = Stream<bool>.value(UserService.isAdminEmail(email));
+   513→    }
+   514→
+   515→    final avatar = photoUrl != null && photoUrl.isNotEmpty
+   516→        ? CircleAvatar(
+   517→            radius: compact ? 16 : 20,
+   518→            backgroundImage: NetworkImage(photoUrl),
+   519→            backgroundColor: const Color(0xFFD97706),
+   520→          )
+   521→        : Container(
+   522→            width: compact ? 32 : 40,
+   523→            height: compact ? 32 : 40,
+   524→            decoration: const BoxDecoration(
+   525→              color: const Color(0xFFD97706),
+   526→              shape: BoxShape.circle,
+   527→            ),
+   528→            alignment: Alignment.center,
+   529→            child: Text(
+   530→              avatarInitial,
+   531→              style: TextStyle(
+   532→                color: Colors.white,
+   533→                fontSize: compact ? 13 : 16,
+   534→                fontWeight: FontWeight.w700,
+   535→              ),
+   536→            ),
+   537→          );
+   538→
+   539→    final label = Material(
+   540→      color: Colors.transparent,
+   541→      child: compact
+   542→          ? avatar
+   543→          : Row(
+   544→              mainAxisSize: MainAxisSize.min,
+   545→              children: [
+   546→                avatar,
+   547→                const SizedBox(width: 10),
+   548→                StreamBuilder<bool>(
+   549→                  stream: adminStatusStream,
+   550→                  builder: (context, snapshot) {
+   551→                    final isAdmin =
+   552→                        snapshot.data ?? UserService.isAdminEmail(email);
+   553→                    final role = isAdmin ? 'Admin' : 'Member';
+   554→                    final emailIsDuplicate =
+   555→                        email.isNotEmpty && displayName == email;
+   556→                    return ConstrainedBox(
+   557→                      constraints: const BoxConstraints(maxWidth: 220),
+   558→                      child: Column(
+   559→                        mainAxisAlignment: MainAxisAlignment.center,
+   560→                        crossAxisAlignment: CrossAxisAlignment.start,
+   561→                        children: [
+   562→                          Text(
+   563→                            displayName,
+   564→                            maxLines: 1,
+   565→                            overflow: TextOverflow.ellipsis,
+   566→                            style: const TextStyle(
+   567→                              fontSize: 14,
+   568→                              fontWeight: FontWeight.w600,
+   569→                              color: Colors.black,
+   570→                            ),
+   571→                          ),
+   572→                          if (!emailIsDuplicate)
+   573→                            Text(
+   574→                              email.isEmpty ? 'No email' : email,
+   575→                              maxLines: 1,
+   576→                              overflow: TextOverflow.ellipsis,
+   577→                              style: const TextStyle(
+   578→                                fontSize: 11,
+   579→                                color: Colors.grey,
+   580→                              ),
+   581→                            ),
+   582→                          Text(
+   583→                            role,
+   584→                            maxLines: 1,
+   585→                            overflow: TextOverflow.ellipsis,
+   586→                            style: const TextStyle(
+   587→                              fontSize: 12,
+   588→                              color: Colors.grey,
+   589→                            ),
+   590→                          ),
+   591→                        ],
+   592→                      ),
+   593→                    );
+   594→                  },
+   595→                ),
+   596→              ],
+   597→            ),
+   598→    );
+   599→
+   600→    return PopupMenuButton<String>(
+   601→      tooltip: 'Profile actions',
+   602→      onSelected: (value) {
+   603→        if (value == 'settings') {
+   604→          SettingsScreen.open(context);
+   605→        } else if (value == 'logout') {
+   606→          AuthNav.signOutAndExit(context);
+   607→        }
+   608→      },
+   609→      itemBuilder: (context) => const [
+   610→        PopupMenuItem<String>(
+   611→          value: 'settings',
+   612→          child: ListTile(
+   613→            dense: true,
+   614→            contentPadding: EdgeInsets.zero,
+   615→            leading: Icon(Icons.settings_outlined),
+   616→            title: Text('Settings'),
+   617→          ),
+   618→        ),
+   619→        PopupMenuItem<String>(
+   620→          value: 'logout',
+   621→          child: ListTile(
+   622→            dense: true,
+   623→            contentPadding: EdgeInsets.zero,
+   624→            leading: Icon(Icons.logout_outlined),
+   625→            title: Text('Logout'),
+   626→          ),
+   627→        ),
+   628→      ],
+   629→      child: label,
+   630→    );
+   631→  }
+   632→}
+   633→
+   634→// ─── Activity log action button ───────────────────────────────────────────
+   635→class _ActivityLogAction extends StatelessWidget {
+   636→  const _ActivityLogAction({
+   637→    required this.compact,
+   638→    required this.onTap,
+   639→  });
+   640→
+   641→  final bool compact;
+   642→  final VoidCallback onTap;
+   643→
+   644→  @override
+   645→  Widget build(BuildContext context) {
+   646→    return Tooltip(
+   647→      message: 'Project Activity Log',
+   648→      child: InkWell(
+   649→        onTap: onTap,
+   650→        borderRadius: BorderRadius.circular(12),
+   651→        child: Container(
+   652→          padding: EdgeInsets.symmetric(
+   653→            horizontal: compact ? 8 : 10,
+   654→            vertical: 8,
+   655→          ),
+   656→          decoration: BoxDecoration(
+   657→            color: const Color(0xFFFFF7E0),
+   658→            borderRadius: BorderRadius.circular(12),
+   659→            border: Border.all(color: const Color(0xFFFFD873)),
+   660→          ),
+   661→          child: Row(
+   662→            mainAxisSize: MainAxisSize.min,
+   663→            children: [
+   664→              const Icon(
+   665→                Icons.fact_check_outlined,
+   666→                size: 18,
+   667→                color: Color(0xFFB45309),
+   668→              ),
+   669→              if (!compact) ...[
+   670→                const SizedBox(width: 6),
+   671→                const Text(
+   672→                  'Activity Log',
+   673→                  style: TextStyle(
+   674→                    fontSize: 12,
+   675→                    fontWeight: FontWeight.w700,
+   676→                    color: Color(0xFFB45309),
+   677→                  ),
+   678→                ),
+   679→              ],
+   680→            ],
+   681→          ),
+   682→        ),
+   683→      ),
+   684→    );
+   685→  }
+   686→}
+   687→
+   688→// ─── Export PDF header action chip ─────────────────────────────────────────
+   689→class _HeaderActionChip extends StatelessWidget {
+   690→  const _HeaderActionChip({
+   691→    required this.icon,
+   692→    required this.label,
+   693→    required this.onTap,
+   694→  });
+   695→
+   696→  final IconData icon;
+   697→  final String label;
+   698→  final VoidCallback onTap;
+   699→
+   700→  @override
+   701→  Widget build(BuildContext context) {
+   702→    return Tooltip(
+   703→      message: label,
+   704→      child: InkWell(
+   705→        onTap: onTap,
+   706→        borderRadius: BorderRadius.circular(12),
+   707→        child: Container(
+   708→          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+   709→          decoration: BoxDecoration(
+   710→            color: const Color(0xFFF0F4FF),
+   711→            borderRadius: BorderRadius.circular(12),
+   712→            border: Border.all(color: const Color(0xFFC7D2FE)),
+   713→          ),
+   714→          child: Row(
+   715→            mainAxisSize: MainAxisSize.min,
+   716→            children: [
+   717→              Icon(icon, size: 18, color: const Color(0xFF4154F1)),
+   718→              const SizedBox(width: 6),
+   719→              const Text(
+   720→                'Export PDF',
+   721→                style: TextStyle(
+   722→                  fontSize: 12,
+   723→                  fontWeight: FontWeight.w700,
+   724→                  color: Color(0xFF4154F1),
+   725→                ),
+   726→              ),
+   727→            ],
+   728→          ),
+   729→        ),
+   730→      ),
+   731→    );
+   732→  }
+   733→}
+   734→
+   735→// ─── AI Assist header action chip ─────────────────────────────────────────
+   736→class _AiAssistChip extends StatelessWidget {
+   737→  const _AiAssistChip({
+   738→    required this.label,
+   739→    required this.onTap,
+   740→  });
+   741→
+   742→  final String label;
+   743→  final VoidCallback onTap;
+   744→
+   745→  @override
+   746→  Widget build(BuildContext context) {
+   747→    return Tooltip(
+   748→      message: label,
+   749→      child: InkWell(
+   750→        onTap: onTap,
+   751→        borderRadius: BorderRadius.circular(12),
+   752→        child: Container(
+   753→          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+   754→          decoration: BoxDecoration(
+   755→            color: const Color(0xFF4154F1),
+   756→            borderRadius: BorderRadius.circular(12),
+   757→          ),
+   758→          child: Row(
+   759→            mainAxisSize: MainAxisSize.min,
+   760→            children: [
+   761→              const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+   762→              const SizedBox(width: 6),
+   763→              Text(
+   764→                label,
+   765→                style: const TextStyle(
+   766→                  fontSize: 12,
+   767→                  fontWeight: FontWeight.w700,
+   768→                  color: Colors.white,
+   769→                ),
+   770→              ),
+   771→            ],
+   772→          ),
+   773→        ),
+   774→      ),
+   775→    );
+   776→  }
+   777→}
+   778→

@@ -1,0 +1,2002 @@
+     1→import 'dart:async';
+     2→import 'dart:convert';
+     3→import 'dart:typed_data';
+     4→
+     5→import 'package:file_picker/file_picker.dart';
+     6→import 'package:firebase_auth/firebase_auth.dart';
+     7→import 'package:firebase_storage/firebase_storage.dart';
+     8→import 'package:flutter/foundation.dart' show kIsWeb;
+     9→import 'package:flutter/material.dart';
+    10→import 'package:ndu_project/models/design_phase_models.dart';
+    11→import 'package:ndu_project/models/project_data_model.dart';
+    12→import 'package:ndu_project/services/api_key_manager.dart';
+    13→import 'package:ndu_project/services/openai_service_secure.dart';
+    14→import 'package:ndu_project/utils/download_helper.dart' as download_helper;
+    15→import 'package:ndu_project/utils/design_planning_document.dart';
+    16→import 'package:ndu_project/screens/design_phase_screen.dart';
+    17→import 'package:ndu_project/utils/planning_phase_navigation.dart';
+    18→import 'package:ndu_project/utils/project_data_helper.dart';
+    19→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    20→import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+    21→import 'package:ndu_project/widgets/voice_text_field.dart';
+    22→import 'package:ndu_project/widgets/csv_table_import_button.dart';
+    23→import 'package:ndu_project/utils/csv_import_helper.dart';
+    24→// import 'package:ndu_project/widgets/launch_phase_navigation.dart'; // removed: UI redesign
+    25→import 'package:ndu_project/widgets/planning_phase_header.dart';
+    26→import 'package:ndu_project/widgets/responsive.dart';
+    27→
+    28→import 'package:ndu_project/widgets/responsive_scaffold.dart';
+    29→import 'package:pdf/pdf.dart';
+    30→import 'package:pdf/widgets.dart' as pw;
+    31→import 'package:printing/printing.dart';
+    32→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    33→import 'package:ndu_project/services/integrated_work_package_service.dart';
+    34→import 'package:ndu_project/widgets/skip_confirmation_dialog.dart';
+    35→
+    36→const Color _kSurface = Colors.white;
+    37→const Color _kBorder = Color(0xFFE5E7EB);
+    38→const Color _kText = Color(0xFF111827);
+    39→const Color _kMuted = Color(0xFF6B7280);
+    40→const Color _kPrimary = Color(0xFFD97706);
+    41→const Color _kSuccess = Color(0xFF0F9D58);
+    42→const Color _kWarning = Color(0xFFF59E0B);
+    43→// Brand colors from HTML design
+    44→const Color _kBrandYellow = Color(0xFFFFC107);
+    45→const Color _kBrandDark = Color(0xFF1A1A1A);
+    46→const Color _kGray400 = Color(0xFF9CA3AF);
+    47→const Color _kGray500 = Color(0xFF6B7280);
+    48→const Color _kGray700 = Color(0xFF374151);
+    49→const Color _kGray900 = Color(0xFF111827);
+    50→const Color _kBlue50 = Color(0xFFFFF7E6);
+    51→const Color _kBlue600 = Color(0xFFD97706);
+    52→const String _kSectionProgressNotesKey = 'planning_design_section_progress';
+    53→
+    54→enum _SectionProgressState { pending, complete, notApplicable }
+    55→
+    56→class DesignPlanningScreen extends StatefulWidget {
+    57→ const DesignPlanningScreen({super.key, this.initialSectionId});
+    58→
+    59→ final String? initialSectionId;
+    60→
+    61→ static void open(BuildContext context) {
+    62→ Navigator.of(context).push(
+    63→ MaterialPageRoute(builder: (_) => const DesignPlanningScreen()),
+    64→ );
+    65→ }
+    66→
+    67→ @override
+    68→ State<DesignPlanningScreen> createState() => _DesignPlanningScreenState();
+    69→}
+    70→
+    71→class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
+    72→ static const _mappingStatusOptions = [
+    73→ 'Draft',
+    74→ 'Planned',
+    75→ 'Active',
+    76→ 'Blocked'
+    77→ ];
+    78→ static const _workStatusOptions = ['Draft', 'Planned', 'In Review', 'Ready'];
+    79→ static const _riskStatusOptions = ['Open', 'Monitoring', 'Closed'];
+    80→ static const _approvalStatusOptions = ['Pending', 'In Review', 'Approved'];
+    81→ static const _specRuleTypeOptions = ['Internal', 'External'];
+    82→ static const _specSourceTypeOptions = [
+    83→ 'Contracts',
+    84→ 'Vendors',
+    85→ 'Regulatory',
+    86→ 'Standards',
+    87→ ];
+    88→ static const _specificationTypeOptions = [
+    89→ 'Code',
+    90→ 'Law',
+    91→ 'Standard',
+    92→ 'Criteria',
+    93→ 'Guideline',
+    94→ 'Contract',
+    95→ 'Other',
+    96→ ];
+    97→ static const _specDisciplineOptions = [
+    98→ 'Architecture',
+    99→ 'Civil',
+   100→ 'Structural',
+   101→ 'Geotechnical',
+   102→ 'Mechanical (HVAC)',
+   103→ 'Electrical',
+   104→ 'Plumbing',
+   105→ 'Fire Protection',
+   106→ 'Survey / Geomatics',
+   107→ 'Landscape',
+   108→ 'Environmental',
+   109→ 'Telecommunications / ICT',
+   110→ 'Frontend',
+   111→ 'Backend',
+   112→ 'Full-Stack',
+   113→ 'Data / Analytics',
+   114→ 'Integration / APIs',
+   115→ 'DevOps / Platform / SRE',
+   116→ 'QA / Testing',
+   117→ 'Cybersecurity',
+   118→ 'IT / Infrastructure',
+   119→ 'Operations',
+   120→ 'Procurement',
+   121→ 'Commercial / Contracts',
+   122→ 'Quality / QA-QC',
+   123→ 'Regulatory / Compliance',
+   124→ 'Program / Project Management',
+   125→ 'Safety / HSE',
+   126→ ];
+   127→ static const _specAreaOptions = [
+   128→ 'General',
+   129→ 'Design',
+   130→ 'Construction',
+   131→ 'Operations',
+   132→ 'Security',
+   133→ 'Compliance',
+   134→ 'Testing',
+   135→ 'Data',
+   136→ 'Integration',
+   137→ 'Quality',
+   138→ 'Safety',
+   139→ 'Environmental',
+   140→ 'UI/UX',
+   141→ 'Frontend',
+   142→ 'Backend',
+   143→ 'Infrastructure',
+   144→ 'Procurement',
+   145→ 'Commercial',
+   146→ ];
+   147→ static const _specRowStatusOptions = ['Draft', 'Planned', 'In Review'];
+   148→ static const _designAreaOptions = [
+   149→ 'Architecture',
+   150→ 'UI/UX',
+   151→ 'Technical',
+   152→ 'Data',
+   153→ 'Security',
+   154→ 'Validation',
+   155→ ];
+   156→ static const _dependencyTypeOptions = [
+   157→ 'System',
+   158→ 'Team',
+   159→ 'Vendor',
+   160→ 'Approval',
+   161→ 'Tooling',
+   162→ 'Data',
+   163→ 'Interface',
+   164→ ];
+   165→
+   166→ final ScrollController _scrollController = ScrollController();
+   167→ final Map<String, GlobalKey> _sectionKeys = {
+   168→ for (final section in _sectionOrder) section.id: GlobalKey(),
+   169→ };
+   170→ final Map<String, GlobalKey> _specificationRowKeys = {};
+   171→ Timer? _saveDebounce;
+   172→ bool _didInit = false;
+   173→  bool _saving = false;
+   174→  bool _pendingSave = false;
+   175→  bool _generatingPackages = false;
+   176→  final Set<String> _selectedWbsNodeIds = {};
+   177→  DateTime? _lastSavedAt;
+   178→ // ValueNotifier for lightweight save-indicator rebuilds without full setState
+   179→ final ValueNotifier<_SaveIndicatorState> _saveIndicatorNotifier =
+   180→ ValueNotifier<_SaveIndicatorState>(_SaveIndicatorState(
+   181→ saving: false, pending: false, lastSavedAt: null));
+   182→ final Map<String, bool> _aiGenerating = {};
+   183→ late Map<String, _SectionProgressState> _sectionProgress;
+   184→ late Map<String, bool> _sectionExpanded;
+   185→ late Map<String, int> _sectionTileVersion;
+   186→ String _activeSectionId = _sectionOrder.first.id;
+   187→
+   188→ late DesignPlanningDocument _document;
+   189→ late TextEditingController _overviewController;
+   190→ late TextEditingController _designWhoController;
+   191→ late TextEditingController _designHowController;
+   192→ late TextEditingController _designVendorsController;
+   193→ late TextEditingController _designInterfacesController;
+   194→ late TextEditingController _objectivesController;
+   195→ late TextEditingController _successCriteriaController;
+   196→ late TextEditingController _scopeController;
+   197→ late TextEditingController _outOfScopeController;
+   198→ late TextEditingController _architectureController;
+   199→ late TextEditingController _diagramReferenceController;
+   200→ late TextEditingController _dataFlowController;
+   201→ late TextEditingController _uiUxController;
+   202→ late TextEditingController _designSystemController;
+   203→ late TextEditingController _technicalFrontendController;
+   204→ late TextEditingController _technicalBackendController;
+   205→ late TextEditingController _technicalDataController;
+   206→ late TextEditingController _constraintsController;
+   207→ late TextEditingController _assumptionsController;
+   208→ late TextEditingController _validationController;
+   209→ late TextEditingController _governanceController;
+   210→
+   211→ @override
+   212→ void didChangeDependencies() {
+   213→ super.didChangeDependencies();
+   214→ if (_didInit) return;
+   215→ _didInit = true;
+   216→ ApiKeyManager.initializeApiKey();
+   217→ final data = ProjectDataHelper.getData(context);
+   218→ _document = DesignPlanningDocument.fromProjectData(data);
+   219→ _overviewController =
+   220→ TextEditingController(text: _document.overviewSummary);
+   221→ _designWhoController =
+   222→ TextEditingController(text: _document.designWhoAndOwnership);
+   223→ _designHowController =
+   224→ TextEditingController(text: _document.designExecutionApproach);
+   225→ _designVendorsController =
+   226→ TextEditingController(text: _document.designVendorContractInputs);
+   227→ _designInterfacesController =
+   228→ TextEditingController(text: _document.designInterfacesAndConstraints);
+   229→ _objectivesController = TextEditingController(text: _document.objectives);
+   230→ _successCriteriaController =
+   231→ TextEditingController(text: _document.successCriteria);
+   232→ _scopeController = TextEditingController(text: _document.scope);
+   233→ _outOfScopeController = TextEditingController(text: _document.outOfScope);
+   234→ _architectureController =
+   235→ TextEditingController(text: _document.architectureSummary);
+   236→ _diagramReferenceController =
+   237→ TextEditingController(text: _document.diagramReference);
+   238→ _dataFlowController =
+   239→ TextEditingController(text: _document.dataFlowSummary);
+   240→ _uiUxController = TextEditingController(text: _document.uiUxSummary);
+   241→ _designSystemController =
+   242→ TextEditingController(text: _document.designSystemNotes);
+   243→ _technicalFrontendController =
+   244→ TextEditingController(text: _document.technicalFrontend);
+   245→ _technicalBackendController =
+   246→ TextEditingController(text: _document.technicalBackend);
+   247→ _technicalDataController =
+   248→ TextEditingController(text: _document.technicalData);
+   249→ _constraintsController =
+   250→ TextEditingController(text: _document.constraints.join('\n'));
+   251→ _assumptionsController =
+   252→ TextEditingController(text: _document.assumptions.join('\n'));
+   253→ _validationController =
+   254→ TextEditingController(text: _document.validationSummary);
+   255→ _governanceController =
+   256→ TextEditingController(text: _document.governanceNotes);
+   257→ _ensureSpecificationRowKeys();
+   258→ _hydrateGuidedSectionState(data);
+   259→ }
+   260→
+   261→ @override
+   262→ void dispose() {
+   263→ _saveDebounce?.cancel();
+   264→ _saveIndicatorNotifier.dispose();
+   265→ _scrollController.dispose();
+   266→ _overviewController.dispose();
+   267→ _designWhoController.dispose();
+   268→ _designHowController.dispose();
+   269→ _designVendorsController.dispose();
+   270→ _designInterfacesController.dispose();
+   271→ _objectivesController.dispose();
+   272→ _successCriteriaController.dispose();
+   273→ _scopeController.dispose();
+   274→ _outOfScopeController.dispose();
+   275→ _architectureController.dispose();
+   276→ _diagramReferenceController.dispose();
+   277→ _dataFlowController.dispose();
+   278→ _uiUxController.dispose();
+   279→ _designSystemController.dispose();
+   280→ _technicalFrontendController.dispose();
+   281→ _technicalBackendController.dispose();
+   282→ _technicalDataController.dispose();
+   283→ _constraintsController.dispose();
+   284→ _assumptionsController.dispose();
+   285→ _validationController.dispose();
+   286→ _governanceController.dispose();
+   287→ super.dispose();
+   288→ }
+   289→
+   290→ Future<void> _scrollToSectionStart(String id) async {
+   291→ final firstContext = _sectionKeys[id]?.currentContext;
+   292→ if (firstContext == null || !mounted) return;
+   293→ await Future<void>.delayed(const Duration(milliseconds: 40));
+   294→ final targetContext = _sectionKeys[id]?.currentContext;
+   295→ if (targetContext == null || !mounted || !targetContext.mounted) return;
+   296→ await Scrollable.ensureVisible(
+   297→ targetContext,
+   298→ duration: const Duration(milliseconds: 320),
+   299→ curve: Curves.easeInOut,
+   300→ alignment: 0.0,
+   301→ );
+   302→ // Re-run once after tile animation to keep the section header at the top.
+   303→ await Future<void>.delayed(const Duration(milliseconds: 260));
+   304→ if (!mounted) return;
+   305→ final settleContext = _sectionKeys[id]?.currentContext;
+   306→ if (settleContext == null || !settleContext.mounted) return;
+   307→ await Scrollable.ensureVisible(
+   308→ settleContext,
+   309→ duration: const Duration(milliseconds: 180),
+   310→ curve: Curves.easeInOut,
+   311→ alignment: 0.0,
+   312→ );
+   313→ }
+   314→
+   315→ void _hydrateGuidedSectionState(ProjectDataModel data) {
+   316→ final progress = <String, _SectionProgressState>{
+   317→ for (final section in _sectionOrder)
+   318→ section.id: _SectionProgressState.pending,
+   319→ };
+   320→ final raw = data.planningNotes[_kSectionProgressNotesKey];
+   321→ if (raw != null && raw.trim().isNotEmpty) {
+   322→ try {
+   323→ final decoded = jsonDecode(raw);
+   324→ if (decoded is Map<String, dynamic>) {
+   325→ decoded.forEach((key, value) {
+   326→ if (!progress.containsKey(key)) return;
+   327→ progress[key] = _parseProgressState(value?.toString());
+   328→ });
+   329→ }
+   330→ } catch (e) {
+   331→ // Keep defaults if progress payload is malformed.
+   332→ }
+   333→ }
+   334→
+   335→ _sectionProgress = progress;
+   336→ final requestedSectionId = widget.initialSectionId;
+   337→ _activeSectionId =
+   338→     _sectionOrder.any((section) => section.id == requestedSectionId)
+   339→         ? requestedSectionId!
+   340→         : _sectionOrder
+   341→             .firstWhere(
+   342→               (section) => !_isSectionResolved(section.id),
+   343→               orElse: () => _sectionOrder.first,
+   344→             )
+   345→             .id;
+   346→ _sectionExpanded = {
+   347→ for (final section in _sectionOrder)
+   348→ section.id: section.id == _activeSectionId,
+   349→ };
+   350→ _sectionTileVersion = {
+   351→ for (final section in _sectionOrder) section.id: 0,
+   352→ };
+   353→ }
+   354→
+   355→ _SectionProgressState _parseProgressState(String? raw) {
+   356→ switch ((raw ?? '').trim().toLowerCase()) {
+   357→ case 'complete':
+   358→ return _SectionProgressState.complete;
+   359→ case 'notapplicable':
+   360→ case 'not_applicable':
+   361→ return _SectionProgressState.notApplicable;
+   362→ default:
+   363→ return _SectionProgressState.pending;
+   364→ }
+   365→ }
+   366→
+   367→ String _encodeSectionProgress() {
+   368→ final payload = <String, String>{
+   369→ for (final section in _sectionOrder)
+   370→ section.id: _sectionProgress[section.id]!.name,
+   371→ };
+   372→ return jsonEncode(payload);
+   373→ }
+   374→
+   375→ bool _isSectionResolved(String sectionId) =>
+   376→ _sectionProgress[sectionId] != _SectionProgressState.pending;
+   377→
+   378→ bool _canOpenSection(String sectionId) {
+   379→ return _sectionOrder.any((section) => section.id == sectionId);
+   380→ }
+   381→
+   382→ String? _firstBlockingSectionLabel(String sectionId) {
+   383→ final targetIndex =
+   384→ _sectionOrder.indexWhere((section) => section.id == sectionId);
+   385→ if (targetIndex <= 0) return null;
+   386→ for (var i = 0; i < targetIndex; i++) {
+   387→ final id = _sectionOrder[i].id;
+   388→ if (!_isSectionResolved(id)) {
+   389→ return _sectionOrder[i].label;
+   390→ }
+   391→ }
+   392→ return null;
+   393→ }
+   394→
+   395→ void _showLockedSectionFeedback(String sectionId) {
+   396→ final blocking = _firstBlockingSectionLabel(sectionId);
+   397→ _showToast(
+   398→ blocking == null
+   399→ ? 'Complete prior sections first.'
+   400→ : 'Complete or mark "$blocking" as not applicable before continuing.',
+   401→ );
+   402→ }
+   403→
+   404→ Future<void> _activateSection(String sectionId) async {
+   405→ if (!_canOpenSection(sectionId)) {
+   406→ _showLockedSectionFeedback(sectionId);
+   407→ setState(() {
+   408→ // Collapse the section the user tried to open (it was auto-expanded
+   409→ // by the ExpansionTile tap before this callback fired).
+   410→ _sectionExpanded[sectionId] = false;
+   411→ });
+   412→ return;
+   413→ }
+   414→ setState(() {
+   415→ // Collapse the previously active section, expand the new one.
+   416→ // Modifying the existing map in-place avoids changing the ValueKey
+   417→ // for sections whose expanded state didn't change, preventing
+   418→ // unnecessary subtree recreation.
+   419→ for (final section in _sectionOrder) {
+   420→ final shouldExpand = section.id == sectionId;
+   421→ if (_sectionExpanded[section.id] != shouldExpand) {
+   422→ _sectionExpanded[section.id] = shouldExpand;
+   423→ // Bump tile version so the ExpansionTile animates correctly.
+   424→ _sectionTileVersion[section.id] =
+   425→ (_sectionTileVersion[section.id] ?? 0) + 1;
+   426→ }
+   427→ }
+   428→ _activeSectionId = sectionId;
+   429→ });
+   430→ await _scrollToSectionStart(sectionId);
+   431→ }
+   432→
+   433→ Future<void> _onSectionExpansionChanged(
+   434→ String sectionId, bool expanded) async {
+   435→ if (!expanded) {
+   436→ setState(() => _sectionExpanded[sectionId] = false);
+   437→ return;
+   438→ }
+   439→ if (!_canOpenSection(sectionId)) {
+   440→ _showLockedSectionFeedback(sectionId);
+   441→ setState(() {
+   442→ _sectionExpanded[sectionId] = false;
+   443→ _sectionTileVersion[sectionId] =
+   444→ (_sectionTileVersion[sectionId] ?? 0) + 1;
+   445→ });
+   446→ return;
+   447→ }
+   448→ await _activateSection(sectionId);
+   449→ }
+   450→
+   451→ Future<void> _setSectionProgress({
+   452→ required String sectionId,
+   453→ required _SectionProgressState state,
+   454→ }) async {
+   455→ final current =
+   456→ _sectionProgress[sectionId] ?? _SectionProgressState.pending;
+   457→ if (current == state) return;
+   458→ if (state == _SectionProgressState.complete &&
+   459→ (sectionId == 'requirements' ||
+   460→ sectionId == 'design_specifications_workspace')) {
+   461→ final requirementOptions =
+   462→ _requirementAttachmentOptions(ProjectDataHelper.getData(context));
+   463→ final missing = _unlinkedRequirements(requirementOptions);
+   464→ if (missing.isNotEmpty) {
+   465→ final preview = missing.take(3).map((item) => item.label).join(', ');
+   466→ _showToast(
+   467→ 'Link specifications to all requirements first. '
+   468→ '${missing.length} requirement(s) still unlinked'
+   469→ '${preview.isEmpty ? '' : ': $preview'}',
+   470→ );
+   471→ return;
+   472→ }
+   473→ }
+   474→ if (state != _SectionProgressState.pending) {
+   475→ final confirmed = await _confirmStatusChange(state);
+   476→ if (!confirmed) return;
+   477→ }
+   478→ setState(() {
+   479→ _sectionProgress[sectionId] = state;
+   480→ });
+   481→ _queueSave();
+   482→ }
+   483→
+   484→ Future<bool> _confirmStatusChange(_SectionProgressState state) async {
+   485→ final label = state == _SectionProgressState.complete
+   486→ ? 'mark this section as complete'
+   487→ : 'mark this section as not applicable';
+   488→ final confirmed = await showDialog<bool>(
+   489→ context: context,
+   490→ builder: (dialogContext) {
+   491→ return AlertDialog(
+   492→ title: const Text('Confirm Section Status'),
+   493→ content: Text('Are you sure you want to $label?'),
+   494→ actions: [
+   495→ TextButton(
+   496→ onPressed: () => Navigator.of(dialogContext).pop(false),
+   497→ child: const Text('Cancel'),
+   498→ ),
+   499→ FilledButton(
+   500→ onPressed: () => Navigator.of(dialogContext).pop(true),
+   501→ child: const Text('Confirm'),
+   502→ ),
+   503→ ],
+   504→ );
+   505→ },
+   506→ );
+   507→ return confirmed == true;
+   508→ }
+   509→
+   510→ Widget _buildSectionProgressControls(String sectionId) {
+   511→ final state = _sectionProgress[sectionId] ?? _SectionProgressState.pending;
+   512→ return Container(
+   513→ margin: const EdgeInsets.only(bottom: 16),
+   514→ padding: const EdgeInsets.only(bottom: 12),
+   515→ decoration: const BoxDecoration(
+   516→ border: Border(bottom: BorderSide(color: _kBorder)),
+   517→ ),
+   518→ child: Row(
+   519→ children: [
+   520→ Row(
+   521→ mainAxisSize: MainAxisSize.min,
+   522→ children: [
+   523→ Checkbox(
+   524→ value: state == _SectionProgressState.complete,
+   525→ onChanged: (checked) {
+   526→ _setSectionProgress(
+   527→ sectionId: sectionId,
+   528→ state: checked == true
+   529→ ? _SectionProgressState.complete
+   530→ : _SectionProgressState.pending,
+   531→ );
+   532→ },
+   533→ ),
+   534→ const Text('Complete',
+   535→ style: TextStyle(fontSize: 13, color: _kGray700)),
+   536→ ],
+   537→ ),
+   538→ const SizedBox(width: 16),
+   539→ Row(
+   540→ mainAxisSize: MainAxisSize.min,
+   541→ children: [
+   542→ Checkbox(
+   543→ value: state == _SectionProgressState.notApplicable,
+   544→ onChanged: (checked) {
+   545→ _setSectionProgress(
+   546→ sectionId: sectionId,
+   547→ state: checked == true
+   548→ ? _SectionProgressState.notApplicable
+   549→ : _SectionProgressState.pending,
+   550→ );
+   551→ },
+   552→ ),
+   553→ const Text('Not applicable',
+   554→ style: TextStyle(fontSize: 13, color: _kGray700)),
+   555→ ],
+   556→ ),
+   557→ ],
+   558→ ),
+   559→ );
+   560→ }
+   561→
+   562→ void _updateCoreFields() {
+   563→ _document.overviewSummary = _overviewController.text.trim();
+   564→ _document.designWhoAndOwnership = _designWhoController.text.trim();
+   565→ _document.designExecutionApproach = _designHowController.text.trim();
+   566→ _document.designVendorContractInputs = _designVendorsController.text.trim();
+   567→ _document.designInterfacesAndConstraints =
+   568→ _designInterfacesController.text.trim();
+   569→ _document.objectives = _objectivesController.text.trim();
+   570→ _document.successCriteria = _successCriteriaController.text.trim();
+   571→ _document.scope = _scopeController.text.trim();
+   572→ _document.outOfScope = _outOfScopeController.text.trim();
+   573→ _document.architectureSummary = _architectureController.text.trim();
+   574→ _document.diagramReference = _diagramReferenceController.text.trim();
+   575→ _document.dataFlowSummary = _dataFlowController.text.trim();
+   576→ _document.uiUxSummary = _uiUxController.text.trim();
+   577→ _document.designSystemNotes = _designSystemController.text.trim();
+   578→ _document.technicalFrontend = _technicalFrontendController.text.trim();
+   579→ _document.technicalBackend = _technicalBackendController.text.trim();
+   580→ _document.technicalData = _technicalDataController.text.trim();
+   581→ _document.constraints = _splitLines(_constraintsController.text);
+   582→ _document.assumptions = _splitLines(_assumptionsController.text);
+   583→ _document.validationSummary = _validationController.text.trim();
+   584→ _document.governanceNotes = _governanceController.text.trim();
+   585→ }
+   586→
+   587→ void _queueSave() {
+   588→ _updateCoreFields();
+   589→ _document.touch();
+   590→ _saveDebounce?.cancel();
+   591→ _pendingSave = true;
+   592→ _saveDebounce = Timer(const Duration(milliseconds: 600), _saveDocument);
+   593→ // Update save indicator via lightweight ValueNotifier — avoids full rebuild
+   594→ _saveIndicatorNotifier.value = _SaveIndicatorState(
+   595→ saving: _saving,
+   596→ pending: _pendingSave,
+   597→ lastSavedAt: _lastSavedAt,
+   598→ );
+   599→ }
+   600→
+   601→ Future<void> _saveDocument() async {
+   602→ if (!mounted || _saving) return;
+   603→ _updateCoreFields();
+   604→ _document.touch();
+   605→ _saving = true;
+   606→ _saveIndicatorNotifier.value = _SaveIndicatorState(
+   607→ saving: _saving,
+   608→ pending: _pendingSave,
+   609→ lastSavedAt: _lastSavedAt,
+   610→ );
+   611→ final data = ProjectDataHelper.getData(context);
+   612→ final notesPatch = {
+   613→ ...data.planningNotes,
+   614→ ..._document.toPlanningNotesPatch(),
+   615→ _kSectionProgressNotesKey: _encodeSectionProgress(),
+   616→ };
+   617→ final riskPlans = {
+   618→ ...data.riskMitigationPlans,
+   619→ ..._document.toRiskMitigationPlans(),
+   620→ };
+   621→ final success = await ProjectDataHelper.updateAndSave(
+   622→ context: context,
+   623→ checkpoint: 'design',
+   624→ showSnackbar: false,
+   625→ dataUpdater: (current) {
+   626→ final mappedMethodology =
+   627→ ProjectDataHelper.projectMethodologyFromOverallFramework(
+   628→ current.overallFramework,
+   629→ );
+   630→ final designManagementData = mappedMethodology == null
+   631→ ? current.designManagementData
+   632→ : (current.designManagementData ?? DesignManagementData()).copyWith(
+   633→ methodology: mappedMethodology ?? current.designManagementData?.methodology,
+   634→ );
+   635→
+   636→ return current.copyWith(
+   637→ planningNotes: notesPatch,
+   638→ planningRequirementItems: _document.toPlanningRequirementItems(),
+   639→ designDeliverablesData: _document
+   640→ .toDesignDeliverablesData(current.designDeliverablesData),
+   641→ withinScopeItems: _document.toScopeItems(),
+   642→ outOfScopeItems: _document.toOutOfScopeItems(),
+   643→ constraintItems: _document.toConstraintItems(),
+   644→ assumptionItems: _document.toAssumptionItems(),
+   645→ riskMitigationPlans: riskPlans,
+   646→ designManagementData: designManagementData,
+   647→ );
+   648→ },
+   649→ );
+   650→ if (!mounted) return;
+   651→ _saving = false;
+   652→ if (success) {
+   653→ _pendingSave = false;
+   654→ _lastSavedAt = DateTime.now();
+   655→ }
+   656→ _saveIndicatorNotifier.value = _SaveIndicatorState(
+   657→ saving: _saving,
+   658→ pending: _pendingSave,
+   659→ lastSavedAt: _lastSavedAt,
+   660→ );
+   661→ }
+   662→
+   663→ void _showToast(String message) {
+   664→ if (!mounted) return;
+   665→ ScaffoldMessenger.of(context).showSnackBar(
+   666→ SnackBar(
+   667→ content: Text(message),
+   668→ duration: const Duration(seconds: 2),
+   669→ ),
+   670→ );
+   671→ }
+   672→
+   673→ /// Pre-populate [_specificationRowKeys] for every row in
+   674→ /// [_document.specifications] so that the build method never mutates state
+   675→ /// via `putIfAbsent` / `??=`.
+   676→ void _ensureSpecificationRowKeys() {
+   677→ for (final row in _document.specifications) {
+   678→ _specificationRowKeys.putIfAbsent(
+   679→ row.id,
+   680→ () => GlobalKey(debugLabel: 'spec_row_${row.id}'),
+   681→ );
+   682→ }
+   683→ }
+   684→
+   685→ void _addSpecificationRow() {
+   686→ setState(() {
+   687→ final newRow = DesignSpecificationPlanRow(
+   688→ specificationType: _specificationTypeOptions[2],
+   689→ sourceType: _specSourceTypeOptions.first,
+   690→ ruleType: _specRuleTypeOptions.first,
+   691→ );
+   692→ _document.specifications.add(newRow);
+   693→ _specificationRowKeys[newRow.id] = GlobalKey(
+   694→ debugLabel: 'spec_row_${newRow.id}',
+   695→ );
+   696→ });
+   697→ _queueSave();
+   698→ }
+   699→
+   700→ void _addDeviation() {
+   701→ setState(() {
+   702→ _document.deviations.add(DesignSpecificationDeviation());
+   703→ });
+   704→ _queueSave();
+   705→ }
+   706→
+   707→ Future<void> _showSpecificationsTableDialog() async {
+   708→ final rows = _specificationOptions();
+   709→ final searchController = TextEditingController();
+   710→ var query = '';
+   711→ var disciplineFilter = 'All';
+   712→ var areaFilter = 'All';
+   713→ var typeFilter = 'All';
+   714→ await showDialog<void>(
+   715→ context: context,
+   716→ builder: (dialogContext) {
+   717→ return StatefulBuilder(
+   718→ builder: (context, setDialogState) {
+   719→ final disciplineOptions = _dedupeOptions([
+   720→ 'All',
+   721→ ...rows.map((row) => row.discipline).where((e) => e.isNotEmpty),
+   722→ ]);
+   723→ final areaOptions = _dedupeOptions([
+   724→ 'All',
+   725→ ...rows.map((row) => row.area).where((e) => e.isNotEmpty),
+   726→ ]);
+   727→ final typeOptions = _dedupeOptions([
+   728→ 'All',
+   729→ ...rows
+   730→ .map((row) => row.specificationType)
+   731→ .where((e) => e.isNotEmpty),
+   732→ ]);
+   733→
+   734→ final filteredRows = rows.where((row) {
+   735→ final haystack = [
+   736→ row.title,
+   737→ row.details,
+   738→ row.discipline,
+   739→ row.area,
+   740→ row.specificationType,
+   741→ row.sourceType,
+   742→ row.owner,
+   743→ row.status,
+   744→ row.wbsWorkPackageTitle,
+   745→ ].join(' ').toLowerCase();
+   746→ final matchesQuery = query.isEmpty ||
+   747→ haystack.contains(query.toLowerCase().trim());
+   748→ final matchesDiscipline = disciplineFilter == 'All' ||
+   749→ row.discipline == disciplineFilter;
+   750→ final matchesArea = areaFilter == 'All' || row.area == areaFilter;
+   751→ final matchesType =
+   752→ typeFilter == 'All' || row.specificationType == typeFilter;
+   753→ return matchesQuery &&
+   754→ matchesDiscipline &&
+   755→ matchesArea &&
+   756→ matchesType;
+   757→ }).toList(growable: false);
+   758→
+   759→ return AlertDialog(
+   760→ title: const Text('Specifications Table'),
+   761→ content: SizedBox(
+   762→ width: 1320,
+   763→ child: rows.isEmpty
+   764→ ? const Padding(
+   765→ padding: EdgeInsets.symmetric(vertical: 20),
+   766→ child: Text(
+   767→ 'No specification rows available.',
+   768→ style: TextStyle(color: _kMuted),
+   769→ ),
+   770→ )
+   771→ : Column(
+   772→ mainAxisSize: MainAxisSize.min,
+   773→ children: [
+   774→ _FourColumnGrid(
+   775→ children: [
+   776→ VoiceTextField(
+   777→ controller: searchController,
+   778→ decoration:
+   779→ _inputDecoration('Search specifications'),
+   780→ onChanged: (value) {
+   781→ setDialogState(() => query = value);
+   782→ },
+   783→ ),
+   784→ _DropdownField(
+   785→ value: disciplineFilter,
+   786→ label: 'Discipline',
+   787→ options: disciplineOptions,
+   788→ onChanged: (value) => setDialogState(
+   789→ () => disciplineFilter = value),
+   790→ ),
+   791→ _DropdownField(
+   792→ value: areaFilter,
+   793→ label: 'Area',
+   794→ options: areaOptions,
+   795→ onChanged: (value) =>
+   796→ setDialogState(() => areaFilter = value),
+   797→ ),
+   798→ _DropdownField(
+   799→ value: typeFilter,
+   800→ label: 'Document type',
+   801→ options: typeOptions,
+   802→ onChanged: (value) =>
+   803→ setDialogState(() => typeFilter = value),
+   804→ ),
+   805→ ],
+   806→ ),
+   807→ const SizedBox(height: 10),
+   808→ Align(
+   809→ alignment: Alignment.centerLeft,
+   810→ child: Text(
+   811→ '${filteredRows.length} row(s)',
+   812→ style: const TextStyle(
+   813→ fontSize: 12,
+   814→ color: _kMuted,
+   815→ fontWeight: FontWeight.w600,
+   816→ ),
+   817→ ),
+   818→ ),
+   819→ const SizedBox(height: 10),
+   820→ SizedBox(
+   821→ height: 420,
+   822→ child: Scrollbar(
+   823→ thumbVisibility: true,
+   824→ child: SingleChildScrollView(
+   825→ child: SingleChildScrollView(
+   826→ scrollDirection: Axis.horizontal,
+   827→ child: ConstrainedBox(
+   828→ constraints:
+   829→ const BoxConstraints(minWidth: 1240),
+   830→ child: DataTable(
+   831→ columnSpacing: 30,
+   832→ dataRowMinHeight: 56,
+   833→ dataRowMaxHeight: 76,
+   834→ columns: const [
+   835→ DataColumn(
+   836→ label: SizedBox(
+   837→ width: 220,
+   838→ child: Text('Title'))),
+   839→ DataColumn(
+   840→ label: SizedBox(
+   841→ width: 120,
+   842→ child: Text('Spec type'))),
+   843→ DataColumn(
+   844→ label: SizedBox(
+   845→ width: 140,
+   846→ child: Text('Discipline'))),
+   847→ DataColumn(
+   848→ label: SizedBox(
+   849→ width: 140,
+   850→ child: Text('Area'))),
+   851→ DataColumn(
+   852→ label: SizedBox(
+   853→ width: 170,
+   854→ child:
+   855→ Text('WBS Work Package'))),
+   856→ DataColumn(
+   857→ label: SizedBox(
+   858→ width: 120,
+   859→ child: Text('Source type'))),
+   860→ DataColumn(
+   861→ label: SizedBox(
+   862→ width: 120,
+   863→ child: Text('Owner'))),
+   864→ DataColumn(
+   865→ label: SizedBox(
+   866→ width: 90,
+   867→ child: Text('Status'))),
+   868→ ],
+   869→ rows: filteredRows
+   870→ .map(
+   871→ (item) => DataRow(
+   872→ cells: [
+   873→ DataCell(SizedBox(
+   874→ width: 220,
+   875→ child: Text(
+   876→ item.title,
+   877→ maxLines: 2,
+   878→ overflow:
+   879→ TextOverflow.ellipsis,
+   880→ ),
+   881→ )),
+   882→ DataCell(SizedBox(
+   883→ width: 120,
+   884→ child: Text(
+   885→ item.specificationType,
+   886→ maxLines: 1,
+   887→ overflow:
+   888→ TextOverflow.ellipsis,
+   889→ ),
+   890→ )),
+   891→ DataCell(SizedBox(
+   892→ width: 140,
+   893→ child: Text(
+   894→ item.discipline.isEmpty
+   895→ ? '-'
+   896→ : item.discipline,
+   897→ maxLines: 1,
+   898→ overflow:
+   899→ TextOverflow.ellipsis,
+   900→ ),
+   901→ )),
+   902→ DataCell(SizedBox(
+   903→ width: 140,
+   904→ child: Text(
+   905→ item.area.isEmpty
+   906→ ? '-'
+   907→ : item.area,
+   908→ maxLines: 1,
+   909→ overflow:
+   910→ TextOverflow.ellipsis,
+   911→ ),
+   912→ )),
+   913→ DataCell(SizedBox(
+   914→ width: 170,
+   915→ child: Text(
+   916→ item.wbsWorkPackageTitle
+   917→ .isEmpty
+   918→ ? '-'
+   919→ : item
+   920→ .wbsWorkPackageTitle,
+   921→ maxLines: 2,
+   922→ overflow:
+   923→ TextOverflow.ellipsis,
+   924→ ),
+   925→ )),
+   926→ DataCell(SizedBox(
+   927→ width: 120,
+   928→ child: Text(
+   929→ item.sourceType.isEmpty
+   930→ ? '-'
+   931→ : item.sourceType,
+   932→ maxLines: 1,
+   933→ overflow:
+   934→ TextOverflow.ellipsis,
+   935→ ),
+   936→ )),
+   937→ DataCell(SizedBox(
+   938→ width: 120,
+   939→ child: Text(
+   940→ item.owner.isEmpty
+   941→ ? '-'
+   942→ : item.owner,
+   943→ maxLines: 1,
+   944→ overflow:
+   945→ TextOverflow.ellipsis,
+   946→ ),
+   947→ )),
+   948→ DataCell(SizedBox(
+   949→ width: 90,
+   950→ child: Text(
+   951→ item.status.isEmpty
+   952→ ? '-'
+   953→ : item.status,
+   954→ maxLines: 1,
+   955→ overflow:
+   956→ TextOverflow.ellipsis,
+   957→ ),
+   958→ )),
+   959→ ],
+   960→ ),
+   961→ )
+   962→ .toList(growable: false),
+   963→ ),
+   964→ ),
+   965→ ),
+   966→ ),
+   967→ ),
+   968→ ),
+   969→ ],
+   970→ ),
+   971→ ),
+   972→ actions: [
+   973→ FilledButton.icon(
+   974→ onPressed: filteredRows.isEmpty
+   975→ ? null
+   976→ : () => _exportSpecificationsTablePdf(filteredRows),
+   977→ icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+   978→ label: const Text('Export PDF'),
+   979→ ),
+   980→ TextButton(
+   981→ onPressed: () => Navigator.of(dialogContext).pop(),
+   982→ child: const Text('Close'),
+   983→ ),
+   984→ ],
+   985→ );
+   986→ },
+   987→ );
+   988→ },
+   989→ );
+   990→ searchController.dispose();
+   991→ }
+   992→
+   993→ String _pdfCellValue(String value) {
+   994→ final trimmed = value.trim();
+   995→ return trimmed.isEmpty ? '-' : trimmed;
+   996→ }
+   997→
+   998→ String _buildSpecificationsPdfFilename() {
+   999→ final now = DateTime.now();
+  1000→ final stamp =
+  1001→ '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}';
+  1002→ return 'design_specifications_table_$stamp.pdf';
+  1003→ }
+  1004→
+  1005→ Future<void> _exportSpecificationsTablePdf(
+  1006→ List<_SpecificationOption> rows,
+  1007→ ) async {
+  1008→ if (rows.isEmpty) {
+  1009→ _showToast('No table rows to export.');
+  1010→ return;
+  1011→ }
+  1012→
+  1013→ final filename = _buildSpecificationsPdfFilename();
+  1014→
+  1015→ try {
+  1016→ final doc = pw.Document();
+  1017→ final generatedAt = DateTime.now();
+  1018→
+  1019→ doc.addPage(
+  1020→ pw.MultiPage(
+  1021→ pageFormat: PdfPageFormat.a4.landscape,
+  1022→ margin: const pw.EdgeInsets.all(24),
+  1023→ build: (_) => [
+  1024→ pw.Text(
+  1025→ 'Design Specifications Table',
+  1026→ style: pw.TextStyle(
+  1027→ fontSize: 16,
+  1028→ fontWeight: pw.FontWeight.bold,
+  1029→ ),
+  1030→ ),
+  1031→ pw.SizedBox(height: 4),
+  1032→ pw.Text(
+  1033→ 'Generated ${generatedAt.toLocal().toIso8601String()}',
+  1034→ style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+  1035→ ),
+  1036→ pw.SizedBox(height: 12),
+  1037→ pw.TableHelper.fromTextArray(
+  1038→ headerStyle: pw.TextStyle(
+  1039→ fontSize: 9,
+  1040→ fontWeight: pw.FontWeight.bold,
+  1041→ ),
+  1042→ headerDecoration:
+  1043→ const pw.BoxDecoration(color: PdfColor(0.93, 0.95, 0.98)),
+  1044→ cellStyle: const pw.TextStyle(fontSize: 8.5),
+  1045→ cellAlignment: pw.Alignment.topLeft,
+  1046→ headerAlignment: pw.Alignment.centerLeft,
+  1047→ cellPadding:
+  1048→ const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+  1049→ headers: const [
+  1050→ 'Title',
+  1051→ 'Spec type',
+  1052→ 'Discipline',
+  1053→ 'Area',
+  1054→ 'WBS Work Package',
+  1055→ 'Source type',
+  1056→ 'Owner',
+  1057→ 'Status',
+  1058→ ],
+  1059→ data: rows
+  1060→ .map(
+  1061→ (item) => [
+  1062→ _pdfCellValue(item.title),
+  1063→ _pdfCellValue(item.specificationType),
+  1064→ _pdfCellValue(item.discipline),
+  1065→ _pdfCellValue(item.area),
+  1066→ _pdfCellValue(item.wbsWorkPackageTitle),
+  1067→ _pdfCellValue(item.sourceType),
+  1068→ _pdfCellValue(item.owner),
+  1069→ _pdfCellValue(item.status),
+  1070→ ],
+  1071→ )
+  1072→ .toList(growable: false),
+  1073→ ),
+  1074→ ],
+  1075→ ),
+  1076→ );
+  1077→
+  1078→ final bytes = await doc.save();
+  1079→ if (kIsWeb) {
+  1080→ download_helper.downloadFile(
+  1081→ bytes,
+  1082→ filename,
+  1083→ mimeType: 'application/pdf',
+  1084→ );
+  1085→ } else {
+  1086→ await Printing.sharePdf(bytes: bytes, filename: filename);
+  1087→ }
+  1088→
+  1089→ if (!mounted) return;
+  1090→ _showToast('PDF exported: $filename');
+  1091→ } catch (e) {
+  1092→ if (!mounted) return;
+  1093→ _showToast('Failed to export PDF: $e');
+  1094→ }
+  1095→ }
+  1096→
+  1097→ void _addSpecificationDocument() {
+  1098→ setState(() {
+  1099→ _document.specificationDocuments.add(
+  1100→ DesignPlanningReferenceDoc(category: _specSourceTypeOptions.first),
+  1101→ );
+  1102→ });
+  1103→ _queueSave();
+  1104→ }
+  1105→
+  1106→ Future<void> _uploadSpecificationArtifact(String rowId) async {
+  1107→ final uploaded = await _pickAndUploadAttachment(
+  1108→ folder: 'planning-design-spec-artifacts',
+  1109→ );
+  1110→ if (uploaded == null) return;
+  1111→ final index =
+  1112→ _document.specifications.indexWhere((item) => item.id == rowId);
+  1113→ if (index == -1) return;
+  1114→ setState(() {
+  1115→ _document.specifications[index].referenceLink = uploaded.url;
+  1116→ _document.specifications[index].uploadedFileName = uploaded.name;
+  1117→ _document.specifications[index].uploadedStoragePath =
+  1118→ uploaded.storagePath;
+  1119→ });
+  1120→ _queueSave();
+  1121→ _showToast('Specification artifact uploaded.');
+  1122→ }
+  1123→
+  1124→ Future<void> _uploadSpecificationDocument(String documentId) async {
+  1125→ final uploaded = await _pickAndUploadAttachment(
+  1126→ folder: 'planning-design-spec-documents',
+  1127→ );
+  1128→ if (uploaded == null) return;
+  1129→ final index = _document.specificationDocuments
+  1130→ .indexWhere((item) => item.id == documentId);
+  1131→ if (index == -1) return;
+  1132→ setState(() {
+  1133→ _document.specificationDocuments[index].link = uploaded.url;
+  1134→ _document.specificationDocuments[index].fileName = uploaded.name;
+  1135→ _document.specificationDocuments[index].storagePath =
+  1136→ uploaded.storagePath;
+  1137→ });
+  1138→ _queueSave();
+  1139→ _showToast('Design specification document uploaded.');
+  1140→ }
+  1141→
+  1142→ Future<_UploadedDoc?> _pickAndUploadAttachment({
+  1143→ required String folder,
+  1144→ }) async {
+  1145→ final currentUser = FirebaseAuth.instance.currentUser;
+  1146→ if (currentUser == null) {
+  1147→ _showToast('Sign in is required before uploading files.');
+  1148→ return null;
+  1149→ }
+  1150→ final data = ProjectDataHelper.getData(context);
+  1151→ final projectId = data.projectId;
+  1152→ if (projectId == null || projectId.trim().isEmpty) {
+  1153→ _showToast('Select a project before uploading files.');
+  1154→ return null;
+  1155→ }
+  1156→
+  1157→ try {
+  1158→ final result = await FilePicker.pickFiles(
+  1159→ type: FileType.custom,
+  1160→ withData: true,
+  1161→ allowedExtensions: const [
+  1162→ 'pdf',
+  1163→ 'doc',
+  1164→ 'docx',
+  1165→ 'xls',
+  1166→ 'xlsx',
+  1167→ 'ppt',
+  1168→ 'pptx',
+  1169→ 'txt',
+  1170→ 'csv',
+  1171→ 'png',
+  1172→ 'jpg',
+  1173→ 'jpeg'
+  1174→ ],
+  1175→ );
+  1176→ if (result == null || result.files.isEmpty) return null;
+  1177→ final file = result.files.first;
+  1178→ final Uint8List? bytes = file.bytes;
+  1179→ if (bytes == null) {
+  1180→ _showToast('Unable to read selected file.');
+  1181→ return null;
+  1182→ }
+  1183→ final safeName = file.name.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+  1184→ final storagePath =
+  1185→ 'projects/${projectId.trim()}/$folder/${DateTime.now().millisecondsSinceEpoch}_$safeName';
+  1186→ final ref = FirebaseStorage.instance.ref(storagePath);
+  1187→ final metadata = SettableMetadata(
+  1188→ contentType: _contentTypeForExtension(file.extension),
+  1189→ );
+  1190→ await ref.putData(bytes, metadata);
+  1191→ final downloadUrl = await ref.getDownloadURL();
+  1192→ return _UploadedDoc(
+  1193→ name: file.name,
+  1194→ url: downloadUrl,
+  1195→ storagePath: storagePath,
+  1196→ );
+  1197→ } on FirebaseException catch (error) {
+  1198→ _showToast('Failed to upload file: ${error.message ?? error.code}');
+  1199→ return null;
+  1200→ } catch (error) {
+  1201→ _showToast('Failed to upload file: $error');
+  1202→ return null;
+  1203→ }
+  1204→ }
+  1205→
+  1206→ String _contentTypeForExtension(String? extension) {
+  1207→ switch ((extension ?? '').toLowerCase()) {
+  1208→ case 'pdf':
+  1209→ return 'application/pdf';
+  1210→ case 'doc':
+  1211→ return 'application/msword';
+  1212→ case 'docx':
+  1213→ return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  1214→ case 'xls':
+  1215→ return 'application/vnd.ms-excel';
+  1216→ case 'xlsx':
+  1217→ return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  1218→ case 'ppt':
+  1219→ return 'application/vnd.ms-powerpoint';
+  1220→ case 'pptx':
+  1221→ return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+  1222→ case 'csv':
+  1223→ return 'text/csv';
+  1224→ case 'txt':
+  1225→ return 'text/plain';
+  1226→ case 'png':
+  1227→ return 'image/png';
+  1228→ case 'jpg':
+  1229→ case 'jpeg':
+  1230→ return 'image/jpeg';
+  1231→ default:
+  1232→ return 'application/octet-stream';
+  1233→ }
+  1234→ }
+  1235→
+  1236→ bool _isGenerating(String key) => _aiGenerating[key] == true;
+  1237→
+  1238→ Future<void> _runAiGenerate({
+  1239→ required String key,
+  1240→ required String section,
+  1241→ required TextEditingController controller,
+  1242→ }) async {
+  1243→ if (_isGenerating(key)) return;
+  1244→ setState(() => _aiGenerating[key] = true);
+  1245→ try {
+  1246→ final data = ProjectDataHelper.getData(context);
+  1247→ final contextText = ProjectDataHelper.buildExecutivePlanContext(
+  1248→ data,
+  1249→ sectionLabel: section,
+  1250→ );
+  1251→ final generated = await OpenAiServiceSecure().generateFepSectionText(
+  1252→ section: section,
+  1253→ context: contextText,
+  1254→ maxTokens: 900,
+  1255→ temperature: 0.45,
+  1256→ );
+  1257→ if (!mounted) return;
+  1258→ if (generated.trim().isEmpty) {
+  1259→ _showToast('AI returned an empty result for $section.');
+  1260→ return;
+  1261→ }
+  1262→ controller.text = generated.trim();
+  1263→ _queueSave();
+  1264→ _showToast('$section generated from project context.');
+  1265→ } catch (e) {
+  1266→ if (!mounted) return;
+  1267→ _showToast('AI generation failed for $section: ${e.toString()}');
+  1268→ } finally {
+  1269→ if (mounted) {
+  1270→ setState(() => _aiGenerating[key] = false);
+  1271→ }
+  1272→ }
+  1273→ }
+  1274→
+  1275→ void _autofillOverview(ProjectDataModel data) {
+  1276→ _overviewController.text = [
+  1277→ data.solutionDescription.trim(),
+  1278→ data.businessCase.trim(),
+  1279→ data.notes.trim(),
+  1280→ ].where((value) => value.isNotEmpty).join('\n\n');
+  1281→ _objectivesController.text = [
+  1282→ data.projectObjective.trim(),
+  1283→ ...data.planningGoals
+  1284→ .map((goal) => goal.title.trim())
+  1285→ .where((value) => value.isNotEmpty),
+  1286→ ].where((value) => value.isNotEmpty).join('\n');
+  1287→ _successCriteriaController.text = data.frontEndPlanning.successCriteriaItems
+  1288→ .map((item) => item.description.trim())
+  1289→ .where((value) => value.isNotEmpty)
+  1290→ .join('\n');
+  1291→ _scopeController.text = data.withinScopeItems
+  1292→ .map((item) => item.description.trim())
+  1293→ .where((value) => value.isNotEmpty)
+  1294→ .join('\n');
+  1295→ _outOfScopeController.text = data.outOfScopeItems
+  1296→ .map((item) => item.description.trim())
+  1297→ .where((value) => value.isNotEmpty)
+  1298→ .join('\n');
+  1299→ _queueSave();
+  1300→ _showToast('Overview autofilled from initiation/planning context.');
+  1301→ }
+  1302→
+  1303→ void _autofillDesignOverview(ProjectDataModel data) {
+  1304→ _designWhoController.text = [
+  1305→ if (data.charterProjectManagerName.trim().isNotEmpty)
+  1306→ 'Project Manager: ${data.charterProjectManagerName.trim()}',
+  1307→ if (data.charterProjectSponsorName.trim().isNotEmpty)
+  1308→ 'Project Sponsor: ${data.charterProjectSponsorName.trim()}',
+  1309→ if (data.charterReviewedBy.trim().isNotEmpty)
+  1310→ 'Reviewer: ${data.charterReviewedBy.trim()}',
+  1311→ ...data.teamMembers
+  1312→ .where((member) =>
+  1313→ member.name.trim().isNotEmpty || member.role.trim().isNotEmpty)
+  1314→ .take(8)
+  1315→ .map((member) => [
+  1316→ if (member.name.trim().isNotEmpty) member.name.trim(),
+  1317→ if (member.role.trim().isNotEmpty) member.role.trim(),
+  1318→ if (member.responsibilities.trim().isNotEmpty)
+  1319→ member.responsibilities.trim(),
+  1320→ ].join(' | ')),
+  1321→ ].where((value) => value.isNotEmpty).join('\n');
+  1322→
+  1323→ _designHowController.text = [
+  1324→ if ((data.overallFramework ?? '').trim().isNotEmpty)
+  1325→ 'Framework: ${data.overallFramework!.trim()}',
+  1326→ if (data.projectObjective.trim().isNotEmpty)
+  1327→ 'Objective: ${data.projectObjective.trim()}',
+  1328→ if (data.designManagementData != null)
+  1329→ 'Methodology: ${data.designManagementData!.methodology.name}',
+  1330→ if (data.designManagementData != null)
+  1331→ 'Execution strategy: ${data.designManagementData!.executionStrategy.name}',
+  1332→ if (data.designManagementData != null &&
+  1333→ data.designManagementData!.applicableStandards.isNotEmpty)
+  1334→ 'Applicable standards: ${data.designManagementData!.applicableStandards.join(', ')}',
+  1335→ ...data.planningGoals
+  1336→ .map((goal) => goal.title.trim())
+  1337→ .where((value) => value.isNotEmpty)
+  1338→ .take(5)
+  1339→ .map((value) => 'Design priority: $value'),
+  1340→ ].where((value) => value.isNotEmpty).join('\n');
+  1341→
+  1342→ _designVendorsController.text = [
+  1343→ if (data.frontEndPlanning.contracts.trim().isNotEmpty)
+  1344→ 'Contracts context: ${data.frontEndPlanning.contracts.trim()}',
+  1345→ if (data.frontEndPlanning.contractVendorQuotes.trim().isNotEmpty)
+  1346→ 'Vendor quotes context: ${data.frontEndPlanning.contractVendorQuotes.trim()}',
+  1347→ if (data.frontEndPlanning.procurement.trim().isNotEmpty)
+  1348→ 'Procurement context: ${data.frontEndPlanning.procurement.trim()}',
+  1349→ if (data.contractors.isNotEmpty)
+  1350→ 'Contractors:\n${data.contractors.map((item) => [
+  1351→ item.name.trim(),
+  1352→ item.service.trim(),
+  1353→ item.status.trim(),
+  1354→ ].where((value) => value.isNotEmpty).join(' | ')).where((value) => value.isNotEmpty).join('\n')}',
+  1355→ if (data.vendors.isNotEmpty)
+  1356→ 'Vendors:\n${data.vendors.map((item) => [
+  1357→ item.name.trim(),
+  1358→ item.equipmentOrService.trim(),
+  1359→ item.procurementStage.trim(),
+  1360→ item.status.trim(),
+  1361→ ].where((value) => value.isNotEmpty).join(' | ')).where((value) => value.isNotEmpty).join('\n')}',
+  1362→ ].where((value) => value.isNotEmpty).join('\n\n');
+  1363→
+  1364→ _designInterfacesController.text = [
+  1365→ if (data.interfaceEntries.isNotEmpty)
+  1366→ 'Interfaces:\n${data.interfaceEntries.map((entry) => [
+  1367→ entry.boundary.trim(),
+  1368→ if (entry.owner.trim().isNotEmpty) 'Owner: ${entry.owner.trim()}',
+  1369→ if (entry.status.trim().isNotEmpty)
+  1370→ 'Status: ${entry.status.trim()}',
+  1371→ if (entry.risk.trim().isNotEmpty) 'Risk: ${entry.risk.trim()}',
+  1372→ ].whereType<String>().join(' | ')).where((value) => value.isNotEmpty).join('\n')}',
+  1373→ ...data.constraintItems
+  1374→ .map((item) => item.description.trim())
+  1375→ .where((value) => value.isNotEmpty)
+  1376→ .take(6)
+  1377→ .map((value) => 'Constraint: $value'),
+  1378→ ...data.assumptionItems
+  1379→ .map((item) => item.description.trim())
+  1380→ .where((value) => value.isNotEmpty)
+  1381→ .take(6)
+  1382→ .map((value) => 'Assumption: $value'),
+  1383→ ...data.frontEndPlanning.riskRegisterItems
+  1384→ .map((item) => item.riskName.trim())
+  1385→ .where((value) => value.isNotEmpty)
+  1386→ .take(4)
+  1387→ .map((value) => 'Risk driver: $value'),
+  1388→ ].where((value) => value.isNotEmpty).join('\n');
+  1389→
+  1390→ _queueSave();
+  1391→ _showToast('Design Overview seeded from initiation and planning context.');
+  1392→ }
+  1393→
+  1394→ void _autofillArchitecture(ProjectDataModel data) {
+  1395→ _architectureController.text = [
+  1396→ data.frontEndPlanning.infrastructure.trim(),
+  1397→ data.planningNotes[kDesignPlanningArchitectureKey]?.trim() ?? '',
+  1398→ ].where((value) => value.isNotEmpty).join('\n\n');
+  1399→ _dataFlowController.text = data.interfaceEntries
+  1400→ .map((entry) => [
+  1401→ entry.boundary.trim(),
+  1402→ entry.owner.trim().isEmpty
+  1403→ ? null
+  1404→ : 'Owner: ${entry.owner.trim()}',
+  1405→ entry.status.trim().isEmpty
+  1406→ ? null
+  1407→ : 'Status: ${entry.status.trim()}',
+  1408→ ].whereType<String>().join(' | '))
+  1409→ .where((value) => value.isNotEmpty)
+  1410→ .join('\n');
+  1411→ _document.modules = data.designDeliverablesData.register
+  1412→ .where((item) => item.name.trim().isNotEmpty)
+  1413→ .map(
+  1414→ (item) => DesignPlanningWorkItem(
+  1415→ name: item.name.trim(),
+  1416→ purpose: item.risk.trim(),
+  1417→ owner: item.owner.trim(),
+  1418→ status: item.status.trim().isEmpty ? 'Planned' : item.status.trim(),
+  1419→ ),
+  1420→ )
+  1421→ .toList();
+  1422→ _queueSave();
+  1423→ _showToast('Architecture basis autofilled from planning data.');
+  1424→ }
+  1425→
+  1426→ void _autofillUiUx(ProjectDataModel data) {
+  1427→ _uiUxController.text = [
+  1428→ data.frontEndPlanning.summary.trim(),
+  1429→ data.planningNotes[kDesignPlanningUiUxKey]?.trim() ?? '',
+  1430→ ].where((value) => value.isNotEmpty).join('\n\n');
+  1431→ _designSystemController.text =
+  1432→ data.frontEndPlanning.requirementsNotes.trim();
+  1433→ _document.journeys = data.planningGoals
+  1434→ .where((goal) => goal.title.trim().isNotEmpty)
+  1435→ .map(
+  1436→ (goal) => DesignPlanningWorkItem(
+  1437→ name: goal.title.trim(),
+  1438→ purpose: goal.description.trim(),
+  1439→ status: 'Planned',
+  1440→ ),
+  1441→ )
+  1442→ .toList();
+  1443→ _document.interfaces = data.interfaceEntries
+  1444→ .where((entry) => entry.boundary.trim().isNotEmpty)
+  1445→ .map(
+  1446→ (entry) => DesignPlanningWorkItem(
+  1447→ name: entry.boundary.trim(),
+  1448→ purpose: entry.notes.trim(),
+  1449→ owner: entry.owner.trim(),
+  1450→ status:
+  1451→ entry.status.trim().isEmpty ? 'Planned' : entry.status.trim(),
+  1452→ ),
+  1453→ )
+  1454→ .toList();
+  1455→ _queueSave();
+  1456→ _showToast('UI/UX basis autofilled from previous context.');
+  1457→ }
+  1458→
+  1459→ void _autofillTechnical(ProjectDataModel data) {
+  1460→ _technicalFrontendController.text = data.frontEndPlanning.technology.trim();
+  1461→ _technicalBackendController.text = data.technologyDefinitions
+  1462→ .map((item) => item['name']?.toString().trim() ?? '')
+  1463→ .where((value) => value.isNotEmpty)
+  1464→ .join(', ');
+  1465→ _technicalDataController.text = [
+  1466→ data.notes.trim(),
+  1467→ data.frontEndPlanning.infrastructure.trim(),
+  1468→ ].where((value) => value.isNotEmpty).join('\n\n');
+  1469→ _document.integrations = data.interfaceEntries
+  1470→ .where((entry) => entry.boundary.trim().isNotEmpty)
+  1471→ .map(
+  1472→ (entry) => DesignPlanningWorkItem(
+  1473→ name: entry.boundary.trim(),
+  1474→ purpose: entry.notes.trim(),
+  1475→ owner: entry.owner.trim(),
+  1476→ status:
+  1477→ entry.status.trim().isEmpty ? 'Planned' : entry.status.trim(),
+  1478→ ),
+  1479→ )
+  1480→ .toList();
+  1481→ _queueSave();
+  1482→ _showToast('Technical basis autofilled from technology/interface context.');
+  1483→ }
+  1484→
+  1485→ void _autofillValidation(ProjectDataModel data) {
+  1486→ _validationController.text = [
+  1487→ ...data.planningRequirementItems
+  1488→ .map((item) => item.acceptanceCriteria.trim())
+  1489→ .where((value) => value.isNotEmpty),
+  1490→ ...data.planningRequirementItems
+  1491→ .map((item) => item.verificationMethod.trim())
+  1492→ .where((value) => value.isNotEmpty),
+  1493→ ].join('\n');
+  1494→ _queueSave();
+  1495→ _showToast('Validation criteria seeded from planning requirements.');
+  1496→ }
+  1497→
+  1498→ List<String> _ownerOptions(ProjectDataModel data) {
+  1499→ final options = <String>{
+  1500→ for (final member in data.teamMembers)
+  1501→ if (member.name.trim().isNotEmpty)
+  1502→ member.name.trim()
+  1503→ else if (member.role.trim().isNotEmpty)
+  1504→ member.role.trim(),
+  1505→ if (data.charterProjectManagerName.trim().isNotEmpty)
+  1506→ data.charterProjectManagerName.trim(),
+  1507→ if (data.charterProjectSponsorName.trim().isNotEmpty)
+  1508→ data.charterProjectSponsorName.trim(),
+  1509→ };
+  1510→ if (options.isEmpty) {
+  1511→ return const ['Owner'];
+  1512→ }
+  1513→ return options.toList()..sort();
+  1514→ }
+  1515→
+  1516→ List<_RequirementAttachmentOption> _requirementAttachmentOptions(
+  1517→ ProjectDataModel projectData,
+  1518→ ) {
+  1519→ final options = <_RequirementAttachmentOption>[];
+  1520→ for (var index = 0;
+  1521→ index < projectData.frontEndPlanning.requirementItems.length;
+  1522→ index++) {
+  1523→ final item = projectData.frontEndPlanning.requirementItems[index];
+  1524→ final description = item.description.trim();
+  1525→ if (description.isEmpty && item.id.trim().isEmpty) continue;
+  1526→ final id = item.id.trim().isNotEmpty
+  1527→ ? item.id.trim()
+  1528→ : 'fep_req_${index + 1}_${description.toLowerCase().hashCode.abs()}';
+  1529→ options.add(
+  1530→ _RequirementAttachmentOption(
+  1531→ id: id,
+  1532→ label: description.isEmpty ? 'Requirement ${index + 1}' : description,
+  1533→ ),
+  1534→ );
+  1535→ }
+  1536→ options
+  1537→ .sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+  1538→ return options;
+  1539→ }
+  1540→
+  1541→ List<_SpecificationOption> _specificationOptions() {
+  1542→ final options = <_SpecificationOption>[];
+  1543→ for (var index = 0; index < _document.specifications.length; index++) {
+  1544→ final row = _document.specifications[index];
+  1545→ final fallback = 'Specification ${index + 1}';
+  1546→ final title = row.title.trim().isEmpty ? fallback : row.title.trim();
+  1547→ options.add(
+  1548→ _SpecificationOption(
+  1549→ id: row.id,
+  1550→ title: title,
+  1551→ details: row.details.trim(),
+  1552→ specificationType: row.specificationType.trim(),
+  1553→ discipline: row.discipline.trim(),
+  1554→ area: row.area.trim(),
+  1555→ sourceType: row.sourceType.trim(),
+  1556→ owner: row.owner.trim(),
+  1557→ status: row.status.trim(),
+  1558→ referenceLink: row.referenceLink.trim(),
+  1559→ wbsWorkPackageId: row.wbsWorkPackageId.trim(),
+  1560→ wbsWorkPackageTitle: row.wbsWorkPackageTitle.trim(),
+  1561→ ),
+  1562→ );
+  1563→ }
+  1564→ return options;
+  1565→ }
+  1566→
+  1567→ String _stripWbsPrefix(String title) {
+  1568→ final pattern = RegExp(r'^[GS]\d+(?:\.\d+)*(?:\s*[:\-])?\s*');
+  1569→ return title.replaceFirst(pattern, '').trim();
+  1570→ }
+  1571→
+  1572→ List<_WbsWorkPackageOption> _extractWbsWorkPackages(ProjectDataModel data) {
+  1573→ final output = <_WbsWorkPackageOption>[];
+  1574→
+  1575→ void addOption({
+  1576→ required WorkItem item,
+  1577→ required String parentTitle,
+  1578→ required String disciplineSeed,
+  1579→ required String areaSeed,
+  1580→ required int level,
+  1581→ }) {
+  1582→ final title = _stripWbsPrefix(item.title);
+  1583→ if (title.isEmpty) return;
+  1584→ final rawId = item.id.trim();
+  1585→ final id = rawId.isNotEmpty
+  1586→ ? rawId
+  1587→ : 'wbs_pkg_${level}_${output.length + 1}_${parentTitle.hashCode.abs()}_${title.hashCode.abs()}';
+  1588→ output.add(
+  1589→ _WbsWorkPackageOption(
+  1590→ id: id,
+  1591→ title: title,
+  1592→ parentTitle: parentTitle,
+  1593→ level: level,
+  1594→ disciplineSeed: disciplineSeed,
+  1595→ areaSeed: areaSeed,
+  1596→ ),
+  1597→ );
+  1598→ }
+  1599→
+  1600→ for (final topLevel in data.wbsTree) {
+  1601→ final topTitle = _stripWbsPrefix(topLevel.title);
+  1602→ if (topLevel.children.isNotEmpty) {
+  1603→ for (final level2 in topLevel.children) {
+  1604→ final level2Title = _stripWbsPrefix(level2.title);
+  1605→ addOption(
+  1606→ item: level2,
+  1607→ parentTitle: topTitle,
+  1608→ disciplineSeed: topTitle,
+  1609→ areaSeed: level2Title.isEmpty ? topTitle : level2Title,
+  1610→ level: 2,
+  1611→ );
+  1612→ }
+  1613→ } else {
+  1614→ addOption(
+  1615→ item: topLevel,
+  1616→ parentTitle: '',
+  1617→ disciplineSeed: topTitle,
+  1618→ areaSeed: topTitle,
+  1619→ level: 1,
+  1620→ );
+  1621→ }
+  1622→ }
+  1623→
+  1624→ return output;
+  1625→ }
+  1626→
+  1627→ List<String> _wbsDisciplineOptions(
+  1628→ List<_WbsWorkPackageOption> packages,
+  1629→ List<String> fallback,
+  1630→ ) {
+  1631→ final values = <String>[
+  1632→ ...packages
+  1633→ .map((item) => item.disciplineSeed.trim())
+  1634→ .where((value) => value.isNotEmpty),
+  1635→ ...fallback,
+  1636→ ];
+  1637→ return _dedupeOptions(values);
+  1638→ }
+  1639→
+  1640→ List<String> _wbsAreaOptions(
+  1641→ List<_WbsWorkPackageOption> packages,
+  1642→ List<String> fallback,
+  1643→ ) {
+  1644→ final values = <String>[
+  1645→ ...packages
+  1646→ .map((item) => item.areaSeed.trim())
+  1647→ .where((value) => value.isNotEmpty),
+  1648→ ...fallback,
+  1649→ ];
+  1650→ return _dedupeOptions(values);
+  1651→ }
+  1652→
+  1653→ List<String> _dedupeOptions(List<String> values) {
+  1654→ final output = <String>[];
+  1655→ final seen = <String>{};
+  1656→ for (final value in values) {
+  1657→ final trimmed = value.trim();
+  1658→ if (trimmed.isEmpty) continue;
+  1659→ final key = trimmed.toLowerCase();
+  1660→ if (seen.contains(key)) continue;
+  1661→ seen.add(key);
+  1662→ output.add(trimmed);
+  1663→ }
+  1664→ return output;
+  1665→ }
+  1666→
+  1667→ List<_RequirementAttachmentOption> _unlinkedRequirements(
+  1668→ List<_RequirementAttachmentOption> requirementOptions,
+  1669→ ) {
+  1670→ final linkedIds = <String>{};
+  1671→ for (final row in _document.specifications) {
+  1672→ for (final id in row.attachedRequirementIds) {
+  1673→ final trimmed = id.trim();
+  1674→ if (trimmed.isNotEmpty) linkedIds.add(trimmed);
+  1675→ }
+  1676→ }
+  1677→ return requirementOptions
+  1678→ .where((option) => !linkedIds.contains(option.id))
+  1679→ .toList(growable: false);
+  1680→ }
+  1681→
+  1682→ Future<void> _exportPdf() async {
+  1683→ final projectData = ProjectDataHelper.getData(context);
+  1684→ await PdfExportHelper.exportScreenPdf(
+  1685→ context: context,
+  1686→ screenTitle: 'Design Planning',
+  1687→ sections: [
+  1688→ PdfSection.keyValue('Project Info', [
+  1689→ {'Project Name': projectData.projectName ?? 'N/A'},
+  1690→ ]),
+  1691→ PdfSection.text('Notes', projectData.planningNotes['design_planning_screen'] ?? 'No data recorded.'),
+  1692→ ],
+  1693→ );
+  1694→ }
+  1695→
+  1696→ @override
+  1697→ Widget build(BuildContext context) {
+  1698→ final projectData = ProjectDataHelper.getData(context);
+  1699→ final owners = _ownerOptions(projectData);
+  1700→ final isMobile = AppBreakpoints.isMobile(context);
+  1701→
+  1702→ return ResponsiveScaffold(
+  1703→ activeItemLabel: 'Design Planning',
+  1704→ floatingActionButton: const KazAiChatBubble(positioned: false),
+  1705→ body: Column(
+  1706→ children: [
+  1707→ PlanningPhaseHeader(
+  1708→ title: 'Design Planning', onExportPdf: _exportPdf),
+  1709→ _buildPageContext(projectData),
+  1710→ Expanded(
+  1711→ child: SingleChildScrollView(
+  1712→ controller: _scrollController,
+  1713→ padding: const EdgeInsets.only(top: 8, bottom: 100),
+  1714→ child: _buildMainColumn(projectData, owners),
+  1715→ ),
+  1716→ ),
+  1717→ _buildBottomBar(),
+  1718→ ],
+  1719→ ),
+  1720→ );
+  1721→ }
+  1722→
+  1723→ Widget _buildMobileHeader(ProjectDataModel data) {
+  1724→ return Container(
+  1725→ decoration: const BoxDecoration(
+  1726→ color: Colors.white,
+  1727→ border: Border(bottom: BorderSide(color: _kBorder)),
+  1728→ boxShadow: [
+  1729→ BoxShadow(
+  1730→ color: Color(0x0A000000),
+  1731→ blurRadius: 6,
+  1732→ offset: Offset(0, 2),
+  1733→ ),
+  1734→ ],
+  1735→ ),
+  1736→ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  1737→ child: Row(
+  1738→ children: [
+  1739→ Container(
+  1740→ width: 32,
+  1741→ height: 32,
+  1742→ decoration: BoxDecoration(
+  1743→ color: _kBrandDark,
+  1744→ borderRadius: BorderRadius.circular(6),
+  1745→ ),
+  1746→ alignment: Alignment.center,
+  1747→ child: const Text(
+  1748→ 'NDU',
+  1749→ style: TextStyle(
+  1750→ color: _kBrandYellow,
+  1751→ fontWeight: FontWeight.bold,
+  1752→ fontSize: 11,
+  1753→ ),
+  1754→ ),
+  1755→ ),
+  1756→ const SizedBox(width: 8),
+  1757→ const Text(
+  1758→ 'PROJECT',
+  1759→ style: TextStyle(
+  1760→ fontSize: 14,
+  1761→ fontWeight: FontWeight.w700,
+  1762→ color: _kGray900,
+  1763→ letterSpacing: 0.5,
+  1764→ ),
+  1765→ ),
+  1766→ const Spacer(),
+  1767→ IconButton(
+  1768→ onPressed: () {},
+  1769→ icon: const Icon(Icons.notifications_outlined, size: 22),
+  1770→ color: _kGray500,
+  1771→ padding: EdgeInsets.zero,
+  1772→ constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+  1773→ ),
+  1774→ const SizedBox(width: 8),
+  1775→ Container(
+  1776→ width: 32,
+  1777→ height: 32,
+  1778→ decoration: const BoxDecoration(
+  1779→ color: _kBlue600,
+  1780→ shape: BoxShape.circle,
+  1781→ ),
+  1782→ alignment: Alignment.center,
+  1783→ child: const Text(
+  1784→ 'C',
+  1785→ style: TextStyle(
+  1786→ color: Colors.white,
+  1787→ fontWeight: FontWeight.bold,
+  1788→ fontSize: 13,
+  1789→ ),
+  1790→ ),
+  1791→ ),
+  1792→ ],
+  1793→ ),
+  1794→ );
+  1795→ }
+  1796→
+  1797→ Widget _buildPageContext(ProjectDataModel data) {
+  1798→ return Container(
+  1799→ decoration: const BoxDecoration(
+  1800→ color: Colors.white,
+  1801→ border: Border(bottom: BorderSide(color: _kBorder)),
+  1802→ ),
+  1803→ padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  1804→ child: Column(
+  1805→ crossAxisAlignment: CrossAxisAlignment.start,
+  1806→ children: [
+  1807→ Row(
+  1808→ children: [
+  1809→ Flexible(
+  1810→ child: Text(
+  1811→ data.projectName.trim().isEmpty
+  1812→ ? 'Unnamed Project'
+  1813→ : data.projectName.trim(),
+  1814→ style: const TextStyle(fontSize: 12, color: _kGray500),
+  1815→ overflow: TextOverflow.ellipsis,
+  1816→ ),
+  1817→ ),
+  1818→ const SizedBox(width: 6),
+  1819→ const Icon(Icons.chevron_right, size: 14, color: _kGray400),
+  1820→ const SizedBox(width: 6),
+  1821→ const Flexible(
+  1822→ child: Text(
+  1823→ 'Planning Phase',
+  1824→ style: TextStyle(fontSize: 12, color: _kGray500),
+  1825→ overflow: TextOverflow.ellipsis,
+  1826→ ),
+  1827→ ),
+  1828→ ],
+  1829→ ),
+  1830→ const SizedBox(height: 8),
+  1831→ Row(
+  1832→ children: [
+  1833→ const Text(
+  1834→ 'Design Planning',
+  1835→ style: TextStyle(
+  1836→ fontSize: 20,
+  1837→ fontWeight: FontWeight.bold,
+  1838→ color: _kGray900,
+  1839→ ),
+  1840→ ),
+  1841→ const Spacer(),
+  1842→ OutlinedButton.icon(
+  1843→ onPressed: () {},
+  1844→ icon: const Icon(Icons.schedule, size: 16),
+  1845→ label: const Text('Activity'),
+  1846→ style: OutlinedButton.styleFrom(
+  1847→ backgroundColor: Colors.white,
+  1848→ foregroundColor: _kGray700,
+  1849→ side: const BorderSide(color: _kBorder),
+  1850→ padding:
+  1851→ const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  1852→ textStyle: const TextStyle(fontSize: 12),
+  1853→ minimumSize: Size.zero,
+  1854→ ),
+  1855→ ),
+  1856→ ],
+  1857→ ),
+  1858→ const SizedBox(height: 8),
+  1859→ ValueListenableBuilder<_SaveIndicatorState>(
+  1860→ valueListenable: _saveIndicatorNotifier,
+  1861→ builder: (context, state, _) => _AutoSaveIndicator(
+  1862→ saving: state.saving,
+  1863→ pending: state.pending,
+  1864→ lastSavedAt: state.lastSavedAt,
+  1865→ ),
+  1866→ ),
+  1867→ ],
+  1868→ ),
+  1869→ );
+  1870→ }
+  1871→
+  1872→ Widget _buildBottomBar() {
+  1873→ final bottomPadding = MediaQuery.of(context).padding.bottom;
+  1874→ final isMobile = AppBreakpoints.isMobile(context);
+  1875→ return Container(
+  1876→ decoration: const BoxDecoration(
+  1877→ color: Colors.white,
+  1878→ border: Border(top: BorderSide(color: _kBorder)),
+  1879→ boxShadow: [
+  1880→ BoxShadow(
+  1881→ color: Color(0x0A000000),
+  1882→ blurRadius: 8,
+  1883→ offset: Offset(0, -2),
+  1884→ ),
+  1885→ ],
+  1886→ ),
+  1887→ padding: EdgeInsets.fromLTRB(16, 12, 16, bottomPadding + 12),
+  1888→ child: Row(
+  1889→ children: [
+  1890→ Expanded(
+  1891→ child: OutlinedButton(
+  1892→ onPressed: () =>
+  1893→ PlanningPhaseNavigation.goToPrevious(context, 'design'),
+  1894→ style: OutlinedButton.styleFrom(
+  1895→ padding: EdgeInsets.symmetric(
+  1896→ vertical: 12,
+  1897→ horizontal: isMobile ? 8 : 16,
+  1898→ ),
+  1899→ side: const BorderSide(color: _kBorder),
+  1900→ foregroundColor: _kGray700,
+  1901→ ),
+  1902→ child: Row(
+  1903→ mainAxisAlignment: MainAxisAlignment.center,
+  1904→ mainAxisSize: MainAxisSize.min,
+  1905→ children: [
+  1906→ const Icon(Icons.arrow_back, size: 16),
+  1907→ const SizedBox(width: 6),
+  1908→ Flexible(
+  1909→ child: FittedBox(
+  1910→ fit: BoxFit.scaleDown,
+  1911→ child: Text(PlanningPhaseNavigation.backLabel('design')),
+  1912→ ),
+  1913→ ),
+  1914→ ],
+  1915→ ),
+  1916→ ),
+  1917→ ),
+  1918→ const SizedBox(width: 12),
+  1919→ Expanded(
+  1920→ flex: 2,
+  1921→ child: FilledButton(
+  1922→ onPressed: () async {
+  1923→   final shouldProceed = await SkipConfirmationDialog.show(
+  1924→     context: context,
+  1925→     sectionTitle: 'Design Planning',
+  1926→     sectionName: 'design',
+  1927→   );
+  1928→   if (shouldProceed == true) {
+  1929→     PlanningPhaseNavigation.goToNext(context, 'design');
+  1930→   }
+  1931→ },
+  1932→ style: FilledButton.styleFrom(
+  1933→ backgroundColor: _kBrandYellow,
+  1934→ foregroundColor: _kBrandDark,
+  1935→ padding: EdgeInsets.symmetric(
+  1936→ vertical: 12,
+  1937→ horizontal: isMobile ? 8 : 16,
+  1938→ ),
+  1939→ ),
+  1940→ child: Row(
+  1941→ mainAxisAlignment: MainAxisAlignment.center,
+  1942→ mainAxisSize: MainAxisSize.min,
+  1943→ children: [
+  1944→ Flexible(
+  1945→ child: FittedBox(
+  1946→ fit: BoxFit.scaleDown,
+  1947→ child: Text(PlanningPhaseNavigation.nextLabel('design')),
+  1948→ ),
+  1949→ ),
+  1950→ const SizedBox(width: 6),
+  1951→ const Icon(Icons.arrow_forward, size: 16),
+  1952→ ],
+  1953→ ),
+  1954→ ),
+  1955→ ),
+  1956→ ],
+  1957→ ),
+  1958→ );
+  1959→ }
+  1960→
+  1961→ Widget _buildMainColumn(ProjectDataModel data, List<String> owners) {
+  1962→ return Column(
+  1963→ crossAxisAlignment: CrossAxisAlignment.start,
+  1964→ children: [
+  1965→ // ── Inner-Page Navigation Hint ──
+  1966→ InnerPageNavigationHint(
+  1967→ pageId: 'design_planning',
+  1968→ pageTitle: 'Design Planning Process',
+  1969→ description: 'This page has 15 guided sections.',
+  1970→ accentColor: _kPrimary,
+  1971→ currentSectionId: _activeSectionId,
+  1972→ sections: _sectionOrder.asMap().entries.map((entry) {
+  1973→ final index = entry.key;
+  1974→ final section = entry.value;
+  1975→ final progress = _sectionProgress[section.id] ?? _SectionProgressState.pending;
+  1976→ return InnerPageSection(
+  1977→ id: section.id,
+  1978→ label: section.label,
+  1979→ stepNumber: index + 1,
+  1980→ status: _mapSectionProgress(progress, section.id),
+  1981→ );
+  1982→ }).toList(),
+  1983→ onSectionTap: (sectionId) => _activateSection(sectionId),
+  1984→ ),
+  1985→ _buildOverviewSection(data),
+  1986→ _buildDesignOverviewSection(data),
+  1987→ _buildDesignSpecificationsWorkspaceSection(),
+  1988→ _buildDeviationsSection(),
+  1989→ _buildRequirementsSection(owners),
+  1990→ _buildArchitectureSection(owners),
+  1991→ _buildUiUxSection(owners),
+  1992→ _buildTechnicalSection(owners),
+  1993→ _buildConstraintsSection(),
+  1994→ _buildRisksSection(owners),
+  1995→ _buildDependenciesSection(owners),
+  1996→ _buildDecisionLogSection(owners),
+  1997→ _buildValidationSection(),
+  1998→  _buildApprovalsSection(owners),
+  1999→  _buildWorkPackagesSection(),
+  2000→  ],
+
+[showing lines 1-2000 of 5644; use offset=2001 with limit to continue reading]

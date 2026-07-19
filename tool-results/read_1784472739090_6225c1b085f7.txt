@@ -1,0 +1,2002 @@
+     1→import 'package:flutter/foundation.dart';
+     2→import 'package:ndu_project/models/design_phase_models.dart';
+     3→import 'package:ndu_project/models/project_activity.dart';
+     4→import 'package:ndu_project/models/staffing_row.dart';
+     5→import 'package:ndu_project/models/control_account_model.dart';
+     6→import 'package:ndu_project/models/obs_element_model.dart';
+     7→import 'package:ndu_project/models/cbs_element_model.dart';
+     8→import 'package:ndu_project/models/planning_contract.dart';
+     9→import 'package:ndu_project/models/rate_card.dart';
+    10→import 'package:ndu_project/models/cost_of_quality.dart';
+    11→
+    12→/// Comprehensive project data model that captures all information across the application flow
+    13→class ProjectDataModel {
+    14→  static const int maxProjectGoals = 3;
+    15→  // Initiation Phase Data
+    16→  String projectName;
+    17→  String solutionTitle;
+    18→  String solutionDescription;
+    19→  String businessCase;
+    20→  String notes;
+    21→
+    22→  // --- Legacy / Alias Getters ---
+    23→  String get projectDescription => solutionDescription;
+    24→  set projectDescription(String val) => solutionDescription = val;
+    25→
+    26→  FrontEndPlanningData get frontEndPlanningData => frontEndPlanning;
+    27→  set frontEndPlanningData(FrontEndPlanningData val) => frontEndPlanning = val;
+    28→
+    29→  String get technology {
+    30→    if (technologyDefinitions.isEmpty) return 'Not specified';
+    31→    return technologyDefinitions.map((e) => e['name'] ?? '').join(', ');
+    32→  }
+    33→
+    34→  // --- Structured Planning Fields ---
+    35→  List<PlanningDashboardItem> withinScopeItems;
+    36→  List<PlanningDashboardItem> outOfScopeItems;
+    37→  List<PlanningDashboardItem> assumptionItems;
+    38→  List<PlanningDashboardItem> constraintItems;
+    39→
+    40→  // --- Legacy Getters (Backward Compatibility) ---
+    41→  List<String> get withinScope =>
+    42→      withinScopeItems.map((e) => e.description).toList();
+    43→  set withinScope(List<String> val) {
+    44→    withinScopeItems = val
+    45→        .map((e) => PlanningDashboardItem(description: e))
+    46→        .toList();
+    47→  }
+    48→
+    49→  List<String> get outOfScope =>
+    50→      outOfScopeItems.map((e) => e.description).toList();
+    51→  set outOfScope(List<String> val) {
+    52→    outOfScopeItems = val
+    53→        .map((e) => PlanningDashboardItem(description: e))
+    54→        .toList();
+    55→  }
+    56→
+    57→  List<String> get assumptions =>
+    58→      assumptionItems.map((e) => e.description).toList();
+    59→  set assumptions(List<String> val) {
+    60→    assumptionItems = val
+    61→        .map((e) => PlanningDashboardItem(description: e))
+    62→        .toList();
+    63→  }
+    64→
+    65→  List<String> get constraints =>
+    66→      constraintItems.map((e) => e.description).toList();
+    67→  set constraints(List<String> val) {
+    68→    constraintItems = val
+    69→        .map((e) => PlanningDashboardItem(description: e))
+    70→        .toList();
+    71→  }
+    72→
+    73→  List<String> opportunities;
+    74→  List<ProjectActivity> projectActivities;
+    75→  List<ProjectActivity> customProjectActivities;
+    76→  List<String> hiddenProjectActivityIds;
+    77→
+    78→  // Project Charter (editable in Project Charter screen)
+    79→  String charterAssumptions;
+    80→  String charterConstraints;
+    81→  String charterProjectManagerName;
+    82→  String charterProjectSponsorName;
+    83→  String charterProjectSponsorEmail;
+    84→  String charterApprovalRequestedToName;
+    85→  String charterApprovalRequestedToEmail;
+    86→  String charterApprovalRequestedToRole;
+    87→  DateTime? charterApprovalRequestedAt;
+    88→  String charterReviewedBy; // Added
+    89→  DateTime? charterApprovalDate; // Added
+    90→  String charterEmail;
+    91→  String charterPhone;
+    92→  String charterOrganizationalUnit;
+    93→  String charterGreenBelt;
+    94→  String charterBlackBelt;
+    95→  List<String> tags;
+    96→  List<Contractor> contractors; // Added
+    97→  List<Vendor> vendors; // Added
+    98→  List<PotentialSolution> potentialSolutions;
+    99→  List<SolutionRisk> solutionRisks;
+   100→  PreferredSolutionAnalysis? preferredSolutionAnalysis;
+   101→
+   102→  // Project Framework Data
+   103→  String? overallFramework;
+   104→  List<ProjectGoal> projectGoals;
+   105→
+   106→  // Planning Phase Data
+   107→  String potentialSolution;
+   108→  String projectObjective;
+   109→  List<PlanningGoal> planningGoals;
+   110→  List<Milestone> keyMilestones;
+   111→  Map<String, String> planningNotes;
+   112→  Map<String, String> riskMitigationPlans;
+   113→  List<ExecutionRiskItem> executionRiskItems;
+   114→  List<ExecutionRiskSignal> executionRiskSignals;
+   115→  List<ExecutionRiskMitigation> executionRiskMitigations;
+   116→  List<InterfaceEntry> interfaceEntries;
+   117→  List<InterfaceChangeLogEntry> interfaceChangeLog;
+   118→  List<ScheduleActivity> scheduleActivities;
+   119→  List<ScheduleActivity> scheduleBaselineActivities;
+   120→  String scheduleBaselineDate;
+   121→  // Work Packages
+   122→  List<WorkPackage> workPackages;
+   123→  // Planning Requirements Data
+   124→  List<PlanningRequirementItem> planningRequirementItems;
+   125→  String planningRequirementsNotes;
+   126→
+   127→  // Work Breakdown Structure Data
+   128→  String? wbsCriteriaA;
+   129→  String? wbsCriteriaB;
+   130→  List<List<WorkItem>> goalWorkItems;
+   131→  List<WorkItem> wbsTree;
+   132→
+   133→  // Issue Management Data
+   134→  List<IssueLogItem> issueLogItems;
+   135→  // Lessons learned
+   136→  List<LessonRecord> lessonsLearned;
+   137→
+   138→  // Front End Planning Data
+   139→  FrontEndPlanningData frontEndPlanning;
+   140→  // Technology/IT Data
+   141→  List<Map<String, dynamic>> technologyDefinitions;
+   142→  List<Map<String, dynamic>> technologyInventory;
+   143→
+   144→  // SSHER Data
+   145→  SSHERData ssherData;
+   146→
+   147→  // Team Management Data
+   148→  List<TeamMember> teamMembers;
+   149→
+   150→  // Launch Checklist Data
+   151→  List<LaunchChecklistItem> launchChecklistItems;
+   152→
+   153→  // Cost Analysis Data
+   154→  CostAnalysisData? costAnalysisData;
+   155→
+   156→  // Cost Estimate Data
+   157→  List<CostEstimateItem> costEstimateItems;
+   158→  double managementReserve;
+   159→
+   160→  // IT Considerations Data
+   161→  ITConsiderationsData? itConsiderationsData;
+   162→
+   163→  // Infrastructure Considerations Data
+   164→  InfrastructureConsiderationsData? infrastructureConsiderationsData;
+   165→
+   166→  // Core Stakeholders Data
+   167→  CoreStakeholdersData? coreStakeholdersData;
+   168→
+   169→  // Organisation Plan Data
+   170→  List<RoleDefinition> projectRoles;
+   171→  List<RaciMatrixRow> raciMatrixRows;
+   172→  List<StaffingRequirement> staffingRequirements;
+   173→  List<InfrastructurePlanningItem> planningInfrastructureItems;
+   174→  List<TrainingActivity> trainingActivities;
+   175→
+   176→  // Design Deliverables Data
+   177→  DesignDeliverablesData designDeliverablesData;
+   178→
+   179→  // Design Management Data
+   180→  DesignManagementData? designManagementData;
+   181→
+   182→  // Execution Phase Data
+   183→  ExecutionPhaseData? executionPhaseData;
+   184→
+   185→  // Monitoring & Controls Data
+   186→  MonitoringControlsData? monitoringControls;
+   187→
+   188→  // Launch Phase Data
+   189→  LaunchPhaseData? launchPhaseData;
+   190→
+   191→  // Stakeholder Management Data
+   192→  List<StakeholderEntry> stakeholderEntries;
+   193→  List<EngagementPlanEntry> engagementPlanEntries;
+   194→
+   195→  // Quality Management Data
+   196→  QualityManagementData? qualityManagementData;
+   197→
+   198→  // Page-level review confirmation tracking
+   199→  Set<String> confirmedPages = <String>{};
+   200→
+   201→  // ── Planning Phase: Contract Tracking ──
+   202→  List<PlanningContract> planningContracts = [];
+   203→
+   204→  // ── Planning Phase: Personnel Rate Cards ──
+   205→  List<RateCard> rateCards = [];
+   206→
+   207→  // ── Planning Phase: Cost of Quality ──
+   208→  CostOfQualityData? costOfQualityData;
+   209→
+   210→  // ── Organisation Plan: Base Configuration ──
+   211→  String orgStaffingSource =
+   212→      ''; // 'Internal Department' | 'External Hire' | 'Contractor Pool' | 'Mixed'
+   213→  String orgWorkingHours = '40 hours/week'; // e.g., '40 hours/week'
+   214→  String orgLocation = ''; // 'Office' | 'Remote' | 'Hybrid' | 'Multi-site'
+   215→  String orgCommunicationMode = ''; // e.g., 'Email, Meetings, Slack'
+   216→
+   217→  // Control Accounts
+   218→  List<ControlAccount> controlAccounts;
+   219→
+   220→  // OBS and CBS
+   221→  List<ObsElement> obsElements;
+   222→  List<CbsElement> cbsElements;
+   223→
+   224→  // ── P2.5: Project-level EVM aggregate fields ──
+   225→  /// Aggregate Budget at Completion (sum of all control account BACs).
+   226→  double aggregateBac;
+   227→
+   228→  /// Aggregate Planned Value to date.
+   229→  double aggregatePlannedValue;
+   230→
+   231→  /// Aggregate Earned Value.
+   232→  double aggregateEarnedValue;
+   233→
+   234→  /// Aggregate Actual Cost.
+   235→  double aggregateActualCost;
+   236→
+   237→  /// Aggregate CPI (Cost Performance Index).
+   238→  double aggregateCpi;
+   239→
+   240→  /// Aggregate SPI (Schedule Performance Index).
+   241→  double aggregateSpi;
+   242→
+   243→  /// Aggregate EAC (Estimate at Completion).
+   244→  double aggregateEac;
+   245→
+   246→  /// Aggregate ETC (Estimate to Complete).
+   247→  double aggregateEtc;
+   248→
+   249→  /// Aggregate VAC (Variance at Completion).
+   250→  double aggregateVac;
+   251→
+   252→  /// Aggregate CV (Cost Variance).
+   253→  double aggregateCv;
+   254→
+   255→  /// Aggregate SV (Schedule Variance).
+   256→  double aggregateSv;
+   257→
+   258→  /// Aggregate TCPI (To-Complete Performance Index).
+   259→  double aggregateTcpi;
+   260→
+   261→  /// Last time project-level EVM was recalculated.
+   262→  DateTime? evmLastRecalculated;
+   263→
+   264→  // Metadata
+   265→  bool isBasicPlanProject;
+   266→  Map<String, int> aiUsageCounts;
+   267→
+   268→  List<Map<String, dynamic>> aiIntegrations;
+   269→  List<Map<String, dynamic>> externalIntegrations;
+   270→  List<Map<String, dynamic>> aiRecommendations;
+   271→  String? projectId;
+   272→  DateTime? createdAt;
+   273→  DateTime? updatedAt;
+   274→  String currentCheckpoint;
+   275→
+   276→  // Field History Tracking for Undo functionality
+   277→  Map<String, FieldHistory> fieldHistories;
+   278→
+   279→  // Currency setting for Cost-Benefit Analysis
+   280→  String costBenefitCurrency;
+   281→
+   282→  // Preferred Solution Reference
+   283→  String? preferredSolutionId;
+   284→
+   285→  ProjectDataModel({
+   286→    this.projectName = '',
+   287→    this.solutionTitle = '',
+   288→    this.solutionDescription = '',
+   289→    this.businessCase = '',
+   290→    this.notes = '',
+   291→    this.charterAssumptions = '',
+   292→    this.charterConstraints = '',
+   293→    this.charterProjectManagerName = '',
+   294→    this.charterProjectSponsorName = '',
+   295→    this.charterProjectSponsorEmail = '',
+   296→    this.charterApprovalRequestedToName = '',
+   297→    this.charterApprovalRequestedToEmail = '',
+   298→    this.charterApprovalRequestedToRole = '',
+   299→    this.charterApprovalRequestedAt,
+   300→    this.charterReviewedBy = '',
+   301→    this.charterApprovalDate,
+   302→    this.designManagementData,
+   303→    this.charterEmail = '',
+   304→    this.charterPhone = '',
+   305→    this.charterOrganizationalUnit = '',
+   306→    this.charterGreenBelt = '',
+   307→    this.charterBlackBelt = '',
+   308→    this.tags = const [],
+   309→    List<Contractor>? contractors,
+   310→    List<Vendor>? vendors,
+   311→    List<PotentialSolution>? potentialSolutions,
+   312→    List<SolutionRisk>? solutionRisks,
+   313→    this.preferredSolutionAnalysis,
+   314→    this.overallFramework,
+   315→    List<ProjectGoal>? projectGoals,
+   316→    this.potentialSolution = '',
+   317→    this.projectObjective = '',
+   318→    List<PlanningGoal>? planningGoals,
+   319→    List<Milestone>? keyMilestones,
+   320→    Map<String, String>? planningNotes,
+   321→    Map<String, String>? riskMitigationPlans,
+   322→    List<ExecutionRiskItem>? executionRiskItems,
+   323→    List<ExecutionRiskSignal>? executionRiskSignals,
+   324→    List<ExecutionRiskMitigation>? executionRiskMitigations,
+   325→    List<InterfaceEntry>? interfaceEntries,
+   326→    List<InterfaceChangeLogEntry>? interfaceChangeLog,
+   327→    List<ScheduleActivity>? scheduleActivities,
+   328→    List<ScheduleActivity>? scheduleBaselineActivities,
+   329→    String? scheduleBaselineDate,
+   330→    List<PlanningRequirementItem>? planningRequirementItems,
+   331→    this.planningRequirementsNotes = '',
+   332→    this.wbsCriteriaA,
+   333→    this.wbsCriteriaB,
+   334→    List<String>? assumptions,
+   335→    List<String>? constraints,
+   336→    List<String>? withinScope,
+   337→    List<String>? outOfScope,
+   338→    List<String>? opportunities,
+   339→    List<List<WorkItem>>? goalWorkItems,
+   340→    List<WorkItem>? wbsTree,
+   341→    List<ProjectActivity>? projectActivities,
+   342→    List<ProjectActivity>? customProjectActivities,
+   343→    List<String>? hiddenProjectActivityIds,
+   344→    List<IssueLogItem>? issueLogItems,
+   345→    List<LessonRecord>? lessonsLearned,
+   346→    List<Map<String, dynamic>>? technologyDefinitions,
+   347→    List<Map<String, dynamic>>? technologyInventory,
+   348→    FrontEndPlanningData? frontEndPlanning,
+   349→    SSHERData? ssherData,
+   350→    List<TeamMember>? teamMembers,
+   351→    List<LaunchChecklistItem>? launchChecklistItems,
+   352→    this.costAnalysisData,
+   353→    List<CostEstimateItem>? costEstimateItems,
+   354→    this.managementReserve = 0.0,
+   355→    List<WorkPackage>? workPackages,
+   356→    this.itConsiderationsData,
+   357→    this.infrastructureConsiderationsData,
+   358→    this.coreStakeholdersData,
+   359→    List<RoleDefinition>? projectRoles,
+   360→    List<RaciMatrixRow>? raciMatrixRows,
+   361→    List<StaffingRequirement>? staffingRequirements,
+   362→    List<InfrastructurePlanningItem>? planningInfrastructureItems,
+   363→    List<TrainingActivity>? trainingActivities,
+   364→    DesignDeliverablesData? designDeliverablesData,
+   365→    this.isBasicPlanProject = false,
+   366→    Map<String, int>? aiUsageCounts,
+   367→    List<Map<String, dynamic>>? aiIntegrations,
+   368→    List<Map<String, dynamic>>? externalIntegrations,
+   369→    List<Map<String, dynamic>>? aiRecommendations,
+   370→    List<StakeholderEntry>? stakeholderEntries,
+   371→    List<EngagementPlanEntry>? engagementPlanEntries,
+   372→    this.qualityManagementData,
+   373→    this.executionPhaseData,
+   374→    this.projectId,
+   375→    this.createdAt,
+   376→    this.updatedAt,
+   377→    this.currentCheckpoint = 'initiation',
+   378→    Map<String, FieldHistory>? fieldHistories,
+   379→    this.monitoringControls,
+   380→    this.launchPhaseData,
+   381→    String? costBenefitCurrency,
+   382→    this.preferredSolutionId,
+   383→    List<PlanningDashboardItem>? withinScopeItems,
+   384→    List<PlanningDashboardItem>? outOfScopeItems,
+   385→    List<PlanningDashboardItem>? assumptionItems,
+   386→    List<PlanningDashboardItem>? constraintItems,
+   387→    List<ControlAccount>? controlAccounts,
+   388→    List<ObsElement>? obsElements,
+   389→    List<CbsElement>? cbsElements,
+   390→    this.aggregateBac = 0,
+   391→    this.aggregatePlannedValue = 0,
+   392→    this.aggregateEarnedValue = 0,
+   393→    this.aggregateActualCost = 0,
+   394→    this.aggregateCpi = 1.0,
+   395→    this.aggregateSpi = 1.0,
+   396→    this.aggregateEac = 0,
+   397→    this.aggregateEtc = 0,
+   398→    this.aggregateVac = 0,
+   399→    this.aggregateCv = 0,
+   400→    this.aggregateSv = 0,
+   401→    this.aggregateTcpi = 0,
+   402→    this.evmLastRecalculated,
+   403→    Set<String>? confirmedPages,
+   404→    // Planning Phase: Contract Tracking
+   405→    List<PlanningContract>? planningContracts,
+   406→    // Planning Phase: Personnel Rate Cards
+   407→    List<RateCard>? rateCards,
+   408→    // Planning Phase: Cost of Quality
+   409→    this.costOfQualityData,
+   410→    // Organisation Plan: Base Configuration
+   411→    this.orgStaffingSource = '',
+   412→    this.orgWorkingHours = '40 hours/week',
+   413→    this.orgLocation = '',
+   414→    this.orgCommunicationMode = '',
+   415→  }) : confirmedPages = confirmedPages ?? <String>{},
+   416→       planningContracts = planningContracts ?? [],
+   417→       rateCards = rateCards ?? [],
+   418→       potentialSolutions = potentialSolutions ?? [],
+   419→       solutionRisks = solutionRisks ?? [],
+   420→       contractors = contractors ?? [],
+   421→       vendors = vendors ?? [],
+   422→       projectGoals = (projectGoals ?? []).take(maxProjectGoals).toList(),
+   423→       opportunities = opportunities ?? [],
+   424→       planningGoals =
+   425→           planningGoals ??
+   426→           List.generate(3, (i) => PlanningGoal(goalNumber: i + 1)),
+   427→       keyMilestones = keyMilestones ?? [],
+   428→       planningNotes = planningNotes ?? {},
+   429→       riskMitigationPlans = riskMitigationPlans ?? {},
+   430→       executionRiskItems = executionRiskItems ?? [],
+   431→       executionRiskSignals = executionRiskSignals ?? [],
+   432→       executionRiskMitigations = executionRiskMitigations ?? [],
+   433→       interfaceEntries = interfaceEntries ?? [],
+   434→       interfaceChangeLog = interfaceChangeLog ?? [],
+   435→       scheduleActivities = scheduleActivities ?? [],
+   436→       scheduleBaselineActivities = scheduleBaselineActivities ?? [],
+   437→       scheduleBaselineDate = scheduleBaselineDate ?? '',
+   438→       planningRequirementItems = planningRequirementItems ?? [],
+   439→       goalWorkItems = goalWorkItems ?? List.generate(3, (_) => []),
+   440→       wbsTree = wbsTree ?? [],
+   441→       projectActivities = projectActivities ?? [],
+   442→       customProjectActivities = customProjectActivities ?? [],
+   443→       hiddenProjectActivityIds = hiddenProjectActivityIds ?? [],
+   444→       issueLogItems = issueLogItems ?? [],
+   445→       lessonsLearned = lessonsLearned ?? [],
+   446→       technologyDefinitions = technologyDefinitions ?? [],
+   447→       technologyInventory = technologyInventory ?? [],
+   448→       frontEndPlanning = frontEndPlanning ?? FrontEndPlanningData(),
+   449→       ssherData = ssherData ?? SSHERData(),
+   450→       teamMembers = teamMembers ?? [],
+   451→       launchChecklistItems = launchChecklistItems ?? [],
+   452→       costEstimateItems = costEstimateItems ?? [],
+   453→       workPackages = workPackages ?? [],
+   454→       controlAccounts = controlAccounts ?? [],
+   455→       obsElements = obsElements ?? [],
+   456→       cbsElements = cbsElements ?? [],
+   457→       designDeliverablesData =
+   458→           designDeliverablesData ?? DesignDeliverablesData(),
+   459→       projectRoles = projectRoles ?? [],
+   460→       raciMatrixRows = raciMatrixRows ?? [],
+   461→       staffingRequirements = staffingRequirements ?? [],
+   462→       planningInfrastructureItems = planningInfrastructureItems ?? [],
+   463→       trainingActivities = trainingActivities ?? [],
+   464→       aiUsageCounts = aiUsageCounts ?? {},
+   465→       aiIntegrations = aiIntegrations ?? [],
+   466→       externalIntegrations = externalIntegrations ?? [],
+   467→       aiRecommendations = aiRecommendations ?? [],
+   468→       stakeholderEntries = stakeholderEntries ?? [],
+   469→       engagementPlanEntries = engagementPlanEntries ?? [],
+   470→       fieldHistories = fieldHistories ?? {},
+   471→       costBenefitCurrency = costBenefitCurrency ?? 'USD',
+   472→       withinScopeItems =
+   473→           withinScopeItems ??
+   474→           (withinScope
+   475→                   ?.map((e) => PlanningDashboardItem(description: e))
+   476→                   .toList() ??
+   477→               []),
+   478→       outOfScopeItems =
+   479→           outOfScopeItems ??
+   480→           (outOfScope
+   481→                   ?.map((e) => PlanningDashboardItem(description: e))
+   482→                   .toList() ??
+   483→               []),
+   484→       assumptionItems =
+   485→           assumptionItems ??
+   486→           (assumptions
+   487→                   ?.map((e) => PlanningDashboardItem(description: e))
+   488→                   .toList() ??
+   489→               []),
+   490→       constraintItems =
+   491→           constraintItems ??
+   492→           (constraints
+   493→                   ?.map((e) => PlanningDashboardItem(description: e))
+   494→                   .toList() ??
+   495→               []);
+   496→
+   497→  ProjectDataModel copyWith({
+   498→    String? projectName,
+   499→    String? solutionTitle,
+   500→    String? solutionDescription,
+   501→    String? businessCase,
+   502→    String? notes,
+   503→    // Legacy args (kept for compatibility in signature, but we prioritize new fields)
+   504→    List<String>? assumptions,
+   505→    List<String>? constraints,
+   506→    List<String>? withinScope,
+   507→    List<String>? outOfScope,
+   508→    List<String>? opportunities,
+   509→    String? charterAssumptions,
+   510→    String? charterConstraints,
+   511→    String? charterProjectManagerName,
+   512→    String? charterProjectSponsorName,
+   513→    String? charterProjectSponsorEmail,
+   514→    String? charterApprovalRequestedToName,
+   515→    String? charterApprovalRequestedToEmail,
+   516→    String? charterApprovalRequestedToRole,
+   517→    DateTime? charterApprovalRequestedAt,
+   518→    String? charterReviewedBy,
+   519→    DateTime? charterApprovalDate,
+   520→    String? charterEmail,
+   521→    String? charterPhone,
+   522→    String? charterOrganizationalUnit,
+   523→    String? charterGreenBelt,
+   524→    String? charterBlackBelt,
+   525→    List<String>? tags,
+   526→    List<Contractor>? contractors,
+   527→    List<Vendor>? vendors,
+   528→    List<PotentialSolution>? potentialSolutions,
+   529→    List<SolutionRisk>? solutionRisks,
+   530→    PreferredSolutionAnalysis? preferredSolutionAnalysis,
+   531→    String? overallFramework,
+   532→    List<ProjectGoal>? projectGoals,
+   533→    String? potentialSolution,
+   534→    String? projectObjective,
+   535→    List<PlanningGoal>? planningGoals,
+   536→    List<Milestone>? keyMilestones,
+   537→    Map<String, String>? planningNotes,
+   538→    Map<String, String>? riskMitigationPlans,
+   539→    List<ExecutionRiskItem>? executionRiskItems,
+   540→    List<ExecutionRiskSignal>? executionRiskSignals,
+   541→    List<ExecutionRiskMitigation>? executionRiskMitigations,
+   542→    List<PlanningRequirementItem>? planningRequirementItems,
+   543→    String? planningRequirementsNotes,
+   544→    String? wbsCriteriaA,
+   545→    String? wbsCriteriaB,
+   546→    List<List<WorkItem>>? goalWorkItems,
+   547→    List<WorkItem>? wbsTree,
+   548→    List<ProjectActivity>? projectActivities,
+   549→    List<ProjectActivity>? customProjectActivities,
+   550→    List<String>? hiddenProjectActivityIds,
+   551→    List<IssueLogItem>? issueLogItems,
+   552→    List<LessonRecord>? lessonsLearned,
+   553→    FrontEndPlanningData? frontEndPlanning,
+   554→    List<Map<String, dynamic>>? technologyDefinitions,
+   555→    List<Map<String, dynamic>>? technologyInventory,
+   556→    SSHERData? ssherData,
+   557→    List<TeamMember>? teamMembers,
+   558→    List<LaunchChecklistItem>? launchChecklistItems,
+   559→    CostAnalysisData? costAnalysisData,
+   560→    List<CostEstimateItem>? costEstimateItems,
+   561→    double? managementReserve,
+   562→    ITConsiderationsData? itConsiderationsData,
+   563→    InfrastructureConsiderationsData? infrastructureConsiderationsData,
+   564→    CoreStakeholdersData? coreStakeholdersData,
+   565→    List<RoleDefinition>? projectRoles,
+   566→    List<RaciMatrixRow>? raciMatrixRows,
+   567→    List<StaffingRequirement>? staffingRequirements,
+   568→    List<InfrastructurePlanningItem>? planningInfrastructureItems,
+   569→    List<TrainingActivity>? trainingActivities,
+   570→    DesignDeliverablesData? designDeliverablesData,
+   571→    DesignManagementData? designManagementData,
+   572→    ExecutionPhaseData? executionPhaseData,
+   573→    MonitoringControlsData? monitoringControls,
+   574→    LaunchPhaseData? launchPhaseData,
+   575→    bool? isBasicPlanProject,
+   576→    Map<String, int>? aiUsageCounts,
+   577→    List<Map<String, dynamic>>? aiIntegrations,
+   578→    List<Map<String, dynamic>>? externalIntegrations,
+   579→    List<Map<String, dynamic>>? aiRecommendations,
+   580→    String? projectId,
+   581→    DateTime? createdAt,
+   582→    DateTime? updatedAt,
+   583→    String? currentCheckpoint,
+   584→    Map<String, FieldHistory>? fieldHistories,
+   585→    String? costBenefitCurrency,
+   586→    String? preferredSolutionId,
+   587→    List<StakeholderEntry>? stakeholderEntries,
+   588→    List<EngagementPlanEntry>? engagementPlanEntries,
+   589→    QualityManagementData? qualityManagementData,
+   590→    Set<String>? confirmedPages,
+   591→    // Planning Phase: Contract Tracking
+   592→    List<PlanningContract>? planningContracts,
+   593→    // Planning Phase: Personnel Rate Cards
+   594→    List<RateCard>? rateCards,
+   595→    // Planning Phase: Cost of Quality
+   596→    CostOfQualityData? costOfQualityData,
+   597→    // Organisation Plan: Base Configuration
+   598→    String? orgStaffingSource,
+   599→    String? orgWorkingHours,
+   600→    String? orgLocation,
+   601→    String? orgCommunicationMode,
+   602→    List<ControlAccount>? controlAccounts,
+   603→    List<ObsElement>? obsElements,
+   604→    List<CbsElement>? cbsElements,
+   605→    double? aggregateBac,
+   606→    double? aggregatePlannedValue,
+   607→    double? aggregateEarnedValue,
+   608→    double? aggregateActualCost,
+   609→    double? aggregateCpi,
+   610→    double? aggregateSpi,
+   611→    double? aggregateEac,
+   612→    double? aggregateEtc,
+   613→    double? aggregateVac,
+   614→    double? aggregateCv,
+   615→    double? aggregateSv,
+   616→    double? aggregateTcpi,
+   617→    DateTime? evmLastRecalculated,
+   618→
+   619→    // New Fields
+   620→    List<PlanningDashboardItem>? withinScopeItems,
+   621→    List<PlanningDashboardItem>? outOfScopeItems,
+   622→    List<PlanningDashboardItem>? assumptionItems,
+   623→    List<PlanningDashboardItem>? constraintItems,
+   624→    List<InterfaceEntry>? interfaceEntries,
+   625→    List<InterfaceChangeLogEntry>? interfaceChangeLog,
+   626→    List<ScheduleActivity>? scheduleActivities,
+   627→    List<ScheduleActivity>? scheduleBaselineActivities,
+   628→    String? scheduleBaselineDate,
+   629→    List<WorkPackage>? workPackages,
+   630→  }) {
+   631→    List<PlanningDashboardItem> resolveDashboardItems({
+   632→      required List<PlanningDashboardItem>? explicitItems,
+   633→      required List<String>? legacyItems,
+   634→      required List<PlanningDashboardItem> currentItems,
+   635→    }) {
+   636→      if (explicitItems != null) return explicitItems;
+   637→      if (legacyItems != null) {
+   638→        return legacyItems
+   639→            .map((entry) => PlanningDashboardItem(description: entry))
+   640→            .toList();
+   641→      }
+   642→      return currentItems;
+   643→    }
+   644→
+   645→    return ProjectDataModel(
+   646→      projectName: projectName ?? this.projectName,
+   647→      solutionTitle: solutionTitle ?? this.solutionTitle,
+   648→      solutionDescription: solutionDescription ?? this.solutionDescription,
+   649→      businessCase: businessCase ?? this.businessCase,
+   650→      notes: notes ?? this.notes,
+   651→      // Pass legacy args if provided. The constructor handles mapping them to items if items aren't provided.
+   652→      assumptions: assumptions,
+   653→      constraints: constraints,
+   654→      withinScope: withinScope,
+   655→      outOfScope: outOfScope,
+   656→
+   657→      opportunities: opportunities ?? this.opportunities,
+   658→      charterAssumptions: charterAssumptions ?? this.charterAssumptions,
+   659→      charterConstraints: charterConstraints ?? this.charterConstraints,
+   660→      charterProjectManagerName:
+   661→          charterProjectManagerName ?? this.charterProjectManagerName,
+   662→      charterProjectSponsorName:
+   663→          charterProjectSponsorName ?? this.charterProjectSponsorName,
+   664→      charterProjectSponsorEmail:
+   665→          charterProjectSponsorEmail ?? this.charterProjectSponsorEmail,
+   666→      charterApprovalRequestedToName:
+   667→          charterApprovalRequestedToName ?? this.charterApprovalRequestedToName,
+   668→      charterApprovalRequestedToEmail:
+   669→          charterApprovalRequestedToEmail ??
+   670→          this.charterApprovalRequestedToEmail,
+   671→      charterApprovalRequestedToRole:
+   672→          charterApprovalRequestedToRole ?? this.charterApprovalRequestedToRole,
+   673→      charterApprovalRequestedAt:
+   674→          charterApprovalRequestedAt ?? this.charterApprovalRequestedAt,
+   675→      charterReviewedBy: charterReviewedBy ?? this.charterReviewedBy,
+   676→      charterApprovalDate: charterApprovalDate ?? this.charterApprovalDate,
+   677→      designManagementData: designManagementData ?? this.designManagementData,
+   678→      charterEmail: charterEmail ?? this.charterEmail,
+   679→      charterPhone: charterPhone ?? this.charterPhone,
+   680→      charterOrganizationalUnit:
+   681→          charterOrganizationalUnit ?? this.charterOrganizationalUnit,
+   682→      charterGreenBelt: charterGreenBelt ?? this.charterGreenBelt,
+   683→      charterBlackBelt: charterBlackBelt ?? this.charterBlackBelt,
+   684→      tags: tags ?? this.tags,
+   685→      contractors: contractors ?? this.contractors,
+   686→      vendors: vendors ?? this.vendors,
+   687→      potentialSolutions: potentialSolutions ?? this.potentialSolutions,
+   688→      solutionRisks: solutionRisks ?? this.solutionRisks,
+   689→      preferredSolutionAnalysis:
+   690→          preferredSolutionAnalysis ?? this.preferredSolutionAnalysis,
+   691→      overallFramework: overallFramework ?? this.overallFramework,
+   692→      projectGoals:
+   693→          (projectGoals ?? this.projectGoals).take(maxProjectGoals).toList(),
+   694→      potentialSolution: potentialSolution ?? this.potentialSolution,
+   695→      projectObjective: projectObjective ?? this.projectObjective,
+   696→      planningGoals: planningGoals ?? this.planningGoals,
+   697→      keyMilestones: keyMilestones ?? this.keyMilestones,
+   698→      planningNotes: planningNotes ?? this.planningNotes,
+   699→      riskMitigationPlans: riskMitigationPlans ?? this.riskMitigationPlans,
+   700→      executionRiskItems: executionRiskItems ?? this.executionRiskItems,
+   701→      executionRiskSignals: executionRiskSignals ?? this.executionRiskSignals,
+   702→      executionRiskMitigations:
+   703→          executionRiskMitigations ?? this.executionRiskMitigations,
+   704→      interfaceEntries: interfaceEntries ?? this.interfaceEntries,
+   705→      interfaceChangeLog: interfaceChangeLog ?? this.interfaceChangeLog,
+   706→      scheduleActivities: scheduleActivities ?? this.scheduleActivities,
+   707→      scheduleBaselineActivities:
+   708→          scheduleBaselineActivities ?? this.scheduleBaselineActivities,
+   709→      scheduleBaselineDate: scheduleBaselineDate ?? this.scheduleBaselineDate,
+   710→      workPackages: workPackages ?? this.workPackages,
+   711→      planningRequirementItems:
+   712→          planningRequirementItems ?? this.planningRequirementItems,
+   713→      planningRequirementsNotes:
+   714→          planningRequirementsNotes ?? this.planningRequirementsNotes,
+   715→      wbsCriteriaA: wbsCriteriaA ?? this.wbsCriteriaA,
+   716→      wbsCriteriaB: wbsCriteriaB ?? this.wbsCriteriaB,
+   717→      goalWorkItems: goalWorkItems ?? this.goalWorkItems,
+   718→      wbsTree: wbsTree ?? this.wbsTree,
+   719→      projectActivities: projectActivities ?? this.projectActivities,
+   720→      customProjectActivities:
+   721→          customProjectActivities ?? this.customProjectActivities,
+   722→      hiddenProjectActivityIds:
+   723→          hiddenProjectActivityIds ?? this.hiddenProjectActivityIds,
+   724→      issueLogItems: issueLogItems ?? this.issueLogItems,
+   725→      lessonsLearned: lessonsLearned ?? this.lessonsLearned,
+   726→      technologyDefinitions:
+   727→          technologyDefinitions ?? this.technologyDefinitions,
+   728→      technologyInventory: technologyInventory ?? this.technologyInventory,
+   729→      frontEndPlanning: frontEndPlanning ?? this.frontEndPlanning,
+   730→      ssherData: ssherData ?? this.ssherData,
+   731→      teamMembers: teamMembers ?? this.teamMembers,
+   732→      launchChecklistItems: launchChecklistItems ?? this.launchChecklistItems,
+   733→      costAnalysisData: costAnalysisData ?? this.costAnalysisData,
+   734→      costEstimateItems: costEstimateItems ?? this.costEstimateItems,
+   735→      managementReserve: managementReserve ?? this.managementReserve,
+   736→      itConsiderationsData: itConsiderationsData ?? this.itConsiderationsData,
+   737→      infrastructureConsiderationsData:
+   738→          infrastructureConsiderationsData ??
+   739→          this.infrastructureConsiderationsData,
+   740→      coreStakeholdersData: coreStakeholdersData ?? this.coreStakeholdersData,
+   741→      projectRoles: projectRoles ?? this.projectRoles,
+   742→      raciMatrixRows: raciMatrixRows ?? this.raciMatrixRows,
+   743→      staffingRequirements: staffingRequirements ?? this.staffingRequirements,
+   744→      planningInfrastructureItems:
+   745→          planningInfrastructureItems ?? this.planningInfrastructureItems,
+   746→      trainingActivities: trainingActivities ?? this.trainingActivities,
+   747→      designDeliverablesData:
+   748→          designDeliverablesData ?? this.designDeliverablesData,
+   749→      executionPhaseData: executionPhaseData ?? this.executionPhaseData,
+   750→      monitoringControls: monitoringControls ?? this.monitoringControls,
+   751→      launchPhaseData: launchPhaseData ?? this.launchPhaseData,
+   752→      isBasicPlanProject: isBasicPlanProject ?? this.isBasicPlanProject,
+   753→      aiUsageCounts: aiUsageCounts ?? this.aiUsageCounts,
+   754→      aiIntegrations: aiIntegrations ?? this.aiIntegrations,
+   755→      externalIntegrations: externalIntegrations ?? this.externalIntegrations,
+   756→      aiRecommendations: aiRecommendations ?? this.aiRecommendations,
+   757→      projectId: projectId ?? this.projectId,
+   758→      createdAt: createdAt ?? this.createdAt,
+   759→      updatedAt: updatedAt ?? this.updatedAt,
+   760→      currentCheckpoint: currentCheckpoint ?? this.currentCheckpoint,
+   761→      fieldHistories: fieldHistories ?? this.fieldHistories,
+   762→      costBenefitCurrency: costBenefitCurrency ?? this.costBenefitCurrency,
+   763→      preferredSolutionId: preferredSolutionId ?? this.preferredSolutionId,
+   764→      stakeholderEntries: stakeholderEntries ?? this.stakeholderEntries,
+   765→      engagementPlanEntries:
+   766→          engagementPlanEntries ?? this.engagementPlanEntries,
+   767→      qualityManagementData:
+   768→          qualityManagementData ?? this.qualityManagementData,
+   769→      confirmedPages: confirmedPages ?? this.confirmedPages,
+   770→      planningContracts: planningContracts ?? this.planningContracts,
+   771→      rateCards: rateCards ?? this.rateCards,
+   772→      costOfQualityData: costOfQualityData ?? this.costOfQualityData,
+   773→      orgStaffingSource: orgStaffingSource ?? this.orgStaffingSource,
+   774→      orgWorkingHours: orgWorkingHours ?? this.orgWorkingHours,
+   775→      orgLocation: orgLocation ?? this.orgLocation,
+   776→      orgCommunicationMode: orgCommunicationMode ?? this.orgCommunicationMode,
+   777→      controlAccounts: controlAccounts ?? this.controlAccounts,
+   778→      obsElements: obsElements ?? this.obsElements,
+   779→      cbsElements: cbsElements ?? this.cbsElements,
+   780→      aggregateBac: aggregateBac ?? this.aggregateBac,
+   781→      aggregatePlannedValue:
+   782→          aggregatePlannedValue ?? this.aggregatePlannedValue,
+   783→      aggregateEarnedValue: aggregateEarnedValue ?? this.aggregateEarnedValue,
+   784→      aggregateActualCost: aggregateActualCost ?? this.aggregateActualCost,
+   785→      aggregateCpi: aggregateCpi ?? this.aggregateCpi,
+   786→      aggregateSpi: aggregateSpi ?? this.aggregateSpi,
+   787→      aggregateEac: aggregateEac ?? this.aggregateEac,
+   788→      aggregateEtc: aggregateEtc ?? this.aggregateEtc,
+   789→      aggregateVac: aggregateVac ?? this.aggregateVac,
+   790→      aggregateCv: aggregateCv ?? this.aggregateCv,
+   791→      aggregateSv: aggregateSv ?? this.aggregateSv,
+   792→      aggregateTcpi: aggregateTcpi ?? this.aggregateTcpi,
+   793→      evmLastRecalculated: evmLastRecalculated ?? this.evmLastRecalculated,
+   794→
+   795→      // New Fields copy
+   796→      withinScopeItems: resolveDashboardItems(
+   797→        explicitItems: withinScopeItems,
+   798→        legacyItems: withinScope,
+   799→        currentItems: this.withinScopeItems,
+   800→      ),
+   801→      outOfScopeItems: resolveDashboardItems(
+   802→        explicitItems: outOfScopeItems,
+   803→        legacyItems: outOfScope,
+   804→        currentItems: this.outOfScopeItems,
+   805→      ),
+   806→      assumptionItems: resolveDashboardItems(
+   807→        explicitItems: assumptionItems,
+   808→        legacyItems: assumptions,
+   809→        currentItems: this.assumptionItems,
+   810→      ),
+   811→      constraintItems: resolveDashboardItems(
+   812→        explicitItems: constraintItems,
+   813→        legacyItems: constraints,
+   814→        currentItems: this.constraintItems,
+   815→      ),
+   816→    );
+   817→  }
+   818→
+   819→  Map<String, dynamic> toJson() {
+   820→    // Flatten goalWorkItems to avoid nested arrays (Firestore doesn't support nested arrays)
+   821→    final flattenedWorkItems = <Map<String, dynamic>>[];
+   822→    for (int goalIndex = 0; goalIndex < goalWorkItems.length; goalIndex++) {
+   823→      for (final item in goalWorkItems[goalIndex]) {
+   824→        flattenedWorkItems.add({...item.toJson(), 'goalIndex': goalIndex});
+   825→      }
+   826→    }
+   827→
+   828→    return {
+   829→      'name': projectName, // Map to 'name' for ProjectService compatibility
+   830→      'projectName': projectName,
+   831→      'solutionTitle': solutionTitle,
+   832→      'solutionDescription': solutionDescription,
+   833→      'businessCase': businessCase,
+   834→      'notes': notes,
+   835→      'assumptions': assumptions,
+   836→      'constraints': constraints,
+   837→      'withinScope': withinScope,
+   838→      'outOfScope': outOfScope,
+   839→      'opportunities': opportunities,
+   840→      'charterAssumptions': charterAssumptions,
+   841→      'charterConstraints': charterConstraints,
+   842→      'charterProjectManagerName': charterProjectManagerName,
+   843→      'charterProjectSponsorName': charterProjectSponsorName,
+   844→      'charterProjectSponsorEmail': charterProjectSponsorEmail,
+   845→      'charterApprovalRequestedToName': charterApprovalRequestedToName,
+   846→      'charterApprovalRequestedToEmail': charterApprovalRequestedToEmail,
+   847→      'charterApprovalRequestedToRole': charterApprovalRequestedToRole,
+   848→      'charterApprovalRequestedAt': charterApprovalRequestedAt
+   849→          ?.toIso8601String(),
+   850→      'charterReviewedBy': charterReviewedBy,
+   851→      'charterApprovalDate': charterApprovalDate?.toIso8601String(),
+   852→      'charterEmail': charterEmail,
+   853→      'charterPhone': charterPhone,
+   854→      'charterOrganizationalUnit': charterOrganizationalUnit,
+   855→      'charterGreenBelt': charterGreenBelt,
+   856→      'charterBlackBelt': charterBlackBelt,
+   857→      'tags': tags,
+   858→      'contractors': contractors.map((c) => c.toJson()).toList(),
+   859→      'vendors': vendors.map((v) => v.toJson()).toList(),
+   860→      'potentialSolutions': potentialSolutions.map((s) => s.toJson()).toList(),
+   861→      'solutionRisks': solutionRisks.map((r) => r.toJson()).toList(),
+   862→      'preferredSolutionAnalysis': preferredSolutionAnalysis?.toJson(),
+   863→      'overallFramework': overallFramework,
+   864→      'projectGoals': projectGoals.map((g) => g.toJson()).toList(),
+   865→      'potentialSolution': potentialSolution,
+   866→      'projectObjective': projectObjective,
+   867→      'planningGoals': planningGoals.map((g) => g.toJson()).toList(),
+   868→      'keyMilestones': keyMilestones.map((m) => m.toJson()).toList(),
+   869→      'planningNotes': planningNotes,
+   870→      'riskMitigationPlans': riskMitigationPlans,
+   871→      'executionRiskItems': executionRiskItems
+   872→          .map((item) => item.toJson())
+   873→          .toList(),
+   874→      'executionRiskSignals': executionRiskSignals
+   875→          .map((item) => item.toJson())
+   876→          .toList(),
+   877→      'executionRiskMitigations': executionRiskMitigations
+   878→          .map((item) => item.toJson())
+   879→          .toList(),
+   880→      'interfaceEntries': interfaceEntries
+   881→          .map((entry) => entry.toJson())
+   882→          .toList(),
+   883→      'interfaceChangeLog': interfaceChangeLog
+   884→          .map((entry) => entry.toJson())
+   885→          .toList(),
+   886→      'scheduleActivities': scheduleActivities
+   887→          .map((activity) => activity.toJson())
+   888→          .toList(),
+   889→      'scheduleBaselineActivities': scheduleBaselineActivities
+   890→          .map((activity) => activity.toJson())
+   891→          .toList(),
+   892→      'scheduleBaselineDate': scheduleBaselineDate,
+   893→      'planningRequirementItems': planningRequirementItems
+   894→          .map((e) => e.toJson())
+   895→          .toList(),
+   896→      'planningRequirementsNotes': planningRequirementsNotes,
+   897→      'wbsCriteriaA': wbsCriteriaA,
+   898→      'wbsCriteriaB': wbsCriteriaB,
+   899→      'goalWorkItems': flattenedWorkItems,
+   900→      'wbsTree': wbsTree.map((item) => item.toJson()).toList(),
+   901→      'projectActivities': projectActivities.map((x) => x.toJson()).toList(),
+   902→      'customProjectActivities': customProjectActivities
+   903→          .map((x) => x.toJson())
+   904→          .toList(),
+   905→      'hiddenProjectActivityIds': hiddenProjectActivityIds,
+   906→      'issueLogItems': issueLogItems.map((item) => item.toJson()).toList(),
+   907→      'lessonsLearned': lessonsLearned.map((l) => l.toJson()).toList(),
+   908→      'technologyDefinitions': technologyDefinitions,
+   909→      'technologyInventory': technologyInventory,
+   910→      'frontEndPlanning': frontEndPlanning.toJson(),
+   911→      'ssherData': ssherData.toJson(),
+   912→      'teamMembers': teamMembers.map((m) => m.toJson()).toList(),
+   913→      'teamMemberEmails': teamMembers
+   914→          .map((m) => m.email)
+   915→          .where((e) => e.isNotEmpty)
+   916→          .toList(),
+   917→      'launchChecklistItems': launchChecklistItems
+   918→          .map((item) => item.toJson())
+   919→          .toList(),
+   920→      if (costAnalysisData != null)
+   921→        'costAnalysisData': costAnalysisData!.toJson(),
+   922→      'costEstimateItems': costEstimateItems
+   923→          .map((item) => item.toJson())
+   924→          .toList(),
+   925→      'managementReserve': managementReserve,
+   926→      if (itConsiderationsData != null)
+   927→        'itConsiderationsData': itConsiderationsData!.toJson(),
+   928→      if (infrastructureConsiderationsData != null)
+   929→        'infrastructureConsiderationsData': infrastructureConsiderationsData!
+   930→            .toJson(),
+   931→      if (coreStakeholdersData != null)
+   932→        'coreStakeholdersData': coreStakeholdersData!.toJson(),
+   933→      'projectRoles': projectRoles.map((r) => r.toJson()).toList(),
+   934→      'raciMatrixRows': raciMatrixRows.map((r) => r.toJson()).toList(),
+   935→      'staffingRequirements': staffingRequirements
+   936→          .map((s) => s.toJson())
+   937→          .toList(),
+   938→      'planningInfrastructureItems': planningInfrastructureItems
+   939→          .map((item) => item.toJson())
+   940→          .toList(),
+   941→      'trainingActivities': trainingActivities.map((t) => t.toJson()).toList(),
+   942→      'designDeliverables': designDeliverablesData.toJson(),
+   943→      'currentCheckpoint': currentCheckpoint,
+   944→      'isBasicPlanProject': isBasicPlanProject,
+   945→      'aiUsageCounts': aiUsageCounts,
+   946→
+   947→      'aiIntegrations': aiIntegrations,
+   948→      'externalIntegrations': externalIntegrations,
+   949→      'aiRecommendations': aiRecommendations,
+   950→      'projectId': projectId,
+   951→      'createdAt': createdAt?.toIso8601String(),
+   952→      'updatedAt': updatedAt?.toIso8601String(),
+   953→      'fieldHistories': fieldHistories.map(
+   954→        (key, value) => MapEntry(key, value.toJson()),
+   955→      ),
+   956→      'costBenefitCurrency': costBenefitCurrency,
+   957→      'preferredSolutionId': preferredSolutionId,
+   958→      'stakeholderEntries': stakeholderEntries.map((e) => e.toJson()).toList(),
+   959→      'engagementPlanEntries': engagementPlanEntries
+   960→          .map((e) => e.toJson())
+   961→          .toList(),
+   962→      'qualityManagementData': qualityManagementData?.toJson(),
+   963→      'confirmedPages': confirmedPages.toList(),
+   964→      'planningContracts': planningContracts.map((c) => c.toJson()).toList(),
+   965→      'rateCards': rateCards.map((r) => r.toJson()).toList(),
+   966→      if (costOfQualityData != null)
+   967→        'costOfQualityData': costOfQualityData!.toJson(),
+   968→      'orgStaffingSource': orgStaffingSource,
+   969→      'orgWorkingHours': orgWorkingHours,
+   970→      'orgLocation': orgLocation,
+   971→      'orgCommunicationMode': orgCommunicationMode,
+   972→      'designManagementData': designManagementData?.toJson(),
+   973→      'executionPhaseData': executionPhaseData?.toJson(),
+   974→      'workPackages': workPackages.map((wp) => wp.toJson()).toList(),
+   975→      'controlAccounts': controlAccounts.map((ca) => ca.toJson()).toList(),
+   976→      'obsElements': obsElements.map((o) => o.toJson()).toList(),
+   977→      'cbsElements': cbsElements.map((c) => c.toJson()).toList(),
+   978→      'aggregateBac': aggregateBac,
+   979→      'aggregatePlannedValue': aggregatePlannedValue,
+   980→      'aggregateEarnedValue': aggregateEarnedValue,
+   981→      'aggregateActualCost': aggregateActualCost,
+   982→      'aggregateCpi': aggregateCpi,
+   983→      'aggregateSpi': aggregateSpi,
+   984→      'aggregateEac': aggregateEac,
+   985→      'aggregateEtc': aggregateEtc,
+   986→      'aggregateVac': aggregateVac,
+   987→      'aggregateCv': aggregateCv,
+   988→      'aggregateSv': aggregateSv,
+   989→      'aggregateTcpi': aggregateTcpi,
+   990→      'evmLastRecalculated': evmLastRecalculated?.toIso8601String(),
+   991→
+   992→      // New Structured Data persistence
+   993→      'withinScopeItems': withinScopeItems.map((x) => x.toJson()).toList(),
+   994→      'outOfScopeItems': outOfScopeItems.map((x) => x.toJson()).toList(),
+   995→      'assumptionItems': assumptionItems.map((x) => x.toJson()).toList(),
+   996→      'constraintItems': constraintItems.map((x) => x.toJson()).toList(),
+   997→    };
+   998→  }
+   999→
+  1000→  factory ProjectDataModel.fromJson(Map<String, dynamic> json) {
+  1001→    // Reconstruct goalWorkItems from flattened structure
+  1002→    List<List<WorkItem>> reconstructedGoalWorkItems = List.generate(
+  1003→      3,
+  1004→      (_) => [],
+  1005→    );
+  1006→    final rawWorkItems = json['goalWorkItems'] as List?;
+  1007→
+  1008→    if (rawWorkItems != null) {
+  1009→      try {
+  1010→        // Check if it's the old nested format or new flattened format
+  1011→        if (rawWorkItems.isNotEmpty && rawWorkItems.first is List) {
+  1012→          // Old nested format (backward compatibility)
+  1013→          reconstructedGoalWorkItems = rawWorkItems
+  1014→              .map(
+  1015→                (items) =>
+  1016→                    (items as List).map((i) => WorkItem.fromJson(i)).toList(),
+  1017→              )
+  1018→              .toList();
+  1019→        } else {
+  1020→          // New flattened format
+  1021→          for (final item in rawWorkItems) {
+  1022→            final itemMap = item as Map<String, dynamic>;
+  1023→            final goalIndex = itemMap['goalIndex'] as int? ?? 0;
+  1024→
+  1025→            // Ensure the list is large enough
+  1026→            while (reconstructedGoalWorkItems.length <= goalIndex) {
+  1027→              reconstructedGoalWorkItems.add([]);
+  1028→            }
+  1029→
+  1030→            reconstructedGoalWorkItems[goalIndex].add(
+  1031→              WorkItem.fromJson(itemMap),
+  1032→            );
+  1033→          }
+  1034→        }
+  1035→      } catch (e) {
+  1036→        debugPrint('⚠️ Error parsing goalWorkItems: $e');
+  1037→        reconstructedGoalWorkItems = List.generate(3, (_) => []);
+  1038→      }
+  1039→    }
+  1040→
+  1041→    // Helper to safely parse PlanningDashboardItem lists
+  1042→    List<PlanningDashboardItem>? parseDashboardItems(String key) {
+  1043→      if (json[key] is List) {
+  1044→        return (json[key] as List)
+  1045→            .map((e) => PlanningDashboardItem.fromJson(e))
+  1046→            .toList();
+  1047→      }
+  1048→      return null; // Return null so constructor uses legacy fallback
+  1049→    }
+  1050→
+  1051→    // Safe parsing helper for lists
+  1052→    List<T> safeParseList<T>(
+  1053→      String key,
+  1054→      T Function(Map<String, dynamic>) parser,
+  1055→    ) {
+  1056→      try {
+  1057→        final list = json[key] as List?;
+  1058→        if (list == null) return [];
+  1059→        return list
+  1060→            .map((item) {
+  1061→              try {
+  1062→                return parser(item as Map<String, dynamic>);
+  1063→              } catch (e) {
+  1064→                debugPrint('⚠️ Error parsing item in $key: $e');
+  1065→                return null;
+  1066→              }
+  1067→            })
+  1068→            .whereType<T>()
+  1069→            .toList();
+  1070→      } catch (e) {
+  1071→        debugPrint('⚠️ Error parsing list $key: $e');
+  1072→        return [];
+  1073→      }
+  1074→    }
+  1075→
+  1076→    // Safe parsing helper for single objects
+  1077→    T? safeParseSingle<T>(String key, T Function(Map<String, dynamic>) parser) {
+  1078→      try {
+  1079→        final obj = json[key];
+  1080→        if (obj == null) return null;
+  1081→        return parser(obj as Map<String, dynamic>);
+  1082→      } catch (e) {
+  1083→        debugPrint('⚠️ Error parsing $key: $e');
+  1084→        return null;
+  1085→      }
+  1086→    }
+  1087→
+  1088→    // Safe DateTime parsing
+  1089→    DateTime? safeParseDateTime(String key) {
+  1090→      try {
+  1091→        final value = json[key];
+  1092→        if (value == null) return null;
+  1093→        if (value is String) return DateTime.parse(value);
+  1094→        if (value is DateTime) return value;
+  1095→        return null;
+  1096→      } catch (e) {
+  1097→        debugPrint('⚠️ Error parsing DateTime $key: $e');
+  1098→        return null;
+  1099→      }
+  1100→    }
+  1101→
+  1102→    return ProjectDataModel(
+  1103→      projectName:
+  1104→          json['projectName']?.toString() ?? json['name']?.toString() ?? '',
+  1105→      solutionTitle: json['solutionTitle']?.toString() ?? '',
+  1106→      solutionDescription: json['solutionDescription']?.toString() ?? '',
+  1107→      businessCase: json['businessCase']?.toString() ?? '',
+  1108→      notes: json['notes']?.toString() ?? '',
+  1109→      assumptions:
+  1110→          (json['assumptions'] as List?)?.map((e) => e.toString()).toList() ??
+  1111→          [],
+  1112→      constraints:
+  1113→          (json['constraints'] as List?)?.map((e) => e.toString()).toList() ??
+  1114→          [],
+  1115→      withinScope:
+  1116→          (json['withinScope'] as List?)?.map((e) => e.toString()).toList() ??
+  1117→          [],
+  1118→      outOfScope:
+  1119→          (json['outOfScope'] as List?)?.map((e) => e.toString()).toList() ??
+  1120→          [],
+  1121→      opportunities:
+  1122→          (json['opportunities'] as List?)?.map((e) => e.toString()).toList() ??
+  1123→          [],
+  1124→      charterAssumptions: json['charterAssumptions']?.toString() ?? '',
+  1125→      charterConstraints: json['charterConstraints']?.toString() ?? '',
+  1126→      charterProjectManagerName:
+  1127→          json['charterProjectManagerName']?.toString() ?? '',
+  1128→      charterProjectSponsorName:
+  1129→          json['charterProjectSponsorName']?.toString() ?? '',
+  1130→      charterProjectSponsorEmail:
+  1131→          json['charterProjectSponsorEmail']?.toString() ?? '',
+  1132→      charterApprovalRequestedToName:
+  1133→          json['charterApprovalRequestedToName']?.toString() ?? '',
+  1134→      charterApprovalRequestedToEmail:
+  1135→          json['charterApprovalRequestedToEmail']?.toString() ?? '',
+  1136→      charterApprovalRequestedToRole:
+  1137→          json['charterApprovalRequestedToRole']?.toString() ?? '',
+  1138→      charterApprovalRequestedAt: safeParseDateTime(
+  1139→        'charterApprovalRequestedAt',
+  1140→      ),
+  1141→      charterReviewedBy: json['charterReviewedBy']?.toString() ?? '',
+  1142→      charterApprovalDate: safeParseDateTime('charterApprovalDate'),
+  1143→      charterEmail: json['charterEmail']?.toString() ?? '',
+  1144→      charterPhone: json['charterPhone']?.toString() ?? '',
+  1145→      charterOrganizationalUnit:
+  1146→          json['charterOrganizationalUnit']?.toString() ?? '',
+  1147→      charterGreenBelt: json['charterGreenBelt']?.toString() ?? '',
+  1148→      charterBlackBelt: json['charterBlackBelt']?.toString() ?? '',
+  1149→      tags: (json['tags'] as List?)?.map((e) => e.toString()).toList() ?? [],
+  1150→      contractors: safeParseList('contractors', Contractor.fromJson),
+  1151→      vendors: safeParseList('vendors', Vendor.fromJson),
+  1152→      potentialSolutions: safeParseList(
+  1153→        'potentialSolutions',
+  1154→        PotentialSolution.fromJson,
+  1155→      ),
+  1156→      solutionRisks: safeParseList('solutionRisks', SolutionRisk.fromJson),
+  1157→      preferredSolutionAnalysis: safeParseSingle(
+  1158→        'preferredSolutionAnalysis',
+  1159→        PreferredSolutionAnalysis.fromJson,
+  1160→      ),
+  1161→      overallFramework: json['overallFramework']?.toString(),
+  1162→      projectGoals: safeParseList(
+  1163→        'projectGoals',
+  1164→        ProjectGoal.fromJson,
+  1165→      ).take(maxProjectGoals).toList(),
+  1166→      potentialSolution: json['potentialSolution']?.toString() ?? '',
+  1167→      projectObjective: json['projectObjective']?.toString() ?? '',
+  1168→      planningGoals: () {
+  1169→        final parsed = safeParseList('planningGoals', PlanningGoal.fromJson);
+  1170→        return parsed.isEmpty
+  1171→            ? List.generate(3, (i) => PlanningGoal(goalNumber: i + 1))
+  1172→            : parsed;
+  1173→      }(),
+  1174→      keyMilestones: safeParseList('keyMilestones', Milestone.fromJson),
+  1175→      planningNotes: (json['planningNotes'] is Map)
+  1176→          ? Map<String, String>.from(
+  1177→              (json['planningNotes'] as Map).map(
+  1178→                (key, value) => MapEntry(key.toString(), value.toString()),
+  1179→              ),
+  1180→            )
+  1181→          : {},
+  1182→      riskMitigationPlans: (json['riskMitigationPlans'] is Map)
+  1183→          ? Map<String, String>.from(
+  1184→              (json['riskMitigationPlans'] as Map).map((key, value) {
+  1185→                return MapEntry(key.toString(), value.toString());
+  1186→              }),
+  1187→            )
+  1188→          : {},
+  1189→      executionRiskItems: safeParseList(
+  1190→        'executionRiskItems',
+  1191→        ExecutionRiskItem.fromJson,
+  1192→      ),
+  1193→      executionRiskSignals: safeParseList(
+  1194→        'executionRiskSignals',
+  1195→        ExecutionRiskSignal.fromJson,
+  1196→      ),
+  1197→      executionRiskMitigations: safeParseList(
+  1198→        'executionRiskMitigations',
+  1199→        ExecutionRiskMitigation.fromJson,
+  1200→      ),
+  1201→      interfaceEntries: safeParseList(
+  1202→        'interfaceEntries',
+  1203→        InterfaceEntry.fromJson,
+  1204→      ),
+  1205→      interfaceChangeLog: safeParseList(
+  1206→        'interfaceChangeLog',
+  1207→        InterfaceChangeLogEntry.fromJson,
+  1208→      ),
+  1209→      scheduleActivities: safeParseList(
+  1210→        'scheduleActivities',
+  1211→        ScheduleActivity.fromJson,
+  1212→      ),
+  1213→      scheduleBaselineActivities: safeParseList(
+  1214→        'scheduleBaselineActivities',
+  1215→        ScheduleActivity.fromJson,
+  1216→      ),
+  1217→      scheduleBaselineDate: json['scheduleBaselineDate']?.toString() ?? '',
+  1218→      planningRequirementItems: safeParseList(
+  1219→        'planningRequirementItems',
+  1220→        PlanningRequirementItem.fromJson,
+  1221→      ),
+  1222→      planningRequirementsNotes:
+  1223→          json['planningRequirementsNotes']?.toString() ?? '',
+  1224→      wbsCriteriaA: json['wbsCriteriaA']?.toString(),
+  1225→      wbsCriteriaB: json['wbsCriteriaB']?.toString(),
+  1226→      goalWorkItems: reconstructedGoalWorkItems,
+  1227→      wbsTree: safeParseList('wbsTree', WorkItem.fromJson),
+  1228→      projectActivities: safeParseList(
+  1229→        'projectActivities',
+  1230→        ProjectActivity.fromJson,
+  1231→      ),
+  1232→      customProjectActivities: safeParseList(
+  1233→        'customProjectActivities',
+  1234→        ProjectActivity.fromJson,
+  1235→      ),
+  1236→      hiddenProjectActivityIds:
+  1237→          (json['hiddenProjectActivityIds'] as List?)
+  1238→              ?.map((e) => e.toString())
+  1239→              .toList() ??
+  1240→          [],
+  1241→      issueLogItems: safeParseList('issueLogItems', IssueLogItem.fromJson),
+  1242→      lessonsLearned: safeParseList('lessonsLearned', LessonRecord.fromJson),
+  1243→      technologyDefinitions:
+  1244→          (json['technologyDefinitions'] as List?)
+  1245→              ?.map((e) => Map<String, dynamic>.from(e as Map))
+  1246→              .toList() ??
+  1247→          [],
+  1248→      technologyInventory:
+  1249→          (json['technologyInventory'] as List?)
+  1250→              ?.map((e) => Map<String, dynamic>.from(e as Map))
+  1251→              .toList() ??
+  1252→          [],
+  1253→      frontEndPlanning:
+  1254→          safeParseSingle('frontEndPlanning', FrontEndPlanningData.fromJson) ??
+  1255→          FrontEndPlanningData(),
+  1256→      ssherData:
+  1257→          safeParseSingle('ssherData', SSHERData.fromJson) ?? SSHERData(),
+  1258→      teamMembers: safeParseList('teamMembers', TeamMember.fromJson),
+  1259→      launchChecklistItems: safeParseList(
+  1260→        'launchChecklistItems',
+  1261→        LaunchChecklistItem.fromJson,
+  1262→      ),
+  1263→      costAnalysisData: safeParseSingle(
+  1264→        'costAnalysisData',
+  1265→        CostAnalysisData.fromJson,
+  1266→      ),
+  1267→      costEstimateItems: safeParseList(
+  1268→        'costEstimateItems',
+  1269→        CostEstimateItem.fromJson,
+  1270→      ),
+  1271→      managementReserve: (json['managementReserve'] is num)
+  1272→          ? (json['managementReserve'] as num).toDouble()
+  1273→          : 0.0,
+  1274→      itConsiderationsData: safeParseSingle(
+  1275→        'itConsiderationsData',
+  1276→        ITConsiderationsData.fromJson,
+  1277→      ),
+  1278→      infrastructureConsiderationsData: safeParseSingle(
+  1279→        'infrastructureConsiderationsData',
+  1280→        InfrastructureConsiderationsData.fromJson,
+  1281→      ),
+  1282→      coreStakeholdersData: safeParseSingle(
+  1283→        'coreStakeholdersData',
+  1284→        CoreStakeholdersData.fromJson,
+  1285→      ),
+  1286→      projectRoles: safeParseList('projectRoles', RoleDefinition.fromJson),
+  1287→      raciMatrixRows: safeParseList('raciMatrixRows', RaciMatrixRow.fromJson),
+  1288→      staffingRequirements: safeParseList(
+  1289→        'staffingRequirements',
+  1290→        StaffingRequirement.fromJson,
+  1291→      ),
+  1292→      planningInfrastructureItems: safeParseList(
+  1293→        'planningInfrastructureItems',
+  1294→        InfrastructurePlanningItem.fromJson,
+  1295→      ),
+  1296→      trainingActivities: safeParseList(
+  1297→        'trainingActivities',
+  1298→        TrainingActivity.fromJson,
+  1299→      ),
+  1300→      designDeliverablesData:
+  1301→          safeParseSingle(
+  1302→            'designDeliverables',
+  1303→            DesignDeliverablesData.fromJson,
+  1304→          ) ??
+  1305→          DesignDeliverablesData(),
+  1306→      executionPhaseData: safeParseSingle(
+  1307→        'executionPhaseData',
+  1308→        ExecutionPhaseData.fromJson,
+  1309→      ),
+  1310→      designManagementData: safeParseSingle(
+  1311→        'designManagementData',
+  1312→        DesignManagementData.fromJson,
+  1313→      ),
+  1314→      isBasicPlanProject: json['isBasicPlanProject'] == true,
+  1315→      aiUsageCounts: (json['aiUsageCounts'] is Map)
+  1316→          ? Map<String, int>.from(
+  1317→              (json['aiUsageCounts'] as Map).map((key, value) {
+  1318→                final parsed = value is int
+  1319→                    ? value
+  1320→                    : int.tryParse(value.toString()) ?? 0;
+  1321→                return MapEntry(key.toString(), parsed);
+  1322→              }),
+  1323→            )
+  1324→          : {},
+  1325→      aiIntegrations:
+  1326→          (json['aiIntegrations'] as List?)
+  1327→              ?.map((e) => Map<String, dynamic>.from(e as Map))
+  1328→              .toList() ??
+  1329→          [],
+  1330→      externalIntegrations: () {
+  1331→        final external =
+  1332→            (json['externalIntegrations'] as List?)
+  1333→                ?.map((e) => Map<String, dynamic>.from(e as Map))
+  1334→                .toList() ??
+  1335→            [];
+  1336→        if (external.isNotEmpty) return external;
+  1337→        // Backward-compatibility fallback for older records where external
+  1338→        // integrations were incorrectly persisted in aiIntegrations.
+  1339→        return (json['aiIntegrations'] as List?)
+  1340→                ?.map((e) => Map<String, dynamic>.from(e as Map))
+  1341→                .toList() ??
+  1342→            [];
+  1343→      }(),
+  1344→      aiRecommendations:
+  1345→          (json['aiRecommendations'] as List?)
+  1346→              ?.map((e) => Map<String, dynamic>.from(e as Map))
+  1347→              .toList() ??
+  1348→          [],
+  1349→      currentCheckpoint:
+  1350→          json['currentCheckpoint']?.toString() ??
+  1351→          json['checkpointRoute']?.toString() ??
+  1352→          'initiation',
+  1353→      projectId: json['projectId']?.toString(),
+  1354→      createdAt: safeParseDateTime('createdAt'),
+  1355→      updatedAt: safeParseDateTime('updatedAt'),
+  1356→      fieldHistories: (json['fieldHistories'] is Map)
+  1357→          ? Map<String, FieldHistory>.from(
+  1358→              (json['fieldHistories'] as Map).map((key, value) {
+  1359→                try {
+  1360→                  return MapEntry(
+  1361→                    key.toString(),
+  1362→                    FieldHistory.fromJson(value as Map<String, dynamic>),
+  1363→                  );
+  1364→                } catch (e) {
+  1365→                  debugPrint('⚠️ Error parsing FieldHistory for $key: $e');
+  1366→                  return MapEntry(
+  1367→                    key.toString(),
+  1368→                    FieldHistory(fieldName: key.toString()),
+  1369→                  );
+  1370→                }
+  1371→              }),
+  1372→            )
+  1373→          : {},
+  1374→      costBenefitCurrency: json['costBenefitCurrency']?.toString() ?? 'USD',
+  1375→      preferredSolutionId: json['preferredSolutionId']?.toString(),
+  1376→      stakeholderEntries:
+  1377→          (json['stakeholderEntries'] as List?)
+  1378→              ?.map((e) => StakeholderEntry.fromJson(e))
+  1379→              .toList() ??
+  1380→          [],
+  1381→      engagementPlanEntries:
+  1382→          (json['engagementPlanEntries'] as List?)
+  1383→              ?.map((e) => EngagementPlanEntry.fromJson(e))
+  1384→              .toList() ??
+  1385→          [],
+  1386→      qualityManagementData: json['qualityManagementData'] != null
+  1387→          ? QualityManagementData.fromJson(json['qualityManagementData'])
+  1388→          : null,
+  1389→      confirmedPages: json['confirmedPages'] != null
+  1390→          ? Set<String>.from(json['confirmedPages'] as List)
+  1391→          : <String>{},
+  1392→      planningContracts: safeParseList(
+  1393→        'planningContracts',
+  1394→        PlanningContract.fromJson,
+  1395→      ),
+  1396→      rateCards: safeParseList('rateCards', RateCard.fromJson),
+  1397→      costOfQualityData: safeParseSingle(
+  1398→        'costOfQualityData',
+  1399→        CostOfQualityData.fromJson,
+  1400→      ),
+  1401→      orgStaffingSource: json['orgStaffingSource']?.toString() ?? '',
+  1402→      orgWorkingHours: json['orgWorkingHours']?.toString() ?? '40 hours/week',
+  1403→      orgLocation: json['orgLocation']?.toString() ?? '',
+  1404→      orgCommunicationMode: json['orgCommunicationMode']?.toString() ?? '',
+  1405→      workPackages: safeParseList('workPackages', WorkPackage.fromJson),
+  1406→      controlAccounts: safeParseList(
+  1407→        'controlAccounts',
+  1408→        ControlAccount.fromJson,
+  1409→      ),
+  1410→      obsElements: safeParseList('obsElements', ObsElement.fromJson),
+  1411→      cbsElements: safeParseList('cbsElements', CbsElement.fromJson),
+  1412→      aggregateBac: (json['aggregateBac'] is num)
+  1413→          ? (json['aggregateBac'] as num).toDouble()
+  1414→          : 0.0,
+  1415→      aggregatePlannedValue: (json['aggregatePlannedValue'] is num)
+  1416→          ? (json['aggregatePlannedValue'] as num).toDouble()
+  1417→          : 0.0,
+  1418→      aggregateEarnedValue: (json['aggregateEarnedValue'] is num)
+  1419→          ? (json['aggregateEarnedValue'] as num).toDouble()
+  1420→          : 0.0,
+  1421→      aggregateActualCost: (json['aggregateActualCost'] is num)
+  1422→          ? (json['aggregateActualCost'] as num).toDouble()
+  1423→          : 0.0,
+  1424→      aggregateCpi: (json['aggregateCpi'] is num)
+  1425→          ? (json['aggregateCpi'] as num).toDouble()
+  1426→          : 1.0,
+  1427→      aggregateSpi: (json['aggregateSpi'] is num)
+  1428→          ? (json['aggregateSpi'] as num).toDouble()
+  1429→          : 1.0,
+  1430→      aggregateEac: (json['aggregateEac'] is num)
+  1431→          ? (json['aggregateEac'] as num).toDouble()
+  1432→          : 0.0,
+  1433→      aggregateEtc: (json['aggregateEtc'] is num)
+  1434→          ? (json['aggregateEtc'] as num).toDouble()
+  1435→          : 0.0,
+  1436→      aggregateVac: (json['aggregateVac'] is num)
+  1437→          ? (json['aggregateVac'] as num).toDouble()
+  1438→          : 0.0,
+  1439→      aggregateCv: (json['aggregateCv'] is num)
+  1440→          ? (json['aggregateCv'] as num).toDouble()
+  1441→          : 0.0,
+  1442→      aggregateSv: (json['aggregateSv'] is num)
+  1443→          ? (json['aggregateSv'] as num).toDouble()
+  1444→          : 0.0,
+  1445→      aggregateTcpi: (json['aggregateTcpi'] is num)
+  1446→          ? (json['aggregateTcpi'] as num).toDouble()
+  1447→          : 0.0,
+  1448→      evmLastRecalculated: safeParseDateTime('evmLastRecalculated'),
+  1449→
+  1450→      // Load New Structured Data
+  1451→      withinScopeItems: parseDashboardItems('withinScopeItems'),
+  1452→      outOfScopeItems: parseDashboardItems('outOfScopeItems'),
+  1453→      assumptionItems: parseDashboardItems('assumptionItems'),
+  1454→      constraintItems: parseDashboardItems('constraintItems'),
+  1455→    );
+  1456→  }
+  1457→
+  1458→  /// ── P2.5: Compute project-level aggregate EVM from control accounts ──
+  1459→  /// Rolls up BAC, EV, AC, and PV from all [controlAccounts], then derives
+  1460→  /// CPI, SPI, EAC, ETC, VAC, CV, SV, and TCPI using standard EVM formulas.
+  1461→  ///
+  1462→  /// Call this after [ControlAccountService.recalculateAll] has updated
+  1463→  /// individual control account EVM metrics. This method mutates the aggregate
+  1464→  /// fields on this model in-place and updates [evmLastRecalculated].
+  1465→  ///
+  1466→  /// Returns `this` for chaining convenience.
+  1467→  ProjectDataModel computeAggregateEvm() {
+  1468→    double aggBac = 0, aggEv = 0, aggAc = 0, aggPv = 0;
+  1469→    for (final ca in controlAccounts) {
+  1470→      aggBac += ca.budgetAtCompletion;
+  1471→      aggEv += ca.earnedValue;
+  1472→      aggAc += ca.actualCost;
+  1473→      // Sum planned value from period data
+  1474→      final now = DateTime.now();
+  1475→      final currentKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  1476→      for (final entry in ca.plannedValueByPeriod.entries) {
+  1477→        if (entry.key.compareTo(currentKey) <= 0) {
+  1478→          aggPv += entry.value;
+  1479→        }
+  1480→      }
+  1481→    }
+  1482→
+  1483→    aggregateBac = aggBac;
+  1484→    aggregatePlannedValue = aggPv;
+  1485→    aggregateEarnedValue = aggEv;
+  1486→    aggregateActualCost = aggAc;
+  1487→    aggregateCpi = aggAc > 0 ? aggEv / aggAc : 1.0;
+  1488→    aggregateSpi = aggPv > 0 ? aggEv / aggPv : 1.0;
+  1489→    aggregateEac = aggregateCpi > 0 ? aggBac / aggregateCpi : aggBac;
+  1490→    aggregateEtc = aggregateEac - aggAc;
+  1491→    aggregateVac = aggBac - aggregateEac;
+  1492→    aggregateCv = aggEv - aggAc;
+  1493→    aggregateSv = aggEv - aggPv;
+  1494→    aggregateTcpi = (aggBac - aggAc) > 0
+  1495→        ? (aggBac - aggEv) / (aggBac - aggAc)
+  1496→        : 1.0;
+  1497→    evmLastRecalculated = DateTime.now();
+  1498→
+  1499→    return this;
+  1500→  }
+  1501→
+  1502→  /// Add a field value to history for undo functionality
+  1503→  void addFieldToHistory(
+  1504→    String fieldName,
+  1505→    String value, {
+  1506→    bool isAiGenerated = false,
+  1507→  }) {
+  1508→    if (!fieldHistories.containsKey(fieldName)) {
+  1509→      fieldHistories[fieldName] = FieldHistory(
+  1510→        fieldName: fieldName,
+  1511→        isAiGenerated: isAiGenerated,
+  1512→      );
+  1513→    }
+  1514→    fieldHistories[fieldName]!.addToHistory(value);
+  1515→  }
+  1516→
+  1517→  /// Undo the last change to a field
+  1518→  String? undoField(String fieldName) {
+  1519→    return fieldHistories[fieldName]?.undo();
+  1520→  }
+  1521→
+  1522→  /// Redo a reverted change to a field
+  1523→  String? redoField(String fieldName) {
+  1524→    return fieldHistories[fieldName]?.redo();
+  1525→  }
+  1526→
+  1527→  /// Check if a field can be undone
+  1528→  bool canUndoField(String fieldName) {
+  1529→    return fieldHistories[fieldName]?.canUndo ?? false;
+  1530→  }
+  1531→
+  1532→  /// Check if a field can be redone
+  1533→  bool canRedoField(String fieldName) {
+  1534→    return fieldHistories[fieldName]?.canRedo ?? false;
+  1535→  }
+  1536→
+  1537→  /// Add a new potential solution
+  1538→  void addPotentialSolution() {
+  1539→    if (potentialSolutions.length < 3) {
+  1540→      potentialSolutions.add(
+  1541→        PotentialSolution.empty(
+  1542→          id: DateTime.now().microsecondsSinceEpoch.toString(),
+  1543→          number: potentialSolutions.length + 1,
+  1544→        ),
+  1545→      );
+  1546→    }
+  1547→  }
+  1548→
+  1549→  /// Delete a potential solution by ID
+  1550→  void deletePotentialSolution(String id) {
+  1551→    potentialSolutions.removeWhere((s) => s.id == id);
+  1552→    _renumberSolutions();
+  1553→  }
+  1554→
+  1555→  /// Renumber solutions after deletion
+  1556→  void _renumberSolutions() {
+  1557→    for (int i = 0; i < potentialSolutions.length; i++) {
+  1558→      potentialSolutions[i].number = i + 1;
+  1559→    }
+  1560→  }
+  1561→
+  1562→  /// Set the preferred solution
+  1563→  void setPreferredSolution(String solutionId) {
+  1564→    preferredSolutionId = solutionId;
+  1565→  }
+  1566→
+  1567→  /// Get the preferred solution
+  1568→  PotentialSolution? get preferredSolution {
+  1569→    if (preferredSolutionId == null) return null;
+  1570→    try {
+  1571→      return potentialSolutions.firstWhere((s) => s.id == preferredSolutionId);
+  1572→    } catch (e) {
+  1573→      return null;
+  1574→    }
+  1575→  }
+  1576→}
+  1577→
+  1578→class ProjectGoal {
+  1579→  String name;
+  1580→  String description;
+  1581→  String? framework;
+  1582→
+  1583→  ProjectGoal({this.name = '', this.description = '', this.framework});
+  1584→
+  1585→  ProjectGoal copyWith({String? name, String? description, String? framework}) {
+  1586→    return ProjectGoal(
+  1587→      name: name ?? this.name,
+  1588→      description: description ?? this.description,
+  1589→      framework: framework ?? this.framework,
+  1590→    );
+  1591→  }
+  1592→
+  1593→  Map<String, dynamic> toJson() => {
+  1594→    'name': name,
+  1595→    'description': description,
+  1596→    'framework': framework,
+  1597→  };
+  1598→
+  1599→  factory ProjectGoal.fromJson(Map<String, dynamic> json) {
+  1600→    return ProjectGoal(
+  1601→      name: json['name'] ?? '',
+  1602→      description: json['description'] ?? '',
+  1603→      framework: json['framework'],
+  1604→    );
+  1605→  }
+  1606→}
+  1607→
+  1608→class PlanningGoal {
+  1609→  String id;
+  1610→  int goalNumber;
+  1611→  String title;
+  1612→  String description;
+  1613→  String targetYear;
+  1614→  String priority;
+  1615→  List<String> milestoneIds;
+  1616→  List<PlanningMilestone> milestones;
+  1617→
+  1618→  PlanningGoal({
+  1619→    String? id,
+  1620→    required this.goalNumber,
+  1621→    this.title = '',
+  1622→    this.description = '',
+  1623→    this.targetYear = '',
+  1624→    this.priority = 'Medium Priority',
+  1625→    List<String>? milestoneIds,
+  1626→    List<PlanningMilestone>? milestones,
+  1627→  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
+  1628→       milestoneIds = milestoneIds ?? [],
+  1629→       milestones = milestones ?? [PlanningMilestone()];
+  1630→
+  1631→  Map<String, dynamic> toJson() => {
+  1632→    'id': id,
+  1633→    'goalNumber': goalNumber,
+  1634→    'title': title,
+  1635→    'description': description,
+  1636→    'targetYear': targetYear,
+  1637→    'priority': priority,
+  1638→    'isHighPriority': priority == 'High Priority',
+  1639→    'milestoneIds': milestoneIds,
+  1640→    'milestones': milestones.map((m) => m.toJson()).toList(),
+  1641→  };
+  1642→
+  1643→  factory PlanningGoal.fromJson(Map<String, dynamic> json) {
+  1644→    final rawPriority = json['priority']?.toString() ?? '';
+  1645→    final legacyHigh = json['isHighPriority'] == true;
+  1646→    return PlanningGoal(
+  1647→      id: json['id']?.toString(),
+  1648→      goalNumber: json['goalNumber'] ?? 1,
+  1649→      title: json['title'] ?? '',
+  1650→      description: json['description'] ?? '',
+  1651→      targetYear: json['targetYear'] ?? '',
+  1652→      priority: rawPriority.isNotEmpty
+  1653→          ? rawPriority
+  1654→          : (legacyHigh ? 'High Priority' : 'Medium Priority'),
+  1655→      milestoneIds:
+  1656→          (json['milestoneIds'] as List?)
+  1657→              ?.map((m) => m.toString())
+  1658→              .where((m) => m.trim().isNotEmpty)
+  1659→              .toList() ??
+  1660→          const [],
+  1661→      milestones:
+  1662→          (json['milestones'] as List?)
+  1663→              ?.map((m) => PlanningMilestone.fromJson(m))
+  1664→              .toList() ??
+  1665→          [PlanningMilestone()],
+  1666→    );
+  1667→  }
+  1668→}
+  1669→
+  1670→class PlanningMilestone {
+  1671→  String title;
+  1672→  String deadline;
+  1673→  String status;
+  1674→
+  1675→  PlanningMilestone({
+  1676→    this.title = '',
+  1677→    this.deadline = '',
+  1678→    this.status = 'In Progress',
+  1679→  });
+  1680→
+  1681→  Map<String, dynamic> toJson() => {
+  1682→    'title': title,
+  1683→    'deadline': deadline,
+  1684→    'status': status,
+  1685→  };
+  1686→
+  1687→  factory PlanningMilestone.fromJson(Map<String, dynamic> json) {
+  1688→    return PlanningMilestone(
+  1689→      title: json['title'] ?? '',
+  1690→      deadline: json['deadline'] ?? '',
+  1691→      status: json['status'] ?? 'In Progress',
+  1692→    );
+  1693→  }
+  1694→}
+  1695→
+  1696→class LaunchChecklistItem {
+  1697→  LaunchChecklistItem({
+  1698→    String? id,
+  1699→    this.itemName = '',
+  1700→    this.details = '',
+  1701→    this.owner = '',
+  1702→    this.dueBefore = '',
+  1703→    this.statusTag = 'Pending sign-off',
+  1704→    this.completionRule = '',
+  1705→  }) : id = id ?? _generateId();
+  1706→
+  1707→  final String id;
+  1708→  String itemName;
+  1709→  String details;
+  1710→  String owner;
+  1711→  String dueBefore;
+  1712→  String statusTag;
+  1713→  String completionRule;
+  1714→
+  1715→  LaunchChecklistItem copyWith({
+  1716→    String? itemName,
+  1717→    String? details,
+  1718→    String? owner,
+  1719→    String? dueBefore,
+  1720→    String? statusTag,
+  1721→    String? completionRule,
+  1722→  }) {
+  1723→    return LaunchChecklistItem(
+  1724→      id: id,
+  1725→      itemName: itemName ?? this.itemName,
+  1726→      details: details ?? this.details,
+  1727→      owner: owner ?? this.owner,
+  1728→      dueBefore: dueBefore ?? this.dueBefore,
+  1729→      statusTag: statusTag ?? this.statusTag,
+  1730→      completionRule: completionRule ?? this.completionRule,
+  1731→    );
+  1732→  }
+  1733→
+  1734→  Map<String, dynamic> toJson() => {
+  1735→    'id': id,
+  1736→    'itemName': itemName,
+  1737→    'details': details,
+  1738→    'owner': owner,
+  1739→    'dueBefore': dueBefore,
+  1740→    'statusTag': statusTag,
+  1741→    'completionRule': completionRule,
+  1742→  };
+  1743→
+  1744→  factory LaunchChecklistItem.fromJson(Map<String, dynamic> json) {
+  1745→    return LaunchChecklistItem(
+  1746→      id: json['id']?.toString(),
+  1747→      itemName: json['itemName']?.toString() ?? '',
+  1748→      details: json['details']?.toString() ?? '',
+  1749→      owner: json['owner']?.toString() ?? '',
+  1750→      dueBefore: json['dueBefore']?.toString() ?? '',
+  1751→      statusTag: json['statusTag']?.toString() ?? 'Pending sign-off',
+  1752→      completionRule: json['completionRule']?.toString() ?? '',
+  1753→    );
+  1754→  }
+  1755→
+  1756→  static String _generateId() =>
+  1757→      DateTime.now().microsecondsSinceEpoch.toString();
+  1758→}
+  1759→
+  1760→class Milestone {
+  1761→  String id;
+  1762→  String name;
+  1763→  String discipline;
+  1764→  String dueDate;
+  1765→  String references;
+  1766→  String comments;
+  1767→
+  1768→  Milestone({
+  1769→    String? id,
+  1770→    this.name = '',
+  1771→    this.discipline = '',
+  1772→    this.dueDate = '',
+  1773→    this.references = '',
+  1774→    this.comments = '',
+  1775→  }) : id = (id == null || id.trim().isEmpty)
+  1776→           ? DateTime.now().microsecondsSinceEpoch.toString()
+  1777→           : id;
+  1778→
+  1779→  Map<String, dynamic> toJson() => {
+  1780→    'id': id,
+  1781→    'name': name,
+  1782→    'discipline': discipline,
+  1783→    'dueDate': dueDate,
+  1784→    'references': references,
+  1785→    'comments': comments,
+  1786→  };
+  1787→
+  1788→  factory Milestone.fromJson(Map<String, dynamic> json) {
+  1789→    final rawId = json['id']?.toString();
+  1790→    return Milestone(
+  1791→      id: (rawId == null || rawId.trim().isEmpty) ? null : rawId,
+  1792→      name: json['name'] ?? '',
+  1793→      discipline: json['discipline'] ?? '',
+  1794→      dueDate: json['dueDate'] ?? '',
+  1795→      references: json['references'] ?? '',
+  1796→      comments: json['comments'] ?? '',
+  1797→    );
+  1798→  }
+  1799→}
+  1800→
+  1801→/// Returns default milestones for fallback when AI generation fails
+  1802→List<Milestone> getDefaultMilestones() {
+  1803→  return [
+  1804→    Milestone(
+  1805→      name: 'Project Kickoff',
+  1806→      discipline: 'All',
+  1807→      dueDate: '',
+  1808→      comments: 'Official project initiation and team mobilization',
+  1809→    ),
+  1810→    Milestone(
+  1811→      name: 'Planning Completion',
+  1812→      discipline: 'Planning, Management',
+  1813→      dueDate: '',
+  1814→      comments: 'All planning documents finalized and approved',
+  1815→    ),
+  1816→    Milestone(
+  1817→      name: 'Execution Start',
+  1818→      discipline: 'All',
+  1819→      dueDate: '',
+  1820→      comments: 'Begin implementation of project deliverables',
+  1821→    ),
+  1822→    Milestone(
+  1823→      name: 'Execution Completion',
+  1824→      discipline: 'All',
+  1825→      dueDate: '',
+  1826→      comments: 'All deliverables completed and ready for launch',
+  1827→    ),
+  1828→    Milestone(
+  1829→      name: 'Project Launch',
+  1830→      discipline: 'All',
+  1831→      dueDate: '',
+  1832→      comments: 'Go-live and transition to operations',
+  1833→    ),
+  1834→  ];
+  1835→}
+  1836→
+  1837→class WorkItem {
+  1838→  String id;
+  1839→  String parentId;
+  1840→  String title;
+  1841→  String description;
+  1842→  String status;
+  1843→  String framework;
+  1844→  List<WorkItem> children;
+  1845→  List<String> dependencies;
+  1846→  String controlAccountId;
+  1847→
+  1848→  /// Formal WBS element code (e.g. "1.2.3.4") — canonical identifier for
+  1849→  /// cross-referencing with CBS, OBS, and Control Accounts.
+  1850→  String wbsCode;
+  1851→
+  1852→  /// WBS Dictionary fields: deliverable description, acceptance criteria,
+  1853→  /// and work package definition per the Integrated Project Controls guide.
+  1854→  String deliverableDescription;
+  1855→  String acceptanceCriteria;
+  1856→  String workPackageDefinition;
+  1857→
+  1858→  /// Relative weight (0-1) for progress rollup from children to parent.
+  1859→  double weight;
+  1860→
+  1861→  /// CBS element ID cross-reference — links this WBS node to its cost account.
+  1862→  String cbsId;
+  1863→
+  1864→  /// OBS element ID cross-reference — links this WBS node to its org unit.
+  1865→  String obsId;
+  1866→
+  1867→  WorkItem({
+  1868→    String? id,
+  1869→    this.parentId = '',
+  1870→    this.title = '',
+  1871→    this.description = '',
+  1872→    this.status = 'not_started',
+  1873→    this.framework = '',
+  1874→    List<WorkItem>? children,
+  1875→    List<String>? dependencies,
+  1876→    this.controlAccountId = '',
+  1877→    this.wbsCode = '',
+  1878→    this.deliverableDescription = '',
+  1879→    this.acceptanceCriteria = '',
+  1880→    this.workPackageDefinition = '',
+  1881→    this.weight = 0,
+  1882→    this.cbsId = '',
+  1883→    this.obsId = '',
+  1884→  }) : id = (id == null || id.trim().isEmpty)
+  1885→           ? DateTime.now().microsecondsSinceEpoch.toString()
+  1886→           : id,
+  1887→       children = children ?? [],
+  1888→       dependencies = dependencies ?? [];
+  1889→
+  1890→  Map<String, dynamic> toJson() => {
+  1891→    'id': id,
+  1892→    'parentId': parentId,
+  1893→    'title': title,
+  1894→    'description': description,
+  1895→    'status': status,
+  1896→    'framework': framework,
+  1897→    'children': children.map((c) => c.toJson()).toList(),
+  1898→    'dependencies': dependencies,
+  1899→    'controlAccountId': controlAccountId,
+  1900→    'wbsCode': wbsCode,
+  1901→    'deliverableDescription': deliverableDescription,
+  1902→    'acceptanceCriteria': acceptanceCriteria,
+  1903→    'workPackageDefinition': workPackageDefinition,
+  1904→    'weight': weight,
+  1905→    'cbsId': cbsId,
+  1906→    'obsId': obsId,
+  1907→  };
+  1908→
+  1909→  factory WorkItem.fromJson(Map<String, dynamic> json) {
+  1910→    final rawId = json['id']?.toString();
+  1911→    return WorkItem(
+  1912→      id: (rawId == null || rawId.trim().isEmpty) ? null : rawId,
+  1913→      parentId: json['parentId']?.toString() ?? '',
+  1914→      title: json['title'] ?? '',
+  1915→      description: json['description'] ?? '',
+  1916→      status: json['status'] ?? 'not_started',
+  1917→      framework: json['framework']?.toString() ?? '',
+  1918→      children:
+  1919→          (json['children'] as List?)
+  1920→              ?.map((c) => WorkItem.fromJson(c as Map<String, dynamic>))
+  1921→              .toList() ??
+  1922→          [],
+  1923→      dependencies:
+  1924→          (json['dependencies'] as List?)?.map((d) => d.toString()).toList() ??
+  1925→          [],
+  1926→      controlAccountId: json['controlAccountId']?.toString() ?? '',
+  1927→      wbsCode: json['wbsCode']?.toString() ?? '',
+  1928→      deliverableDescription: json['deliverableDescription']?.toString() ?? '',
+  1929→      acceptanceCriteria: json['acceptanceCriteria']?.toString() ?? '',
+  1930→      workPackageDefinition: json['workPackageDefinition']?.toString() ?? '',
+  1931→      weight: (json['weight'] is num) ? (json['weight'] as num).toDouble() : 0,
+  1932→      cbsId: json['cbsId']?.toString() ?? '',
+  1933→      obsId: json['obsId']?.toString() ?? '',
+  1934→    );
+  1935→  }
+  1936→}
+  1937→
+  1938→enum ProgressMeasurementMethod {
+  1939→  zeroHundred,
+  1940→  fiftyFifty,
+  1941→  percentComplete,
+  1942→  unitsComplete,
+  1943→  milestoneGate,
+  1944→  earnedValue,
+  1945→  physical,
+  1946→  other;
+  1947→
+  1948→  String get label {
+  1949→    switch (this) {
+  1950→      case zeroHundred:
+  1951→        return '0/100';
+  1952→      case fiftyFifty:
+  1953→        return '50/50';
+  1954→      case percentComplete:
+  1955→        return '% Complete';
+  1956→      case unitsComplete:
+  1957→        return 'Units Complete';
+  1958→      case milestoneGate:
+  1959→        return 'Milestone Gate';
+  1960→      case earnedValue:
+  1961→        return 'Earned Value';
+  1962→      case physical:
+  1963→        return 'Physical';
+  1964→      case other:
+  1965→        return 'Other';
+  1966→    }
+  1967→  }
+  1968→}
+  1969→
+  1970→class ScheduleActivity {
+  1971→  String id;
+  1972→  String wbsId;
+  1973→  String title;
+  1974→  int durationDays;
+  1975→  List<String> predecessorIds;
+  1976→  bool isMilestone;
+  1977→  String status;
+  1978→  String priority;
+  1979→  String assignee;
+  1980→  String discipline;
+  1981→  double progress;
+  1982→  String startDate;
+  1983→  String dueDate;
+  1984→  double estimatedHours;
+  1985→  String milestone;
+  1986→  // Work package linkage
+  1987→  String workPackageId;
+  1988→  String workPackageTitle;
+  1989→  String
+  1990→  workPackageType; // 'design' | 'construction' | 'execution' | 'agile' | 'procurement' | 'delivery'
+  1991→  String phase; // 'design' | 'execution' | 'launch'
+  1992→  // WBS Level 2 parent for rollup
+  1993→  String wbsLevel2Id;
+  1994→  String wbsLevel2Title;
+  1995→  // Procurement linkage
+  1996→  String contractId;
+  1997→  String vendorId;
+  1998→  String
+  1999→  procurementStatus; // 'not_started' | 'rfq' | 'evaluating' | 'awarded' | 'contracted'
+  2000→  String? procurementRfqDate;
+
+[showing lines 1-2000 of 9258; use offset=2001 with limit to continue reading]

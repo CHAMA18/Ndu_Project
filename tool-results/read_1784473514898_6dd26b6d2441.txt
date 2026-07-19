@@ -1,0 +1,2002 @@
+     1→import 'dart:async';
+     2→
+     3→import 'package:flutter/material.dart';
+     4→import 'package:ndu_project/screens/ssher_add_safety_item_dialog.dart';
+     5→import 'package:ndu_project/models/project_data_model.dart';
+     6→import 'package:ndu_project/models/staffing_row.dart';
+     7→import 'package:ndu_project/utils/project_data_helper.dart';
+     8→import 'package:ndu_project/widgets/responsive.dart';
+     9→import 'package:ndu_project/widgets/voice_text_field.dart';
+    10→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    11→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+    12→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+    13→import 'package:ndu_project/widgets/admin_edit_toggle.dart';
+    14→import 'package:ndu_project/widgets/planning_phase_header.dart';
+    15→import 'package:ndu_project/services/openai_service_secure.dart';
+    16→import 'package:ndu_project/services/risk_sync_service.dart';
+    17→import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+    18→import 'package:ndu_project/utils/ssher_export_helper.dart';
+    19→import 'package:ndu_project/utils/planning_phase_navigation.dart';
+    20→import 'package:ndu_project/services/user_service.dart';
+    21→import 'package:ndu_project/utils/web_utils_stub.dart'
+    22→    if (dart.library.html) 'package:ndu_project/utils/web_utils_web.dart';
+    23→import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+    24→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    25→import 'package:provider/provider.dart';
+    26→import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+    27→import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+    28→import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
+    29→import 'package:ndu_project/widgets/skip_confirmation_dialog.dart';
+    30→
+    31→/// Six categories: Safety, Security, Health, Environment, Regulatory, Cost (Cost tab is a roll-up)
+    32→enum _SsherCategory { safety, security, health, environment, regulatory, cost }
+    33→
+    34→String _categoryKey(_SsherCategory category) => category.name;
+    35→
+    36→// ── Color Palette (matching HTML design tokens) ──
+    37→class _Palette {
+    38→  static const Color primary = Color(0xFFB45309);
+    39→  static const Color primaryContainer = Color(0xFFD97706);
+    40→  static const Color tertiaryFixedDim = Color(0xFFFABD00);
+    41→  static const Color tertiaryContainer = Color(0xFF946F00);
+    42→  static const Color onTertiaryFixed = Color(0xFF261A00);
+    43→  static const Color surface = Color(0xFFF7F9FB);
+    44→  static const Color surfaceBright = Color(0xFFF7F9FB);
+    45→  static const Color surfaceContainerLowest = Color(0xFFFFFFFF);
+    46→  static const Color surfaceContainerLow = Color(0xFFF2F4F6);
+    47→  static const Color surfaceContainer = Color(0xFFECEEF0);
+    48→  static const Color surfaceContainerHigh = Color(0xFFE6E8EA);
+    49→  static const Color surfaceVariant = Color(0xFFE0E3E5);
+    50→  static const Color surfaceDim = Color(0xFFD8DADC);
+    51→  static const Color onBackground = Color(0xFF191C1E);
+    52→  static const Color onSurface = Color(0xFF191C1E);
+    53→  static const Color onSurfaceVariant = Color(0xFF414754);
+    54→  static const Color outline = Color(0xFF717786);
+    55→  static const Color outlineVariant = Color(0xFFC0C6D6);
+    56→  static const Color error = Color(0xFFBA1A1A);
+    57→  static const Color errorContainer = Color(0xFFFFDAD6);
+    58→  static const Color onErrorContainer = Color(0xFF93000A);
+    59→  static const Color primaryFixed = Color(0xFFD6E3FF);
+    60→  static const Color secondaryContainer = Color(0xFFE8DEF8);
+    61→  static const Color onSecondaryContainer = Color(0xFF1D192B);
+    62→  static const Color headerBg = Color(0xFF1C1B1B);
+    63→}
+    64→
+    65→/// Heading text per category (e.g. "Safety Plan", "Security Plan", ...)
+    66→String _categoryPlanHeading(_SsherCategory cat) {
+    67→  switch (cat) {
+    68→    case _SsherCategory.safety:
+    69→      return 'Safety Plan';
+    70→    case _SsherCategory.security:
+    71→      return 'Security Plan';
+    72→    case _SsherCategory.health:
+    73→      return 'Health Plan';
+    74→    case _SsherCategory.environment:
+    75→      return 'Environment Plan';
+    76→    case _SsherCategory.regulatory:
+    77→      return 'Regulatory Plan';
+    78→    case _SsherCategory.cost:
+    79→      return 'SSHER Cost Summary';
+    80→  }
+    81→}
+    82→
+    83→/// Display label per category (just "Safety", "Security", ...)
+    84→String _categoryLabel(_SsherCategory cat) {
+    85→  switch (cat) {
+    86→    case _SsherCategory.safety:
+    87→      return 'Safety';
+    88→    case _SsherCategory.security:
+    89→      return 'Security';
+    90→    case _SsherCategory.health:
+    91→      return 'Health';
+    92→    case _SsherCategory.environment:
+    93→      return 'Environment';
+    94→    case _SsherCategory.regulatory:
+    95→      return 'Regulatory';
+    96→    case _SsherCategory.cost:
+    97→      return 'Cost Summary';
+    98→  }
+    99→}
+   100→
+   101→class SsherStackedScreen extends StatefulWidget {
+   102→  const SsherStackedScreen({super.key});
+   103→
+   104→  @override
+   105→  State<SsherStackedScreen> createState() => _SsherStackedScreenState();
+   106→}
+   107→
+   108→class _SsherStackedScreenState extends State<SsherStackedScreen>
+   109→    with SingleTickerProviderStateMixin {
+   110→  final Color _safetyAccent = const Color(0xFF34A853);
+   111→  final Color _securityAccent = const Color(0xFFEF5350);
+   112→  final Color _healthAccent = const Color(0xFF1E88E5);
+   113→  final Color _environmentAccent = const Color(0xFF2E7D32);
+   114→  final Color _regulatoryAccent = const Color(0xFF8E24AA);
+   115→  final Color _costAccent = const Color(0xFFD97706);
+   116→
+   117→  late List<SsherEntry> _safetyEntries;
+   118→  late List<SsherEntry> _securityEntries;
+   119→  late List<SsherEntry> _healthEntries;
+   120→  late List<SsherEntry> _environmentEntries;
+   121→  late List<SsherEntry> _regulatoryEntries;
+   122→
+   123→  // Per-category AI Plan summaries (each saved in ssherData.categoryPlans)
+   124→  final Map<String, String> _categoryPlans = {};
+   125→  final Map<String, bool> _categoryPlanLoading = {};
+   126→  final Map<String, bool> _categoryPlanLoaded = {};
+   127→
+   128→  // UN SDG recommendations
+   129→  List<Map<String, String>> _sdgRecommendations = [];
+   130→  bool _isGeneratingSdgs = false;
+   131→  bool _sdgsLoaded = false;
+   132→
+   133→  _SsherCategory _selectedCategory = _SsherCategory.safety;
+   134→  late TabController _tabController;
+   135→
+   136→  final TextEditingController _notesController = TextEditingController();
+   137→  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+   138→
+   139→  // Tracking: which SSHER tabs the user has visited (excludes cost tab)
+   140→  final Set<_SsherCategory> _visitedTabs = {};
+   141→  bool _stakeholderConfirmed = false;
+   142→  bool _entriesGenerated = false;
+   143→  bool _isGeneratingEntries = false;
+   144→  bool _initiationSecurityPulled = false;
+   145→  // Auto-sync toggle: when true, SSHER cost items push to Cost Estimate on save
+   146→  bool _autoSyncToCostEstimate = false;
+   147→  // Tracks the SSHER entry IDs that have already been pushed via auto-sync,
+   148→  // so we don't duplicate them on subsequent saves.
+   149→  final Set<String> _autoSyncedEntryIds = {};
+   150→
+   151→  @override
+   152→  void initState() {
+   153→    super.initState();
+   154→    _safetyEntries = [];
+   155→    _securityEntries = [];
+   156→    _healthEntries = [];
+   157→    _environmentEntries = [];
+   158→    _regulatoryEntries = [];
+   159→    _tabController = TabController(length: 6, vsync: this);
+   160→    _tabController.addListener(() {
+   161→      if (!_tabController.indexIsChanging) {
+   162→        setState(() {
+   163→          _selectedCategory = _SsherCategory.values[_tabController.index];
+   164→          // Track tab visits (exclude cost tab from the requirement)
+   165→          if (_selectedCategory != _SsherCategory.cost) {
+   166→            _visitedTabs.add(_selectedCategory);
+   167→          }
+   168→          // Save the visit state
+   169→          _saveTabsVisited();
+   170→          // Generate the category plan on first visit
+   171→          if (_selectedCategory != _SsherCategory.cost) {
+   172→            _ensureCategoryPlanLoaded(_selectedCategory);
+   173→          }
+   174→        });
+   175→      }
+   176→    });
+   177→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   178→      _loadSavedEntries();
+   179→      _loadSavedState();
+   180→      _loadNotes();
+   181→      _pullInitiationSecurityData();
+   182→      // Mark the default tab as visited
+   183→      _visitedTabs.add(_SsherCategory.safety);
+   184→      _ensureCategoryPlanLoaded(_SsherCategory.safety);
+   185→    });
+   186→  }
+   187→
+   188→  @override
+   189→  void dispose() {
+   190→    _tabController.dispose();
+   191→    _notesController.dispose();
+   192→    super.dispose();
+   193→  }
+   194→
+   195→  // ── Load saved state (visited tabs, stakeholder confirmation, plans, SDGs) ──
+   196→  void _loadSavedState() {
+   197→    final ssherData = ProjectDataHelper.getData(context).ssherData;
+   198→    setState(() {
+   199→      _stakeholderConfirmed = ssherData.stakeholderConfirmed;
+   200→      _autoSyncToCostEstimate = ssherData.autoSyncToCostEstimate;
+   201→      // Restore visited tabs from persistent storage
+   202→      for (final cat in _SsherCategory.values) {
+   203→        if (cat == _SsherCategory.cost) continue;
+   204→        if (ssherData.categoryApplicability[cat.name] == false) {
+   205→          _visitedTabs.add(cat);
+   206→        }
+   207→        if (ssherData.tabsVisited[cat.name] == true) {
+   208→          _visitedTabs.add(cat);
+   209→        }
+   210→      }
+   211→      // Restore per-category plans
+   212→      for (final entry in ssherData.categoryPlans.entries) {
+   213→        if (entry.value.trim().isNotEmpty) {
+   214→          _categoryPlans[entry.key] = entry.value;
+   215→          _categoryPlanLoaded[entry.key] = true;
+   216→        }
+   217→      }
+   218→    });
+   219→    // If auto-sync is enabled, mark all existing entries as already-synced
+   220→    // so we don't retroactively push them on the first save.
+   221→    if (_autoSyncToCostEstimate) {
+   222→      for (final e in ssherData.entries) {
+   223→        _autoSyncedEntryIds.add(e.id);
+   224→      }
+   225→    }
+   226→  }
+   227→
+   228→  Future<void> _saveTabsVisited() async {
+   229→    final visitedMap = <String, bool>{};
+   230→    for (final cat in _SsherCategory.values) {
+   231→      if (cat == _SsherCategory.cost) continue;
+   232→      visitedMap[cat.name] = _visitedTabs.contains(cat);
+   233→    }
+   234→    await ProjectDataHelper.updateAndSave(
+   235→      context: context,
+   236→      checkpoint: 'ssher',
+   237→      showSnackbar: false,
+   238→      dataUpdater: (data) => data.copyWith(
+   239→        ssherData: data.ssherData.copyWith(tabsVisited: visitedMap),
+   240→      ),
+   241→    );
+   242→  }
+   243→
+   244→  bool _isCategoryApplicable(_SsherCategory category) {
+   245→    final data = ProjectDataHelper.getData(context).ssherData;
+   246→    return data.categoryApplicability[category.name] != false;
+   247→  }
+   248→
+   249→  Future<void> _setCategoryApplicable(
+   250→    _SsherCategory category,
+   251→    bool applicable,
+   252→  ) async {
+   253→    final current = ProjectDataHelper.getData(context).ssherData;
+   254→    final updatedMap = Map<String, bool>.from(current.categoryApplicability)
+   255→      ..[category.name] = applicable;
+   256→    final updatedVisited = Map<String, bool>.from(current.tabsVisited);
+   257→    if (!applicable) {
+   258→      updatedVisited[category.name] = true;
+   259→      _visitedTabs.add(category);
+   260→    }
+   261→
+   262→    await ProjectDataHelper.updateAndSave(
+   263→      context: context,
+   264→      checkpoint: 'ssher',
+   265→      showSnackbar: false,
+   266→      dataUpdater: (data) => data.copyWith(
+   267→        ssherData: data.ssherData.copyWith(
+   268→          categoryApplicability: updatedMap,
+   269→          tabsVisited: updatedVisited,
+   270→        ),
+   271→      ),
+   272→    );
+   273→
+   274→    if (!mounted) return;
+   275→    setState(() {});
+   276→  }
+   277→
+   278→  Future<void> _saveStakeholderConfirmation(bool value) async {
+   279→    final confirmedAt = value ? DateTime.now().toIso8601String() : '';
+   280→    await ProjectDataHelper.updateAndSave(
+   281→      context: context,
+   282→      checkpoint: 'ssher',
+   283→      showSnackbar: false,
+   284→      dataUpdater: (data) => data.copyWith(
+   285→        ssherData: data.ssherData.copyWith(
+   286→          stakeholderConfirmed: value,
+   287→          stakeholderConfirmedAt: confirmedAt,
+   288→        ),
+   289→      ),
+   290→    );
+   291→  }
+   292→
+   293→  void _loadNotes() {
+   294→    final data = ProjectDataHelper.getData(context);
+   295→    final existingNotes = data.ssherData.screen2Data.trim();
+   296→    if (existingNotes.isNotEmpty) {
+   297→      _notesController.text = existingNotes;
+   298→    }
+   299→  }
+   300→
+   301→  Future<void> _saveNotes() async {
+   302→    final notes = _notesController.text.trim();
+   303→    await ProjectDataHelper.updateAndSave(
+   304→      context: context,
+   305→      checkpoint: 'ssher',
+   306→      showSnackbar: false,
+   307→      dataUpdater: (data) => data.copyWith(
+   308→        ssherData: data.ssherData.copyWith(screen2Data: notes),
+   309→      ),
+   310→    );
+   311→  }
+   312→
+   313→  void _loadSavedEntries() {
+   314→    final ssherData = ProjectDataHelper.getData(context).ssherData;
+   315→    final entries = ssherData.entries;
+   316→    setState(() {
+   317→      _safetyEntries = entries
+   318→          .where((e) => e.category == _categoryKey(_SsherCategory.safety))
+   319→          .toList();
+   320→      _securityEntries = entries
+   321→          .where((e) => e.category == _categoryKey(_SsherCategory.security))
+   322→          .toList();
+   323→      _healthEntries = entries
+   324→          .where((e) => e.category == _categoryKey(_SsherCategory.health))
+   325→          .toList();
+   326→      _environmentEntries = entries
+   327→          .where((e) => e.category == _categoryKey(_SsherCategory.environment))
+   328→          .toList();
+   329→      _regulatoryEntries = entries
+   330→          .where((e) => e.category == _categoryKey(_SsherCategory.regulatory))
+   331→          .toList();
+   332→    });
+   333→    if (entries.isEmpty) {
+   334→      _populateSsherEntriesFromAi();
+   335→    } else {
+   336→      _entriesGenerated = true;
+   337→    }
+   338→  }
+   339→
+   340→  /// Pull the Initiation phase (Front End Planning) security section data
+   341→  /// into the Security tab so the user has continuity. Only runs once.
+   342→  void _pullInitiationSecurityData() {
+   343→    if (_initiationSecurityPulled) return;
+   344→    final data = ProjectDataHelper.getData(context);
+   345→    final fep = data.frontEndPlanning;
+   346→    final securityText = fep.security.trim();
+   347→
+   348→    // Pull the security notes as a single entry on the Security tab if we don't already have one
+   349→    final hasSecurityEntry = _securityEntries.any((e) =>
+   350→        e.concern.toLowerCase().contains('initiation') ||
+   351→        e.notes.toLowerCase().contains('initiation security') ||
+   352→        e.concern == 'Initiation Phase Security Plan');
+   353→
+   354→    if (securityText.isNotEmpty && !hasSecurityEntry) {
+   355→      // Summarize the initiation security text into a 200-char entry
+   356→      final summary = securityText.length > 280
+   357→          ? '${securityText.substring(0, 280)}...'
+   358→          : securityText;
+   359→      final entry = SsherEntry(
+   360→        category: 'security',
+   361→        department: 'IT Security',
+   362→        teamMember: 'Security Analyst (carried from Initiation)',
+   363→        concern: 'Initiation Phase Security Plan (carried forward)',
+   364→        riskLevel: 'High',
+   365→        mitigation: summary,
+   366→        notes: 'Auto-imported from Front End Planning – Security section.',
+   367→      );
+   368→      setState(() {
+   369→        _securityEntries.insert(0, entry);
+   370→        _initiationSecurityPulled = true;
+   371→      });
+   372→      _saveEntries();
+   373→    } else if (hasSecurityEntry) {
+   374→      _initiationSecurityPulled = true;
+   375→    }
+   376→  }
+   377→
+   378→  Future<void> _populateSsherEntriesFromAi() async {
+   379→    if (_entriesGenerated || _isGeneratingEntries) return;
+   380→    if (_allEntries().isNotEmpty) {
+   381→      _entriesGenerated = true;
+   382→      return;
+   383→    }
+   384→
+   385→    final projectData = ProjectDataHelper.getData(context);
+   386→    final contextText =
+   387→        ProjectDataHelper.buildFepContext(projectData, sectionLabel: 'SSHER');
+   388→    if (contextText.trim().isEmpty) {
+   389→      _entriesGenerated = true;
+   390→      return;
+   391→    }
+   392→
+   393→    setState(() => _isGeneratingEntries = true);
+   394→
+   395→    List<SsherEntry> generatedEntries = [];
+   396→    try {
+   397→      generatedEntries = await OpenAiServiceSecure()
+   398→          .generateSsherEntries(context: contextText, itemsPerCategory: 2);
+   399→    } catch (error) {
+   400→      debugPrint('SSHER entries AI call failed: $error');
+   401→    }
+   402→
+   403→    if (!mounted) return;
+   404→
+   405→    if (_allEntries().isNotEmpty) {
+   406→      setState(() => _isGeneratingEntries = false);
+   407→      _entriesGenerated = true;
+   408→      return;
+   409→    }
+   410→
+   411→    final safety = <SsherEntry>[];
+   412→    final security = <SsherEntry>[];
+   413→    final health = <SsherEntry>[];
+   414→    final environment = <SsherEntry>[];
+   415→    final regulatory = <SsherEntry>[];
+   416→
+   417→    for (final entry in generatedEntries) {
+   418→      switch (entry.category) {
+   419→        case 'safety':
+   420→          safety.add(entry);
+   421→          break;
+   422→        case 'security':
+   423→          security.add(entry);
+   424→          break;
+   425→        case 'health':
+   426→          health.add(entry);
+   427→          break;
+   428→        case 'environment':
+   429→          environment.add(entry);
+   430→          break;
+   431→        case 'regulatory':
+   432→          regulatory.add(entry);
+   433→          break;
+   434→      }
+   435→    }
+   436→
+   437→    setState(() {
+   438→      _safetyEntries = safety;
+   439→      _securityEntries = security;
+   440→      _healthEntries = health;
+   441→      _environmentEntries = environment;
+   442→      _regulatoryEntries = regulatory;
+   443→      _isGeneratingEntries = false;
+   444→    });
+   445→    _entriesGenerated = true;
+   446→    await _saveEntries();
+   447→    // After AI generation, also pull in Initiation security data
+   448→    _pullInitiationSecurityData();
+   449→  }
+   450→
+   451→  /// Ensures the per-category AI plan is loaded (lazy-loaded on first tab visit)
+   452→  Future<void> _ensureCategoryPlanLoaded(_SsherCategory cat) async {
+   453→    if (cat == _SsherCategory.cost) return;
+   454→    final key = cat.name;
+   455→    if (_categoryPlanLoaded[key] == true) return;
+   456→    if (_categoryPlans[key]?.isNotEmpty == true) {
+   457→      _categoryPlanLoaded[key] = true;
+   458→      return;
+   459→    }
+   460→    if (_categoryPlanLoading[key] == true) return;
+   461→
+   462→    setState(() => _categoryPlanLoading[key] = true);
+   463→
+   464→    final projectData = ProjectDataHelper.getData(context);
+   465→    final contextText =
+   466→        ProjectDataHelper.buildFepContext(projectData, sectionLabel: 'SSHER');
+   467→    if (contextText.trim().isEmpty) {
+   468→      setState(() {
+   469→        _categoryPlanLoaded[key] = true;
+   470→        _categoryPlanLoading[key] = false;
+   471→      });
+   472→      return;
+   473→    }
+   474→
+   475→    String plan = '';
+   476→    try {
+   477→      plan = await OpenAiServiceSecure().generateSsherCategoryPlan(
+   478→        context: contextText,
+   479→        category: key,
+   480→      );
+   481→    } catch (e) {
+   482→      debugPrint('generateSsherCategoryPlan failed for $key: $e');
+   483→    }
+   484→
+   485→    if (!mounted) return;
+   486→
+   487→    final trimmed = plan.trim();
+   488→    setState(() {
+   489→      if (trimmed.isNotEmpty) {
+   490→        _categoryPlans[key] = trimmed;
+   491→      }
+   492→      _categoryPlanLoaded[key] = true;
+   493→      _categoryPlanLoading[key] = false;
+   494→    });
+   495→
+   496→    if (trimmed.isNotEmpty) {
+   497→      await ProjectDataHelper.updateAndSave(
+   498→        context: context,
+   499→        checkpoint: 'ssher',
+   500→        showSnackbar: false,
+   501→        dataUpdater: (data) => data.copyWith(
+   502→          ssherData: data.ssherData.copyWith(
+   503→            categoryPlans: Map<String, String>.from(_categoryPlans),
+   504→          ),
+   505→        ),
+   506→      );
+   507→    }
+   508→  }
+   509→
+   510→  Future<void> _retryCategoryPlan(_SsherCategory cat) async {
+   511→    final key = cat.name;
+   512→    setState(() {
+   513→      _categoryPlanLoaded[key] = false;
+   514→      _categoryPlans[key] = '';
+   515→    });
+   516→    await _ensureCategoryPlanLoaded(cat);
+   517→  }
+   518→
+   519→  /// Generates SDG recommendations (for the Environment tab)
+   520→  Future<void> _loadSdgRecommendations() async {
+   521→    if (_sdgsLoaded || _isGeneratingSdgs) return;
+   522→    setState(() => _isGeneratingSdgs = true);
+   523→
+   524→    final projectData = ProjectDataHelper.getData(context);
+   525→    final contextText =
+   526→        ProjectDataHelper.buildFepContext(projectData, sectionLabel: 'SSHER');
+   527→    if (contextText.trim().isEmpty) {
+   528→      setState(() {
+   529→        _isGeneratingSdgs = false;
+   530→        _sdgsLoaded = true;
+   531→      });
+   532→      return;
+   533→    }
+   534→
+   535→    List<Map<String, String>> recs = [];
+   536→    try {
+   537→      recs = await OpenAiServiceSecure()
+   538→          .generateSdgRecommendations(context: contextText);
+   539→    } catch (e) {
+   540→      debugPrint('generateSdgRecommendations failed: $e');
+   541→    }
+   542→
+   543→    if (!mounted) return;
+   544→    setState(() {
+   545→      _sdgRecommendations = recs;
+   546→      _isGeneratingSdgs = false;
+   547→      _sdgsLoaded = true;
+   548→    });
+   549→
+   550→    if (recs.isNotEmpty) {
+   551→      final sdgList = recs.map((r) => r['goal'] ?? '').where((g) => g.isNotEmpty).toList();
+   552→      await ProjectDataHelper.updateAndSave(
+   553→        context: context,
+   554→        checkpoint: 'ssher',
+   555→        showSnackbar: false,
+   556→        dataUpdater: (data) => data.copyWith(
+   557→          ssherData: data.ssherData.copyWith(applicableSdgs: sdgList),
+   558→        ),
+   559→      );
+   560→    }
+   561→  }
+   562→
+   563→  List<SsherEntry> _entriesForCategory(_SsherCategory category) {
+   564→    switch (category) {
+   565→      case _SsherCategory.safety:
+   566→        return _safetyEntries;
+   567→      case _SsherCategory.security:
+   568→        return _securityEntries;
+   569→      case _SsherCategory.health:
+   570→        return _healthEntries;
+   571→      case _SsherCategory.environment:
+   572→        return _environmentEntries;
+   573→      case _SsherCategory.regulatory:
+   574→        return _regulatoryEntries;
+   575→      case _SsherCategory.cost:
+   576→        return _allEntries();
+   577→    }
+   578→  }
+   579→
+   580→  List<SsherEntry> _allEntries() {
+   581→    return [
+   582→      ..._safetyEntries,
+   583→      ..._securityEntries,
+   584→      ..._healthEntries,
+   585→      ..._environmentEntries,
+   586→      ..._regulatoryEntries,
+   587→    ];
+   588→  }
+   589→
+   590→  Future<void> _saveEntries() async {
+   591→    await ProjectDataHelper.updateAndSave(
+   592→      context: context,
+   593→      checkpoint: 'ssher',
+   594→      dataUpdater: (data) => data.copyWith(
+   595→        ssherData: data.ssherData.copyWith(entries: _allEntries()),
+   596→      ),
+   597→      showSnackbar: false,
+   598→    );
+   599→    // Auto-sync any new SSHER cost items to Cost Estimate (if enabled)
+   600→    await _autoSyncNewCostItems();
+   601→    // Sync SSHER risks to global execution risk log
+   602→    await _syncSsherRisksToGlobalLog();
+   603→  }
+   604→
+   605→  /// Sync high/critical SSHER entries to the global execution risk log.
+   606→  /// This ensures that significant SSHER concerns are visible in the central risk register.
+   607→  Future<void> _syncSsherRisksToGlobalLog() async {
+   608→    try {
+   609→      final allEntries = _allEntries();
+   610→      
+   611→      // Only sync entries with elevated risk levels (not 'Low' or empty)
+   612→      final riskyEntries = allEntries.where((e) {
+   613→        final level = e.riskLevel.toLowerCase();
+   614→        return level.isNotEmpty && 
+   615→               level != 'low' && 
+   616→               level != 'very low' &&
+   617→               e.concern.trim().isNotEmpty;
+   618→      }).toList();
+   619→      
+   620→      for (final entry in riskyEntries) {
+   621→        final riskItem = RiskSyncService.ssherEntryToRiskItem(entry);
+   622→        await RiskSyncService.syncRiskToGlobalLog(
+   623→          context: context,
+   624→          sectionId: 'ssher',
+   625→          sectionLabel: 'SSHER (${entry.category.toUpperCase()})',
+   626→          riskItem: riskItem,
+   627→          idPrefix: 'ssher_',
+   628→        );
+   629→      }
+   630→      
+   631→      debugPrint('SSHER: Synced ${riskyEntries.length} risky entries to global risk log');
+   632→    } catch (e) {
+   633→      debugPrint('SSHER: Error syncing risks to global log: $e');
+   634→    }
+   635→  }
+   636→
+   637→  /// Remove a specific SSHER entry's risk from the global log.
+   638→  Future<void> _removeSsherRiskFromGlobalLog(SsherEntry entry) async {
+   639→    try {
+   640→      await RiskSyncService.removeRiskFromGlobalLog(
+   641→        context: context,
+   642→        riskGlobalId: 'ssher_${entry.id}',
+   643→        sectionId: 'ssher',
+   644→      );
+   645→    } catch (e) {
+   646→      debugPrint('SSHER: Error removing risk from global log: $e');
+   647→    }
+   648→  }
+   649→
+   650→  Future<void> _deleteEntry(SsherEntry entry) async {
+   651→    final confirmed = await showDialog<bool>(
+   652→      context: context,
+   653→      builder: (ctx) => AlertDialog(
+   654→        title: const Text('Delete Item'),
+   655→        content: const Text('Are you sure you want to delete this item?'),
+   656→        actions: [
+   657→          TextButton(
+   658→              onPressed: () => Navigator.pop(ctx, false),
+   659→              child: const Text('Cancel')),
+   660→          TextButton(
+   661→              onPressed: () => Navigator.pop(ctx, true),
+   662→              child: const Text('Delete', style: TextStyle(color: Colors.red))),
+   663→        ],
+   664→      ),
+   665→    );
+   666→
+   667→    if (confirmed == true) {
+   668→      // Remove risk from global log before deleting
+   669→      await _removeSsherRiskFromGlobalLog(entry);
+   670→      
+   671→      setState(() {
+   672→        if (entry.category == 'safety') {
+   673→          _safetyEntries.removeWhere((e) => e.id == entry.id);
+   674→        }
+   675→        if (entry.category == 'security') {
+   676→          _securityEntries.removeWhere((e) => e.id == entry.id);
+   677→        }
+   678→        if (entry.category == 'health') {
+   679→          _healthEntries.removeWhere((e) => e.id == entry.id);
+   680→        }
+   681→        if (entry.category == 'environment') {
+   682→          _environmentEntries.removeWhere((e) => e.id == entry.id);
+   683→        }
+   684→        if (entry.category == 'regulatory') {
+   685→          _regulatoryEntries.removeWhere((e) => e.id == entry.id);
+   686→        }
+   687→      });
+   688→      await _saveEntries();
+   689→    }
+   690→  }
+   691→
+   692→  Future<void> _editEntry(SsherEntry entry) async {
+   693→    Color accentColor;
+   694→    IconData icon;
+   695→    String heading;
+   696→    String blurb;
+   697→    String concernLabel;
+   698→
+   699→    switch (entry.category) {
+   700→      case 'safety':
+   701→        accentColor = _safetyAccent;
+   702→        icon = Icons.health_and_safety;
+   703→        heading = 'Edit Safety Item';
+   704→        blurb = 'Update details for the safety record.';
+   705→        concernLabel = 'Safety Concern';
+   706→        break;
+   707→      case 'security':
+   708→        accentColor = _securityAccent;
+   709→        icon = Icons.shield_outlined;
+   710→        heading = 'Edit Security Item';
+   711→        blurb = 'Update the security exposure details.';
+   712→        concernLabel = 'Security Concern';
+   713→        break;
+   714→      case 'health':
+   715→        accentColor = _healthAccent;
+   716→        icon = Icons.volunteer_activism_outlined;
+   717→        heading = 'Edit Health Item';
+   718→        blurb = 'Update the health-related concern.';
+   719→        concernLabel = 'Health Concern';
+   720→        break;
+   721→      case 'environment':
+   722→        accentColor = _environmentAccent;
+   723→        icon = Icons.eco_outlined;
+   724→        heading = 'Edit Environment Item';
+   725→        blurb = 'Update log of environmental impact.';
+   726→        concernLabel = 'Environmental Concern';
+   727→        break;
+   728→      case 'regulatory':
+   729→        accentColor = _regulatoryAccent;
+   730→        icon = Icons.gavel_outlined;
+   731→        heading = 'Edit Regulatory Item';
+   732→        blurb = 'Update compliance requirement details.';
+   733→        concernLabel = 'Regulatory Requirement';
+   734→        break;
+   735→      default:
+   736→        return;
+   737→    }
+   738→
+   739→    final projectData = ProjectDataHelper.getData(context);
+   740→    final input = await showDialog<SsherItemInput>(
+   741→      context: context,
+   742→      builder: (ctx) => AddSsherItemDialog(
+   743→        accentColor: accentColor,
+   744→        icon: icon,
+   745→        heading: heading,
+   746→        blurb: blurb,
+   747→        concernLabel: concernLabel,
+   748→        saveButtonLabel: 'Save Changes',
+   749→        initialData: SsherItemInput(
+   750→          department: entry.department,
+   751→          teamMember: entry.teamMember,
+   752→          concern: entry.concern,
+   753→          riskLevel: entry.riskLevel,
+   754→          mitigation: entry.mitigation,
+   755→          estimatedCost: entry.estimatedCost,
+   756→          costCurrency: entry.costCurrency,
+   757→          costFrequency: entry.costFrequency,
+   758→          costUnit: entry.costUnit,
+   759→          linkedRiskIds: entry.linkedRiskIds,
+   760→          linkedStaffingRoleIds: entry.linkedStaffingRoleIds,
+   761→          linkedRequirementIds: entry.linkedRequirementIds,
+   762→          notes: entry.notes,
+   763→        ),
+   764→        riskRegisterItems: projectData.frontEndPlanning.riskRegisterItems,
+   765→        staffingRows: projectData.frontEndPlanning.staffingRows,
+   766→        requirementItems: projectData.frontEndPlanning.requirementItems,
+   767→      ),
+   768→    );
+   769→
+   770→    if (input == null) return;
+   771→
+   772→    setState(() {
+   773→      entry.department = input.department;
+   774→      entry.teamMember = input.teamMember;
+   775→      entry.concern = input.concern;
+   776→      entry.riskLevel = input.riskLevel;
+   777→      entry.mitigation = input.mitigation;
+   778→      entry.estimatedCost = input.estimatedCost;
+   779→      entry.costCurrency = input.costCurrency;
+   780→      entry.costFrequency = input.costFrequency;
+   781→      entry.costUnit = input.costUnit;
+   782→      entry.linkedRiskIds = List<String>.from(input.linkedRiskIds);
+   783→      entry.linkedStaffingRoleIds = List<String>.from(input.linkedStaffingRoleIds);
+   784→      entry.linkedRequirementIds = List<String>.from(input.linkedRequirementIds);
+   785→      entry.notes = input.notes;
+   786→    });
+   787→    await _saveEntries();
+   788→  }
+   789→
+   790→  Future<void> _addEntry(_SsherCategory category, SsherItemInput input) async {
+   791→    final entry = SsherEntry(
+   792→      category: _categoryKey(category),
+   793→      department: input.department,
+   794→      teamMember: input.teamMember,
+   795→      concern: input.concern,
+   796→      riskLevel: input.riskLevel,
+   797→      mitigation: input.mitigation,
+   798→      estimatedCost: input.estimatedCost,
+   799→      costCurrency: input.costCurrency,
+   800→      costFrequency: input.costFrequency,
+   801→      costUnit: input.costUnit,
+   802→      linkedRiskIds: List<String>.from(input.linkedRiskIds),
+   803→      linkedStaffingRoleIds: List<String>.from(input.linkedStaffingRoleIds),
+   804→      linkedRequirementIds: List<String>.from(input.linkedRequirementIds),
+   805→      notes: input.notes,
+   806→    );
+   807→    setState(() => _entriesForCategory(category).add(entry));
+   808→    await _saveEntries();
+   809→  }
+   810→
+   811→  Future<void> _downloadAll() async {
+   812→    final isAdmin = await UserService.isCurrentUserAdmin();
+   813→    final hostname = getCurrentHostname() ?? '';
+   814→    final allowCsv = isAdmin && hostname.startsWith('admin.');
+   815→
+   816→    final map = {
+   817→      'SAFETY': _safetyEntries,
+   818→      'SECURITY': _securityEntries,
+   819→      'HEALTH': _healthEntries,
+   820→      'ENVIRONMENT': _environmentEntries,
+   821→      'REGULATORY': _regulatoryEntries,
+   822→    };
+   823→
+   824→    if (allowCsv) {
+   825→      final csv = SsherExportHelper.allEntriesToCsv(map);
+   826→      await SsherExportHelper.downloadCsv(csv, 'ssher_all_categories.csv');
+   827→    } else {
+   828→      await SsherExportHelper.exportAllToPdf(map);
+   829→    }
+   830→  }
+   831→
+   832→  Color _accentForCategory(_SsherCategory cat) {
+   833→    switch (cat) {
+   834→      case _SsherCategory.safety:
+   835→        return _safetyAccent;
+   836→      case _SsherCategory.security:
+   837→        return _securityAccent;
+   838→      case _SsherCategory.health:
+   839→        return _healthAccent;
+   840→      case _SsherCategory.environment:
+   841→        return _environmentAccent;
+   842→      case _SsherCategory.regulatory:
+   843→        return _regulatoryAccent;
+   844→      case _SsherCategory.cost:
+   845→        return _costAccent;
+   846→    }
+   847→  }
+   848→
+   849→  IconData _iconForCategory(_SsherCategory cat) {
+   850→    switch (cat) {
+   851→      case _SsherCategory.safety:
+   852→        return Icons.health_and_safety;
+   853→      case _SsherCategory.security:
+   854→        return Icons.security;
+   855→      case _SsherCategory.health:
+   856→        return Icons.medical_services;
+   857→      case _SsherCategory.environment:
+   858→        return Icons.eco;
+   859→      case _SsherCategory.regulatory:
+   860→        return Icons.gavel;
+   861→      case _SsherCategory.cost:
+   862→        return Icons.attach_money;
+   863→    }
+   864→  }
+   865→
+   866→  @override
+   867→  Widget build(BuildContext context) {
+   868→    final isMobile = AppBreakpoints.isMobile(context);
+   869→
+   870→    return Scaffold(
+   871→      key: _scaffoldKey,
+   872→      backgroundColor: Colors.white,
+   873→      drawer: isMobile
+   874→          ? Drawer(
+   875→              width: AppBreakpoints.sidebarWidth(context),
+   876→              child: SafeArea(
+   877→                child: InitiationLikeSidebar(
+   878→                  activeItemLabel: 'SSHER',
+   879→                  showHeader: true,
+   880→                ),
+   881→              ),
+   882→            )
+   883→          : null,
+   884→      body: SafeArea(
+   885→        child: StreamBuilder<bool>(
+   886→            stream: UserService.watchAdminStatus(),
+   887→            builder: (context, snapshot) {
+   888→              final isAdmin = snapshot.data ?? false;
+   889→              final hostname = getCurrentHostname() ?? '';
+   890→              final allowCsv = isAdmin && hostname.startsWith('admin.');
+   891→
+   892→              if (!isMobile) {
+   893→                return _buildDesktopLayout(allowCsv);
+   894→              }
+   895→              return _buildMobileLayout(allowCsv);
+   896→            }),
+   897→      ),
+   898→    );
+   899→  }
+   900→
+   901→  // ── Desktop Layout ──
+   902→  Widget _buildDesktopLayout(bool allowCsv) {
+   903→    return Stack(
+   904→      children: [
+   905→        Row(
+   906→          crossAxisAlignment: CrossAxisAlignment.start,
+   907→          children: [
+   908→            DraggableSidebar(
+   909→              openWidth: AppBreakpoints.sidebarWidth(context),
+   910→              child: const InitiationLikeSidebar(activeItemLabel: 'SSHER'),
+   911→            ),
+   912→            Expanded(
+   913→              child: Column(
+   914→                children: [
+   915→                  PlanningPhaseHeader(
+   916→                    title: 'SSHER Hub',
+   917→                    breadcrumbPhase: 'Planning Phase',
+   918→                    breadcrumbTitle:
+   919→                        'Safety, Security, Health, Environmental, and Regulatory (SSHER) Hub',
+   920→                    onBack: () =>
+   921→                        PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+   922→                    onForward: () => _handleNextWithConfirmation(),
+   923→                    onExportPdf: _exportPdf,
+   924→                  ),
+   925→                  Expanded(child: _buildMainContent(allowCsv)),
+   926→                ],
+   927→              ),
+   928→            ),
+   929→          ],
+   930→        ),
+   931→        const MobileSidebarHamburger(
+   932→          sidebar: InitiationLikeSidebar(
+   933→            activeItemLabel: 'SSHER',
+   934→          ),
+   935→        ),
+   936→        const KazAiChatBubble(),
+   937→        const AdminEditToggle(),
+   938→      ],
+   939→    );
+   940→  }
+   941→
+   942→  // ── Mobile Layout ──
+   943→  Widget _buildMobileLayout(bool allowCsv) {
+   944→    return Column(
+   945→      children: [
+   946→        PlanningPhaseHeader(
+   947→          title: 'SSHER Hub',
+   948→          breadcrumbPhase: 'Planning Phase',
+   949→          breadcrumbTitle:
+   950→              'Safety, Security, Health, Environmental, and Regulatory (SSHER) Hub',
+   951→          onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+   952→          onForward: () => _handleNextWithConfirmation(),
+   953→          onExportPdf: _exportPdf,
+   954→        ),
+   955→        Expanded(child: _buildMainContent(allowCsv)),
+   956→      ],
+   957→    );
+   958→  }
+   959→
+   960→  /// Validates that the user has visited all 5 SSHER tabs AND checked the
+   961→  /// confirmation checkbox before navigating to the next phase.
+   962→  Future<void> _handleNextWithConfirmation() async {
+   963→    final requiredTabs = {
+   964→      _SsherCategory.safety,
+   965→      _SsherCategory.security,
+   966→      _SsherCategory.health,
+   967→      _SsherCategory.environment,
+   968→      _SsherCategory.regulatory,
+   969→    }.where(_isCategoryApplicable).toSet();
+   970→    final unvisited = requiredTabs.difference(_visitedTabs).toList();
+   971→    if (unvisited.isNotEmpty) {
+   972→      final labels = unvisited.map(_categoryLabel).join(', ');
+   973→      ScaffoldMessenger.of(context).showSnackBar(
+   974→        SnackBar(
+   975→          content: Text(
+   976→              'Please review all SSHER sections before continuing. Unvisited: $labels'),
+   977→          duration: const Duration(seconds: 4),
+   978→        ),
+   979→      );
+   980→      // Jump to the first unvisited tab
+   981→      _tabController.animateTo(unvisited.first.index);
+   982→      setState(() => _selectedCategory = unvisited.first);
+   983→      return;
+   984→    }
+   985→    if (!_stakeholderConfirmed) {
+   986→      ScaffoldMessenger.of(context).showSnackBar(
+   987→        const SnackBar(
+   988→          content: Text(
+   989→              'Please confirm the stakeholder review checkbox before continuing.'),
+   990→          duration: Duration(seconds: 4),
+   991→        ),
+   992→      );
+   993→      return;
+   994→    }
+   995→    
+   996→    // Show skip confirmation dialog before navigating
+   997→    final shouldProceed = await SkipConfirmationDialog.show(
+   998→      context: context,
+   999→      sectionTitle: 'SSHER',
+  1000→      sectionName: 'ssher',
+  1001→    );
+  1002→    
+  1003→    if (shouldProceed == true) {
+  1004→      PlanningPhaseNavigation.goToNext(context, 'ssher');
+  1005→    }
+  1006→  }
+  1007→
+  1008→  // ── Shared Main Content ──
+  1009→  Widget _buildMainContent(bool allowCsv) {
+  1010→    final isMobile = AppBreakpoints.isMobile(context);
+  1011→
+  1012→    return SingleChildScrollView(
+  1013→      padding: isMobile ? EdgeInsets.zero : const EdgeInsets.all(24),
+  1014→      child: Column(
+  1015→        crossAxisAlignment: CrossAxisAlignment.start,
+  1016→        children: [
+  1017→          // ── Breadcrumbs ──
+  1018→          if (isMobile) _buildBreadcrumbs(),
+  1019→
+  1020→          // ── Context Section (Title + PDF download) ──
+  1021→          _buildContextSection(allowCsv, isMobile),
+  1022→
+  1023→          // ── Notes Input ──
+  1024→          _buildNotesSection(isMobile),
+  1025→
+  1026→          _buildApplicabilitySection(isMobile),
+  1027→
+  1028→          // ── Phase Navigation (Scrollable Pill Tabs) ──
+  1029→          _buildPhaseTabs(isMobile),
+  1030→
+  1031→          // ── Inner Page Navigation Hint ──
+  1032→          Padding(
+  1033→            padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0),
+  1034→            child: InnerPageNavigationHint(
+  1035→              pageId: 'ssher_stacked',
+  1036→              pageTitle: 'SSHER Hub',
+  1037→              description: 'Navigate between SSHER categories',
+  1038→              currentSectionId: _selectedCategory.name,
+  1039→              accentColor: _accentForCategory(_selectedCategory),
+  1040→              sections: [
+  1041→                InnerPageSection(
+  1042→                    id: _SsherCategory.safety.name,
+  1043→                    label: 'Safety',
+  1044→                    icon: Icons.health_and_safety,
+  1045→                    status: _selectedCategory == _SsherCategory.safety
+  1046→                        ? InnerPageSectionStatus.current
+  1047→                        : (_visitedTabs.contains(_SsherCategory.safety)
+  1048→                            ? InnerPageSectionStatus.completed
+  1049→                            : InnerPageSectionStatus.available),
+  1050→                    stepNumber: 1),
+  1051→                InnerPageSection(
+  1052→                    id: _SsherCategory.security.name,
+  1053→                    label: 'Security',
+  1054→                    icon: Icons.security,
+  1055→                    status: _selectedCategory == _SsherCategory.security
+  1056→                        ? InnerPageSectionStatus.current
+  1057→                        : (_visitedTabs.contains(_SsherCategory.security)
+  1058→                            ? InnerPageSectionStatus.completed
+  1059→                            : InnerPageSectionStatus.available),
+  1060→                    stepNumber: 2),
+  1061→                InnerPageSection(
+  1062→                    id: _SsherCategory.health.name,
+  1063→                    label: 'Health',
+  1064→                    icon: Icons.medical_services,
+  1065→                    status: _selectedCategory == _SsherCategory.health
+  1066→                        ? InnerPageSectionStatus.current
+  1067→                        : (_visitedTabs.contains(_SsherCategory.health)
+  1068→                            ? InnerPageSectionStatus.completed
+  1069→                            : InnerPageSectionStatus.available),
+  1070→                    stepNumber: 3),
+  1071→                InnerPageSection(
+  1072→                    id: _SsherCategory.environment.name,
+  1073→                    label: 'Environment',
+  1074→                    icon: Icons.eco,
+  1075→                    status: _selectedCategory == _SsherCategory.environment
+  1076→                        ? InnerPageSectionStatus.current
+  1077→                        : (_visitedTabs.contains(_SsherCategory.environment)
+  1078→                            ? InnerPageSectionStatus.completed
+  1079→                            : InnerPageSectionStatus.available),
+  1080→                    stepNumber: 4),
+  1081→                InnerPageSection(
+  1082→                    id: _SsherCategory.regulatory.name,
+  1083→                    label: 'Regulatory',
+  1084→                    icon: Icons.gavel,
+  1085→                    status: _selectedCategory == _SsherCategory.regulatory
+  1086→                        ? InnerPageSectionStatus.current
+  1087→                        : (_visitedTabs.contains(_SsherCategory.regulatory)
+  1088→                            ? InnerPageSectionStatus.completed
+  1089→                            : InnerPageSectionStatus.available),
+  1090→                    stepNumber: 5),
+  1091→                InnerPageSection(
+  1092→                    id: _SsherCategory.cost.name,
+  1093→                    label: 'Cost Summary',
+  1094→                    icon: Icons.attach_money,
+  1095→                    status: _selectedCategory == _SsherCategory.cost
+  1096→                        ? InnerPageSectionStatus.current
+  1097→                        : InnerPageSectionStatus.available,
+  1098→                    stepNumber: 6),
+  1099→              ],
+  1100→              onSectionTap: (sectionId) {
+  1101→                final cat = _SsherCategory.values
+  1102→                    .firstWhere((c) => c.name == sectionId);
+  1103→                setState(() => _selectedCategory = cat);
+  1104→                _tabController.animateTo(cat.index);
+  1105→                if (cat != _SsherCategory.cost) {
+  1106→                  _visitedTabs.add(cat);
+  1107→                  _saveTabsVisited();
+  1108→                  _ensureCategoryPlanLoaded(cat);
+  1109→                }
+  1110→              },
+  1111→            ),
+  1112→          ),
+  1113→
+  1114→          // ── Data Cards Section ──
+  1115→          _buildDataCardsSection(isMobile, allowCsv),
+  1116→
+  1117→          // ── Stakeholder Confirmation ──
+  1118→          _buildStakeholderConfirmation(),
+  1119→
+  1120→          // ── Save & Continue Button ──
+  1121→          if (isMobile)
+  1122→            _buildSaveContinueButton()
+  1123→          else
+  1124→            Padding(
+  1125→              padding: const EdgeInsets.all(24),
+  1126→              child: LaunchPhaseNavigation(
+  1127→                backLabel: 'Back',
+  1128→                nextLabel: 'Next',
+  1129→                onBack: () =>
+  1130→                    PlanningPhaseNavigation.goToPrevious(context, 'ssher'),
+  1131→                onNext: () => _handleNextWithConfirmation(),
+  1132→              ),
+  1133→            ),
+  1134→
+  1135→          // Bottom padding for mobile
+  1136→          if (isMobile) const SizedBox(height: 80),
+  1137→        ],
+  1138→      ),
+  1139→    );
+  1140→  }
+  1141→
+  1142→  Widget _buildApplicabilitySection(bool isMobile) {
+  1143→    final categories = _SsherCategory.values
+  1144→        .where((category) => category != _SsherCategory.cost)
+  1145→        .toList();
+  1146→
+  1147→    return Padding(
+  1148→      padding:
+  1149→          EdgeInsets.fromLTRB(isMobile ? 16 : 0, 16, isMobile ? 16 : 0, 8),
+  1150→      child: Container(
+  1151→        width: double.infinity,
+  1152→        padding: const EdgeInsets.all(16),
+  1153→        decoration: BoxDecoration(
+  1154→          color: Colors.white,
+  1155→          borderRadius: BorderRadius.circular(16),
+  1156→          border: Border.all(color: const Color(0xFFE5E7EB)),
+  1157→        ),
+  1158→        child: Column(
+  1159→          crossAxisAlignment: CrossAxisAlignment.start,
+  1160→          children: [
+  1161→            const Text(
+  1162→              'Applicable SSHER Sections',
+  1163→              style: TextStyle(
+  1164→                fontSize: 18,
+  1165→                fontWeight: FontWeight.w700,
+  1166→                color: Color(0xFF111827),
+  1167→              ),
+  1168→            ),
+  1169→            const SizedBox(height: 6),
+  1170→            const Text(
+  1171→              'Turn off sections that do not apply to this project. Skipped sections will not block completion.',
+  1172→              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+  1173→            ),
+  1174→            const SizedBox(height: 12),
+  1175→            ...categories.map((category) {
+  1176→              final applicable = _isCategoryApplicable(category);
+  1177→              return SwitchListTile.adaptive(
+  1178→                value: applicable,
+  1179→                contentPadding: EdgeInsets.zero,
+  1180→                title: Text(_categoryLabel(category)),
+  1181→                subtitle: Text(
+  1182→                  applicable
+  1183→                      ? 'Included in SSHER review and completion checks.'
+  1184→                      : 'Marked not applicable and skipped from review requirements.',
+  1185→                ),
+  1186→                onChanged: (value) => _setCategoryApplicable(category, value),
+  1187→              );
+  1188→            }),
+  1189→          ],
+  1190→        ),
+  1191→      ),
+  1192→    );
+  1193→  }
+  1194→
+  1195→  // ── Breadcrumbs ──
+  1196→  Widget _buildBreadcrumbs() {
+  1197→    final projectName =
+  1198→        ProjectDataHelper.getData(context).projectName.trim();
+  1199→
+  1200→    return Padding(
+  1201→      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+  1202→      child: SingleChildScrollView(
+  1203→        scrollDirection: Axis.horizontal,
+  1204→        child: Row(
+  1205→          children: [
+  1206→            GestureDetector(
+  1207→              onTap: () => Navigator.of(context).pop(),
+  1208→              child: const Text(
+  1209→                'Projects',
+  1210→                style: TextStyle(
+  1211→                  fontSize: 12,
+  1212→                  fontWeight: FontWeight.w600,
+  1213→                  letterSpacing: 0.05,
+  1214→                  color: _Palette.onSurfaceVariant,
+  1215→                ),
+  1216→              ),
+  1217→            ),
+  1218→            const Padding(
+  1219→              padding: EdgeInsets.symmetric(horizontal: 2),
+  1220→              child: Icon(Icons.chevron_right,
+  1221→                  size: 14, color: _Palette.onSurfaceVariant),
+  1222→            ),
+  1223→            GestureDetector(
+  1224→              onTap: () => Navigator.of(context).pop(),
+  1225→              child: Text(
+  1226→                projectName.isNotEmpty ? projectName : 'Project',
+  1227→                style: const TextStyle(
+  1228→                  fontSize: 12,
+  1229→                  fontWeight: FontWeight.w600,
+  1230→                  letterSpacing: 0.05,
+  1231→                  color: _Palette.onSurfaceVariant,
+  1232→                ),
+  1233→              ),
+  1234→            ),
+  1235→            const Padding(
+  1236→              padding: EdgeInsets.symmetric(horizontal: 2),
+  1237→              child: Icon(Icons.chevron_right,
+  1238→                  size: 14, color: _Palette.onSurfaceVariant),
+  1239→            ),
+  1240→            const Text(
+  1241→              'SSHER Hub',
+  1242→              style: TextStyle(
+  1243→                fontSize: 12,
+  1244→                fontWeight: FontWeight.w700,
+  1245→                letterSpacing: 0.05,
+  1246→                color: _Palette.onBackground,
+  1247→              ),
+  1248→            ),
+  1249→          ],
+  1250→        ),
+  1251→      ),
+  1252→    );
+  1253→  }
+  1254→
+  1255→  // ── Context Section ──
+  1256→  Widget _buildContextSection(bool allowCsv, bool isMobile) {
+  1257→    return Padding(
+  1258→      padding: EdgeInsets.fromLTRB(
+  1259→          isMobile ? 16 : 0, isMobile ? 16 : 0, isMobile ? 16 : 0, 0),
+  1260→      child: Column(
+  1261→        crossAxisAlignment: CrossAxisAlignment.start,
+  1262→        children: [
+  1263→          Row(
+  1264→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  1265→            crossAxisAlignment: CrossAxisAlignment.center,
+  1266→            children: [
+  1267→              Expanded(
+  1268→                child: Text(
+  1269→                  'Safety, Security, Health, Environmental, and Regulatory (SSHER) Hub',
+  1270→                  style: TextStyle(
+  1271→                    fontSize: isMobile ? 22 : 26,
+  1272→                    fontWeight: FontWeight.w700,
+  1273→                    color: _Palette.onBackground,
+  1274→                    letterSpacing: isMobile ? -0.02 : 0,
+  1275→                    height: 1.2,
+  1276→                  ),
+  1277→                ),
+  1278→              ),
+  1279→              const SizedBox(width: 12),
+  1280→              if (isMobile)
+  1281→                OutlinedButton.icon(
+  1282→                  onPressed: _downloadAll,
+  1283→                  icon: const Icon(Icons.download, size: 16),
+  1284→                  label: const Text('PDF',
+  1285→                      style: TextStyle(
+  1286→                          fontSize: 12,
+  1287→                          fontWeight: FontWeight.w600,
+  1288→                          letterSpacing: 0.05)),
+  1289→                  style: OutlinedButton.styleFrom(
+  1290→                    foregroundColor: _Palette.onSurface,
+  1291→                    side: const BorderSide(color: _Palette.outlineVariant),
+  1292→                    backgroundColor: _Palette.surfaceContainerLowest,
+  1293→                    padding:
+  1294→                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  1295→                    shape: RoundedRectangleBorder(
+  1296→                        borderRadius: BorderRadius.circular(8)),
+  1297→                    minimumSize: Size.zero,
+  1298→                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  1299→                  ),
+  1300→                )
+  1301→              else
+  1302→                ElevatedButton.icon(
+  1303→                  onPressed: _downloadAll,
+  1304→                  icon: Icon(allowCsv
+  1305→                      ? Icons.download_for_offline
+  1306→                      : Icons.picture_as_pdf),
+  1307→                  label: Text(allowCsv
+  1308→                      ? 'Download All (CSV)'
+  1309→                      : 'Download All (PDF)'),
+  1310→                  style: ElevatedButton.styleFrom(
+  1311→                    backgroundColor: _Palette.primary,
+  1312→                    foregroundColor: Colors.white,
+  1313→                    padding: const EdgeInsets.symmetric(
+  1314→                        horizontal: 16, vertical: 12),
+  1315→                    shape: RoundedRectangleBorder(
+  1316→                        borderRadius: BorderRadius.circular(8)),
+  1317→                  ),
+  1318→                ),
+  1319→            ],
+  1320→          ),
+  1321→          const SizedBox(height: 10),
+  1322→          Text(
+  1323→            'Identify and plan for the Safety, Security, Health, Environmental, and Regulatory aspects required to support safe and compliant project delivery. AI tailors each section to the project type, location, and applicable rules. The Security section automatically pulls the Initiation phase security plan. The Cost Summary tab aggregates all SSHER costs into a single view.',
+  1324→            style: TextStyle(
+  1325→              fontSize: isMobile ? 13 : 14,
+  1326→              color: _Palette.onSurfaceVariant,
+  1327→              height: 1.55,
+  1328→              letterSpacing: 0.01,
+  1329→            ),
+  1330→          ),
+  1331→          const SizedBox(height: 12),
+  1332→          // Auto-sync toggle
+  1333→          Container(
+  1334→            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+  1335→            decoration: BoxDecoration(
+  1336→              color: _autoSyncToCostEstimate
+  1337→                  ? const Color(0xFFECFDF5)
+  1338→                  : _Palette.surfaceContainerLow,
+  1339→              borderRadius: BorderRadius.circular(8),
+  1340→              border: Border.all(
+  1341→                color: _autoSyncToCostEstimate
+  1342→                    ? const Color(0xFFA7F3D0)
+  1343→                    : _Palette.surfaceVariant,
+  1344→              ),
+  1345→            ),
+  1346→            child: Row(
+  1347→              children: [
+  1348→                Icon(
+  1349→                  _autoSyncToCostEstimate
+  1350→                      ? Icons.sync
+  1351→                      : Icons.sync_disabled,
+  1352→                  size: 16,
+  1353→                  color: _autoSyncToCostEstimate
+  1354→                      ? const Color(0xFF047857)
+  1355→                      : _Palette.outline,
+  1356→                ),
+  1357→                const SizedBox(width: 8),
+  1358→                Expanded(
+  1359→                  child: Column(
+  1360→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1361→                    children: [
+  1362→                      Text(
+  1363→                        'SSHER → Cost Estimate Auto-Sync',
+  1364→                        style: TextStyle(
+  1365→                          fontSize: 12,
+  1366→                          fontWeight: FontWeight.w700,
+  1367→                          color: _autoSyncToCostEstimate
+  1368→                              ? const Color(0xFF047857)
+  1369→                              : _Palette.onSurface,
+  1370→                        ),
+  1371→                      ),
+  1372→                      const SizedBox(height: 2),
+  1373→                      Text(
+  1374→                        _autoSyncToCostEstimate
+  1375→                            ? 'ON — new SSHER cost items are pushed to Cost Estimate automatically on save.'
+  1376→                            : 'OFF — use the "Push to Cost Estimate" button on the Cost Summary tab to push manually.',
+  1377→                        style: TextStyle(
+  1378→                          fontSize: 11,
+  1379→                          color: _autoSyncToCostEstimate
+  1380→                              ? const Color(0xFF047857)
+  1381→                              : _Palette.onSurfaceVariant,
+  1382→                          height: 1.35,
+  1383→                        ),
+  1384→                      ),
+  1385→                    ],
+  1386→                  ),
+  1387→                ),
+  1388→                Switch(
+  1389→                  value: _autoSyncToCostEstimate,
+  1390→                  onChanged: _setAutoSyncToCostEstimate,
+  1391→                  activeColor: const Color(0xFF047857),
+  1392→                ),
+  1393→              ],
+  1394→            ),
+  1395→          ),
+  1396→          const SizedBox(height: 12),
+  1397→          // One-click Push All Integrations button
+  1398→          Container(
+  1399→            width: double.infinity,
+  1400→            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  1401→            decoration: BoxDecoration(
+  1402→              color: _Palette.primary.withValues(alpha: 0.04),
+  1403→              borderRadius: BorderRadius.circular(8),
+  1404→              border: Border.all(
+  1405→                  color: _Palette.primary.withValues(alpha: 0.2)),
+  1406→            ),
+  1407→            child: Row(
+  1408→              children: [
+  1409→                const Icon(Icons.bolt, size: 16, color: _Palette.primary),
+  1410→                const SizedBox(width: 8),
+  1411→                Expanded(
+  1412→                  child: Column(
+  1413→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1414→                    children: [
+  1415→                      const Text(
+  1416→                        'One-Click Push All Integrations',
+  1417→                        style: TextStyle(
+  1418→                          fontSize: 12,
+  1419→                          fontWeight: FontWeight.w700,
+  1420→                          color: _Palette.primary,
+  1421→                        ),
+  1422→                      ),
+  1423→                      const SizedBox(height: 2),
+  1424→                      const Text(
+  1425→                        'Pushes Cost Estimate + Risk Register + Schedule + Requirements in sequence with a progress dialog.',
+  1426→                        style: TextStyle(
+  1427→                          fontSize: 11,
+  1428→                          color: _Palette.onSurfaceVariant,
+  1429→                          height: 1.35,
+  1430→                        ),
+  1431→                      ),
+  1432→                    ],
+  1433→                  ),
+  1434→                ),
+  1435→                const SizedBox(width: 8),
+  1436→                ElevatedButton.icon(
+  1437→                  onPressed: _pushAllIntegrations,
+  1438→                  icon: const Icon(Icons.bolt, size: 14),
+  1439→                  label: const Text('Run All',
+  1440→                      style: TextStyle(
+  1441→                          fontSize: 12, fontWeight: FontWeight.w700)),
+  1442→                  style: ElevatedButton.styleFrom(
+  1443→                    backgroundColor: _Palette.primary,
+  1444→                    foregroundColor: Colors.white,
+  1445→                    padding: const EdgeInsets.symmetric(
+  1446→                        horizontal: 12, vertical: 8),
+  1447→                    shape: RoundedRectangleBorder(
+  1448→                        borderRadius: BorderRadius.circular(6)),
+  1449→                  ),
+  1450→                ),
+  1451→              ],
+  1452→            ),
+  1453→          ),
+  1454→        ],
+  1455→      ),
+  1456→    );
+  1457→  }
+  1458→
+  1459→  // ── Notes Section ──
+  1460→  Widget _buildNotesSection(bool isMobile) {
+  1461→    return Padding(
+  1462→      padding: EdgeInsets.fromLTRB(
+  1463→          isMobile ? 16 : 0, isMobile ? 16 : 16, isMobile ? 16 : 0, 0),
+  1464→      child: Container(
+  1465→        decoration: BoxDecoration(
+  1466→          color: _Palette.surfaceContainerLowest,
+  1467→          borderRadius: BorderRadius.circular(12),
+  1468→          border: Border.all(color: _Palette.surfaceVariant),
+  1469→          boxShadow: [
+  1470→            BoxShadow(
+  1471→              color: Colors.black.withValues(alpha: 0.05),
+  1472→              blurRadius: 8,
+  1473→              offset: const Offset(0, 1),
+  1474→            ),
+  1475→          ],
+  1476→        ),
+  1477→        child: Padding(
+  1478→          padding: const EdgeInsets.all(16),
+  1479→          child: Column(
+  1480→            crossAxisAlignment: CrossAxisAlignment.start,
+  1481→            children: [
+  1482→              const Row(
+  1483→                children: [
+  1484→                  Icon(Icons.notes, size: 16, color: _Palette.outline),
+  1485→                  SizedBox(width: 6),
+  1486→                  Text(
+  1487→                    'General SSHER Notes',
+  1488→                    style: TextStyle(
+  1489→                      fontSize: 12,
+  1490→                      fontWeight: FontWeight.w600,
+  1491→                      letterSpacing: 0.05,
+  1492→                      color: _Palette.onSurfaceVariant,
+  1493→                    ),
+  1494→                  ),
+  1495→                ],
+  1496→              ),
+  1497→              const SizedBox(height: 10),
+  1498→              VoiceTextField(
+  1499→                controller: _notesController,
+  1500→                maxLines: 2,
+  1501→                onChanged: (_) => _saveNotes(),
+  1502→                decoration: InputDecoration(
+  1503→                  filled: true,
+  1504→                  fillColor: _Palette.surfaceBright,
+  1505→                  hintText:
+  1506→                      'Add any overarching SSHER notes for this project phase...',
+  1507→                  hintStyle: TextStyle(
+  1508→                    color: _Palette.outlineVariant,
+  1509→                    fontSize: 14,
+  1510→                  ),
+  1511→                  border: OutlineInputBorder(
+  1512→                    borderRadius: BorderRadius.circular(8),
+  1513→                    borderSide: BorderSide.none,
+  1514→                  ),
+  1515→                  enabledBorder: OutlineInputBorder(
+  1516→                    borderRadius: BorderRadius.circular(8),
+  1517→                    borderSide: BorderSide.none,
+  1518→                  ),
+  1519→                  focusedBorder: OutlineInputBorder(
+  1520→                    borderRadius: BorderRadius.circular(8),
+  1521→                    borderSide: const BorderSide(
+  1522→                        color: _Palette.primaryContainer, width: 1.5),
+  1523→                  ),
+  1524→                  contentPadding: const EdgeInsets.all(12),
+  1525→                ),
+  1526→                style: const TextStyle(
+  1527→                  fontSize: 14,
+  1528→                  color: _Palette.onSurface,
+  1529→                ),
+  1530→              ),
+  1531→            ],
+  1532→          ),
+  1533→        ),
+  1534→      ),
+  1535→    );
+  1536→  }
+  1537→
+  1538→  // ── Phase Navigation Tabs (Scrollable Pills with check marks) ──
+  1539→  Widget _buildPhaseTabs(bool isMobile) {
+  1540→    final categories = _SsherCategory.values;
+  1541→
+  1542→    return Container(
+  1543→      decoration: isMobile
+  1544→          ? BoxDecoration(
+  1545→              color: _Palette.surface,
+  1546→              boxShadow: [
+  1547→                BoxShadow(
+  1548→                  color: Colors.black.withValues(alpha: 0.02),
+  1549→                  blurRadius: 12,
+  1550→                  offset: const Offset(0, 4),
+  1551→                ),
+  1552→              ],
+  1553→            )
+  1554→          : null,
+  1555→      padding: EdgeInsets.symmetric(
+  1556→          horizontal: isMobile ? 16 : 0, vertical: isMobile ? 12 : 16),
+  1557→      child: SingleChildScrollView(
+  1558→        scrollDirection: Axis.horizontal,
+  1559→        child: Row(
+  1560→          children: categories.map((cat) {
+  1561→            final isSelected = cat == _selectedCategory;
+  1562→            final icon = _iconForCategory(cat);
+  1563→            final label = _categoryLabel(cat);
+  1564→            final isVisited = cat == _SsherCategory.cost
+  1565→                ? false
+  1566→                : _visitedTabs.contains(cat);
+  1567→
+  1568→            return Padding(
+  1569→              padding: const EdgeInsets.only(right: 8),
+  1570→              child: Material(
+  1571→                color: Colors.transparent,
+  1572→                child: InkWell(
+  1573→                  onTap: () {
+  1574→                    setState(() => _selectedCategory = cat);
+  1575→                    _tabController.animateTo(cat.index);
+  1576→                    if (cat != _SsherCategory.cost) {
+  1577→                      _visitedTabs.add(cat);
+  1578→                      _saveTabsVisited();
+  1579→                      _ensureCategoryPlanLoaded(cat);
+  1580→                    }
+  1581→                  },
+  1582→                  borderRadius: BorderRadius.circular(24),
+  1583→                  child: AnimatedContainer(
+  1584→                    duration: const Duration(milliseconds: 200),
+  1585→                    padding: const EdgeInsets.symmetric(
+  1586→                        horizontal: 16, vertical: 8),
+  1587→                    decoration: BoxDecoration(
+  1588→                      color: isSelected
+  1589→                          ? _Palette.primaryContainer
+  1590→                          : _Palette.surfaceContainerLowest,
+  1591→                      borderRadius: BorderRadius.circular(24),
+  1592→                      border: isSelected
+  1593→                          ? null
+  1594→                          : Border.all(color: _Palette.outlineVariant),
+  1595→                      boxShadow: isSelected
+  1596→                          ? [
+  1597→                              BoxShadow(
+  1598→                                color: _Palette.primaryContainer
+  1599→                                    .withValues(alpha: 0.3),
+  1600→                                blurRadius: 4,
+  1601→                                offset: const Offset(0, 2),
+  1602→                              ),
+  1603→                            ]
+  1604→                          : null,
+  1605→                    ),
+  1606→                    child: Row(
+  1607→                      mainAxisSize: MainAxisSize.min,
+  1608→                      children: [
+  1609→                        Icon(icon,
+  1610→                            size: 16,
+  1611→                            color: isSelected
+  1612→                                ? Colors.white
+  1613→                                : _Palette.onSurfaceVariant,
+  1614→                            fill: isSelected ? 1.0 : 0.0),
+  1615→                        const SizedBox(width: 6),
+  1616→                        Text(
+  1617→                          label,
+  1618→                          style: TextStyle(
+  1619→                            fontSize: 13,
+  1620→                            fontWeight: FontWeight.w600,
+  1621→                            color: isSelected
+  1622→                                ? Colors.white
+  1623→                                : _Palette.onSurfaceVariant,
+  1624→                          ),
+  1625→                        ),
+  1626→                        if (isVisited && !isSelected) ...[
+  1627→                          const SizedBox(width: 6),
+  1628→                          const Icon(Icons.check_circle,
+  1629→                              size: 14, color: Color(0xFF34A853)),
+  1630→                        ],
+  1631→                      ],
+  1632→                    ),
+  1633→                  ),
+  1634→                ),
+  1635→              ),
+  1636→            );
+  1637→          }).toList(),
+  1638→        ),
+  1639→      ),
+  1640→    );
+  1641→  }
+  1642→
+  1643→  // ── Data Cards Section ──
+  1644→  Widget _buildDataCardsSection(bool isMobile, bool allowCsv) {
+  1645→    if (_selectedCategory == _SsherCategory.cost) {
+  1646→      return _buildCostSummaryTab(isMobile);
+  1647→    }
+  1648→
+  1649→    final entries = _entriesForCategory(_selectedCategory);
+  1650→    final accent = _accentForCategory(_selectedCategory);
+  1651→    final catLabel = _categoryLabel(_selectedCategory);
+  1652→
+  1653→    return Padding(
+  1654→      padding:
+  1655→          EdgeInsets.symmetric(horizontal: isMobile ? 16 : 0, vertical: 8),
+  1656→      child: Column(
+  1657→        crossAxisAlignment: CrossAxisAlignment.start,
+  1658→        children: [
+  1659→          // Section Header
+  1660→          _buildSectionHeader(catLabel, entries.length, accent),
+  1661→
+  1662→          const SizedBox(height: 12),
+  1663→
+  1664→          // Per-category integration actions: Push to Risk Register
+  1665→          _buildIntegrationActionsRow(accent, catLabel),
+  1666→
+  1667→          const SizedBox(height: 16),
+  1668→
+  1669→          // Per-category AI Plan (Safety Plan, Security Plan, etc.)
+  1670→          _buildCategoryPlanCard(accent),
+  1671→
+  1672→          const SizedBox(height: 16),
+  1673→
+  1674→          // Environment tab: UN SDG section
+  1675→          if (_selectedCategory == _SsherCategory.environment) ...[
+  1676→            _buildSdgCard(isMobile),
+  1677→            const SizedBox(height: 16),
+  1678→          ],
+  1679→
+  1680→          // Security tab: Initiation phase security carried forward callout
+  1681→          if (_selectedCategory == _SsherCategory.security) ...[
+  1682→            _buildInitiationSecurityCallout(),
+  1683→            const SizedBox(height: 16),
+  1684→          ],
+  1685→
+  1686→          // Loading state
+  1687→          if (_isGeneratingEntries)
+  1688→            _buildLoadingState()
+  1689→          else if (entries.isEmpty)
+  1690→            _buildEmptyState(accent, catLabel)
+  1691→          else
+  1692→            _buildEntriesTable(entries, accent, isMobile),
+  1693→
+  1694→          const SizedBox(height: 24),
+  1695→
+  1696→          // Logs / Checklists / Documents subsections (per entry-level: aggregated summary)
+  1697→          _buildSubsectionSummary(accent, isMobile),
+  1698→
+  1699→          const SizedBox(height: 24),
+  1700→
+  1701→          // Staffing Gap Analysis (shows on all SSHER tabs — analyzes full project)
+  1702→          _buildStaffingGapAnalysis(accent, isMobile),
+  1703→
+  1704→          const SizedBox(height: 24),
+  1705→
+  1706→          // Requirements Gap Analysis (regulatory/compliance language detection)
+  1707→          _buildRequirementsGapAnalysis(accent, isMobile),
+  1708→        ],
+  1709→      ),
+  1710→    );
+  1711→  }
+  1712→
+  1713→  // ── Integration Actions Row (per-tab) ──
+  1714→  Widget _buildIntegrationActionsRow(Color accent, String catLabel) {
+  1715→    final entries = _entriesForCategory(_selectedCategory);
+  1716→    final highMedRiskCount = entries.where((e) {
+  1717→      final level = e.riskLevel.trim().toLowerCase();
+  1718→      return level == 'high' || level == 'medium';
+  1719→    }).length;
+  1720→
+  1721→    return Container(
+  1722→      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  1723→      decoration: BoxDecoration(
+  1724→        color: accent.withValues(alpha: 0.04),
+  1725→        borderRadius: BorderRadius.circular(10),
+  1726→        border: Border.all(color: accent.withValues(alpha: 0.15)),
+  1727→      ),
+  1728→      child: Row(
+  1729→        children: [
+  1730→          Icon(Icons.link, size: 14, color: accent),
+  1731→          const SizedBox(width: 6),
+  1732→          Expanded(
+  1733→            child: Text(
+  1734→              'Cross-Discipline Integration',
+  1735→              style: TextStyle(
+  1736→                fontSize: 12,
+  1737→                fontWeight: FontWeight.w700,
+  1738→                color: accent,
+  1739→              ),
+  1740→            ),
+  1741→          ),
+  1742→          if (highMedRiskCount > 0)
+  1743→            TextButton.icon(
+  1744→              onPressed: () => _pushToRiskRegister(_selectedCategory),
+  1745→              icon: const Icon(Icons.warning_amber, size: 14),
+  1746→              label: Text(
+  1747→                  'Push $highMedRiskCount High/Med Risk${highMedRiskCount == 1 ? '' : 's'} to Risk Register',
+  1748→                  style: const TextStyle(
+  1749→                      fontSize: 11, fontWeight: FontWeight.w600)),
+  1750→              style: TextButton.styleFrom(
+  1751→                foregroundColor: accent,
+  1752→                minimumSize: Size.zero,
+  1753→                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  1754→                padding:
+  1755→                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  1756→              ),
+  1757→            )
+  1758→          else
+  1759→            Text('No High/Medium risks to push',
+  1760→                style: TextStyle(
+  1761→                    fontSize: 11,
+  1762→                    fontStyle: FontStyle.italic,
+  1763→                    color: _Palette.outline)),
+  1764→        ],
+  1765→      ),
+  1766→    );
+  1767→  }
+  1768→
+  1769→  // ── Staffing Gap Analysis Section ──
+  1770→  Widget _buildStaffingGapAnalysis(Color accent, bool isMobile) {
+  1771→    final gaps = _computeStaffingGaps();
+  1772→    final projectData = ProjectDataHelper.getData(context);
+  1773→    final staffingCount = projectData.frontEndPlanning.staffingRows.length;
+  1774→
+  1775→    return Container(
+  1776→      width: double.infinity,
+  1777→      padding: const EdgeInsets.all(16),
+  1778→      decoration: BoxDecoration(
+  1779→        color: _Palette.surfaceContainerLow,
+  1780→        borderRadius: BorderRadius.circular(12),
+  1781→        border: Border.all(color: _Palette.surfaceVariant),
+  1782→      ),
+  1783→      child: Column(
+  1784→        crossAxisAlignment: CrossAxisAlignment.start,
+  1785→        children: [
+  1786→          Row(
+  1787→            children: [
+  1788→              Icon(Icons.person_search, size: 16, color: accent),
+  1789→              const SizedBox(width: 8),
+  1790→              Expanded(
+  1791→                child: Text(
+  1792→                  'Staffing Plan Gap Analysis',
+  1793→                  style: TextStyle(
+  1794→                    fontSize: 14,
+  1795→                    fontWeight: FontWeight.w700,
+  1796→                    color: accent,
+  1797→                  ),
+  1798→                ),
+  1799→              ),
+  1800→              if (gaps.isNotEmpty)
+  1801→                TextButton.icon(
+  1802→                  onPressed: _addAllStaffingGaps,
+  1803→                  icon: const Icon(Icons.add_circle, size: 14),
+  1804→                  label: const Text('Add All to Staffing Plan',
+  1805→                      style: TextStyle(
+  1806→                          fontSize: 11, fontWeight: FontWeight.w600)),
+  1807→                  style: TextButton.styleFrom(
+  1808→                    foregroundColor: accent,
+  1809→                    minimumSize: Size.zero,
+  1810→                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  1811→                    padding:
+  1812→                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  1813→                  ),
+  1814→                ),
+  1815→            ],
+  1816→          ),
+  1817→          const SizedBox(height: 6),
+  1818→          Text(
+  1819→            'SSHER items reference ${gaps.length} role${gaps.length == 1 ? '' : 's'} not yet present in your Staffing Plan ($staffingCount current ${staffingCount == 1 ? 'role' : 'roles'}). Closing these gaps ensures every SSHER responsibility has a named owner on the project team.',
+  1820→            style: const TextStyle(
+  1821→              fontSize: 12,
+  1822→              color: _Palette.onSurfaceVariant,
+  1823→              height: 1.45,
+  1824→            ),
+  1825→          ),
+  1826→          const SizedBox(height: 10),
+  1827→          if (gaps.isEmpty)
+  1828→            Container(
+  1829→              width: double.infinity,
+  1830→              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  1831→              decoration: BoxDecoration(
+  1832→                color: const Color(0xFFECFDF5),
+  1833→                borderRadius: BorderRadius.circular(8),
+  1834→                border: Border.all(color: const Color(0xFFA7F3D0)),
+  1835→              ),
+  1836→              child: const Row(
+  1837→                children: [
+  1838→                  Icon(Icons.check_circle,
+  1839→                      size: 14, color: Color(0xFF047857)),
+  1840→                  SizedBox(width: 6),
+  1841→                  Expanded(
+  1842→                    child: Text(
+  1843→                      'No staffing gaps detected. All SSHER-referenced roles are present in your Staffing Plan.',
+  1844→                      style: TextStyle(
+  1845→                          fontSize: 12, color: Color(0xFF047857)),
+  1846→                    ),
+  1847→                  ),
+  1848→                ],
+  1849→              ),
+  1850→            )
+  1851→          else
+  1852→            Wrap(
+  1853→              spacing: 8,
+  1854→              runSpacing: 8,
+  1855→              children: gaps.map((gap) {
+  1856→                final role = gap['role'] as String;
+  1857→                final count = gap['count'] as int;
+  1858→                final examples = gap['examples'] as List<SsherEntry>;
+  1859→                final exampleText = examples
+  1860→                    .map((e) => e.concern.isNotEmpty
+  1861→                        ? (e.concern.length > 40
+  1862→                            ? '${e.concern.substring(0, 40)}...'
+  1863→                            : e.concern)
+  1864→                        : 'Item')
+  1865→                    .take(2)
+  1866→                    .join('; ');
+  1867→                return Container(
+  1868→                  constraints: const BoxConstraints(maxWidth: 360),
+  1869→                  padding: const EdgeInsets.all(10),
+  1870→                  decoration: BoxDecoration(
+  1871→                    color: Colors.white,
+  1872→                    borderRadius: BorderRadius.circular(8),
+  1873→                    border: Border.all(
+  1874→                        color: accent.withValues(alpha: 0.25)),
+  1875→                  ),
+  1876→                  child: Column(
+  1877→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1878→                    children: [
+  1879→                      Row(
+  1880→                        children: [
+  1881→                          Expanded(
+  1882→                            child: Text(
+  1883→                              role,
+  1884→                              style: const TextStyle(
+  1885→                                fontSize: 13,
+  1886→                                fontWeight: FontWeight.w700,
+  1887→                                color: _Palette.onBackground,
+  1888→                              ),
+  1889→                            ),
+  1890→                          ),
+  1891→                          Container(
+  1892→                            padding: const EdgeInsets.symmetric(
+  1893→                                horizontal: 6, vertical: 2),
+  1894→                            decoration: BoxDecoration(
+  1895→                              color: accent.withValues(alpha: 0.12),
+  1896→                              borderRadius: BorderRadius.circular(4),
+  1897→                            ),
+  1898→                            child: Text(
+  1899→                              '${count}x',
+  1900→                              style: TextStyle(
+  1901→                                fontSize: 10,
+  1902→                                fontWeight: FontWeight.w700,
+  1903→                                color: accent,
+  1904→                              ),
+  1905→                            ),
+  1906→                          ),
+  1907→                        ],
+  1908→                      ),
+  1909→                      if (exampleText.isNotEmpty) ...[
+  1910→                        const SizedBox(height: 4),
+  1911→                        Text(
+  1912→                          'Referenced in: $exampleText',
+  1913→                          style: const TextStyle(
+  1914→                              fontSize: 11,
+  1915→                              color: _Palette.onSurfaceVariant,
+  1916→                              fontStyle: FontStyle.italic),
+  1917→                          maxLines: 2,
+  1918→                          overflow: TextOverflow.ellipsis,
+  1919→                        ),
+  1920→                      ],
+  1921→                      const SizedBox(height: 8),
+  1922→                      OutlinedButton.icon(
+  1923→                        onPressed: () => _addRoleToStaffingPlan(role),
+  1924→                        icon: const Icon(Icons.add, size: 12),
+  1925→                        label: const Text('Add to Staffing Plan',
+  1926→                            style: TextStyle(
+  1927→                                fontSize: 11,
+  1928→                                fontWeight: FontWeight.w600)),
+  1929→                        style: OutlinedButton.styleFrom(
+  1930→                          foregroundColor: accent,
+  1931→                          side: BorderSide(
+  1932→                              color: accent.withValues(alpha: 0.5)),
+  1933→                          minimumSize: Size.zero,
+  1934→                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  1935→                          padding: const EdgeInsets.symmetric(
+  1936→                              horizontal: 8, vertical: 4),
+  1937→                        ),
+  1938→                      ),
+  1939→                    ],
+  1940→                  ),
+  1941→                );
+  1942→              }).toList(),
+  1943→            ),
+  1944→        ],
+  1945→      ),
+  1946→    );
+  1947→  }
+  1948→
+  1949→  // ── Requirements Gap Analysis Section ──
+  1950→  Widget _buildRequirementsGapAnalysis(Color accent, bool isMobile) {
+  1951→    final gaps = _computeRequirementsGaps();
+  1952→    final projectData = ProjectDataHelper.getData(context);
+  1953→    final reqCount = projectData.frontEndPlanning.requirementItems.length;
+  1954→
+  1955→    return Container(
+  1956→      width: double.infinity,
+  1957→      padding: const EdgeInsets.all(16),
+  1958→      decoration: BoxDecoration(
+  1959→        color: _Palette.surfaceContainerLow,
+  1960→        borderRadius: BorderRadius.circular(12),
+  1961→        border: Border.all(color: _Palette.surfaceVariant),
+  1962→      ),
+  1963→      child: Column(
+  1964→        crossAxisAlignment: CrossAxisAlignment.start,
+  1965→        children: [
+  1966→          Row(
+  1967→            children: [
+  1968→              Icon(Icons.fact_check_outlined, size: 16, color: accent),
+  1969→              const SizedBox(width: 8),
+  1970→              Expanded(
+  1971→                child: Text(
+  1972→                  'Requirements Gap Analysis (Regulatory / Compliance)',
+  1973→                  style: TextStyle(
+  1974→                    fontSize: 14,
+  1975→                    fontWeight: FontWeight.w700,
+  1976→                    color: accent,
+  1977→                  ),
+  1978→                ),
+  1979→              ),
+  1980→              if (gaps.isNotEmpty)
+  1981→                TextButton.icon(
+  1982→                  onPressed: _addAllRequirementsGaps,
+  1983→                  icon: const Icon(Icons.add_circle, size: 14),
+  1984→                  label: const Text('Add All to Requirements',
+  1985→                      style: TextStyle(
+  1986→                          fontSize: 11, fontWeight: FontWeight.w600)),
+  1987→                  style: TextButton.styleFrom(
+  1988→                    foregroundColor: accent,
+  1989→                    minimumSize: Size.zero,
+  1990→                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  1991→                    padding:
+  1992→                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  1993→                  ),
+  1994→                ),
+  1995→            ],
+  1996→          ),
+  1997→          const SizedBox(height: 6),
+  1998→          Text(
+  1999→            'SSHER items often imply regulatory/compliance requirements. This section scans your SSHER items for regulatory language (permit, regulation, compliance, OSHA, ISO, audit, certification, license, etc.) and suggests any that are not yet captured in your Requirements list ($reqCount current ${reqCount == 1 ? 'requirement' : 'requirements'}).',
+  2000→            style: const TextStyle(
+
+[showing lines 1-2000 of 6463; use offset=2001 with limit to continue reading]

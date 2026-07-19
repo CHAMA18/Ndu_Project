@@ -1,0 +1,2002 @@
+     1→import 'dart:async';
+     2→import 'dart:convert';
+     3→import 'package:flutter/foundation.dart';
+     4→import 'package:http/http.dart' as http;
+     5→import 'package:ndu_project/openai/openai_config.dart';
+     6→import 'package:ndu_project/models/project_data_model.dart';
+     7→import 'package:ndu_project/models/design_phase_models.dart';
+     8→import 'package:ndu_project/models/staffing_row.dart';
+     9→import 'package:ndu_project/models/meeting_row.dart';
+    10→
+    11→// Remove markdown bold markers commonly produced by the model (e.g. *text* or **text**)
+    12→String _stripAsterisks(String s) => s.replaceAll('*', '');
+    13→
+    14→/// Strips markdown code fences (```json ... ```) and extracts raw JSON text.
+    15→/// OpenAI may wrap JSON responses in markdown code blocks, so this ensures
+    16→/// jsonDecode receives clean JSON.
+    17→String _extractJson(String text) {
+    18→  final codeBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
+    19→  final match = codeBlockRegex.firstMatch(text);
+    20→  if (match != null) return match.group(1)?.trim() ?? text.trim();
+    21→  final jsonStart = text.indexOf('{');
+    22→  final jsonEnd = text.lastIndexOf('}');
+    23→  if (jsonStart >= 0 && jsonEnd > jsonStart) return text.substring(jsonStart, jsonEnd + 1);
+    24→  return text.trim();
+    25→}
+    26→
+    27→/// Approximate USD-to-target exchange rates for AI prompt hints.
+    28→/// These are rough mid-2025 rates used ONLY to instruct the AI model to
+    29→/// convert values — they are NOT used for client-side conversion.
+    30→const Map<String, double> _usdToCurrencyRates = {
+    31→  'USD': 1.0,
+    32→  'EUR': 0.92,
+    33→  'GBP': 0.79,
+    34→  'JPY': 155.0,
+    35→  'CNY': 7.25,
+    36→  'CAD': 1.37,
+    37→  'AUD': 1.53,
+    38→  'CHF': 0.89,
+    39→  'INR': 83.5,
+    40→  'KRW': 1360.0,
+    41→  'BRL': 5.05,
+    42→  'MXN': 17.2,
+    43→  'ZAR': 18.5,
+    44→  'SGD': 1.35,
+    45→  'HKD': 7.82,
+    46→  'NOK': 10.8,
+    47→  'SEK': 10.6,
+    48→  'DKK': 6.88,
+    49→  'PLN': 4.02,
+    50→  'RUB': 92.0,
+    51→  'TRY': 32.5,
+    52→  'AED': 3.67,
+    53→  'SAR': 3.75,
+    54→  'THB': 36.2,
+    55→  'IDR': 15900.0,
+    56→  'MYR': 4.72,
+    57→  'PHP': 58.5,
+    58→  'VND': 25200.0,
+    59→  'NGN': 1550.0,
+    60→  'EGP': 48.5,
+    61→  'ILS': 3.72,
+    62→  'CZK': 23.2,
+    63→  'HUF': 365.0,
+    64→  'NZD': 1.68,
+    65→  'ZMW': 27.5,
+    66→  'PKR': 278.0,
+    67→};
+    68→
+    69→/// Returns a human-readable USD-to-currency rate hint for AI prompts.
+    70→String _usdRateHint(String currency) {
+    71→  final rate = _usdToCurrencyRates[currency.toUpperCase()] ?? 1.0;
+    72→  if (rate >= 100) return rate.toStringAsFixed(0);
+    73→  if (rate >= 10) return rate.toStringAsFixed(1);
+    74→  return rate.toStringAsFixed(2);
+    75→}
+    76→
+    77→/// Returns a rough converted value hint for AI prompts.
+    78→String _convertHint(double usdAmount, String currency) {
+    79→  final rate = _usdToCurrencyRates[currency.toUpperCase()] ?? 1.0;
+    80→  final converted = usdAmount * rate;
+    81→  if (converted >= 1000000) return '${(converted / 1000000).toStringAsFixed(1)}M';
+    82→  if (converted >= 1000) return converted.toStringAsFixed(0);
+    83→  return converted.toStringAsFixed(converted % 1 == 0 ? 0 : 2);
+    84→}
+    85→
+    86→/// Generates a currency conversion instruction block for AI prompts.
+    87→/// When the currency is not USD, tells the AI to convert all values.
+    88→String _currencyConversionInstruction(String currency) {
+    89→  if (currency.toUpperCase() == 'USD') return '';
+    90→  final rate = _usdToCurrencyRates[currency.toUpperCase()] ?? 1.0;
+    91→  return '\n- All monetary amounts MUST be expressed in $currency. Convert from USD equivalents using realistic exchange rates (1 USD ≈ ${_usdRateHint(currency)} $currency). Do NOT simply reuse USD numerical values — $currency has a different purchasing power and exchange rate. For example, if USD amount would be 10,000, the amount in $currency should be approximately ${_convertHint(10000, currency)}. Apply this conversion to every monetary amount in your response.';
+    92→}
+    93→
+    94→enum _AiProjectType { physical, digital, hybrid, service, unknown }
+    95→
+    96→enum _AiProjectScale { small, medium, large }
+    97→
+    98→class _ResponseFormatUnsupportedException implements Exception {
+    99→  const _ResponseFormatUnsupportedException();
+   100→}
+   101→
+   102→String _nduProjectSystemPrompt({
+   103→  required String specialistRole,
+   104→  String? extraRules,
+   105→  bool strictJson = false,
+   106→}) {
+   107→  final strictJsonRule = strictJson
+   108→      ? 'Return strict JSON only and match the requested schema exactly.'
+   109→      : 'Return only the content requested for the task.';
+   110→  final extra = (extraRules ?? '').trim();
+   111→  final now = DateTime.now();
+   112→  final currentDate = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+   113→  final currentYear = now.year;
+   114→
+   115→  return '''
+   116→You are an expert project manager assistant integrated into a project management platform called NDU Project. Your role is to generate accurate, relevant, and actionable project management content based on the project's name, description, scope, and any previously entered information.
+   117→
+   118→IMPORTANT — Current date context: Today is $currentDate (year $currentYear). All date-sensitive content (schedules, timelines, deadlines, fiscal periods, forecasts) MUST reference the current date ($currentDate) as the reference point. Do NOT use any older year as the current year. Always generate dates, milestones, and time-bound references relative to today ($currentDate).
+   119→
+   120→Before generating content, classify BOTH:
+   121→1) Project type:
+   122→- PHYSICAL / INFRASTRUCTURE: projects that require real-world construction, procurement of materials, equipment, or physical setup.
+   123→- DIGITAL / TECHNOLOGY: projects that are primarily software, platform, or system based.
+   124→- HYBRID: projects that require both physical setup and digital systems.
+   125→- SERVICE / OPERATIONAL: projects focused on launching or improving a service, process, or organisation.
+   126→2) Delivery starting point:
+   127→- GREENFIELD (from scratch): assume this by default when context is unclear.
+   128→- BROWNFIELD (existing physical operation/site): use when context clearly indicates existing assets/facilities/processes.
+   129→- DIGITAL ENHANCEMENT ONLY: use when context explicitly says physical setup already exists and the request is mostly digital/system improvement.
+   130→
+   131→Rules for every response:
+   132→1. Default to GREENFIELD/from scratch unless the context clearly indicates otherwise.
+   133→2. If the context clearly states an existing operation/facility and asks mainly for digital enablement, avoid unnecessary physical setup recommendations.
+   134→3. If the project is HYBRID, sequence recommendations realistically (physical readiness + permits/procurement where needed, then digital integration/deployment).
+   135→4. Generate practical, specific, and actionable content that reflects real-world best practices for the detected project type and starting point.
+   136→5. For physical projects, include materials, permits, site readiness, equipment, staffing, and operational setup when relevant.
+   137→6. For digital projects, include technology stack, security, hosting, requirements, testing, integration, and deployment when relevant.
+   138→7. For hybrid and service projects, cover both operational and technical realities proportionally.
+   139→8. Do not suggest IT infrastructure for a purely physical project unless the context genuinely requires it.
+   140→9. Do not suggest construction materials or physical installation steps for a purely digital project.
+   141→10. Use up-to-date, non-deprecated practices and avoid generic filler.
+   142→11. If exact product/version currency is uncertain, prefer widely adopted latest-stable practices rather than outdated or end-of-life specifics.
+   143→12. Calibrate scope, timeline, and cost realism to project scale and context.
+   144→13. Make assumptions explicit when context is incomplete.
+   145→14. FINANCIAL REALISM IS CRITICAL: All monetary values, costs, benefits, staffing rates, and savings figures MUST be grounded in real-world market data for the detected project scale and geography. Small/local businesses (barbershops, salons, food trucks) have total monthly revenues of \$2K-\$15K — any suggested benefit exceeding 15% of that is unrealistic. Mid-size enterprises have department budgets of \$50K-\$200K. Large enterprises handle \$500K-\$5M+ per initiative. NEVER suggest values that would be impossible or absurd for the business size. When in doubt, err on the conservative side.
+   146→15. STAFFING REALISM: Monthly staff costs must reflect actual market rates. For small businesses in Africa: \$800-\$3,000/mo per role. For mid-size: \$2,000-\$8,000/mo. For large enterprises: \$5,000-\$15,000/mo for senior roles. Do NOT suggest \$10,000/mo for a barbershop staff member.
+   147→16. TIMELINE REALISM: Small projects take weeks to 3 months. Medium projects take 3-9 months. Large projects take 9-24+ months. Do NOT suggest a 12-month timeline for a simple booking app or a 2-week timeline for an enterprise ERP.
+   148→17. ANTI-HALLUCINATION (CRITICAL): NEVER invent facts, figures, vendor names, technologies, regulations, or team members that are not explicitly mentioned in the project context. If the context does not contain specific data (e.g., exact budget, specific software, named individuals), generate realistic placeholder labels marked as "[TBD]" or "[To be confirmed]" rather than fabricating values. Do NOT fabricate specific dollar amounts, dates, or technical specifications that are not grounded in the provided context. When uncertain, state "Data not available in current context" instead of inventing information.
+   149→18. CONTEXT FIDELITY: When the project context provides specific data (WBS structure, cost lines, staffing, schedule dates, risk registers), use ONLY that data. Do not add extra items, reorganize the data, or supplement it with invented details unless explicitly asked to generate recommendations.
+   150→19. WBS & COST TRACEABILITY: When generating cost estimates, schedule items, or resource plans, every line item MUST trace back to a WBS deliverable or a specific project context entry. If no WBS exists yet, clearly state that the items are draft estimates pending WBS alignment. Do NOT invent deliverable names or cost categories that are not in the project data.
+   151→
+   152→Your current specialist role: $specialistRole.
+   153→$strictJsonRule
+   154→${extra.isEmpty ? '' : extra}
+   155→''';
+   156→}
+   157→
+   158→class AiSolutionItem {
+   159→  final String title;
+   160→  final String description;
+   161→
+   162→  AiSolutionItem({required this.title, required this.description});
+   163→
+   164→  factory AiSolutionItem.fromMap(Map<String, dynamic> map) => AiSolutionItem(
+   165→        title: _stripAsterisks((map['title'] ?? '').toString().trim()),
+   166→        description:
+   167→            _stripAsterisks((map['description'] ?? '').toString().trim()),
+   168→      );
+   169→}
+   170→
+   171→class AiCostItem {
+   172→  final String item;
+   173→  final String description;
+   174→  final double estimatedCost;
+   175→  final double roiPercent; // percent value, e.g., 15.0 means 15%
+   176→  final Map<int, double> npvByYear;
+   177→  final double npv; // default to selected baseline (5-year when available)
+   178→
+   179→  AiCostItem({
+   180→    required this.item,
+   181→    required this.description,
+   182→    required this.estimatedCost,
+   183→    required this.roiPercent,
+   184→    required Map<int, double> npvByYear,
+   185→  })  : npvByYear = Map.unmodifiable({...npvByYear}),
+   186→        npv =
+   187→            npvByYear[5] ?? (npvByYear.isNotEmpty ? npvByYear.values.first : 0);
+   188→
+   189→  double npvForYear(int years) => npvByYear[years] ?? npv;
+   190→
+   191→  factory AiCostItem.fromMap(Map<String, dynamic> map) {
+   192→    final Map<int, double> parsedNpvs = {};
+   193→
+   194→    double toD(v) {
+   195→      if (v == null) return 0;
+   196→      if (v is num) return v.toDouble();
+   197→      final s = v.toString().replaceAll(',', '').replaceAll('%', '').trim();
+   198→      return double.tryParse(s) ?? 0;
+   199→    }
+   200→
+   201→    void addNpv(int year, dynamic value) {
+   202→      final parsed = toD(value);
+   203→      if (parsedNpvs.containsKey(year) || parsed == 0) return;
+   204→      parsedNpvs[year] = parsed;
+   205→    }
+   206→
+   207→    final npvField = map['npv'];
+   208→    if (npvField is Map) {
+   209→      for (final entry in npvField.entries) {
+   210→        final key = entry.key.toString().replaceAll(RegExp(r'[^0-9]'), '');
+   211→        final year = int.tryParse(key);
+   212→        if (year != null) addNpv(year, entry.value);
+   213→      }
+   214→    } else {
+   215→      addNpv(5, npvField);
+   216→    }
+   217→
+   218→    final npvByYearsField = map['npv_by_years'];
+   219→    if (npvByYearsField is Map) {
+   220→      for (final entry in npvByYearsField.entries) {
+   221→        final key = entry.key.toString().replaceAll(RegExp(r'[^0-9]'), '');
+   222→        final year = int.tryParse(key);
+   223→        if (year != null) addNpv(year, entry.value);
+   224→      }
+   225→    }
+   226→
+   227→    if (parsedNpvs.isEmpty) addNpv(5, 0);
+   228→
+   229→    return AiCostItem(
+   230→      item: (map['item'] ?? map['project_item'] ?? '').toString().trim(),
+   231→      description: (map['description'] ?? '').toString().trim(),
+   232→      estimatedCost: toD(map['estimated_cost']),
+   233→      roiPercent: toD(map['roi_percent']),
+   234→      npvByYear: parsedNpvs,
+   235→    );
+   236→  }
+   237→}
+   238→
+   239→class RiskMitigationRequest {
+   240→  final String id;
+   241→  final String risk;
+   242→  final String solutionTitle;
+   243→
+   244→  RiskMitigationRequest({
+   245→    required this.id,
+   246→    required this.risk,
+   247→    this.solutionTitle = '',
+   248→  });
+   249→}
+   250→
+   251→class AiProjectValueInsights {
+   252→  final double estimatedProjectValue;
+   253→  final Map<String, String> benefits;
+   254→
+   255→  AiProjectValueInsights(
+   256→      {required this.estimatedProjectValue, required this.benefits});
+   257→
+   258→  factory AiProjectValueInsights.fromMap(Map<String, dynamic> map) {
+   259→    double toD(v) {
+   260→      if (v == null) return 0;
+   261→      if (v is num) return v.toDouble();
+   262→      final s = v.toString().replaceAll(',', '').replaceAll('%', '').trim();
+   263→      return double.tryParse(s) ?? 0;
+   264→    }
+   265→
+   266→    final estimated = toD(map['estimated_value'] ?? map['project_value']);
+   267→    final benefitsRaw = map['benefits'];
+   268→    final parsedBenefits = <String, String>{};
+   269→    if (benefitsRaw is Map) {
+   270→      for (final entry in benefitsRaw.entries) {
+   271→        parsedBenefits[entry.key.toString()] =
+   272→            _stripAsterisks(entry.value.toString());
+   273→      }
+   274→    } else if (benefitsRaw is List) {
+   275→      for (final item in benefitsRaw) {
+   276→        if (item is Map && item.containsKey('category')) {
+   277→          parsedBenefits[item['category'].toString()] = _stripAsterisks(
+   278→              (item['details'] ?? item['value'] ?? '').toString());
+   279→        }
+   280→      }
+   281→    }
+   282→    return AiProjectValueInsights(
+   283→        estimatedProjectValue: estimated, benefits: parsedBenefits);
+   284→  }
+   285→}
+   286→
+   287→class AiProjectGoalRecommendation {
+   288→  final String name;
+   289→  final String description;
+   290→  final String? framework;
+   291→
+   292→  AiProjectGoalRecommendation({
+   293→    required this.name,
+   294→    required this.description,
+   295→    this.framework,
+   296→  });
+   297→
+   298→  factory AiProjectGoalRecommendation.fromMap(Map<String, dynamic> map) {
+   299→    final rawName = map['name'] ?? map['goal_name'] ?? map['title'] ?? '';
+   300→    final rawDesc = map['description'] ?? map['details'] ?? map['text'] ?? '';
+   301→    final rawFramework =
+   302→        map['framework'] ?? map['methodology'] ?? map['approach'] ?? '';
+   303→    final name = _stripAsterisks(rawName.toString().trim());
+   304→    final description = _stripAsterisks(rawDesc.toString().trim());
+   305→    final framework = _stripAsterisks(rawFramework?.toString().trim() ?? '');
+   306→    return AiProjectGoalRecommendation(
+   307→      name: name,
+   308→      description: description,
+   309→      framework: (framework.isEmpty) ? null : framework,
+   310→    );
+   311→  }
+   312→
+   313→  factory AiProjectGoalRecommendation.fallback({
+   314→    required String name,
+   315→    required String description,
+   316→    String? framework,
+   317→  }) {
+   318→    return AiProjectGoalRecommendation(
+   319→      name: name,
+   320→      description: description,
+   321→      framework: framework,
+   322→    );
+   323→  }
+   324→}
+   325→
+   326→class AiProjectFrameworkAndGoals {
+   327→  final String framework;
+   328→  final List<AiProjectGoalRecommendation> goals;
+   329→
+   330→  AiProjectFrameworkAndGoals({
+   331→    required this.framework,
+   332→    required this.goals,
+   333→  });
+   334→
+   335→  factory AiProjectFrameworkAndGoals.fromMap(Map<String, dynamic> map) {
+   336→    final rawFramework =
+   337→        map['framework'] ?? map['overallFramework'] ?? map['methodology'] ?? '';
+   338→    final framework = _stripAsterisks(rawFramework.toString().trim());
+   339→    final rawGoals = map['goals'];
+   340→    final parsedGoals = <AiProjectGoalRecommendation>[];
+   341→    if (rawGoals is List) {
+   342→      for (final entry in rawGoals) {
+   343→        if (entry is Map<String, dynamic>) {
+   344→          parsedGoals.add(AiProjectGoalRecommendation.fromMap(entry));
+   345→        } else if (entry is String) {
+   346→          parsedGoals.add(AiProjectGoalRecommendation(
+   347→            name: '',
+   348→            description: _stripAsterisks(entry.trim()),
+   349→            framework: framework.isEmpty ? null : framework,
+   350→          ));
+   351→        }
+   352→      }
+   353→    } else if (rawGoals is Map<String, dynamic>) {
+   354→      parsedGoals.add(AiProjectGoalRecommendation.fromMap(rawGoals));
+   355→    }
+   356→
+   357→    return AiProjectFrameworkAndGoals(
+   358→      framework: framework,
+   359→      goals: parsedGoals,
+   360→    );
+   361→  }
+   362→
+   363→  factory AiProjectFrameworkAndGoals.fallback(String context) {
+   364→    final projectName = _extractProjectName(context);
+   365→    final assetName = projectName.isEmpty ? 'project' : projectName;
+   366→    final descriptions = [
+   367→      'Define a governance model and stakeholder alignment for $assetName to keep priorities clear and enable timely decisions.',
+   368→      'Deliver measurable outcomes around customer experience, regulation, or operational efficiency while reinforcing transparency for $assetName.',
+   369→      'Create delivery cadences (planning, review, launch) that keep teams accountable and surface risks early during $assetName implementation.',
+   370→    ];
+   371→    const frameworkOptions = ['Agile', 'Waterfall', 'Hybrid'];
+   372→    final goals = List.generate(3, (index) {
+   373→      return AiProjectGoalRecommendation.fallback(
+   374→        name: 'Goal ${index + 1}',
+   375→        description: descriptions[index % descriptions.length],
+   376→        framework: frameworkOptions[index % frameworkOptions.length],
+   377→      );
+   378→    });
+   379→    return AiProjectFrameworkAndGoals(framework: 'Hybrid', goals: goals);
+   380→  }
+   381→}
+   382→
+   383→String _extractProjectName(String context) {
+   384→  final lines = context.split('\n');
+   385→  for (final line in lines) {
+   386→    final lower = line.toLowerCase();
+   387→    if (lower.startsWith('project name:')) {
+   388→      final value = line.substring(line.indexOf(':') + 1).trim();
+   389→      if (value.isNotEmpty) return value;
+   390→    }
+   391→  }
+   392→  return '';
+   393→}
+   394→
+   395→class BenefitLineItemInput {
+   396→  final String category;
+   397→  final String title;
+   398→  final double unitValue;
+   399→  final double units;
+   400→  final String notes;
+   401→
+   402→  BenefitLineItemInput({
+   403→    required this.category,
+   404→    required this.title,
+   405→    required this.unitValue,
+   406→    required this.units,
+   407→    this.notes = '',
+   408→  });
+   409→
+   410→  double get total => unitValue * units;
+   411→
+   412→  Map<String, dynamic> toJson() => {
+   413→        'category': category,
+   414→        'category_key': category,
+   415→        'title': title,
+   416→        'unit_value': unitValue,
+   417→        'units': units,
+   418→        'total': total,
+   419→        if (notes.trim().isNotEmpty) 'notes': notes.trim(),
+   420→      };
+   421→}
+   422→
+   423→class AiBenefitSavingsSuggestion {
+   424→  final String lever;
+   425→  final String recommendation;
+   426→  final double projectedSavings;
+   427→  final String timeframe;
+   428→  final String confidence;
+   429→  final String rationale;
+   430→
+   431→  AiBenefitSavingsSuggestion({
+   432→    required this.lever,
+   433→    required this.recommendation,
+   434→    required this.projectedSavings,
+   435→    required this.timeframe,
+   436→    required this.confidence,
+   437→    required this.rationale,
+   438→  });
+   439→
+   440→  factory AiBenefitSavingsSuggestion.fromMap(Map<String, dynamic> map) {
+   441→    double parseDouble(dynamic value) {
+   442→      if (value == null) return 0;
+   443→      if (value is num) return value.toDouble();
+   444→      final sanitized = value.toString().replaceAll(RegExp(r'[^0-9\.-]'), '');
+   445→      return double.tryParse(sanitized) ?? 0;
+   446→    }
+   447→
+   448→    String parseString(dynamic value) => value?.toString().trim() ?? '';
+   449→
+   450→    return AiBenefitSavingsSuggestion(
+   451→      lever: _stripAsterisks(
+   452→          parseString(map['lever'] ?? map['title'] ?? map['scenario'])),
+   453→      recommendation: _stripAsterisks(parseString(
+   454→          map['recommendation'] ?? map['action'] ?? map['strategy'])),
+   455→      projectedSavings: parseDouble(
+   456→          map['projected_savings'] ?? map['savings'] ?? map['projected_value']),
+   457→      timeframe: _stripAsterisks(
+   458→          parseString(map['timeframe'] ?? map['horizon'] ?? map['period'])),
+   459→      confidence: _stripAsterisks(parseString(
+   460→          map['confidence'] ?? map['certainty'] ?? map['confidence_level'])),
+   461→      rationale: _stripAsterisks(
+   462→          parseString(map['rationale'] ?? map['notes'] ?? map['summary'])),
+   463→    );
+   464→  }
+   465→}
+   466→
+   467→class OpenAiServiceSecure {
+   468→  final http.Client _client;
+   469→  static const int maxRetries = 1;
+   470→  static const Duration retryDelay = Duration(seconds: 1);
+   471→  static const Duration _interRequestDelay = Duration(milliseconds: 120);
+   472→  static Future<void> _serializedQueue = Future<void>.value();
+   473→
+   474→  OpenAiServiceSecure({http.Client? client})
+   475→      : _client = client ?? http.Client();
+   476→
+   477→  Future<T> _runSerialized<T>(Future<T> Function() operation) {
+   478→    final completer = Completer<T>();
+   479→    _serializedQueue = _serializedQueue.catchError((_) {}).then((_) async {
+   480→      try {
+   481→        final result = await operation();
+   482→        completer.complete(result);
+   483→      } catch (error, stackTrace) {
+   484→        completer.completeError(error, stackTrace);
+   485→      } finally {
+   486→        await Future<void>.delayed(_interRequestDelay);
+   487→      }
+   488→    });
+   489→    return completer.future;
+   490→  }
+   491→
+   492→  Future<String> generateCompletion(
+   493→    String prompt, {
+   494→    int maxTokens = 1200,
+   495→    double temperature = 0.4,
+   496→  }) async {
+   497→    final trimmedPrompt = prompt.trim();
+   498→    if (trimmedPrompt.isEmpty) return '';
+   499→    if (!OpenAiConfig.isConfigured) {
+   500→      throw const OpenAiNotConfiguredException();
+   501→    }
+   502→
+   503→    return _runSerialized(() async {
+   504→      final uri = OpenAiConfig.chatUri();
+   505→      final headers = OpenAiConfig.headers();
+   506→
+   507→      final body = jsonEncode(OpenAiConfig.wrapBody({
+   508→        'model': OpenAiConfig.model,
+   509→        'temperature': temperature,
+   510→        'max_completion_tokens': maxTokens,
+   511→        'messages': [
+   512→          {
+   513→            'role': 'system',
+   514→            'content': _nduProjectSystemPrompt(
+   515→              specialistRole:
+   516→                  'project planning assistant producing concise text output',
+   517→              extraRules:
+   518→                  'Follow the user request exactly and keep wording practical and specific.',
+   519→            ),
+   520→          },
+   521→          {'role': 'user', 'content': trimmedPrompt},
+   522→        ],
+   523→      }));
+   524→
+   525→      final response = await _client
+   526→          .post(uri, headers: headers, body: body)
+   527→          .timeout(const Duration(seconds: 30));
+   528→      if (response.statusCode < 200 || response.statusCode >= 300) {
+   529→        throw Exception(
+   530→            'OpenAI error ${response.statusCode}: ${response.body}');
+   531→      }
+   532→      final data =
+   533→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+   534→      final content =
+   535→          OpenAiConfig.extractContent(data);
+   536→      return content.trim();
+   537→    });
+   538→  }
+   539→
+   540→  // Generate a concise section text for Front End Planning pages based on full project context.
+   541→  // Returns a rich paragraph suitable for a multi-line TextField. If API is not configured,
+   542→  // falls back to a short heuristic summary from the provided context.
+   543→  Future<String> generateFepSectionText({
+   544→    required String section,
+   545→    required String context,
+   546→    int maxTokens = 900,
+   547→    double temperature = 0.5,
+   548→  }) async {
+   549→    final trimmedContext = context.trim();
+   550→    if (trimmedContext.isEmpty) return '';
+   551→    if (!OpenAiConfig.isConfigured) {
+   552→      throw const OpenAiNotConfiguredException();
+   553→    }
+   554→
+   555→    final uri = OpenAiConfig.chatUri();
+   556→    final headers = OpenAiConfig.headers();
+   557→
+   558→    final prompt = _fepSectionPrompt(section: section, context: trimmedContext);
+   559→    final body = jsonEncode(OpenAiConfig.wrapBody({
+   560→      'model': OpenAiConfig.model,
+   561→      'temperature': temperature,
+   562→      'max_completion_tokens': maxTokens,
+   563→      'response_format': {'type': 'json_object'},
+   564→      'messages': [
+   565→        {
+   566→          'role': 'system',
+   567→          'content': _nduProjectSystemPrompt(
+   568→            specialistRole:
+   569→                'senior delivery planner drafting crisp, actionable section write-ups',
+   570→            strictJson: true,
+   571→          ),
+   572→        },
+   573→        {
+   574→          'role': 'user',
+   575→          'content': prompt,
+   576→        }
+   577→      ],
+   578→    }));
+   579→
+   580→    try {
+   581→      final response = await _client
+   582→          .post(uri, headers: headers, body: body)
+   583→          .timeout(const Duration(seconds: 14));
+   584→      if (response.statusCode == 401) throw Exception('Invalid API key');
+   585→      if (response.statusCode == 429) throw Exception('API quota exceeded');
+   586→      if (response.statusCode < 200 || response.statusCode >= 300) {
+   587→        throw Exception(
+   588→            'OpenAI error ${response.statusCode}: ${response.body}');
+   589→      }
+   590→      final data =
+   591→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+   592→      final content =
+   593→          OpenAiConfig.extractContent(data);
+   594→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+   595→      final text =
+   596→          (parsed['text'] ?? parsed['section'] ?? parsed['content'] ?? '')
+   597→              .toString()
+   598→              .trim();
+   599→      final cleanText = _stripAsterisks(text);
+   600→      if (cleanText.isNotEmpty) return cleanText;
+   601→      // If missing expected key, try to flatten other fields to text
+   602→      if (parsed.isNotEmpty) {
+   603→        return parsed.values
+   604→            .map((v) => _stripAsterisks(v.toString()))
+   605→            .join('\n')
+   606→            .trim();
+   607→      }
+   608→      return '';
+   609→    } catch (e) {
+   610→      // Surface the error to callers so the UI can show a clear failure state
+   611→      rethrow;
+   612→    }
+   613→  }
+   614→
+   615→  /// Rewrite / polish an existing block of text using the project context.
+   616→  /// The AI is instructed to:
+   617→  ///   - fix grammar, spelling, and punctuation
+   618→  ///   - tighten wording without changing meaning
+   619→  ///   - preserve the user's intent and any technical terms / proper nouns
+   620→  ///   - keep the original tone (professional, neutral)
+   621→  ///   - return ONLY the rewritten text in JSON: `{"text": "..."}`
+   622→  Future<String> rewriteExistingText({
+   623→    required String section,
+   624→    required String currentText,
+   625→    required String projectContext,
+   626→    int maxTokens = 900,
+   627→    double temperature = 0.4,
+   628→  }) async {
+   629→    final trimmedText = currentText.trim();
+   630→    if (trimmedText.isEmpty) return '';
+   631→    if (!OpenAiConfig.isConfigured) {
+   632→      throw const OpenAiNotConfiguredException();
+   633→    }
+   634→
+   635→    final uri = OpenAiConfig.chatUri();
+   636→    final headers = OpenAiConfig.headers();
+   637→
+   638→    final prompt = '''
+   639→You are a senior editor for an enterprise project management workspace. Rewrite the user's existing text for the "$section" section so that it is clearer, more professional, and grammatically correct.
+   640→
+   641→Rules:
+   642→- Preserve the user's intent and meaning. Do NOT introduce new facts not present in the original text or project context.
+   643→- Keep all proper nouns, technical terms, numbers, dates, and acronyms exactly as written.
+   644→- Tighten wordy phrasing and fix grammar, spelling, and punctuation.
+   645→- Keep the tone professional and neutral.
+   646→- Do NOT add headers, bullet markers, or formatting that wasn't in the original unless needed for clarity.
+   647→- Return ONLY valid JSON: {"text": "<rewritten text here>"}
+   648→
+   649→Project context (for reference only — do not invent):
+   650→"""
+   651→${_escape(projectContext)}
+   652→"""
+   653→
+   654→Original text to rewrite:
+   655→"""
+   656→${_escape(trimmedText)}
+   657→"""
+   658→''';
+   659→
+   660→    final body = jsonEncode(OpenAiConfig.wrapBody({
+   661→      'model': OpenAiConfig.model,
+   662→      'temperature': temperature,
+   663→      'max_completion_tokens': maxTokens,
+   664→      'response_format': {'type': 'json_object'},
+   665→      'messages': [
+   666→        {
+   667→          'role': 'system',
+   668→          'content': _nduProjectSystemPrompt(
+   669→            specialistRole:
+   670→                'senior editor polishing user-written project documentation',
+   671→            strictJson: true,
+   672→            extraRules:
+   673→                'Preserve the user\'s voice and intent. Make minimal, high-value edits.',
+   674→          ),
+   675→        },
+   676→        {
+   677→          'role': 'user',
+   678→          'content': prompt,
+   679→        }
+   680→      ],
+   681→    }));
+   682→
+   683→    try {
+   684→      final response = await _client
+   685→          .post(uri, headers: headers, body: body)
+   686→          .timeout(const Duration(seconds: 14));
+   687→      if (response.statusCode == 401) throw Exception('Invalid API key');
+   688→      if (response.statusCode == 429) throw Exception('API quota exceeded');
+   689→      if (response.statusCode < 200 || response.statusCode >= 300) {
+   690→        throw Exception(
+   691→            'OpenAI error ${response.statusCode}: ${response.body}');
+   692→      }
+   693→      final data =
+   694→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+   695→      final content = OpenAiConfig.extractContent(data);
+   696→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+   697→      final text = (parsed['text'] ??
+   698→              parsed['section'] ??
+   699→              parsed['content'] ??
+   700→              '')
+   701→          .toString()
+   702→          .trim();
+   703→      final cleanText = _stripAsterisks(text);
+   704→      return cleanText;
+   705→    } catch (e) {
+   706→      rethrow;
+   707→    }
+   708→  }
+   709→
+   710→  Future<QualitySeedBundle> generateQualitySeedBundle({
+   711→    required String context,
+   712→    required String section,
+   713→    int maxTokens = 1200,
+   714→    double temperature = 0.45,
+   715→  }) async {
+   716→    final trimmedContext = context.trim();
+   717→    if (trimmedContext.isEmpty) {
+   718→      return QualitySeedBundle.empty();
+   719→    }
+   720→    if (!OpenAiConfig.isConfigured) {
+   721→      return _fallbackQualitySeedBundle(trimmedContext, section);
+   722→    }
+   723→
+   724→    final uri = OpenAiConfig.chatUri();
+   725→    final headers = OpenAiConfig.headers();
+   726→
+   727→    final body = jsonEncode(OpenAiConfig.wrapBody({
+   728→      'model': OpenAiConfig.model,
+   729→      'temperature': temperature,
+   730→      'max_completion_tokens': maxTokens,
+   731→      'response_format': {'type': 'json_object'},
+   732→      'messages': [
+   733→        {
+   734→          'role': 'system',
+   735→          'content':
+   736→              'You are a quality management specialist. Generate realistic, actionable QA/QC planning data and return only JSON matching the requested schema.'
+   737→        },
+   738→        {
+   739→          'role': 'user',
+   740→          'content':
+   741→              _qualitySeedPrompt(section: section, context: trimmedContext),
+   742→        }
+   743→      ],
+   744→    }));
+   745→
+   746→    try {
+   747→      final response = await _client
+   748→          .post(uri, headers: headers, body: body)
+   749→          .timeout(const Duration(seconds: 30));
+   750→      if (response.statusCode == 401) throw Exception('Invalid API key');
+   751→      if (response.statusCode == 429) throw Exception('API quota exceeded');
+   752→      if (response.statusCode < 200 || response.statusCode >= 300) {
+   753→        throw Exception(
+   754→            'OpenAI error ${response.statusCode}: ${response.body}');
+   755→      }
+   756→
+   757→      final data =
+   758→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+   759→      final content =
+   760→          OpenAiConfig.extractContent(data);
+   761→      final parsed = _decodeJsonSafely(content);
+   762→      if (parsed == null) {
+   763→        return _fallbackQualitySeedBundle(trimmedContext, section);
+   764→      }
+   765→
+   766→      final standards = _parseQualityStandards(parsed['standards']);
+   767→      final objectives = _parseQualityObjectives(parsed['objectives']);
+   768→      final workflowControls =
+   769→          _parseQualityWorkflowControls(parsed['workflowControls']);
+   770→      final audits = _parseQualityAuditPlan(parsed['auditPlan']);
+   771→
+   772→      final dashboardRaw =
+   773→          (parsed['dashboardConfig'] is Map) ? parsed['dashboardConfig'] : {};
+   774→      final kpiRaw = (parsed['kpiTargets'] is Map) ? parsed['kpiTargets'] : {};
+   775→      final targetRaw = (dashboardRaw is Map &&
+   776→              dashboardRaw['targetTimeToResolutionDays'] != null)
+   777→          ? dashboardRaw['targetTimeToResolutionDays']
+   778→          : kpiRaw['targetTimeToResolutionDays'];
+   779→      final targetDays = _toDouble(targetRaw);
+   780→
+   781→      return QualitySeedBundle(
+   782→        standards: standards,
+   783→        objectives: objectives,
+   784→        workflowControls: workflowControls,
+   785→        auditPlan: audits,
+   786→        dashboardConfig: QualityDashboardConfig(
+   787→          targetTimeToResolutionDays: targetDays <= 0 ? 15 : targetDays,
+   788→          allowManualMetricsOverride: true,
+   789→          maxTrendPoints: 12,
+   790→        ),
+   791→      );
+   792→    } catch (e) {
+   793→      debugPrint('generateQualitySeedBundle failed: $e');
+   794→      return _fallbackQualitySeedBundle(trimmedContext, section);
+   795→    }
+   796→  }
+   797→
+   798→  List<Map<String, dynamic>> _asMapList(dynamic raw) {
+   799→    if (raw is! List) return const [];
+   800→    final result = <Map<String, dynamic>>[];
+   801→    for (final item in raw) {
+   802→      if (item is Map) {
+   803→        result.add(Map<String, dynamic>.from(item));
+   804→      }
+   805→    }
+   806→    return result;
+   807→  }
+   808→
+   809→  List<QualityStandard> _parseQualityStandards(dynamic raw) {
+   810→    return _asMapList(raw)
+   811→        .map((entry) {
+   812→          return QualityStandard(
+   813→            id: (entry['id'] ?? DateTime.now().microsecondsSinceEpoch)
+   814→                .toString(),
+   815→            name: _stripAsterisks(
+   816→                (entry['name'] ?? entry['standard'] ?? '').toString().trim()),
+   817→            source: _stripAsterisks(
+   818→                (entry['source'] ?? entry['framework'] ?? '')
+   819→                    .toString()
+   820→                    .trim()),
+   821→            category:
+   822→                _stripAsterisks((entry['category'] ?? '').toString().trim()),
+   823→            description:
+   824→                _stripAsterisks((entry['description'] ?? '').toString().trim()),
+   825→            applicability: _stripAsterisks(
+   826→                (entry['applicability'] ?? entry['appliesTo'] ?? '')
+   827→                    .toString()
+   828→                    .trim()),
+   829→          );
+   830→        })
+   831→        .where((s) => s.name.isNotEmpty)
+   832→        .toList();
+   833→  }
+   834→
+   835→  List<QualityObjective> _parseQualityObjectives(dynamic raw) {
+   836→    return _asMapList(raw)
+   837→        .map((entry) {
+   838→          return QualityObjective(
+   839→            id: (entry['id'] ?? DateTime.now().microsecondsSinceEpoch)
+   840→                .toString(),
+   841→            title: _stripAsterisks(
+   842→                (entry['title'] ?? entry['objective'] ?? '').toString().trim()),
+   843→            acceptanceCriteria: _stripAsterisks(
+   844→                (entry['acceptanceCriteria'] ?? entry['criteria'] ?? '')
+   845→                    .toString()
+   846→                    .trim()),
+   847→            successMetric: _stripAsterisks(
+   848→                (entry['successMetric'] ?? entry['metric'] ?? '')
+   849→                    .toString()
+   850→                    .trim()),
+   851→            targetValue: _stripAsterisks(
+   852→                (entry['targetValue'] ?? entry['target'] ?? '')
+   853→                    .toString()
+   854→                    .trim()),
+   855→            currentValue: _stripAsterisks(
+   856→                (entry['currentValue'] ?? '').toString().trim()),
+   857→            owner: _stripAsterisks((entry['owner'] ?? '').toString().trim()),
+   858→            linkedRequirement: _stripAsterisks(
+   859→                (entry['linkedRequirement'] ?? '').toString().trim()),
+   860→            linkedWbs:
+   861→                _stripAsterisks((entry['linkedWbs'] ?? '').toString().trim()),
+   862→            status:
+   863→                _stripAsterisks((entry['status'] ?? 'Draft').toString().trim()),
+   864→          );
+   865→        })
+   866→        .where((o) => o.title.isNotEmpty)
+   867→        .toList();
+   868→  }
+   869→
+   870→  List<QualityWorkflowControl> _parseQualityWorkflowControls(dynamic raw) {
+   871→    return _asMapList(raw)
+   872→        .map((entry) {
+   873→          return QualityWorkflowControl(
+   874→            id: (entry['id'] ?? DateTime.now().microsecondsSinceEpoch)
+   875→                .toString(),
+   876→            type: _parseWorkflowType(entry['type']),
+   877→            name: _stripAsterisks((entry['name'] ?? '').toString().trim()),
+   878→            method: _stripAsterisks((entry['method'] ?? '').toString().trim()),
+   879→            tools: _stripAsterisks((entry['tools'] ?? '').toString().trim()),
+   880→            checklist:
+   881→                _stripAsterisks((entry['checklist'] ?? '').toString().trim()),
+   882→            frequency:
+   883→                _stripAsterisks((entry['frequency'] ?? '').toString().trim()),
+   884→            owner: _stripAsterisks((entry['owner'] ?? '').toString().trim()),
+   885→            standardsReference: _stripAsterisks(
+   886→                (entry['standardsReference'] ?? '').toString().trim()),
+   887→          );
+   888→        })
+   889→        .where((w) => w.name.isNotEmpty)
+   890→        .toList();
+   891→  }
+   892→
+   893→  List<QualityAuditEntry> _parseQualityAuditPlan(dynamic raw) {
+   894→    return _asMapList(raw)
+   895→        .map((entry) {
+   896→          return QualityAuditEntry(
+   897→            id: (entry['id'] ?? DateTime.now().microsecondsSinceEpoch)
+   898→                .toString(),
+   899→            title: _stripAsterisks((entry['title'] ?? '').toString().trim()),
+   900→            scope: _stripAsterisks((entry['scope'] ?? '').toString().trim()),
+   901→            plannedDate:
+   902→                _stripAsterisks((entry['plannedDate'] ?? '').toString().trim()),
+   903→            completedDate: _stripAsterisks(
+   904→                (entry['completedDate'] ?? '').toString().trim()),
+   905→            owner: _stripAsterisks((entry['owner'] ?? '').toString().trim()),
+   906→            result: _parseAuditResultStatus(entry['result']),
+   907→            findings:
+   908→                _stripAsterisks((entry['findings'] ?? '').toString().trim()),
+   909→            notes: _stripAsterisks((entry['notes'] ?? '').toString().trim()),
+   910→          );
+   911→        })
+   912→        .where((a) => a.title.isNotEmpty)
+   913→        .toList();
+   914→  }
+   915→
+   916→  String _normalizeQualityToken(dynamic raw) {
+   917→    return raw
+   918→            ?.toString()
+   919→            .trim()
+   920→            .toLowerCase()
+   921→            .replaceAll(RegExp(r'[\s_-]+'), '') ??
+   922→        '';
+   923→  }
+   924→
+   925→  QualityWorkflowType _parseWorkflowType(dynamic raw) {
+   926→    final token = _normalizeQualityToken(raw);
+   927→    if (token == 'qc' || token == 'qualitycontrol') {
+   928→      return QualityWorkflowType.qc;
+   929→    }
+   930→    return QualityWorkflowType.qa;
+   931→  }
+   932→
+   933→  AuditResultStatus _parseAuditResultStatus(dynamic raw) {
+   934→    final token = _normalizeQualityToken(raw);
+   935→    switch (token) {
+   936→      case 'pass':
+   937→      case 'passed':
+   938→        return AuditResultStatus.pass;
+   939→      case 'conditional':
+   940→      case 'warning':
+   941→        return AuditResultStatus.conditional;
+   942→      case 'fail':
+   943→      case 'failed':
+   944→        return AuditResultStatus.fail;
+   945→      default:
+   946→        return AuditResultStatus.pending;
+   947→    }
+   948→  }
+   949→
+   950→  QualitySeedBundle _fallbackQualitySeedBundle(String context, String section) {
+   951→    final scopeTag = section.trim().isEmpty ? 'Project' : section.trim();
+   952→    return QualitySeedBundle(
+   953→      standards: [
+   954→        QualityStandard(
+   955→          id: DateTime.now().microsecondsSinceEpoch.toString(),
+   956→          name: 'ISO 9001-aligned process controls',
+   957→          source: 'ISO 9001',
+   958→          category: 'Quality Management',
+   959→          description:
+   960→              'Define process ownership, documented procedures, and recurring audits.',
+   961→          applicability: scopeTag,
+   962→        ),
+   963→        QualityStandard(
+   964→          id: DateTime.now()
+   965→              .add(const Duration(microseconds: 1))
+   966→              .microsecondsSinceEpoch
+   967→              .toString(),
+   968→          name: 'Project acceptance criteria governance',
+   969→          source: 'Stakeholder requirements',
+   970→          category: 'Acceptance',
+   971→          description:
+   972→              'Maintain measurable acceptance criteria per deliverable and verify before sign-off.',
+   973→          applicability: scopeTag,
+   974→        ),
+   975→      ],
+   976→      objectives: [
+   977→        QualityObjective(
+   978→          id: DateTime.now().microsecondsSinceEpoch.toString(),
+   979→          title: 'Reduce defect leakage',
+   980→          acceptanceCriteria:
+   981→              'Defects identified in QA are resolved before release gates.',
+   982→          successMetric: 'Defect leakage rate',
+   983→          targetValue: '< 5%',
+   984→          currentValue: '',
+   985→          owner: '',
+   986→          linkedRequirement: '',
+   987→          linkedWbs: '',
+   988→          status: 'Draft',
+   989→        ),
+   990→        QualityObjective(
+   991→          id: DateTime.now()
+   992→              .add(const Duration(microseconds: 1))
+   993→              .microsecondsSinceEpoch
+   994→              .toString(),
+   995→          title: 'Improve audit readiness',
+   996→          acceptanceCriteria:
+   997→              'All planned quality audits executed and documented on schedule.',
+   998→          successMetric: 'Planned audit completion',
+   999→          targetValue: '100%',
+  1000→          currentValue: '',
+  1001→          owner: '',
+  1002→          linkedRequirement: '',
+  1003→          linkedWbs: '',
+  1004→          status: 'Draft',
+  1005→        ),
+  1006→      ],
+  1007→      workflowControls: [
+  1008→        QualityWorkflowControl(
+  1009→          id: DateTime.now().microsecondsSinceEpoch.toString(),
+  1010→          type: QualityWorkflowType.qa,
+  1011→          name: 'Peer review and checklist verification',
+  1012→          method: 'Review deliverables against agreed standards and templates',
+  1013→          tools: 'Review checklist, issue log',
+  1014→          checklist: 'Definition of done + quality checklist',
+  1015→          frequency: 'Weekly',
+  1016→          owner: '',
+  1017→          standardsReference: 'ISO 9001, project QA guide',
+  1018→        ),
+  1019→        QualityWorkflowControl(
+  1020→          id: DateTime.now()
+  1021→              .add(const Duration(microseconds: 1))
+  1022→              .microsecondsSinceEpoch
+  1023→              .toString(),
+  1024→          type: QualityWorkflowType.qc,
+  1025→          name: 'Inspection and audit sampling',
+  1026→          method: 'Inspect completed outputs and run quality audits',
+  1027→          tools: 'Inspection sheets, audit logs',
+  1028→          checklist: 'QC inspection criteria',
+  1029→          frequency: 'Bi-weekly',
+  1030→          owner: '',
+  1031→          standardsReference: 'Internal QC protocol',
+  1032→        ),
+  1033→      ],
+  1034→      auditPlan: [
+  1035→        QualityAuditEntry(
+  1036→          id: DateTime.now().microsecondsSinceEpoch.toString(),
+  1037→          title: 'Requirements quality audit',
+  1038→          scope: 'Requirements and acceptance criteria completeness',
+  1039→          plannedDate: '',
+  1040→          completedDate: '',
+  1041→          owner: '',
+  1042→          result: AuditResultStatus.pending,
+  1043→          findings: '',
+  1044→          notes:
+  1045→              'Seeded from project context: ${_excerpt(_stripAsterisks(context), 120)}',
+  1046→        ),
+  1047→      ],
+  1048→      dashboardConfig: const QualityDashboardConfig(
+  1049→        targetTimeToResolutionDays: 15,
+  1050→        allowManualMetricsOverride: true,
+  1051→        maxTrendPoints: 12,
+  1052→      ),
+  1053→    );
+  1054→  }
+  1055→
+  1056→  /// Analyzes current quality data and provides AI-powered recommendations
+  1057→  Future<QualityAiAnalysis> analyzeQualityGaps({
+  1058→    required String context,
+  1059→    required QualityManagementData currentQuality,
+  1060→  }) async {
+  1061→    final trimmedContext = context.trim();
+  1062→    if (trimmedContext.isEmpty) {
+  1063→      return QualityAiAnalysis.empty();
+  1064→    }
+  1065→    if (!OpenAiConfig.isConfigured) {
+  1066→      return QualityAiAnalysis.fallback();
+  1067→    }
+  1068→
+  1069→    final uri = OpenAiConfig.chatUri();
+  1070→    final headers = OpenAiConfig.headers();
+  1071→
+  1072→    final currentState = [
+  1073→      'CURRENT QUALITY STATE:',
+  1074→      '- Objectives: ${currentQuality.objectives.length} defined',
+  1075→      '- Standards: ${currentQuality.standards.length} listed',
+  1076→      '- Workflow Controls: ${currentQuality.workflowControls.length}',
+  1077→      '- Audit Entries: ${currentQuality.auditPlan.length} planned',
+  1078→      '- Corrective Actions: ${currentQuality.correctiveActions.length}',
+  1079→      '',
+  1080→      'ANALYSIS REQUESTED:',
+  1081→      '1. Identify missing quality requirements or gaps',
+  1082→      '2. Recommend quality activities based on project type',
+  1083→      '3. Suggest applicable standards and best practices',
+  1084→      '4. Detect gaps in acceptance criteria',
+  1085→      '5. Highlight quality risks and likely sources of rework',
+  1086→      '6. Recommend quality KPIs specific to this project',
+  1087→    ].join('\n');
+  1088→
+  1089→    final fullContext = '$context\n\n$currentState';
+  1090→
+  1091→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1092→      'model': OpenAiConfig.model,
+  1093→      'temperature': 0.4,
+  1094→      'max_completion_tokens': 1500,
+  1095→      'response_format': {'type': 'json_object'},
+  1096→      'messages': [
+  1097→        {
+  1098→          'role': 'system',
+  1099→          'content': 'You are an expert Quality Management consultant. Analyze quality data and provide actionable recommendations. Return ONLY valid JSON.'
+  1100→        },
+  1101→        {
+  1102→          'role': 'user',
+  1103→          'content': fullContext,
+  1104→        }
+  1105→      ],
+  1106→    }));
+  1107→
+  1108→    try {
+  1109→      final response = await _client
+  1110→          .post(uri, headers: headers, body: body)
+  1111→          .timeout(const Duration(seconds: 45));
+  1112→      if (response.statusCode == 401) throw Exception('Invalid API key');
+  1113→      if (response.statusCode == 429) throw Exception('API quota exceeded');
+  1114→      if (response.statusCode < 200 || response.statusCode >= 300) {
+  1115→        throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
+  1116→      }
+  1117→
+  1118→      final parsed = jsonDecode(response.body);
+  1119→      return QualityAiAnalysis.fromJson(parsed);
+  1120→    } catch (e) {
+  1121→      debugPrint('analyzeQualityGaps failed: $e');
+  1122→      return QualityAiAnalysis.fallback();
+  1123→    }
+  1124→  }
+  1125→
+  1126→
+  1127→  // Generate structured Scope items (Within Scope, Out of Scope)
+  1128→  Future<Map<String, List<String>>> generateProjectScope({
+  1129→    required String context,
+  1130→    int maxTokens = 800,
+  1131→    double temperature = 0.5,
+  1132→  }) async {
+  1133→    final trimmedContext = context.trim();
+  1134→    if (trimmedContext.isEmpty) return {'in': [], 'out': []};
+  1135→    if (!OpenAiConfig.isConfigured) return {'in': [], 'out': []};
+  1136→
+  1137→    final uri = OpenAiConfig.chatUri();
+  1138→    final headers = OpenAiConfig.headers();
+  1139→
+  1140→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1141→      'model': OpenAiConfig.model,
+  1142→      'temperature': temperature,
+  1143→      'max_completion_tokens': maxTokens,
+  1144→      'response_format': {'type': 'json_object'},
+  1145→      'messages': [
+  1146→        {
+  1147→          'role': 'system',
+  1148→          'content':
+  1149→              'You are a senior project manager. Extract or generate a list of "Within Scope" and "Out of Scope" items based on the project context. Return JSON with keys "within_scope" and "out_of_scope" as arrays of strings.'
+  1150→        },
+  1151→        {
+  1152→          'role': 'user',
+  1153→          'content': 'Project Context:\n$trimmedContext',
+  1154→        }
+  1155→      ],
+  1156→    }));
+  1157→
+  1158→    try {
+  1159→      final response = await _client
+  1160→          .post(uri, headers: headers, body: body)
+  1161→          .timeout(const Duration(seconds: 14));
+  1162→      if (response.statusCode >= 300) return {'in': [], 'out': []};
+  1163→
+  1164→      final data =
+  1165→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1166→      final content =
+  1167→          OpenAiConfig.extractContent(data);
+  1168→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1169→
+  1170→      List<String> toList(dynamic val) {
+  1171→        if (val is List) {
+  1172→          return val.map((e) => _stripAsterisks(e.toString())).toList();
+  1173→        }
+  1174→        return [];
+  1175→      }
+  1176→
+  1177→      return {
+  1178→        'in': toList(parsed['within_scope']),
+  1179→        'out': toList(parsed['out_of_scope']),
+  1180→      };
+  1181→    } catch (e) {
+  1182→      debugPrint('Error generating scope: $e');
+  1183→      return {'in': [], 'out': []};
+  1184→    }
+  1185→  }
+  1186→
+  1187→  // Generate structured Risks and Constraints
+  1188→  Future<Map<String, dynamic>> generateDetailedRisks({
+  1189→    required String context,
+  1190→    int maxTokens = 1000,
+  1191→    double temperature = 0.5,
+  1192→  }) async {
+  1193→    final trimmedContext = context.trim();
+  1194→    if (trimmedContext.isEmpty) return {'risks': [], 'constraints': []};
+  1195→    if (!OpenAiConfig.isConfigured) return {'risks': [], 'constraints': []};
+  1196→
+  1197→    final uri = OpenAiConfig.chatUri();
+  1198→    final headers = OpenAiConfig.headers();
+  1199→
+  1200→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1201→      'model': OpenAiConfig.model,
+  1202→      'temperature': temperature,
+  1203→      'max_completion_tokens': maxTokens,
+  1204→      'response_format': {'type': 'json_object'},
+  1205→      'messages': [
+  1206→        {
+  1207→          'role': 'system',
+  1208→          'content':
+  1209→              'You are a risk manager. Identify key risks (with impact/mitigation) and constraints. Return JSON with "risks": [{ "name": "...", "impact": "High/Medium/Low", "mitigation": "..." }] and "constraints": ["..."].'
+  1210→        },
+  1211→        {
+  1212→          'role': 'user',
+  1213→          'content': 'Project Context:\n$trimmedContext',
+  1214→        }
+  1215→      ],
+  1216→    }));
+  1217→
+  1218→    try {
+  1219→      final response = await _client
+  1220→          .post(uri, headers: headers, body: body)
+  1221→          .timeout(const Duration(seconds: 14));
+  1222→      if (response.statusCode >= 300) return {'risks': [], 'constraints': []};
+  1223→
+  1224→      final data =
+  1225→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1226→      final content =
+  1227→          OpenAiConfig.extractContent(data);
+  1228→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1229→
+  1230→      List<RiskRegisterItem> risks = [];
+  1231→      if (parsed['risks'] is List) {
+  1232→        risks = (parsed['risks'] as List).map((r) {
+  1233→          final map = r as Map<String, dynamic>;
+  1234→          return RiskRegisterItem(
+  1235→            riskName: _stripAsterisks(map['name']?.toString() ?? ''),
+  1236→            impactLevel: _stripAsterisks(map['impact']?.toString() ?? 'Medium'),
+  1237→            mitigationStrategy:
+  1238→                _stripAsterisks(map['mitigation']?.toString() ?? ''),
+  1239→          );
+  1240→        }).toList();
+  1241→      }
+  1242→
+  1243→      List<String> constraints = [];
+  1244→      if (parsed['constraints'] is List) {
+  1245→        constraints = (parsed['constraints'] as List)
+  1246→            .map((e) => _stripAsterisks(e.toString()))
+  1247→            .toList();
+  1248→      }
+  1249→
+  1250→      return {'risks': risks, 'constraints': constraints};
+  1251→    } catch (e) {
+  1252→      debugPrint('Error generating risks: $e');
+  1253→      return {'risks': [], 'constraints': []};
+  1254→    }
+  1255→  }
+  1256→
+  1257→  Future<Map<String, String>> generateRiskMitigationPlans({
+  1258→    required List<RiskMitigationRequest> risks,
+  1259→    required String context,
+  1260→    int maxTokens = 900,
+  1261→    double temperature = 0.5,
+  1262→  }) async {
+  1263→    final trimmedRisks = risks
+  1264→        .map((r) => RiskMitigationRequest(
+  1265→            id: r.id,
+  1266→            risk: r.risk.trim(),
+  1267→            solutionTitle: r.solutionTitle.trim()))
+  1268→        .where((r) => r.risk.isNotEmpty)
+  1269→        .toList();
+  1270→
+  1271→    if (trimmedRisks.isEmpty) return {};
+  1272→
+  1273→    if (!OpenAiConfig.isConfigured) {
+  1274→      return _fallbackMitigationPlans(trimmedRisks);
+  1275→    }
+  1276→
+  1277→    final uri = OpenAiConfig.chatUri();
+  1278→    final headers = OpenAiConfig.headers();
+  1279→
+  1280→    final prompt = _buildMitigationPrompt(trimmedRisks, context);
+  1281→
+  1282→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1283→      'model': OpenAiConfig.model,
+  1284→      'temperature': temperature,
+  1285→      'max_completion_tokens': maxTokens,
+  1286→      'response_format': {'type': 'json_object'},
+  1287→      'messages': [
+  1288→        {
+  1289→          'role': 'system',
+  1290→          'content':
+  1291→              'You are a pragmatic project risk manager. Provide a concise mitigation plan for each supplied risk. Return only a JSON object with key "mitigations" whose value is an array of objects containing "id" and "plan".'
+  1292→        },
+  1293→        {
+  1294→          'role': 'user',
+  1295→          'content': prompt,
+  1296→        }
+  1297→      ],
+  1298→    }));
+  1299→
+  1300→    try {
+  1301→      final response = await _client
+  1302→          .post(uri, headers: headers, body: body)
+  1303→          .timeout(const Duration(seconds: 14));
+  1304→      if (response.statusCode >= 300) {
+  1305→        return _fallbackMitigationPlans(trimmedRisks);
+  1306→      }
+  1307→
+  1308→      final data =
+  1309→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1310→      final content =
+  1311→          OpenAiConfig.extractContent(data);
+  1312→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1313→
+  1314→      final mitigations = <String, String>{};
+  1315→      if (parsed['mitigations'] is List) {
+  1316→        for (final item in parsed['mitigations'] as List) {
+  1317→          if (item is Map) {
+  1318→            final id = item['id']?.toString();
+  1319→            final plan = _stripAsterisks(item['plan']?.toString() ?? '');
+  1320→            if (id != null && plan.trim().isNotEmpty) {
+  1321→              mitigations[id] = plan.trim();
+  1322→            }
+  1323→          }
+  1324→        }
+  1325→      }
+  1326→      return mitigations.isEmpty
+  1327→          ? _fallbackMitigationPlans(trimmedRisks)
+  1328→          : mitigations;
+  1329→    } catch (e) {
+  1330→      debugPrint('generateRiskMitigationPlans failed: $e');
+  1331→      return _fallbackMitigationPlans(trimmedRisks);
+  1332→    }
+  1333→  }
+  1334→
+  1335→  String _buildMitigationPrompt(
+  1336→    List<RiskMitigationRequest> risks,
+  1337→    String context,
+  1338→  ) {
+  1339→    final buffer = StringBuffer();
+  1340→    if (context.trim().isNotEmpty) {
+  1341→      buffer.writeln('Project context:');
+  1342→      buffer.writeln(context.trim());
+  1343→      buffer.writeln();
+  1344→    }
+  1345→    buffer.writeln('Risks requiring mitigation:');
+  1346→    for (final risk in risks) {
+  1347→      buffer.writeln('- ID: ${risk.id}');
+  1348→      if (risk.solutionTitle.isNotEmpty) {
+  1349→        buffer.writeln('  Solution: ${risk.solutionTitle}');
+  1350→      }
+  1351→      buffer.writeln('  Risk: ${risk.risk}');
+  1352→    }
+  1353→    buffer.writeln();
+  1354→    buffer.writeln(
+  1355→        'For each risk, provide one practical plan that outlines the immediate mitigation steps, ownership, and cadence.');
+  1356→    return buffer.toString();
+  1357→  }
+  1358→
+  1359→  Map<String, String> _fallbackMitigationPlans(
+  1360→      List<RiskMitigationRequest> risks) {
+  1361→    final fallback = <String, String>{};
+  1362→    for (final risk in risks) {
+  1363→      final base = risk.risk.isNotEmpty ? risk.risk : 'the listed risk';
+  1364→      fallback[risk.id] =
+  1365→          'Document mitigation actions for "$base", assign an owner, and monitor progress weekly.';
+  1366→    }
+  1367→    return fallback;
+  1368→  }
+  1369→
+  1370→  // Generate Technical Requirements (IT and Infra)
+  1371→  Future<Map<String, dynamic>> generateTechnicalRequirements({
+  1372→    required String context,
+  1373→    int maxTokens = 1000,
+  1374→    double temperature = 0.5,
+  1375→  }) async {
+  1376→    final trimmedContext = context.trim();
+  1377→    if (trimmedContext.isEmpty) return {};
+  1378→    if (!OpenAiConfig.isConfigured) return {};
+  1379→
+  1380→    final uri = OpenAiConfig.chatUri();
+  1381→    final headers = OpenAiConfig.headers();
+  1382→
+  1383→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1384→      'model': OpenAiConfig.model,
+  1385→      'temperature': temperature,
+  1386→      'max_completion_tokens': maxTokens,
+  1387→      'response_format': {'type': 'json_object'},
+  1388→      'messages': [
+  1389→        {
+  1390→          'role': 'system',
+  1391→          'content':
+  1392→              'You are a technical architect. Identify IT and Infrastructure requirements. Return JSON with "it": { "hardware": "...", "software": "...", "network": "..." } and "infra": { "space": "...", "power": "...", "connectivity": "..." }.'
+  1393→        },
+  1394→        {
+  1395→          'role': 'user',
+  1396→          'content': 'Project Context:\n$trimmedContext',
+  1397→        }
+  1398→      ],
+  1399→    }));
+  1400→
+  1401→    try {
+  1402→      final response = await _client
+  1403→          .post(uri, headers: headers, body: body)
+  1404→          .timeout(const Duration(seconds: 14));
+  1405→      if (response.statusCode >= 300) return {};
+  1406→
+  1407→      final data =
+  1408→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1409→      final content =
+  1410→          OpenAiConfig.extractContent(data);
+  1411→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1412→
+  1413→      final itMap = parsed['it'] as Map<String, dynamic>? ?? {};
+  1414→      final infraMap = parsed['infra'] as Map<String, dynamic>? ?? {};
+  1415→
+  1416→      final it = ITConsiderationsData(
+  1417→        hardwareRequirements:
+  1418→            _stripAsterisks(itMap['hardware']?.toString() ?? ''),
+  1419→        softwareRequirements:
+  1420→            _stripAsterisks(itMap['software']?.toString() ?? ''),
+  1421→        networkRequirements:
+  1422→            _stripAsterisks(itMap['network']?.toString() ?? ''),
+  1423→      );
+  1424→
+  1425→      final infra = InfrastructureConsiderationsData(
+  1426→        physicalSpaceRequirements:
+  1427→            _stripAsterisks(infraMap['space']?.toString() ?? ''),
+  1428→        powerCoolingRequirements:
+  1429→            _stripAsterisks(infraMap['power']?.toString() ?? ''),
+  1430→        connectivityRequirements:
+  1431→            _stripAsterisks(infraMap['connectivity']?.toString() ?? ''),
+  1432→      );
+  1433→
+  1434→      return {'it': it, 'infra': infra};
+  1435→    } catch (e) {
+  1436→      debugPrint('Error generating tech reqs: $e');
+  1437→      return {};
+  1438→    }
+  1439→  }
+  1440→
+  1441→  // Generate structured planning items (Scope, Assumptions, Constraints)
+  1442→  Future<List<PlanningDashboardItem>> generatePlanningItems({
+  1443→    required String section,
+  1444→    required String context,
+  1445→    int maxTokens = 1000,
+  1446→    double temperature = 0.5,
+  1447→  }) async {
+  1448→    final trimmedContext = context.trim();
+  1449→    if (trimmedContext.isEmpty) return [];
+  1450→
+  1451→    if (!OpenAiConfig.isConfigured) {
+  1452→      return _planningItemsFallback(section, trimmedContext);
+  1453→    }
+  1454→
+  1455→    final uri = OpenAiConfig.chatUri();
+  1456→    final headers = OpenAiConfig.headers();
+  1457→
+  1458→    final prompt = '''
+  1459→You are a senior project manager. Based on the project context below, generate a list of specific, actionable items for the "$section" section.
+  1460→Return ONLY a JSON object with a single key "items", which is a list of objects. Each object must have:
+  1461→- "description": A clear, concise statement (max 20 words).
+  1462→- "title": A short 3-5 word summary (optional, can be empty).
+  1463→
+  1464→Context:
+  1465→$trimmedContext
+  1466→
+  1467→Rules:
+  1468→- Generate 3-7 high-quality items.
+  1469→- Focus on specific details relevant to the project type, not generic statements.
+  1470→- For "Within Scope": lists specific deliverables.
+  1471→- For "Out of Scope": lists specific exclusions.
+  1472→- For "Assumptions": lists key dependencies or conditions.
+  1473→- For "Constraints": lists budget, timeline, or resource limitations.
+  1474→''';
+  1475→
+  1476→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1477→      'model': OpenAiConfig.model,
+  1478→      'temperature': temperature,
+  1479→      'max_completion_tokens': maxTokens,
+  1480→      'response_format': {'type': 'json_object'},
+  1481→      'messages': [
+  1482→        {
+  1483→          'role': 'system',
+  1484→          'content': _nduProjectSystemPrompt(
+  1485→            specialistRole:
+  1486→                'project planning analyst generating scope and planning entries',
+  1487→            strictJson: true,
+  1488→            extraRules:
+  1489→                'Return only a JSON object that matches the requested schema.',
+  1490→          ),
+  1491→        },
+  1492→        {'role': 'user', 'content': prompt}
+  1493→      ],
+  1494→    }));
+  1495→
+  1496→    try {
+  1497→      final response = await _client
+  1498→          .post(uri, headers: headers, body: body)
+  1499→          .timeout(const Duration(seconds: 30));
+  1500→
+  1501→      if (response.statusCode < 200 || response.statusCode >= 300) {
+  1502→        throw Exception(
+  1503→            'OpenAI error ${response.statusCode}: ${response.body}');
+  1504→      }
+  1505→
+  1506→      final data =
+  1507→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1508→      final content =
+  1509→          OpenAiConfig.extractContent(data);
+  1510→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1511→
+  1512→      final rawItems = parsed['items'] as List?;
+  1513→      if (rawItems == null) return [];
+  1514→
+  1515→      final generated = rawItems.map((item) {
+  1516→        final map = item as Map<String, dynamic>;
+  1517→        return PlanningDashboardItem(
+  1518→          title: _stripAsterisks((map['title'] ?? '').toString()),
+  1519→          description: _stripAsterisks((map['description'] ?? '').toString()),
+  1520→          isAiGenerated: true,
+  1521→        );
+  1522→      }).toList();
+  1523→
+  1524→      return _normalizePlanningItems(generated, section: section);
+  1525→    } catch (e) {
+  1526→      debugPrint('Error generating planning items: $e');
+  1527→      return _normalizePlanningItems(
+  1528→        _planningItemsFallback(section, trimmedContext),
+  1529→        section: section,
+  1530→      );
+  1531→    }
+  1532→  }
+  1533→
+  1534→  /// Generate a concise AI project objective summary (max 5 sentences).
+  1535→  Future<String> generateProjectObjectiveSummary({
+  1536→    required String context,
+  1537→    int maxTokens = 360,
+  1538→    double temperature = 0.4,
+  1539→  }) async {
+  1540→    final trimmedContext = context.trim();
+  1541→    if (trimmedContext.isEmpty) return '';
+  1542→    if (!OpenAiConfig.isConfigured) return '';
+  1543→
+  1544→    final uri = OpenAiConfig.chatUri();
+  1545→    final headers = OpenAiConfig.headers();
+  1546→
+  1547→    final prompt = '''
+  1548→You are a senior project planning assistant. Using the project context below, write a concise project objective summary.
+  1549→Requirements:
+  1550→- 3 to 5 complete sentences, maximum 5 sentences.
+  1551→- No bullet points or numbering.
+  1552→- Focus on measurable actions and targets required to accomplish the project.
+  1553→- Reference goals, milestones, scope, and constraints when relevant.
+  1554→- Use clear, direct language.
+  1555→
+  1556→Context:
+  1557→$trimmedContext
+  1558→
+  1559→Return ONLY valid JSON: {"objective": "..." }
+  1560→''';
+  1561→
+  1562→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1563→      'model': OpenAiConfig.model,
+  1564→      'temperature': temperature,
+  1565→      'max_completion_tokens': maxTokens,
+  1566→      'response_format': {'type': 'json_object'},
+  1567→      'messages': [
+  1568→        {
+  1569→          'role': 'system',
+  1570→          'content':
+  1571→              'You are a project planning assistant. Return only valid JSON.'
+  1572→        },
+  1573→        {'role': 'user', 'content': prompt},
+  1574→      ],
+  1575→    }));
+  1576→
+  1577→    try {
+  1578→      final response = await _client
+  1579→          .post(uri, headers: headers, body: body)
+  1580→          .timeout(const Duration(seconds: 30));
+  1581→
+  1582→      if (response.statusCode < 200 || response.statusCode >= 300) {
+  1583→        throw Exception(
+  1584→            'OpenAI error ${response.statusCode}: ${response.body}');
+  1585→      }
+  1586→
+  1587→      final data =
+  1588→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1589→      final content =
+  1590→          OpenAiConfig.extractContent(data);
+  1591→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1592→      final objective = _stripAsterisks(
+  1593→        (parsed['objective'] ?? '').toString().trim(),
+  1594→      );
+  1595→      return objective;
+  1596→    } catch (e) {
+  1597→      debugPrint('Error generating project objective summary: $e');
+  1598→      return '';
+  1599→    }
+  1600→  }
+  1601→
+  1602→  // Generate structured execution plan fields for plan input cards.
+  1603→  Future<Map<String, String>> generateExecutionPlanSectionFields({
+  1604→    required String section,
+  1605→    required String context,
+  1606→    required Map<String, String> fields,
+  1607→    int maxTokens = 900,
+  1608→    double temperature = 0.4,
+  1609→  }) async {
+  1610→    final trimmedContext = context.trim();
+  1611→    if (trimmedContext.isEmpty || fields.isEmpty) return {};
+  1612→    if (!OpenAiConfig.isConfigured) return {};
+  1613→
+  1614→    final uri = OpenAiConfig.chatUri();
+  1615→    final headers = OpenAiConfig.headers();
+  1616→
+  1617→    final fieldLines = fields.entries
+  1618→        .map((entry) => '- ${entry.key}: ${entry.value}'.trim())
+  1619→        .join('\n');
+  1620→
+  1621→    final prompt = '''
+  1622→You are a senior project delivery planner. Fill in the execution plan inputs for "$section".
+  1623→Return ONLY a valid JSON object with keys exactly matching the field keys below.
+  1624→Each value should be 1-3 concise sentences (max 40 words) using concrete, actionable details.
+  1625→Avoid bullet lists, headings, or repeating the label.
+  1626→
+  1627→Field keys and guidance:
+  1628→$fieldLines
+  1629→
+  1630→Project Context:
+  1631→$trimmedContext
+  1632→''';
+  1633→
+  1634→    final body = jsonEncode(OpenAiConfig.wrapBody({
+  1635→      'model': OpenAiConfig.model,
+  1636→      'temperature': temperature,
+  1637→      'max_completion_tokens': maxTokens,
+  1638→      'response_format': {'type': 'json_object'},
+  1639→      'messages': [
+  1640→        {
+  1641→          'role': 'system',
+  1642→          'content': _nduProjectSystemPrompt(
+  1643→            specialistRole:
+  1644→                'execution planning specialist generating structured execution section inputs',
+  1645→            strictJson: true,
+  1646→            extraRules:
+  1647→                'Return only a JSON object with keys exactly matching the requested field keys.',
+  1648→          ),
+  1649→        },
+  1650→        {'role': 'user', 'content': prompt},
+  1651→      ],
+  1652→    }));
+  1653→
+  1654→    String normalize(dynamic value) {
+  1655→      if (value == null) return '';
+  1656→      if (value is String) return value;
+  1657→      if (value is List) {
+  1658→        return value.map((e) => e.toString()).join(' ');
+  1659→      }
+  1660→      if (value is Map) {
+  1661→        return value.values.map((e) => e.toString()).join(' ');
+  1662→      }
+  1663→      return value.toString();
+  1664→    }
+  1665→
+  1666→    try {
+  1667→      final response = await _client
+  1668→          .post(uri, headers: headers, body: body)
+  1669→          .timeout(const Duration(seconds: 30));
+  1670→      if (response.statusCode < 200 || response.statusCode >= 300) {
+  1671→        throw Exception(
+  1672→            'OpenAI error ${response.statusCode}: ${response.body}');
+  1673→      }
+  1674→
+  1675→      final data =
+  1676→          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+  1677→      final content =
+  1678→          OpenAiConfig.extractContent(data);
+  1679→      final parsed = jsonDecode(_extractJson(content)) as Map<String, dynamic>;
+  1680→
+  1681→      final rawFields = parsed['fields'] is Map
+  1682→          ? (parsed['fields'] as Map).cast<String, dynamic>()
+  1683→          : parsed;
+  1684→
+  1685→      final results = <String, String>{};
+  1686→      for (final key in fields.keys) {
+  1687→        final value = rawFields[key];
+  1688→        final text = _stripAsterisks(normalize(value)).trim();
+  1689→        if (text.isNotEmpty) {
+  1690→          results[key] = text;
+  1691→        }
+  1692→      }
+  1693→
+  1694→      return results;
+  1695→    } catch (e) {
+  1696→      debugPrint('Error generating execution plan fields: $e');
+  1697→      return {};
+  1698→    }
+  1699→  }
+  1700→
+  1701→  String _normalizePlanningText(String value) =>
+  1702→      value.trim().replaceAll(RegExp(r'\s+'), ' ');
+  1703→
+  1704→  String _defaultPlanningTitle(String section, String description) {
+  1705→    final lower = description.toLowerCase();
+  1706→
+  1707→    if (section.contains('Within Scope')) return 'Scope Deliverable';
+  1708→    if (section.contains('Out of Scope')) return 'Scope Exclusion';
+  1709→    if (section.contains('Assumptions')) return 'Planning Assumption';
+  1710→    if (section.contains('Project Objectives')) return 'Project Objective';
+  1711→    if (section.contains('Success Criteria')) return 'Success Criterion';
+  1712→    if (section.contains('Constraints')) {
+  1713→      if (lower.contains('budget')) return 'Budget Constraint';
+  1714→      if (lower.contains('timeline') || lower.contains('schedule')) {
+  1715→        return 'Schedule Constraint';
+  1716→      }
+  1717→      if (lower.contains('resource')) return 'Resource Constraint';
+  1718→      if (lower.contains('compliance') || lower.contains('regulator')) {
+  1719→        return 'Compliance Constraint';
+  1720→      }
+  1721→      return 'Project Constraint';
+  1722→    }
+  1723→
+  1724→    final words = _normalizePlanningText(description)
+  1725→        .split(' ')
+  1726→        .where((word) => word.isNotEmpty)
+  1727→        .take(4)
+  1728→        .toList();
+  1729→    return words.isEmpty ? section : words.join(' ');
+  1730→  }
+  1731→
+  1732→  List<PlanningDashboardItem> _normalizePlanningItems(
+  1733→    List<PlanningDashboardItem> items, {
+  1734→    required String section,
+  1735→  }) {
+  1736→    final seen = <String>{};
+  1737→    final normalized = <PlanningDashboardItem>[];
+  1738→
+  1739→    for (final item in items) {
+  1740→      final description = _normalizePlanningText(item.description);
+  1741→      if (description.isEmpty) continue;
+  1742→      final title = _normalizePlanningText(item.title);
+  1743→      final resolvedTitle =
+  1744→          title.isEmpty ? _defaultPlanningTitle(section, description) : title;
+  1745→
+  1746→      final signature = description.toLowerCase();
+  1747→      if (!seen.add(signature)) continue;
+  1748→
+  1749→      normalized.add(
+  1750→        PlanningDashboardItem(
+  1751→          id: item.id,
+  1752→          title: resolvedTitle,
+  1753→          description: description,
+  1754→          createdAt: item.createdAt,
+  1755→          isAiGenerated: item.isAiGenerated,
+  1756→        ),
+  1757→      );
+  1758→    }
+  1759→
+  1760→    return normalized;
+  1761→  }
+  1762→
+  1763→  bool _containsAnyKeyword(String context, List<RegExp> patterns) {
+  1764→    for (final pattern in patterns) {
+  1765→      if (pattern.hasMatch(context)) {
+  1766→        return true;
+  1767→      }
+  1768→    }
+  1769→    return false;
+  1770→  }
+  1771→
+  1772→  List<PlanningDashboardItem> _planningItemsFallback(
+  1773→      String section, String context) {
+  1774→    final lowerContext = context.toLowerCase();
+  1775→    final isBakery = _containsAnyKeyword(lowerContext, [
+  1776→      RegExp(r'\bbakery\b'),
+  1777→      RegExp(r'\bfood\b'),
+  1778→      RegExp(r'\brestaurant\b'),
+  1779→      RegExp(r'\bcafe\b'),
+  1780→      RegExp(r'\bkitchen\b'),
+  1781→    ]);
+  1782→    final isTech = _containsAnyKeyword(lowerContext, [
+  1783→      RegExp(r'\bsoftware\b'),
+  1784→      RegExp(r'\bapplication\b'),
+  1785→      RegExp(r'\bmobile app\b'),
+  1786→      RegExp(r'\bweb app\b'),
+  1787→      RegExp(r'\bplatform\b'),
+  1788→      RegExp(r'\bapi\b'),
+  1789→      RegExp(r'\bdatabase\b'),
+  1790→    ]);
+  1791→
+  1792→    var suggestions = <Map<String, String>>[];
+  1793→
+  1794→    if (section.contains('Within Scope')) {
+  1795→      if (isBakery) {
+  1796→        suggestions = [
+  1797→          {
+  1798→            'title': 'Kitchen Setup',
+  1799→            'description': 'Kitchen equipment procurement and installation'
+  1800→          },
+  1801→          {
+  1802→            'title': 'Interior Setup',
+  1803→            'description': 'Interior design and seating area setup'
+  1804→          },
+  1805→          {
+  1806→            'title': 'Menu Development',
+  1807→            'description': 'Menu development, recipe trials, and tasting'
+  1808→          },
+  1809→          {
+  1810→            'title': 'Staff Readiness',
+  1811→            'description': 'Staff hiring, onboarding, and training program'
+  1812→          },
+  1813→          {
+  1814→            'title': 'Safety Compliance',
+  1815→            'description': 'Health and safety inspection compliance'
+  1816→          },
+  1817→        ];
+  1818→      } else if (isTech) {
+  1819→        suggestions = [
+  1820→          {
+  1821→            'title': 'User Management',
+  1822→            'description': 'User authentication and profile management'
+  1823→          },
+  1824→          {
+  1825→            'title': 'MVP Features',
+  1826→            'description': 'Core feature implementation for MVP launch'
+  1827→          },
+  1828→          {
+  1829→            'title': 'Data Layer',
+  1830→            'description': 'Database schema design and setup'
+  1831→          },
+  1832→          {
+  1833→            'title': 'Integrations',
+  1834→            'description': 'API integration with third-party services'
+  1835→          },
+  1836→          {
+  1837→            'title': 'Quality Assurance',
+  1838→            'description': 'Unit and integration testing'
+  1839→          },
+  1840→        ];
+  1841→      } else {
+  1842→        suggestions = [
+  1843→          {
+  1844→            'title': 'Planning Phase',
+  1845→            'description': 'Project initiation and planning activities'
+  1846→          },
+  1847→          {
+  1848→            'title': 'Requirements',
+  1849→            'description': 'Requirement gathering and analysis'
+  1850→          },
+  1851→          {
+  1852→            'title': 'Design',
+  1853→            'description': 'Design and prototyping deliverables'
+  1854→          },
+  1855→          {
+  1856→            'title': 'Implementation',
+  1857→            'description': 'Implementation and development work'
+  1858→          },
+  1859→          {
+  1860→            'title': 'Handover',
+  1861→            'description': 'Final delivery and operational handover'
+  1862→          },
+  1863→        ];
+  1864→      }
+  1865→    } else if (section.contains('Out of Scope')) {
+  1866→      suggestions = [
+  1867→        {
+  1868→          'title': 'Marketing Activities',
+  1869→          'description': 'Post-launch marketing campaigns'
+  1870→        },
+  1871→        {
+  1872→          'title': 'Long-Term Support',
+  1873→          'description': 'Long-term maintenance support under separate contract'
+  1874→        },
+  1875→        {
+  1876→          'title': 'Unapproved Features',
+  1877→          'description': 'Features not explicitly listed in the requirements'
+  1878→        },
+  1879→        {
+  1880→          'title': 'Client Procurement',
+  1881→          'description': 'Hardware procurement handled by client'
+  1882→        },
+  1883→      ];
+  1884→    } else if (section.contains('Assumptions')) {
+  1885→      suggestions = [
+  1886→        {
+  1887→          'title': 'Client Inputs',
+  1888→          'description': 'Client provides content and branding assets on time'
+  1889→        },
+  1890→        {
+  1891→          'title': 'Approvals',
+  1892→          'description':
+  1893→              'Regulatory approvals are obtained within standard timelines'
+  1894→        },
+  1895→        {
+  1896→          'title': 'Stakeholder Access',
+  1897→          'description': 'Key stakeholders are available for weekly reviews'
+  1898→        },
+  1899→        {
+  1900→          'title': 'Funding',
+  1901→          'description': 'Budget approval is secured before phase two'
+  1902→        },
+  1903→      ];
+  1904→    } else if (section.contains('Constraints')) {
+  1905→      suggestions = [
+  1906→        {
+  1907→          'title': 'Budget Constraint',
+  1908→          'description': 'Budget is fixed at the initial estimate'
+  1909→        },
+  1910→        {
+  1911→          'title': 'Schedule Constraint',
+  1912→          'description': 'Timeline must meet the target launch window'
+  1913→        },
+  1914→        {
+  1915→          'title': 'Resource Constraint',
+  1916→          'description': 'Availability of specialized resources is limited'
+  1917→        },
+  1918→        {
+  1919→          'title': 'Compliance Constraint',
+  1920→          'description':
+  1921→              'Execution must comply with local regulatory requirements'
+  1922→        },
+  1923→      ];
+  1924→    } else if (section.contains('Project Objectives')) {
+  1925→      suggestions = [
+  1926→        {
+  1927→          'title': 'Delivery Objective',
+  1928→          'description':
+  1929→              'Deliver the defined scope within approved timeline and budget'
+  1930→        },
+  1931→        {
+  1932→          'title': 'Quality Objective',
+  1933→          'description':
+  1934→              'Meet acceptance criteria with minimal rework at handover'
+  1935→        },
+  1936→        {
+  1937→          'title': 'Adoption Objective',
+  1938→          'description':
+  1939→              'Enable stakeholder readiness through training and transition support'
+  1940→        },
+  1941→      ];
+  1942→    } else if (section.contains('Success Criteria')) {
+  1943→      suggestions = [
+  1944→        {
+  1945→          'title': 'Schedule Performance',
+  1946→          'description': 'Key milestones are completed by planned target dates'
+  1947→        },
+  1948→        {
+  1949→          'title': 'Budget Performance',
+  1950→          'description': 'Total spend remains within approved budget baseline'
+  1951→        },
+  1952→        {
+  1953→          'title': 'Quality Performance',
+  1954→          'description':
+  1955→              'Final deliverables pass acceptance checks without critical defects'
+  1956→        },
+  1957→      ];
+  1958→    }
+  1959→
+  1960→    final fallbackItems = suggestions
+  1961→        .map(
+  1962→          (entry) => PlanningDashboardItem(
+  1963→            title: entry['title'] ?? '',
+  1964→            description: entry['description'] ?? '',
+  1965→            isAiGenerated: true,
+  1966→          ),
+  1967→        )
+  1968→        .toList();
+  1969→
+  1970→    return _normalizePlanningItems(fallbackItems, section: section);
+  1971→  }
+  1972→
+  1973→  Future<DesignDeliverablesData> generateDesignDeliverables({
+  1974→    required String context,
+  1975→    int maxTokens = 1200,
+  1976→    double temperature = 0.4,
+  1977→  }) async {
+  1978→    final trimmedContext = context.trim();
+  1979→    if (trimmedContext.isEmpty) {
+  1980→      return const DesignDeliverablesData();
+  1981→    }
+  1982→
+  1983→    if (!OpenAiConfig.isConfigured) {
+  1984→      // Fallback
+  1985→      return const DesignDeliverablesData(
+  1986→        pipeline: [
+  1987→          DesignDeliverablePipelineItem(
+  1988→              label: 'Scope baseline and design inputs verified',
+  1989→              status: 'In progress'),
+  1990→          DesignDeliverablePipelineItem(
+  1991→              label:
+  1992→                  'Design package authored with traceable acceptance criteria',
+  1993→              status: 'Pending'),
+  1994→          DesignDeliverablePipelineItem(
+  1995→              label: 'Review, approval, and handoff evidence completed',
+  1996→              status: 'Pending'),
+  1997→        ],
+  1998→        register: [
+  1999→          DesignDeliverableRegisterItem(
+  2000→              name: 'DD-001 Requirements Traceability & Acceptance Matrix',
+
+[showing lines 1-2000 of 12589; use offset=2001 with limit to continue reading]

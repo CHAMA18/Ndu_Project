@@ -1,0 +1,2002 @@
+     1→import 'dart:math' as math;
+     2→
+     3→import 'package:flutter/material.dart';
+     4→import 'package:ndu_project/models/project_activity.dart';
+     5→import 'package:ndu_project/providers/project_data_provider.dart';
+     6→import 'package:ndu_project/services/project_navigation_service.dart';
+     7→import 'package:ndu_project/utils/project_data_helper.dart';
+     8→import 'package:ndu_project/widgets/admin_edit_toggle.dart';
+     9→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+    10→import 'package:ndu_project/widgets/front_end_planning_header.dart';
+    11→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+    12→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    13→import 'package:ndu_project/widgets/responsive.dart';
+    14→import 'package:ndu_project/widgets/activity_log_panel.dart';
+    15→
+    16→import 'package:ndu_project/widgets/voice_text_field.dart';
+    17→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    18→class ProjectActivitiesLogScreen extends StatefulWidget {
+    19→ const ProjectActivitiesLogScreen({super.key});
+    20→
+    21→ static void open(BuildContext context) {
+    22→ final provider = ProjectDataInherited.maybeOf(context);
+    23→ final projectId = provider?.projectData.projectId;
+    24→
+    25→ if (provider != null) {
+    26→ provider.updateField(
+    27→ (data) => data.copyWith(currentCheckpoint: 'project_activities_log'),
+    28→ );
+    29→
+    30→ if (projectId != null && projectId.isNotEmpty) {
+    31→ Future<void>(() => ProjectNavigationService.instance
+    32→ .saveLastPageLocal(projectId, 'project_activities_log'));
+    33→ Future<void>(() async {
+    34→ try {
+    35→ await provider.saveToFirebase(checkpoint: 'project_activities_log');
+    36→ } catch (error) {
+    37→ debugPrint('Activity log checkpoint save failed: $error');
+    38→ }
+    39→ });
+    40→ }
+    41→ }
+    42→
+    43→ // Navigate to the FULL Activity Log screen (not the small popup panel).
+    44→ Navigator.of(context).push(
+    45→ MaterialPageRoute<void>(
+    46→ builder: (_) => const ProjectActivitiesLogScreen(),
+    47→ ),
+    48→ );
+    49→ }
+    50→
+    51→ @override
+    52→ State<ProjectActivitiesLogScreen> createState() =>
+    53→ _ProjectActivitiesLogScreenState();
+    54→}
+    55→
+    56→class _ProjectActivitiesLogScreenState
+    57→ extends State<ProjectActivitiesLogScreen> {
+    58→ Future<void> _exportPdf() async {
+    59→ final projectData = ProjectDataHelper.getData(context);
+    60→ final fep = projectData.frontEndPlanning;
+    61→ await PdfExportHelper.exportScreenPdf(
+    62→ context: context,
+    63→ screenTitle: 'Project Activities Log',
+    64→ sections: [
+    65→ PdfSection.keyValue('Project Info', [
+    66→ {'Project Name': projectData.projectName ?? 'N/A'},
+    67→ ]),
+    68→ PdfSection.text('Notes', fep.requirementsNotes ?? 'No data recorded.'),
+    69→ ],
+    70→ );
+    71→ }
+    72→
+    73→ final TextEditingController _searchController = TextEditingController();
+    74→
+    75→ String _searchQuery = '';
+    76→ Set<String> _selectedStatuses = <String>{};
+    77→ Set<String> _selectedRoles = <String>{};
+    78→ Set<String> _selectedAssignedTo = <String>{};
+    79→ Set<String> _selectedPhases = <String>{};
+    80→ Set<String> _selectedDisciplines = <String>{};
+    81→ Set<String> _selectedApprovals = <String>{};
+    82→ Set<String> _selectedAppliedSections = <String>{};
+    83→ DateTimeRange? _selectedDateRange;
+    84→
+    85→ int _rowsPerPage = 25;
+    86→ int _currentPage = 0;
+    87→
+    88→ bool get _hasActiveFilters {
+    89→ return _selectedStatuses.isNotEmpty ||
+    90→ _selectedRoles.isNotEmpty ||
+    91→ _selectedAssignedTo.isNotEmpty ||
+    92→ _selectedPhases.isNotEmpty ||
+    93→ _selectedDisciplines.isNotEmpty ||
+    94→ _selectedApprovals.isNotEmpty ||
+    95→ _selectedAppliedSections.isNotEmpty ||
+    96→ _selectedDateRange != null;
+    97→ }
+    98→
+    99→ @override
+   100→ void dispose() {
+   101→ _searchController.dispose();
+   102→ super.dispose();
+   103→ }
+   104→
+   105→ void _resetPagination() {
+   106→ _currentPage = 0;
+   107→ }
+   108→
+   109→ void _clearAllFilters() {
+   110→ setState(() {
+   111→ _selectedStatuses = <String>{};
+   112→ _selectedRoles = <String>{};
+   113→ _selectedAssignedTo = <String>{};
+   114→ _selectedPhases = <String>{};
+   115→ _selectedDisciplines = <String>{};
+   116→ _selectedApprovals = <String>{};
+   117→ _selectedAppliedSections = <String>{};
+   118→ _selectedDateRange = null;
+   119→ _resetPagination();
+   120→ });
+   121→ }
+   122→
+   123→ Future<void> _openMultiSelectDialog({
+   124→ required String title,
+   125→ required List<String> options,
+   126→ required Set<String> selectedValues,
+   127→ required ValueChanged<Set<String>> onApplied,
+   128→ }) async {
+   129→ var localQuery = '';
+   130→ final working = Set<String>.from(selectedValues);
+   131→
+   132→ final result = await showDialog<Set<String>>(
+   133→ context: context,
+   134→ builder: (dialogContext) {
+   135→ return StatefulBuilder(
+   136→ builder: (context, setModalState) {
+   137→ final visibleOptions = options.where((option) {
+   138→ if (localQuery.trim().isEmpty) return true;
+   139→ return option.toLowerCase().contains(localQuery.toLowerCase());
+   140→ }).toList();
+   141→
+   142→ return AlertDialog(
+   143→ shape: RoundedRectangleBorder(
+   144→ borderRadius: BorderRadius.circular(16),
+   145→ ),
+   146→ title: Text(title),
+   147→ content: SizedBox(
+   148→ width: 420,
+   149→ child: Column(
+   150→ mainAxisSize: MainAxisSize.min,
+   151→ children: [
+   152→ VoiceTextField(
+   153→ onChanged: (value) {
+   154→ setModalState(() {
+   155→ localQuery = value;
+   156→ });
+   157→ },
+   158→ decoration: InputDecoration(
+   159→ hintText: 'Search options...',
+   160→ prefixIcon: const Icon(Icons.search, size: 18),
+   161→ isDense: true,
+   162→ contentPadding: const EdgeInsets.symmetric(
+   163→ horizontal: 10,
+   164→ vertical: 10,
+   165→ ),
+   166→ border: OutlineInputBorder(
+   167→ borderRadius: BorderRadius.circular(10),
+   168→ borderSide:
+   169→ const BorderSide(color: Color(0xFFE5E7EB)),
+   170→ ),
+   171→ enabledBorder: OutlineInputBorder(
+   172→ borderRadius: BorderRadius.circular(10),
+   173→ borderSide:
+   174→ const BorderSide(color: Color(0xFFE5E7EB)),
+   175→ ),
+   176→ ),
+   177→ ),
+   178→ const SizedBox(height: 12),
+   179→ Align(
+   180→ alignment: Alignment.centerLeft,
+   181→ child: Wrap(
+   182→ spacing: 8,
+   183→ children: [
+   184→ TextButton(
+   185→ onPressed: () {
+   186→ setModalState(() {
+   187→ working
+   188→ ..clear()
+   189→ ..addAll(options);
+   190→ });
+   191→ },
+   192→ child: const Text('Select all'),
+   193→ ),
+   194→ TextButton(
+   195→ onPressed: () {
+   196→ setModalState(() {
+   197→ working.clear();
+   198→ });
+   199→ },
+   200→ child: const Text('Clear'),
+   201→ ),
+   202→ ],
+   203→ ),
+   204→ ),
+   205→ const SizedBox(height: 8),
+   206→ Flexible(
+   207→ child: Container(
+   208→ width: double.infinity,
+   209→ decoration: BoxDecoration(
+   210→ border: Border.all(color: const Color(0xFFE5E7EB)),
+   211→ borderRadius: BorderRadius.circular(12),
+   212→ ),
+   213→ child: visibleOptions.isEmpty
+   214→ ? const Center(
+   215→ child: Padding(
+   216→ padding: EdgeInsets.all(24),
+   217→ child: Text(
+   218→ 'No options found.',
+   219→ style: TextStyle(color: Color(0xFF6B7280)),
+   220→ ),
+   221→ ),
+   222→ )
+   223→ : ListView.builder(
+   224→ shrinkWrap: true,
+   225→ itemCount: visibleOptions.length,
+   226→ itemBuilder: (context, index) {
+   227→ final option = visibleOptions[index];
+   228→ final selected = working.contains(option);
+   229→ return CheckboxListTile(
+   230→ dense: true,
+   231→ value: selected,
+   232→ title: Text(
+   233→ option,
+   234→ style: const TextStyle(fontSize: 13),
+   235→ overflow: TextOverflow.ellipsis,
+   236→ ),
+   237→ onChanged: (_) {
+   238→ setModalState(() {
+   239→ if (selected) {
+   240→ working.remove(option);
+   241→ } else {
+   242→ working.add(option);
+   243→ }
+   244→ });
+   245→ },
+   246→ controlAffinity:
+   247→ ListTileControlAffinity.leading,
+   248→ );
+   249→ },
+   250→ ),
+   251→ ),
+   252→ ),
+   253→ ],
+   254→ ),
+   255→ ),
+   256→ actions: [
+   257→ TextButton(
+   258→ onPressed: () => Navigator.of(dialogContext).pop(),
+   259→ child: const Text('Cancel'),
+   260→ ),
+   261→ ElevatedButton(
+   262→ onPressed: () => Navigator.of(dialogContext).pop(working),
+   263→ style: ElevatedButton.styleFrom(
+   264→ backgroundColor: const Color(0xFFF4B400),
+   265→ foregroundColor: Colors.black,
+   266→ elevation: 0,
+   267→ ),
+   268→ child: const Text('Apply'),
+   269→ ),
+   270→ ],
+   271→ );
+   272→ },
+   273→ );
+   274→ },
+   275→ );
+   276→
+   277→ if (result != null) {
+   278→ setState(() {
+   279→ onApplied(result);
+   280→ _resetPagination();
+   281→ });
+   282→ }
+   283→ }
+   284→
+   285→ Future<void> _pickDateRange() async {
+   286→ final now = DateTime.now();
+   287→ final initialRange = _selectedDateRange ??
+   288→ DateTimeRange(
+   289→ start: DateTime(now.year, now.month, now.day).subtract(
+   290→ const Duration(days: 30),
+   291→ ),
+   292→ end: DateTime(now.year, now.month, now.day),
+   293→ );
+   294→
+   295→ final picked = await showDateRangePicker(
+   296→ context: context,
+   297→ firstDate: DateTime(now.year - 5),
+   298→ lastDate: DateTime(now.year + 5),
+   299→ initialDateRange: initialRange,
+   300→ helpText: 'Filter By Updated Date',
+   301→ );
+   302→
+   303→ if (picked != null) {
+   304→ setState(() {
+   305→ _selectedDateRange = picked;
+   306→ _resetPagination();
+   307→ });
+   308→ }
+   309→ }
+   310→
+   311→ bool _isCustomActivity(ProjectActivity activity, Set<String> customIds) {
+   312→ return customIds.contains(activity.id) ||
+   313→ activity.id.startsWith('activity_custom_');
+   314→ }
+   315→
+   316→ Future<void> _persistActivityLog() async {
+   317→ final provider = ProjectDataHelper.getProvider(context);
+   318→ await provider.saveToFirebase(checkpoint: 'project_activities_log');
+   319→ }
+   320→
+   321→ Future<void> _upsertActivity(
+   322→ ProjectActivity activity, {
+   323→ required bool isCustom,
+   324→ }) async {
+   325→ final provider = ProjectDataHelper.getProvider(context);
+   326→ provider.updateField((data) {
+   327→ final visibleActivities =
+   328→ List<ProjectActivity>.from(data.projectActivities);
+   329→ final visibleIndex =
+   330→ visibleActivities.indexWhere((item) => item.id == activity.id);
+   331→ if (visibleIndex >= 0) {
+   332→ visibleActivities[visibleIndex] = activity;
+   333→ } else {
+   334→ visibleActivities.add(activity);
+   335→ }
+   336→
+   337→ final customActivities =
+   338→ List<ProjectActivity>.from(data.customProjectActivities);
+   339→ if (isCustom || activity.id.startsWith('activity_custom_')) {
+   340→ final customIndex =
+   341→ customActivities.indexWhere((item) => item.id == activity.id);
+   342→ if (customIndex >= 0) {
+   343→ customActivities[customIndex] = activity;
+   344→ } else {
+   345→ customActivities.add(activity);
+   346→ }
+   347→ }
+   348→
+   349→ final hiddenIds = List<String>.from(data.hiddenProjectActivityIds)
+   350→ ..remove(activity.id);
+   351→
+   352→ return data.copyWith(
+   353→ projectActivities: visibleActivities,
+   354→ customProjectActivities: customActivities,
+   355→ hiddenProjectActivityIds: hiddenIds,
+   356→ );
+   357→ });
+   358→ await _persistActivityLog();
+   359→ }
+   360→
+   361→ Future<void> _deleteActivity(
+   362→ ProjectActivity activity, {
+   363→ required bool isCustom,
+   364→ }) async {
+   365→ final actionLabel =
+   366→ isCustom ? 'delete this custom activity' : 'hide this activity';
+   367→ final confirmed = await showDialog<bool>(
+   368→ context: context,
+   369→ builder: (dialogContext) => AlertDialog(
+   370→ title: Text(isCustom ? 'Delete Activity' : 'Hide Activity'),
+   371→ content: Text(
+   372→ isCustom
+   373→ ? 'This will permanently delete the custom activity.'
+   374→ : 'This will hide the generated activity from the log.',
+   375→ ),
+   376→ actions: [
+   377→ TextButton(
+   378→ onPressed: () => Navigator.of(dialogContext).pop(false),
+   379→ child: const Text('Cancel'),
+   380→ ),
+   381→ ElevatedButton(
+   382→ onPressed: () => Navigator.of(dialogContext).pop(true),
+   383→ style: ElevatedButton.styleFrom(
+   384→ backgroundColor: const Color(0xFFF4B400),
+   385→ foregroundColor: Colors.black,
+   386→ elevation: 0,
+   387→ ),
+   388→ child: Text(isCustom ? 'Delete' : 'Hide'),
+   389→ ),
+   390→ ],
+   391→ ),
+   392→ );
+   393→
+   394→ if (confirmed != true || !mounted) return;
+   395→
+   396→ final provider = ProjectDataHelper.getProvider(context);
+   397→ provider.updateField((data) {
+   398→ final visibleActivities = data.projectActivities
+   399→ .where((item) => item.id != activity.id)
+   400→ .toList(growable: false);
+   401→ final customActivities = data.customProjectActivities
+   402→ .where((item) => item.id != activity.id)
+   403→ .toList(growable: false);
+   404→ final hiddenIds = Set<String>.from(data.hiddenProjectActivityIds);
+   405→ if (isCustom) {
+   406→ hiddenIds.remove(activity.id);
+   407→ } else {
+   408→ hiddenIds.add(activity.id);
+   409→ }
+   410→
+   411→ return data.copyWith(
+   412→ projectActivities: visibleActivities,
+   413→ customProjectActivities: customActivities,
+   414→ hiddenProjectActivityIds: hiddenIds.toList(),
+   415→ );
+   416→ });
+   417→
+   418→ await _persistActivityLog();
+   419→ if (!mounted) return;
+   420→ ScaffoldMessenger.of(context).showSnackBar(
+   421→ SnackBar(
+   422→ content: Text('Successfully updated activity log: $actionLabel.')),
+   423→ );
+   424→ }
+   425→
+   426→ Future<void> _openActivityEditor({
+   427→ ProjectActivity? existing,
+   428→ required bool isCustom,
+   429→ }) async {
+   430→ final isCreate = existing == null;
+   431→ final allowStructuralEdit = isCreate || isCustom;
+   432→ final now = DateTime.now();
+   433→
+   434→ final titleController = TextEditingController(text: existing?.title ?? '');
+   435→ final descriptionController =
+   436→ TextEditingController(text: existing?.description ?? '');
+   437→ final sourceController = TextEditingController(
+   438→ text: existing?.sourceSection ?? 'manual_activity',
+   439→ );
+   440→ final phaseController = TextEditingController(
+   441→ text: existing?.phase.isNotEmpty == true
+   442→ ? existing!.phase
+   443→ : 'Planning Phase',
+   444→ );
+   445→ final disciplineController = TextEditingController(
+   446→ text: existing?.discipline.isNotEmpty == true
+   447→ ? existing!.discipline
+   448→ : 'Project Management',
+   449→ );
+   450→ final roleController = TextEditingController(
+   451→ text: existing?.role.isNotEmpty == true ? existing!.role : 'Project Lead',
+   452→ );
+   453→ final assignedToController =
+   454→ TextEditingController(text: existing?.assignedTo ?? '');
+   455→ final dueDateController =
+   456→ TextEditingController(text: existing?.dueDate ?? '');
+   457→ final appliesToController = TextEditingController(
+   458→ text: (existing?.applicableSections ?? const <String>[]).join(', '),
+   459→ );
+   460→
+   461→ var selectedStatus = existing?.status ?? ProjectActivityStatus.pending;
+   462→ var selectedApproval =
+   463→ existing?.approvalStatus ?? ProjectApprovalStatus.draft;
+   464→
+   465→ final result = await showDialog<ProjectActivity>(
+   466→ context: context,
+   467→ builder: (dialogContext) {
+   468→ return StatefulBuilder(
+   469→ builder: (dialogContext, setModalState) {
+   470→ return Dialog(
+   471→ shape: RoundedRectangleBorder(
+   472→ borderRadius: BorderRadius.circular(16),
+   473→ ),
+   474→ child: ConstrainedBox(
+   475→ constraints:
+   476→ const BoxConstraints(maxWidth: 760, maxHeight: 680),
+   477→ child: Padding(
+   478→ padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+   479→ child: Column(
+   480→ crossAxisAlignment: CrossAxisAlignment.start,
+   481→ children: [
+   482→ Text(
+   483→ isCreate ? 'Add Activity' : 'Edit Activity',
+   484→ style: const TextStyle(
+   485→ fontSize: 18,
+   486→ fontWeight: FontWeight.w700,
+   487→ color: Color(0xFF111827),
+   488→ ),
+   489→ ),
+   490→ if (!allowStructuralEdit) ...[
+   491→ const SizedBox(height: 8),
+   492→ Container(
+   493→ width: double.infinity,
+   494→ padding: const EdgeInsets.all(10),
+   495→ decoration: BoxDecoration(
+   496→ color: const Color(0xFFFFFBEB),
+   497→ border: Border.all(color: const Color(0xFFFDE68A)),
+   498→ borderRadius: BorderRadius.circular(10),
+   499→ ),
+   500→ child: const Text(
+   501→ 'Generated activity: you can update assignment, status, approval, and due date here. Edit source sections to change structure.',
+   502→ style: TextStyle(
+   503→ fontSize: 12,
+   504→ color: Color(0xFF92400E),
+   505→ ),
+   506→ ),
+   507→ ),
+   508→ ],
+   509→ const SizedBox(height: 12),
+   510→ Expanded(
+   511→ child: SingleChildScrollView(
+   512→ child: Column(
+   513→ children: [
+   514→ _ActivityField(
+   515→ label: 'Activity',
+   516→ controller: titleController,
+   517→ enabled: allowStructuralEdit,
+   518→ ),
+   519→ _ActivityField(
+   520→ label: 'Description',
+   521→ controller: descriptionController,
+   522→ enabled: allowStructuralEdit,
+   523→ maxLines: 4,
+   524→ ),
+   525→ if (allowStructuralEdit) ...[
+   526→ _ActivityField(
+   527→ label: 'Source Section',
+   528→ controller: sourceController,
+   529→ ),
+   530→ _ActivityField(
+   531→ label: 'Phase',
+   532→ controller: phaseController,
+   533→ ),
+   534→ _ActivityField(
+   535→ label: 'Discipline',
+   536→ controller: disciplineController,
+   537→ ),
+   538→ _ActivityField(
+   539→ label: 'Role',
+   540→ controller: roleController,
+   541→ ),
+   542→ _ActivityField(
+   543→ label:
+   544→ 'Applied To Sections (comma-separated)',
+   545→ controller: appliesToController,
+   546→ ),
+   547→ ],
+   548→ _ActivityField(
+   549→ label: 'Assigned To',
+   550→ controller: assignedToController,
+   551→ ),
+   552→ _ActivityField(
+   553→ label: 'Due Date',
+   554→ controller: dueDateController,
+   555→ hintText: 'YYYY-MM-DD (optional)',
+   556→ ),
+   557→ const SizedBox(height: 8),
+   558→ Row(
+   559→ children: [
+   560→ Expanded(
+   561→ child: DropdownButtonFormField<
+   562→ ProjectActivityStatus>(
+   563→ value: selectedStatus,
+   564→ decoration: const InputDecoration(
+   565→ labelText: 'Status',
+   566→ border: OutlineInputBorder(),
+   567→ isDense: true,
+   568→ ),
+   569→ items: ProjectActivityStatus.values
+   570→ .map((status) => DropdownMenuItem(
+   571→ value: status,
+   572→ child:
+   573→ Text(_statusLabel(status)),
+   574→ ))
+   575→ .toList(),
+   576→ onChanged: (value) {
+   577→ if (value == null) return;
+   578→ setModalState(
+   579→ () => selectedStatus = value);
+   580→ },
+   581→ ),
+   582→ ),
+   583→ const SizedBox(width: 12),
+   584→ Expanded(
+   585→ child: DropdownButtonFormField<
+   586→ ProjectApprovalStatus>(
+   587→ value: selectedApproval,
+   588→ decoration: const InputDecoration(
+   589→ labelText: 'Approval',
+   590→ border: OutlineInputBorder(),
+   591→ isDense: true,
+   592→ ),
+   593→ items: ProjectApprovalStatus.values
+   594→ .map((approval) => DropdownMenuItem(
+   595→ value: approval,
+   596→ child: Text(
+   597→ _approvalLabel(approval),
+   598→ ),
+   599→ ))
+   600→ .toList(),
+   601→ onChanged: (value) {
+   602→ if (value == null) return;
+   603→ setModalState(
+   604→ () => selectedApproval = value);
+   605→ },
+   606→ ),
+   607→ ),
+   608→ ],
+   609→ ),
+   610→ ],
+   611→ ),
+   612→ ),
+   613→ ),
+   614→ const SizedBox(height: 14),
+   615→ Row(
+   616→ children: [
+   617→ TextButton(
+   618→ onPressed: () => Navigator.of(dialogContext).pop(),
+   619→ child: const Text('Cancel'),
+   620→ ),
+   621→ const Spacer(),
+   622→ ElevatedButton(
+   623→ onPressed: () {
+   624→ final title = allowStructuralEdit
+   625→ ? titleController.text.trim()
+   626→ : existing.title.trim();
+   627→ if (title.isEmpty) {
+   628→ ScaffoldMessenger.of(dialogContext)
+   629→ .showSnackBar(
+   630→ const SnackBar(
+   631→ content:
+   632→ Text('Activity title is required.'),
+   633→ ),
+   634→ );
+   635→ return;
+   636→ }
+   637→
+   638→ final sections = allowStructuralEdit
+   639→ ? appliesToController.text
+   640→ .split(',')
+   641→ .map((part) => part.trim())
+   642→ .where((part) => part.isNotEmpty)
+   643→ .toSet()
+   644→ .toList()
+   645→ : existing.applicableSections;
+   646→
+   647→ final nextActivity = ProjectActivity(
+   648→ id: existing?.id ??
+   649→ 'activity_custom_${now.microsecondsSinceEpoch}',
+   650→ title: title,
+   651→ description: allowStructuralEdit
+   652→ ? descriptionController.text.trim()
+   653→ : existing.description,
+   654→ sourceSection: allowStructuralEdit
+   655→ ? sourceController.text.trim()
+   656→ : existing.sourceSection,
+   657→ phase: allowStructuralEdit
+   658→ ? phaseController.text.trim()
+   659→ : existing.phase,
+   660→ discipline: allowStructuralEdit
+   661→ ? disciplineController.text.trim()
+   662→ : existing.discipline,
+   663→ role: allowStructuralEdit
+   664→ ? roleController.text.trim()
+   665→ : existing.role,
+   666→ assignedTo:
+   667→ assignedToController.text.trim().isEmpty
+   668→ ? null
+   669→ : assignedToController.text.trim(),
+   670→ applicableSections: sections,
+   671→ dueDate: dueDateController.text.trim(),
+   672→ status: selectedStatus,
+   673→ approvalStatus: selectedApproval,
+   674→ createdAt: existing?.createdAt ?? now,
+   675→ updatedAt: now,
+   676→ );
+   677→ Navigator.of(dialogContext).pop(nextActivity);
+   678→ },
+   679→ style: ElevatedButton.styleFrom(
+   680→ backgroundColor: const Color(0xFFF4B400),
+   681→ foregroundColor: Colors.black,
+   682→ elevation: 0,
+   683→ ),
+   684→ child: const Text('Save'),
+   685→ ),
+   686→ ],
+   687→ ),
+   688→ ],
+   689→ ),
+   690→ ),
+   691→ ),
+   692→ );
+   693→ },
+   694→ );
+   695→ },
+   696→ );
+   697→
+   698→ titleController.dispose();
+   699→ descriptionController.dispose();
+   700→ sourceController.dispose();
+   701→ phaseController.dispose();
+   702→ disciplineController.dispose();
+   703→ roleController.dispose();
+   704→ assignedToController.dispose();
+   705→ dueDateController.dispose();
+   706→ appliesToController.dispose();
+   707→
+   708→ if (result == null || !mounted) return;
+   709→ await _upsertActivity(
+   710→ result,
+   711→ isCustom:
+   712→ isCreate || isCustom || result.id.startsWith('activity_custom_'),
+   713→ );
+   714→ }
+   715→
+   716→ @override
+   717→ Widget build(BuildContext context) {
+   718→ final data = ProjectDataHelper.getData(context, listen: true);
+   719→ final customActivityIds = <String>{
+   720→ for (final item in data.customProjectActivities) item.id,
+   721→ };
+   722→ final activities = List<ProjectActivity>.from(data.projectActivities)
+   723→ ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+   724→ final options = _buildFilterOptions(activities);
+   725→ final filteredActivities = _applyFilters(activities);
+   726→
+   727→ final totalCount = activities.length;
+   728→ final pendingCount = activities
+   729→ .where((activity) => activity.status == ProjectActivityStatus.pending)
+   730→ .length;
+   731→ final implementedCount = activities
+   732→ .where(
+   733→ (activity) => activity.status == ProjectActivityStatus.implemented)
+   734→ .length;
+   735→ final approvedCount = activities
+   736→ .where((activity) =>
+   737→ activity.approvalStatus == ProjectApprovalStatus.approved)
+   738→ .length;
+   739→
+   740→ final totalPages = filteredActivities.isEmpty
+   741→ ? 1
+   742→ : ((filteredActivities.length - 1) ~/ _rowsPerPage) + 1;
+   743→ final pageIndex = _currentPage.clamp(0, totalPages - 1);
+   744→ final startIndex =
+   745→ filteredActivities.isEmpty ? 0 : pageIndex * _rowsPerPage;
+   746→ final endIndex = filteredActivities.isEmpty
+   747→ ? 0
+   748→ : math.min(startIndex + _rowsPerPage, filteredActivities.length);
+   749→ final pageItems = filteredActivities.isEmpty
+   750→ ? const <ProjectActivity>[]
+   751→ : filteredActivities.sublist(startIndex, endIndex);
+   752→
+   753→ return Scaffold(
+   754→ backgroundColor: Colors.white,
+   755→ body: SafeArea(
+   756→ child: Stack(
+   757→ children: [
+   758→ const AdminEditToggle(),
+   759→ Column(
+   760→ children: [
+   761→ FrontEndPlanningHeader(
+   762→ title: 'Project Activities Log',
+   763→ showActivityLogAction: false, onExportPdf: _exportPdf),
+   764→ Expanded(
+   765→ child: LayoutBuilder(
+   766→ builder: (context, constraints) {
+   767→ final horizontalPadding =
+   768→ constraints.maxWidth > 1400
+   769→ ? 24.0
+   770→ : constraints.maxWidth > 1000
+   771→ ? 18.0
+   772→ : 12.0;
+   773→
+   774→ return SingleChildScrollView(
+   775→ padding: EdgeInsets.fromLTRB(
+   776→ horizontalPadding,
+   777→ 20,
+   778→ horizontalPadding,
+   779→ 24,
+   780→ ),
+   781→ child: Column(
+   782→ crossAxisAlignment: CrossAxisAlignment.start,
+   783→ children: [
+   784→ Row(
+   785→ crossAxisAlignment:
+   786→ CrossAxisAlignment.start,
+   787→ children: [
+   788→ const Expanded(
+   789→ child: Text(
+   790→ 'Track generated project activities, ownership, approvals, and implementation status across phases.',
+   791→ style: TextStyle(
+   792→ fontSize: 14,
+   793→ color: Color(0xFF4B5563),
+   794→ height: 1.4,
+   795→ ),
+   796→ ),
+   797→ ),
+   798→ const SizedBox(width: 12),
+   799→ OutlinedButton.icon(
+   800→ onPressed: () => _openActivityEditor(
+   801→ existing: null,
+   802→ isCustom: true,
+   803→ ),
+   804→ icon: const Icon(Icons.add, size: 16),
+   805→ label: const Text(
+   806→ 'Add Activity',
+   807→ style: TextStyle(
+   808→ fontWeight: FontWeight.w700,
+   809→ ),
+   810→ ),
+   811→ style: OutlinedButton.styleFrom(
+   812→ foregroundColor:
+   813→ const Color(0xFF111827),
+   814→ side: const BorderSide(
+   815→ color: Color(0xFFD1D5DB),
+   816→ ),
+   817→ shape: RoundedRectangleBorder(
+   818→ borderRadius:
+   819→ BorderRadius.circular(10),
+   820→ ),
+   821→ padding: const EdgeInsets.symmetric(
+   822→ horizontal: 14,
+   823→ vertical: 12,
+   824→ ),
+   825→ ),
+   826→ ),
+   827→ ],
+   828→ ),
+   829→ const SizedBox(height: 16),
+   830→ LayoutBuilder(
+   831→ builder: (context, statConstraints) {
+   832→ final cardWidth = statConstraints
+   833→ .maxWidth >=
+   834→ 1120
+   835→ ? (statConstraints.maxWidth - 36) / 4
+   836→ : statConstraints.maxWidth >= 760
+   837→ ? (statConstraints.maxWidth -
+   838→ 24) /
+   839→ 3
+   840→ : statConstraints.maxWidth >= 460
+   841→ ? (statConstraints.maxWidth -
+   842→ 12) /
+   843→ 2
+   844→ : statConstraints.maxWidth;
+   845→
+   846→ return Wrap(
+   847→ spacing: 12,
+   848→ runSpacing: 12,
+   849→ children: [
+   850→ SizedBox(
+   851→ width: cardWidth,
+   852→ child: _StatCard(
+   853→ title: 'Total Activities',
+   854→ value: '$totalCount',
+   855→ color: const Color(0xFF0EA5E9),
+   856→ ),
+   857→ ),
+   858→ SizedBox(
+   859→ width: cardWidth,
+   860→ child: _StatCard(
+   861→ title: 'Pending',
+   862→ value: '$pendingCount',
+   863→ color: const Color(0xFFF59E0B),
+   864→ ),
+   865→ ),
+   866→ SizedBox(
+   867→ width: cardWidth,
+   868→ child: _StatCard(
+   869→ title: 'Implemented',
+   870→ value: '$implementedCount',
+   871→ color: const Color(0xFF10B981),
+   872→ ),
+   873→ ),
+   874→ SizedBox(
+   875→ width: cardWidth,
+   876→ child: _StatCard(
+   877→ title: 'Approved',
+   878→ value: '$approvedCount',
+   879→ color: const Color(0xFF6366F1),
+   880→ ),
+   881→ ),
+   882→ ],
+   883→ );
+   884→ },
+   885→ ),
+   886→ const SizedBox(height: 16),
+   887→ _FilterToolbar(
+   888→ searchController: _searchController,
+   889→ hasActiveFilters: _hasActiveFilters,
+   890→ selectedStatuses: _selectedStatuses,
+   891→ selectedRoles: _selectedRoles,
+   892→ selectedAssignedTo: _selectedAssignedTo,
+   893→ selectedPhases: _selectedPhases,
+   894→ selectedDisciplines: _selectedDisciplines,
+   895→ selectedApprovals: _selectedApprovals,
+   896→ selectedAppliedSections:
+   897→ _selectedAppliedSections,
+   898→ selectedDateRange: _selectedDateRange,
+   899→ options: options,
+   900→ onSearchChanged: (value) => setState(() {
+   901→ _searchQuery = value.trim().toLowerCase();
+   902→ _resetPagination();
+   903→ }),
+   904→ onStatusTap: () => _openMultiSelectDialog(
+   905→ title: 'Filter by Status',
+   906→ options: options.statuses,
+   907→ selectedValues: _selectedStatuses,
+   908→ onApplied: (value) {
+   909→ _selectedStatuses = value;
+   910→ },
+   911→ ),
+   912→ onRoleTap: () => _openMultiSelectDialog(
+   913→ title: 'Filter by Role',
+   914→ options: options.roles,
+   915→ selectedValues: _selectedRoles,
+   916→ onApplied: (value) {
+   917→ _selectedRoles = value;
+   918→ },
+   919→ ),
+   920→ onAssignedTap: () => _openMultiSelectDialog(
+   921→ title: 'Filter by Assigned To',
+   922→ options: options.assignedTo,
+   923→ selectedValues: _selectedAssignedTo,
+   924→ onApplied: (value) {
+   925→ _selectedAssignedTo = value;
+   926→ },
+   927→ ),
+   928→ onPhaseTap: () => _openMultiSelectDialog(
+   929→ title: 'Filter by Phase',
+   930→ options: options.phases,
+   931→ selectedValues: _selectedPhases,
+   932→ onApplied: (value) {
+   933→ _selectedPhases = value;
+   934→ },
+   935→ ),
+   936→ onDisciplineTap: () =>
+   937→ _openMultiSelectDialog(
+   938→ title: 'Filter by Discipline',
+   939→ options: options.disciplines,
+   940→ selectedValues: _selectedDisciplines,
+   941→ onApplied: (value) {
+   942→ _selectedDisciplines = value;
+   943→ },
+   944→ ),
+   945→ onApprovalTap: () => _openMultiSelectDialog(
+   946→ title: 'Filter by Approval Status',
+   947→ options: options.approvals,
+   948→ selectedValues: _selectedApprovals,
+   949→ onApplied: (value) {
+   950→ _selectedApprovals = value;
+   951→ },
+   952→ ),
+   953→ onAppliedSectionTap: () =>
+   954→ _openMultiSelectDialog(
+   955→ title: 'Filter by Applied To Section',
+   956→ options: options.appliedSections,
+   957→ selectedValues: _selectedAppliedSections,
+   958→ onApplied: (value) {
+   959→ _selectedAppliedSections = value;
+   960→ },
+   961→ ),
+   962→ onDateTap: _pickDateRange,
+   963→ onDateClear: _selectedDateRange == null
+   964→ ? null
+   965→ : () {
+   966→ setState(() {
+   967→ _selectedDateRange = null;
+   968→ _resetPagination();
+   969→ });
+   970→ },
+   971→ onClearAll: _clearAllFilters,
+   972→ onClearStatuses: () => setState(() {
+   973→ _selectedStatuses = <String>{};
+   974→ _resetPagination();
+   975→ }),
+   976→ onClearRoles: () => setState(() {
+   977→ _selectedRoles = <String>{};
+   978→ _resetPagination();
+   979→ }),
+   980→ onClearAssignedTo: () => setState(() {
+   981→ _selectedAssignedTo = <String>{};
+   982→ _resetPagination();
+   983→ }),
+   984→ onClearPhases: () => setState(() {
+   985→ _selectedPhases = <String>{};
+   986→ _resetPagination();
+   987→ }),
+   988→ onClearDisciplines: () => setState(() {
+   989→ _selectedDisciplines = <String>{};
+   990→ _resetPagination();
+   991→ }),
+   992→ onClearApprovals: () => setState(() {
+   993→ _selectedApprovals = <String>{};
+   994→ _resetPagination();
+   995→ }),
+   996→ onClearAppliedSections: () => setState(() {
+   997→ _selectedAppliedSections = <String>{};
+   998→ _resetPagination();
+   999→ }),
+  1000→ onClearDateRange: _selectedDateRange == null
+  1001→ ? null
+  1002→ : () => setState(() {
+  1003→ _selectedDateRange = null;
+  1004→ _resetPagination();
+  1005→ }),
+  1006→ dateLabel: _selectedDateRange == null
+  1007→ ? null
+  1008→ : _dateRangeLabel(_selectedDateRange!),
+  1009→ ),
+  1010→ const SizedBox(height: 14),
+  1011→ _ActivitiesTable(
+  1012→ activities: pageItems,
+  1013→ rowOffset: startIndex,
+  1014→ statusLabel: _statusLabel,
+  1015→ approvalLabel: _approvalLabel,
+  1016→ dateFormatter: _formatDate,
+  1017→ isCustomActivity: (activity) =>
+  1018→ _isCustomActivity(
+  1019→ activity, customActivityIds),
+  1020→ onEdit: (activity) => _openActivityEditor(
+  1021→ existing: activity,
+  1022→ isCustom: _isCustomActivity(
+  1023→ activity,
+  1024→ customActivityIds,
+  1025→ ),
+  1026→ ),
+  1027→ onDelete: (activity) => _deleteActivity(
+  1028→ activity,
+  1029→ isCustom: _isCustomActivity(
+  1030→ activity,
+  1031→ customActivityIds,
+  1032→ ),
+  1033→ ),
+  1034→ ),
+  1035→ const SizedBox(height: 12),
+  1036→ _PaginationFooter(
+  1037→ totalCount: filteredActivities.length,
+  1038→ startIndex: startIndex,
+  1039→ endIndex: endIndex,
+  1040→ pageIndex: pageIndex,
+  1041→ totalPages: totalPages,
+  1042→ rowsPerPage: _rowsPerPage,
+  1043→ onRowsPerPageChanged: (value) {
+  1044→ setState(() {
+  1045→ _rowsPerPage = value;
+  1046→ _resetPagination();
+  1047→ });
+  1048→ },
+  1049→ onPrev: pageIndex == 0
+  1050→ ? null
+  1051→ : () => setState(() {
+  1052→ _currentPage = pageIndex - 1;
+  1053→ }),
+  1054→ onNext: pageIndex >= totalPages - 1
+  1055→ ? null
+  1056→ : () => setState(() {
+  1057→ _currentPage = pageIndex + 1;
+  1058→ }),
+  1059→ ),
+  1060→ ],
+  1061→ ),
+  1062→ );
+  1063→ },
+  1064→ ),
+  1065→ ),
+  1066→ ],
+  1067→ ),
+  1068→ const KazAiChatBubble(),
+  1069→ ],
+  1070→ ),
+  1071→ ),
+  1072→ );
+  1073→ }
+  1074→
+  1075→ List<ProjectActivity> _applyFilters(List<ProjectActivity> activities) {
+  1076→ return activities.where((activity) {
+  1077→ final status = _statusLabel(activity.status);
+  1078→ final approval = _approvalLabel(activity.approvalStatus);
+  1079→ final role = activity.role.trim().isEmpty ? 'Unspecified' : activity.role;
+  1080→ final assignedTo = (activity.assignedTo ?? '').trim().isEmpty
+  1081→ ? 'Unassigned'
+  1082→ : (activity.assignedTo ?? '').trim();
+  1083→ final phase =
+  1084→ activity.phase.trim().isEmpty ? 'Unspecified' : activity.phase;
+  1085→ final discipline = activity.discipline.trim().isEmpty
+  1086→ ? 'Unspecified'
+  1087→ : activity.discipline;
+  1088→ final appliedSections = activity.applicableSections
+  1089→ .map(_normalizeSectionLabel)
+  1090→ .where((section) => section.isNotEmpty)
+  1091→ .toSet();
+  1092→ if (appliedSections.isEmpty) {
+  1093→ final sourceSection = _normalizeSectionLabel(activity.sourceSection);
+  1094→ if (sourceSection.isNotEmpty) {
+  1095→ appliedSections.add(sourceSection);
+  1096→ }
+  1097→ }
+  1098→
+  1099→ if (_selectedStatuses.isNotEmpty && !_selectedStatuses.contains(status)) {
+  1100→ return false;
+  1101→ }
+  1102→ if (_selectedRoles.isNotEmpty && !_selectedRoles.contains(role)) {
+  1103→ return false;
+  1104→ }
+  1105→ if (_selectedAssignedTo.isNotEmpty &&
+  1106→ !_selectedAssignedTo.contains(assignedTo)) {
+  1107→ return false;
+  1108→ }
+  1109→ if (_selectedPhases.isNotEmpty && !_selectedPhases.contains(phase)) {
+  1110→ return false;
+  1111→ }
+  1112→ if (_selectedDisciplines.isNotEmpty &&
+  1113→ !_selectedDisciplines.contains(discipline)) {
+  1114→ return false;
+  1115→ }
+  1116→ if (_selectedApprovals.isNotEmpty &&
+  1117→ !_selectedApprovals.contains(approval)) {
+  1118→ return false;
+  1119→ }
+  1120→ if (_selectedAppliedSections.isNotEmpty &&
+  1121→ !appliedSections.any(_selectedAppliedSections.contains)) {
+  1122→ return false;
+  1123→ }
+  1124→
+  1125→ if (_selectedDateRange != null) {
+  1126→ final rangeStart = DateTime(
+  1127→ _selectedDateRange!.start.year,
+  1128→ _selectedDateRange!.start.month,
+  1129→ _selectedDateRange!.start.day,
+  1130→ );
+  1131→ final rangeEnd = DateTime(
+  1132→ _selectedDateRange!.end.year,
+  1133→ _selectedDateRange!.end.month,
+  1134→ _selectedDateRange!.end.day,
+  1135→ 23,
+  1136→ 59,
+  1137→ 59,
+  1138→ 999,
+  1139→ );
+  1140→ if (activity.updatedAt.isBefore(rangeStart) ||
+  1141→ activity.updatedAt.isAfter(rangeEnd)) {
+  1142→ return false;
+  1143→ }
+  1144→ }
+  1145→
+  1146→ if (_searchQuery.isEmpty) {
+  1147→ return true;
+  1148→ }
+  1149→
+  1150→ final sourceSection = _normalizeSectionLabel(activity.sourceSection);
+  1151→ final text = [
+  1152→ activity.title,
+  1153→ activity.description,
+  1154→ activity.phase,
+  1155→ activity.discipline,
+  1156→ activity.role,
+  1157→ activity.assignedTo ?? '',
+  1158→ sourceSection,
+  1159→ appliedSections.join(' '),
+  1160→ status,
+  1161→ approval,
+  1162→ ].join(' ').toLowerCase();
+  1163→
+  1164→ return text.contains(_searchQuery);
+  1165→ }).toList();
+  1166→ }
+  1167→
+  1168→ _FilterOptions _buildFilterOptions(List<ProjectActivity> activities) {
+  1169→ final statuses = <String>{};
+  1170→ final roles = <String>{};
+  1171→ final assignedTo = <String>{};
+  1172→ final phases = <String>{};
+  1173→ final disciplines = <String>{};
+  1174→ final approvals = <String>{};
+  1175→ final appliedSections = <String>{};
+  1176→
+  1177→ for (final activity in activities) {
+  1178→ statuses.add(_statusLabel(activity.status));
+  1179→ roles.add(
+  1180→ activity.role.trim().isEmpty ? 'Unspecified' : activity.role.trim());
+  1181→ assignedTo.add((activity.assignedTo ?? '').trim().isEmpty
+  1182→ ? 'Unassigned'
+  1183→ : (activity.assignedTo ?? '').trim());
+  1184→ phases
+  1185→ .add(activity.phase.trim().isEmpty ? 'Unspecified' : activity.phase);
+  1186→ disciplines.add(activity.discipline.trim().isEmpty
+  1187→ ? 'Unspecified'
+  1188→ : activity.discipline.trim());
+  1189→ approvals.add(_approvalLabel(activity.approvalStatus));
+  1190→
+  1191→ for (final section in activity.applicableSections) {
+  1192→ final normalized = _normalizeSectionLabel(section);
+  1193→ if (normalized.isNotEmpty) appliedSections.add(normalized);
+  1194→ }
+  1195→ if (activity.applicableSections.isEmpty) {
+  1196→ final sourceSection = _normalizeSectionLabel(activity.sourceSection);
+  1197→ if (sourceSection.isNotEmpty) {
+  1198→ appliedSections.add(sourceSection);
+  1199→ }
+  1200→ }
+  1201→ }
+  1202→
+  1203→ List<String> sorted(Set<String> source) {
+  1204→ final values = source.toList()..sort((a, b) => a.compareTo(b));
+  1205→ return values;
+  1206→ }
+  1207→
+  1208→ return _FilterOptions(
+  1209→ statuses: sorted(statuses),
+  1210→ roles: sorted(roles),
+  1211→ assignedTo: sorted(assignedTo),
+  1212→ phases: sorted(phases),
+  1213→ disciplines: sorted(disciplines),
+  1214→ approvals: sorted(approvals),
+  1215→ appliedSections: sorted(appliedSections),
+  1216→ );
+  1217→ }
+  1218→
+  1219→ String _dateRangeLabel(DateTimeRange range) {
+  1220→ return '${_formatDate(range.start)} to ${_formatDate(range.end)}';
+  1221→ }
+  1222→
+  1223→ String _formatDate(DateTime value) {
+  1224→ final yyyy = value.year.toString().padLeft(4, '0');
+  1225→ final mm = value.month.toString().padLeft(2, '0');
+  1226→ final dd = value.day.toString().padLeft(2, '0');
+  1227→ return '$yyyy-$mm-$dd';
+  1228→ }
+  1229→
+  1230→ String _normalizeSectionLabel(String value) {
+  1231→ return value.replaceAll('_', ' ').trim();
+  1232→ }
+  1233→
+  1234→ String _statusLabel(ProjectActivityStatus status) {
+  1235→ switch (status) {
+  1236→ case ProjectActivityStatus.pending:
+  1237→ return 'Pending';
+  1238→ case ProjectActivityStatus.acknowledged:
+  1239→ return 'Acknowledged';
+  1240→ case ProjectActivityStatus.implemented:
+  1241→ return 'Implemented';
+  1242→ case ProjectActivityStatus.rejected:
+  1243→ return 'Rejected';
+  1244→ case ProjectActivityStatus.deferred:
+  1245→ return 'Deferred';
+  1246→ }
+  1247→ }
+  1248→
+  1249→ String _approvalLabel(ProjectApprovalStatus status) {
+  1250→ switch (status) {
+  1251→ case ProjectApprovalStatus.draft:
+  1252→ return 'Draft';
+  1253→ case ProjectApprovalStatus.approved:
+  1254→ return 'Approved';
+  1255→ case ProjectApprovalStatus.locked:
+  1256→ return 'Locked';
+  1257→ }
+  1258→ }
+  1259→}
+  1260→
+  1261→class _FilterOptions {
+  1262→ const _FilterOptions({
+  1263→ required this.statuses,
+  1264→ required this.roles,
+  1265→ required this.assignedTo,
+  1266→ required this.phases,
+  1267→ required this.disciplines,
+  1268→ required this.approvals,
+  1269→ required this.appliedSections,
+  1270→ });
+  1271→
+  1272→ final List<String> statuses;
+  1273→ final List<String> roles;
+  1274→ final List<String> assignedTo;
+  1275→ final List<String> phases;
+  1276→ final List<String> disciplines;
+  1277→ final List<String> approvals;
+  1278→ final List<String> appliedSections;
+  1279→}
+  1280→
+  1281→class _StatCard extends StatelessWidget {
+  1282→ const _StatCard({
+  1283→ required this.title,
+  1284→ required this.value,
+  1285→ required this.color,
+  1286→ });
+  1287→
+  1288→ final String title;
+  1289→ final String value;
+  1290→ final Color color;
+  1291→
+  1292→ @override
+  1293→ Widget build(BuildContext context) {
+  1294→ return Container(
+  1295→ width: double.infinity,
+  1296→ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  1297→ decoration: BoxDecoration(
+  1298→ color: Colors.white,
+  1299→ borderRadius: BorderRadius.circular(12),
+  1300→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1301→ ),
+  1302→ child: Column(
+  1303→ crossAxisAlignment: CrossAxisAlignment.start,
+  1304→ children: [
+  1305→ Text(
+  1306→ title,
+  1307→ style: const TextStyle(
+  1308→ fontSize: 12,
+  1309→ fontWeight: FontWeight.w600,
+  1310→ color: Color(0xFF6B7280),
+  1311→ ),
+  1312→ ),
+  1313→ const SizedBox(height: 8),
+  1314→ Text(
+  1315→ value,
+  1316→ style: TextStyle(
+  1317→ fontSize: 22,
+  1318→ fontWeight: FontWeight.w700,
+  1319→ color: color,
+  1320→ ),
+  1321→ ),
+  1322→ ],
+  1323→ ),
+  1324→ );
+  1325→ }
+  1326→}
+  1327→
+  1328→class _FilterToolbar extends StatelessWidget {
+  1329→ const _FilterToolbar({
+  1330→ required this.searchController,
+  1331→ required this.hasActiveFilters,
+  1332→ required this.selectedStatuses,
+  1333→ required this.selectedRoles,
+  1334→ required this.selectedAssignedTo,
+  1335→ required this.selectedPhases,
+  1336→ required this.selectedDisciplines,
+  1337→ required this.selectedApprovals,
+  1338→ required this.selectedAppliedSections,
+  1339→ required this.selectedDateRange,
+  1340→ required this.options,
+  1341→ required this.onSearchChanged,
+  1342→ required this.onStatusTap,
+  1343→ required this.onRoleTap,
+  1344→ required this.onAssignedTap,
+  1345→ required this.onPhaseTap,
+  1346→ required this.onDisciplineTap,
+  1347→ required this.onApprovalTap,
+  1348→ required this.onAppliedSectionTap,
+  1349→ required this.onDateTap,
+  1350→ required this.onDateClear,
+  1351→ required this.onClearAll,
+  1352→ required this.onClearStatuses,
+  1353→ required this.onClearRoles,
+  1354→ required this.onClearAssignedTo,
+  1355→ required this.onClearPhases,
+  1356→ required this.onClearDisciplines,
+  1357→ required this.onClearApprovals,
+  1358→ required this.onClearAppliedSections,
+  1359→ required this.onClearDateRange,
+  1360→ required this.dateLabel,
+  1361→ });
+  1362→
+  1363→ final TextEditingController searchController;
+  1364→ final bool hasActiveFilters;
+  1365→ final Set<String> selectedStatuses;
+  1366→ final Set<String> selectedRoles;
+  1367→ final Set<String> selectedAssignedTo;
+  1368→ final Set<String> selectedPhases;
+  1369→ final Set<String> selectedDisciplines;
+  1370→ final Set<String> selectedApprovals;
+  1371→ final Set<String> selectedAppliedSections;
+  1372→ final DateTimeRange? selectedDateRange;
+  1373→ final _FilterOptions options;
+  1374→ final ValueChanged<String> onSearchChanged;
+  1375→ final VoidCallback onStatusTap;
+  1376→ final VoidCallback onRoleTap;
+  1377→ final VoidCallback onAssignedTap;
+  1378→ final VoidCallback onPhaseTap;
+  1379→ final VoidCallback onDisciplineTap;
+  1380→ final VoidCallback onApprovalTap;
+  1381→ final VoidCallback onAppliedSectionTap;
+  1382→ final VoidCallback onDateTap;
+  1383→ final VoidCallback? onDateClear;
+  1384→ final VoidCallback onClearAll;
+  1385→ final VoidCallback onClearStatuses;
+  1386→ final VoidCallback onClearRoles;
+  1387→ final VoidCallback onClearAssignedTo;
+  1388→ final VoidCallback onClearPhases;
+  1389→ final VoidCallback onClearDisciplines;
+  1390→ final VoidCallback onClearApprovals;
+  1391→ final VoidCallback onClearAppliedSections;
+  1392→ final VoidCallback? onClearDateRange;
+  1393→ final String? dateLabel;
+  1394→
+  1395→ @override
+  1396→ Widget build(BuildContext context) {
+  1397→ return Column(
+  1398→ crossAxisAlignment: CrossAxisAlignment.start,
+  1399→ children: [
+  1400→ Container(
+  1401→ width: double.infinity,
+  1402→ padding: const EdgeInsets.all(14),
+  1403→ decoration: BoxDecoration(
+  1404→ color: Colors.white,
+  1405→ borderRadius: BorderRadius.circular(14),
+  1406→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1407→ ),
+  1408→ child: LayoutBuilder(
+  1409→ builder: (context, constraints) {
+  1410→ final searchWidth =
+  1411→ constraints.maxWidth < 420 ? constraints.maxWidth : 330.0;
+  1412→
+  1413→ return Wrap(
+  1414→ spacing: 10,
+  1415→ runSpacing: 10,
+  1416→ crossAxisAlignment: WrapCrossAlignment.center,
+  1417→ children: [
+  1418→ SizedBox(
+  1419→ width: searchWidth,
+  1420→ child: VoiceTextField(
+  1421→ controller: searchController,
+  1422→ onChanged: onSearchChanged,
+  1423→ decoration: InputDecoration(
+  1424→ hintText: 'Search activity, owner, role, phase...',
+  1425→ isDense: true,
+  1426→ prefixIcon: const Icon(
+  1427→ Icons.search,
+  1428→ size: 20,
+  1429→ color: Color(0xFF6B7280),
+  1430→ ),
+  1431→ contentPadding: const EdgeInsets.symmetric(
+  1432→ horizontal: 12,
+  1433→ vertical: 10,
+  1434→ ),
+  1435→ border: OutlineInputBorder(
+  1436→ borderRadius: BorderRadius.circular(10),
+  1437→ borderSide:
+  1438→ const BorderSide(color: Color(0xFFE5E7EB)),
+  1439→ ),
+  1440→ enabledBorder: OutlineInputBorder(
+  1441→ borderRadius: BorderRadius.circular(10),
+  1442→ borderSide:
+  1443→ const BorderSide(color: Color(0xFFE5E7EB)),
+  1444→ ),
+  1445→ ),
+  1446→ ),
+  1447→ ),
+  1448→ _FilterActionButton(
+  1449→ label: 'Status',
+  1450→ selectedCount: selectedStatuses.length,
+  1451→ onTap: onStatusTap,
+  1452→ ),
+  1453→ _FilterActionButton(
+  1454→ label: 'Role',
+  1455→ selectedCount: selectedRoles.length,
+  1456→ onTap: onRoleTap,
+  1457→ ),
+  1458→ _FilterActionButton(
+  1459→ label: 'Assigned To',
+  1460→ selectedCount: selectedAssignedTo.length,
+  1461→ onTap: onAssignedTap,
+  1462→ ),
+  1463→ _FilterActionButton(
+  1464→ label: 'Phase',
+  1465→ selectedCount: selectedPhases.length,
+  1466→ onTap: onPhaseTap,
+  1467→ ),
+  1468→ _FilterActionButton(
+  1469→ label: 'Discipline',
+  1470→ selectedCount: selectedDisciplines.length,
+  1471→ onTap: onDisciplineTap,
+  1472→ ),
+  1473→ _FilterActionButton(
+  1474→ label: 'Approval',
+  1475→ selectedCount: selectedApprovals.length,
+  1476→ onTap: onApprovalTap,
+  1477→ ),
+  1478→ _FilterActionButton(
+  1479→ label: 'Applied Section',
+  1480→ selectedCount: selectedAppliedSections.length,
+  1481→ onTap: onAppliedSectionTap,
+  1482→ ),
+  1483→ _DateRangeActionButton(
+  1484→ hasValue: selectedDateRange != null,
+  1485→ label: selectedDateRange == null
+  1486→ ? 'Date Range'
+  1487→ : (dateLabel ?? 'Date Range'),
+  1488→ onTap: onDateTap,
+  1489→ onClear: onDateClear,
+  1490→ ),
+  1491→ if (hasActiveFilters)
+  1492→ TextButton.icon(
+  1493→ onPressed: onClearAll,
+  1494→ icon: const Icon(Icons.clear_all, size: 18),
+  1495→ label: const Text('Clear All'),
+  1496→ ),
+  1497→ ],
+  1498→ );
+  1499→ },
+  1500→ ),
+  1501→ ),
+  1502→ if (hasActiveFilters) ...[
+  1503→ const SizedBox(height: 10),
+  1504→ Wrap(
+  1505→ spacing: 8,
+  1506→ runSpacing: 8,
+  1507→ children: [
+  1508→ if (selectedStatuses.isNotEmpty)
+  1509→ _ActiveFilterTag(
+  1510→ label: 'Status (${selectedStatuses.length})',
+  1511→ onClear: onClearStatuses,
+  1512→ ),
+  1513→ if (selectedRoles.isNotEmpty)
+  1514→ _ActiveFilterTag(
+  1515→ label: 'Role (${selectedRoles.length})',
+  1516→ onClear: onClearRoles,
+  1517→ ),
+  1518→ if (selectedAssignedTo.isNotEmpty)
+  1519→ _ActiveFilterTag(
+  1520→ label: 'Assigned (${selectedAssignedTo.length})',
+  1521→ onClear: onClearAssignedTo,
+  1522→ ),
+  1523→ if (selectedPhases.isNotEmpty)
+  1524→ _ActiveFilterTag(
+  1525→ label: 'Phase (${selectedPhases.length})',
+  1526→ onClear: onClearPhases,
+  1527→ ),
+  1528→ if (selectedDisciplines.isNotEmpty)
+  1529→ _ActiveFilterTag(
+  1530→ label: 'Discipline (${selectedDisciplines.length})',
+  1531→ onClear: onClearDisciplines,
+  1532→ ),
+  1533→ if (selectedApprovals.isNotEmpty)
+  1534→ _ActiveFilterTag(
+  1535→ label: 'Approval (${selectedApprovals.length})',
+  1536→ onClear: onClearApprovals,
+  1537→ ),
+  1538→ if (selectedAppliedSections.isNotEmpty)
+  1539→ _ActiveFilterTag(
+  1540→ label: 'Applied (${selectedAppliedSections.length})',
+  1541→ onClear: onClearAppliedSections,
+  1542→ ),
+  1543→ if (selectedDateRange != null && onClearDateRange != null)
+  1544→ _ActiveFilterTag(
+  1545→ label: 'Date Range',
+  1546→ onClear: onClearDateRange!,
+  1547→ ),
+  1548→ ],
+  1549→ ),
+  1550→ ],
+  1551→ ],
+  1552→ );
+  1553→ }
+  1554→}
+  1555→
+  1556→class _FilterActionButton extends StatelessWidget {
+  1557→ const _FilterActionButton({
+  1558→ required this.label,
+  1559→ required this.selectedCount,
+  1560→ required this.onTap,
+  1561→ });
+  1562→
+  1563→ final String label;
+  1564→ final int selectedCount;
+  1565→ final VoidCallback onTap;
+  1566→
+  1567→ @override
+  1568→ Widget build(BuildContext context) {
+  1569→ final isActive = selectedCount > 0;
+  1570→
+  1571→ return InkWell(
+  1572→ onTap: onTap,
+  1573→ borderRadius: BorderRadius.circular(10),
+  1574→ child: Container(
+  1575→ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1576→ decoration: BoxDecoration(
+  1577→ color: isActive ? const Color(0xFFFFF8E1) : Colors.white,
+  1578→ borderRadius: BorderRadius.circular(10),
+  1579→ border: Border.all(
+  1580→ color: isActive ? const Color(0xFFF4B400) : const Color(0xFFE5E7EB),
+  1581→ ),
+  1582→ ),
+  1583→ child: Row(
+  1584→ mainAxisSize: MainAxisSize.min,
+  1585→ children: [
+  1586→ Text(
+  1587→ label,
+  1588→ style: TextStyle(
+  1589→ fontSize: 12,
+  1590→ fontWeight: FontWeight.w600,
+  1591→ color: isActive
+  1592→ ? const Color(0xFF92400E)
+  1593→ : const Color(0xFF374151),
+  1594→ ),
+  1595→ ),
+  1596→ if (isActive) ...[
+  1597→ const SizedBox(width: 6),
+  1598→ Container(
+  1599→ padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+  1600→ decoration: BoxDecoration(
+  1601→ color: const Color(0xFFF4B400),
+  1602→ borderRadius: BorderRadius.circular(999),
+  1603→ ),
+  1604→ child: Text(
+  1605→ '$selectedCount',
+  1606→ style: const TextStyle(
+  1607→ fontSize: 10,
+  1608→ color: Colors.black,
+  1609→ fontWeight: FontWeight.w700,
+  1610→ ),
+  1611→ ),
+  1612→ ),
+  1613→ ],
+  1614→ const SizedBox(width: 6),
+  1615→ Icon(
+  1616→ Icons.arrow_drop_down,
+  1617→ size: 18,
+  1618→ color:
+  1619→ isActive ? const Color(0xFF92400E) : const Color(0xFF6B7280),
+  1620→ ),
+  1621→ ],
+  1622→ ),
+  1623→ ),
+  1624→ );
+  1625→ }
+  1626→}
+  1627→
+  1628→class _DateRangeActionButton extends StatelessWidget {
+  1629→ const _DateRangeActionButton({
+  1630→ required this.label,
+  1631→ required this.hasValue,
+  1632→ required this.onTap,
+  1633→ this.onClear,
+  1634→ });
+  1635→
+  1636→ final String label;
+  1637→ final bool hasValue;
+  1638→ final VoidCallback onTap;
+  1639→ final VoidCallback? onClear;
+  1640→
+  1641→ @override
+  1642→ Widget build(BuildContext context) {
+  1643→ return InkWell(
+  1644→ onTap: onTap,
+  1645→ borderRadius: BorderRadius.circular(10),
+  1646→ child: Container(
+  1647→ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1648→ decoration: BoxDecoration(
+  1649→ color: hasValue ? const Color(0xFFFFF8E1) : Colors.white,
+  1650→ borderRadius: BorderRadius.circular(10),
+  1651→ border: Border.all(
+  1652→ color: hasValue ? const Color(0xFFF4B400) : const Color(0xFFE5E7EB),
+  1653→ ),
+  1654→ ),
+  1655→ child: Row(
+  1656→ mainAxisSize: MainAxisSize.min,
+  1657→ children: [
+  1658→ Icon(
+  1659→ Icons.date_range_outlined,
+  1660→ size: 16,
+  1661→ color:
+  1662→ hasValue ? const Color(0xFF92400E) : const Color(0xFF6B7280),
+  1663→ ),
+  1664→ const SizedBox(width: 6),
+  1665→ Text(
+  1666→ label,
+  1667→ style: TextStyle(
+  1668→ fontSize: 12,
+  1669→ fontWeight: FontWeight.w600,
+  1670→ color: hasValue
+  1671→ ? const Color(0xFF92400E)
+  1672→ : const Color(0xFF374151),
+  1673→ ),
+  1674→ ),
+  1675→ if (onClear != null) ...[
+  1676→ const SizedBox(width: 6),
+  1677→ GestureDetector(
+  1678→ onTap: onClear,
+  1679→ child: const Icon(
+  1680→ Icons.close,
+  1681→ size: 14,
+  1682→ color: Color(0xFF92400E),
+  1683→ ),
+  1684→ ),
+  1685→ ],
+  1686→ ],
+  1687→ ),
+  1688→ ),
+  1689→ );
+  1690→ }
+  1691→}
+  1692→
+  1693→class _ActiveFilterTag extends StatelessWidget {
+  1694→ const _ActiveFilterTag({
+  1695→ required this.label,
+  1696→ required this.onClear,
+  1697→ });
+  1698→
+  1699→ final String label;
+  1700→ final VoidCallback onClear;
+  1701→
+  1702→ @override
+  1703→ Widget build(BuildContext context) {
+  1704→ return Container(
+  1705→ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+  1706→ decoration: BoxDecoration(
+  1707→ color: const Color(0xFFFFF7E0),
+  1708→ borderRadius: BorderRadius.circular(999),
+  1709→ border: Border.all(color: const Color(0xFFF7D36A)),
+  1710→ ),
+  1711→ child: Row(
+  1712→ mainAxisSize: MainAxisSize.min,
+  1713→ children: [
+  1714→ Text(
+  1715→ label,
+  1716→ style: const TextStyle(
+  1717→ fontSize: 11,
+  1718→ fontWeight: FontWeight.w700,
+  1719→ color: Color(0xFF92400E),
+  1720→ ),
+  1721→ ),
+  1722→ const SizedBox(width: 6),
+  1723→ InkWell(
+  1724→ onTap: onClear,
+  1725→ child: const Icon(
+  1726→ Icons.close,
+  1727→ size: 14,
+  1728→ color: Color(0xFF92400E),
+  1729→ ),
+  1730→ ),
+  1731→ ],
+  1732→ ),
+  1733→ );
+  1734→ }
+  1735→}
+  1736→
+  1737→class _PaginationFooter extends StatelessWidget {
+  1738→ const _PaginationFooter({
+  1739→ required this.totalCount,
+  1740→ required this.startIndex,
+  1741→ required this.endIndex,
+  1742→ required this.pageIndex,
+  1743→ required this.totalPages,
+  1744→ required this.rowsPerPage,
+  1745→ required this.onRowsPerPageChanged,
+  1746→ required this.onPrev,
+  1747→ required this.onNext,
+  1748→ });
+  1749→
+  1750→ final int totalCount;
+  1751→ final int startIndex;
+  1752→ final int endIndex;
+  1753→ final int pageIndex;
+  1754→ final int totalPages;
+  1755→ final int rowsPerPage;
+  1756→ final ValueChanged<int> onRowsPerPageChanged;
+  1757→ final VoidCallback? onPrev;
+  1758→ final VoidCallback? onNext;
+  1759→
+  1760→ @override
+  1761→ Widget build(BuildContext context) {
+  1762→ return Container(
+  1763→ width: double.infinity,
+  1764→ padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  1765→ decoration: BoxDecoration(
+  1766→ color: Colors.white,
+  1767→ borderRadius: BorderRadius.circular(12),
+  1768→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1769→ ),
+  1770→ child: Wrap(
+  1771→ spacing: 12,
+  1772→ runSpacing: 8,
+  1773→ crossAxisAlignment: WrapCrossAlignment.center,
+  1774→ children: [
+  1775→ Text(
+  1776→ 'Showing ${totalCount == 0 ? 0 : startIndex + 1}-$endIndex of $totalCount',
+  1777→ style: const TextStyle(
+  1778→ fontSize: 12,
+  1779→ color: Color(0xFF4B5563),
+  1780→ fontWeight: FontWeight.w600,
+  1781→ ),
+  1782→ ),
+  1783→ Row(
+  1784→ mainAxisSize: MainAxisSize.min,
+  1785→ children: [
+  1786→ const Text(
+  1787→ 'Rows:',
+  1788→ style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+  1789→ ),
+  1790→ const SizedBox(width: 6),
+  1791→ DropdownButton<int>(
+  1792→ value: rowsPerPage,
+  1793→ underline: const SizedBox.shrink(),
+  1794→ items: const [10, 25, 50, 100]
+  1795→ .map((value) => DropdownMenuItem<int>(
+  1796→ value: value,
+  1797→ child: Text('$value'),
+  1798→ ))
+  1799→ .toList(),
+  1800→ onChanged: (value) {
+  1801→ if (value != null) onRowsPerPageChanged(value);
+  1802→ },
+  1803→ ),
+  1804→ ],
+  1805→ ),
+  1806→ Text(
+  1807→ 'Page ${pageIndex + 1} of $totalPages',
+  1808→ style: const TextStyle(
+  1809→ fontSize: 12,
+  1810→ color: Color(0xFF4B5563),
+  1811→ fontWeight: FontWeight.w600,
+  1812→ ),
+  1813→ ),
+  1814→ IconButton(
+  1815→ tooltip: 'Previous page',
+  1816→ visualDensity: VisualDensity.compact,
+  1817→ onPressed: onPrev,
+  1818→ icon: const Icon(Icons.chevron_left, size: 20),
+  1819→ ),
+  1820→ IconButton(
+  1821→ tooltip: 'Next page',
+  1822→ visualDensity: VisualDensity.compact,
+  1823→ onPressed: onNext,
+  1824→ icon: const Icon(Icons.chevron_right, size: 20),
+  1825→ ),
+  1826→ ],
+  1827→ ),
+  1828→ );
+  1829→ }
+  1830→}
+  1831→
+  1832→class _ActivitiesTable extends StatefulWidget {
+  1833→ const _ActivitiesTable({
+  1834→ required this.activities,
+  1835→ required this.rowOffset,
+  1836→ required this.statusLabel,
+  1837→ required this.approvalLabel,
+  1838→ required this.dateFormatter,
+  1839→ required this.onEdit,
+  1840→ required this.onDelete,
+  1841→ required this.isCustomActivity,
+  1842→ });
+  1843→
+  1844→ final List<ProjectActivity> activities;
+  1845→ final int rowOffset;
+  1846→ final String Function(ProjectActivityStatus) statusLabel;
+  1847→ final String Function(ProjectApprovalStatus) approvalLabel;
+  1848→ final String Function(DateTime) dateFormatter;
+  1849→ final ValueChanged<ProjectActivity> onEdit;
+  1850→ final ValueChanged<ProjectActivity> onDelete;
+  1851→ final bool Function(ProjectActivity) isCustomActivity;
+  1852→
+  1853→ @override
+  1854→ State<_ActivitiesTable> createState() => _ActivitiesTableState();
+  1855→}
+  1856→
+  1857→class _ActivitiesTableState extends State<_ActivitiesTable> {
+  1858→ final ScrollController _horizontalController = ScrollController();
+  1859→
+  1860→ @override
+  1861→ void dispose() {
+  1862→ _horizontalController.dispose();
+  1863→ super.dispose();
+  1864→ }
+  1865→
+  1866→ @override
+  1867→ Widget build(BuildContext context) {
+  1868→ const indexWidth = 52.0;
+  1869→ const activityWidth = 230.0;
+  1870→ const descriptionWidth = 360.0;
+  1871→ const phaseWidth = 160.0;
+  1872→ const disciplineWidth = 170.0;
+  1873→ const roleWidth = 180.0;
+  1874→ const assignedToWidth = 180.0;
+  1875→ const statusWidth = 130.0;
+  1876→ const approvalWidth = 120.0;
+  1877→ const sourceWidth = 190.0;
+  1878→ const appliesToWidth = 260.0;
+  1879→ const updatedWidth = 120.0;
+  1880→ const actionsWidth = 92.0;
+  1881→
+  1882→ if (widget.activities.isEmpty) {
+  1883→ return Container(
+  1884→ width: double.infinity,
+  1885→ padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 26),
+  1886→ decoration: BoxDecoration(
+  1887→ color: Colors.white,
+  1888→ borderRadius: BorderRadius.circular(14),
+  1889→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1890→ ),
+  1891→ child: const Text(
+  1892→ 'No activities found for the selected filters.',
+  1893→ style: TextStyle(color: Color(0xFF6B7280)),
+  1894→ ),
+  1895→ );
+  1896→ }
+  1897→
+  1898→ return Container(
+  1899→ width: double.infinity,
+  1900→ decoration: BoxDecoration(
+  1901→ color: Colors.white,
+  1902→ borderRadius: BorderRadius.circular(14),
+  1903→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1904→ ),
+  1905→ child: Scrollbar(
+  1906→ controller: _horizontalController,
+  1907→ thumbVisibility: true,
+  1908→ interactive: true,
+  1909→ child: SingleChildScrollView(
+  1910→ controller: _horizontalController,
+  1911→ scrollDirection: Axis.horizontal,
+  1912→ child: SizedBox(
+  1913→ width: 2160,
+  1914→ child: DataTable(
+  1915→ horizontalMargin: 12,
+  1916→ columnSpacing: 16,
+  1917→ showBottomBorder: true,
+  1918→ dataRowMinHeight: 56,
+  1919→ dataRowMaxHeight: 74,
+  1920→ headingTextStyle: const TextStyle(
+  1921→ fontWeight: FontWeight.w700,
+  1922→ fontSize: 12,
+  1923→ color: Color(0xFF374151),
+  1924→ ),
+  1925→ dataTextStyle: const TextStyle(
+  1926→ fontSize: 12,
+  1927→ color: Color(0xFF111827),
+  1928→ ),
+  1929→ columns: const [
+  1930→ DataColumn(label: _TableHeaderCell('#', indexWidth)),
+  1931→ DataColumn(label: _TableHeaderCell('Activity', activityWidth)),
+  1932→ DataColumn(
+  1933→ label: _TableHeaderCell('Description', descriptionWidth)),
+  1934→ DataColumn(label: _TableHeaderCell('Phase', phaseWidth)),
+  1935→ DataColumn(
+  1936→ label: _TableHeaderCell('Discipline', disciplineWidth)),
+  1937→ DataColumn(label: _TableHeaderCell('Role', roleWidth)),
+  1938→ DataColumn(
+  1939→ label: _TableHeaderCell('Assigned To', assignedToWidth)),
+  1940→ DataColumn(label: _TableHeaderCell('Status', statusWidth)),
+  1941→ DataColumn(label: _TableHeaderCell('Approval', approvalWidth)),
+  1942→ DataColumn(label: _TableHeaderCell('Source', sourceWidth)),
+  1943→ DataColumn(
+  1944→ label: _TableHeaderCell('Applies To', appliesToWidth)),
+  1945→ DataColumn(label: _TableHeaderCell('Updated', updatedWidth)),
+  1946→ DataColumn(label: _TableHeaderCell('Actions', actionsWidth)),
+  1947→ ],
+  1948→ rows: widget.activities.asMap().entries.map((entry) {
+  1949→ final localIndex = entry.key;
+  1950→ final activity = entry.value;
+  1951→ final globalIndex = widget.rowOffset + localIndex + 1;
+  1952→ final assignedTo = (activity.assignedTo ?? '').trim();
+  1953→ final phase = activity.phase.trim().isEmpty
+  1954→ ? 'Unspecified'
+  1955→ : activity.phase;
+  1956→ final source = activity.sourceSection.replaceAll('_', ' ');
+  1957→ final appliesTo = activity.applicableSections.isEmpty
+  1958→ ? '-'
+  1959→ : activity.applicableSections.join(', ');
+  1960→
+  1961→ return DataRow.byIndex(
+  1962→ index: globalIndex,
+  1963→ color: WidgetStateProperty.resolveWith<Color?>(
+  1964→ (states) => localIndex.isEven
+  1965→ ? const Color(0xFFFAFBFF)
+  1966→ : Colors.transparent,
+  1967→ ),
+  1968→ cells: [
+  1969→ DataCell(_dataCell(context, '#', '$globalIndex',
+  1970→ width: indexWidth)),
+  1971→ DataCell(_dataCell(context, 'Activity', activity.title,
+  1972→ width: activityWidth)),
+  1973→ DataCell(_dataCell(
+  1974→ context, 'Description', activity.description,
+  1975→ width: descriptionWidth)),
+  1976→ DataCell(
+  1977→ _dataCell(context, 'Phase', phase, width: phaseWidth)),
+  1978→ DataCell(_dataCell(
+  1979→ context, 'Discipline', activity.discipline,
+  1980→ width: disciplineWidth)),
+  1981→ DataCell(_dataCell(context, 'Role', activity.role,
+  1982→ width: roleWidth)),
+  1983→ DataCell(_dataCell(context, 'Assigned To',
+  1984→ assignedTo.isEmpty ? '-' : assignedTo,
+  1985→ width: assignedToWidth)),
+  1986→ DataCell(_statusPill(widget.statusLabel(activity.status))),
+  1987→ DataCell(_approvalPill(
+  1988→ widget.approvalLabel(activity.approvalStatus))),
+  1989→ DataCell(_dataCell(context, 'Source', source,
+  1990→ width: sourceWidth)),
+  1991→ DataCell(_dataCell(context, 'Applies To', appliesTo,
+  1992→ width: appliesToWidth)),
+  1993→ DataCell(_dataCell(context, 'Updated',
+  1994→ widget.dateFormatter(activity.updatedAt),
+  1995→ width: updatedWidth)),
+  1996→ DataCell(
+  1997→ SizedBox(
+  1998→ width: actionsWidth,
+  1999→ child: Align(
+  2000→ alignment: Alignment.centerLeft,
+
+[showing lines 1-2000 of 2293; use offset=2001 with limit to continue reading]

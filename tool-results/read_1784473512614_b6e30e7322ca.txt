@@ -1,0 +1,2002 @@
+     1→import 'dart:async';
+     2→
+     3→import 'package:flutter/material.dart';
+     4→import 'package:firebase_auth/firebase_auth.dart';
+     5→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+     6→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+     7→import 'package:ndu_project/widgets/responsive.dart';
+     8→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+     9→import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+    10→import 'package:ndu_project/utils/planning_phase_navigation.dart';
+    11→import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+    12→import 'package:ndu_project/services/firebase_auth_service.dart';
+    13→import 'package:ndu_project/services/user_service.dart';
+    14→import 'package:ndu_project/models/project_data_model.dart';
+    15→import 'package:ndu_project/utils/project_data_helper.dart';
+    16→import 'package:ndu_project/widgets/ai_suggesting_textfield.dart';
+    17→
+    18→import 'package:ndu_project/widgets/voice_text_field.dart';
+    19→import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+    20→import 'package:ndu_project/widgets/interface_identification_dialog.dart';
+    21→import 'package:ndu_project/widgets/planning_phase_header.dart';
+    22→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    23→import 'package:ndu_project/services/activity_log_service.dart';
+    24→import 'package:ndu_project/services/openai_service_secure.dart';
+    25→import 'package:ndu_project/services/risk_sync_service.dart';
+    26→import 'package:ndu_project/widgets/skip_confirmation_dialog.dart';
+    27→// ─── Tab definitions ────────────────────────────────────────────────────────
+    28→
+    29→enum _ImTab {
+    30→  register('Interface Register'),
+    31→  interfaceTypes('Interface Types'),
+    32→  responsibilities('Responsibilities'),
+    33→  coordination('Coordination & Communication'),
+    34→  dependencyMgmt('Dependency Management'),
+    35→  risks('Interface Risks'),
+    36→  monitoring('Monitoring & Control'),
+    37→  deliverables('Key Deliverables'),
+    38→  audit('Audit Trail');
+    39→
+    40→  const _ImTab(this.label);
+    41→  final String label;
+    42→}
+    43→
+    44→// ─── Constants ──────────────────────────────────────────────────────────────
+    45→
+    46→const _kInterfaceTypes = [
+    47→ 'Technical',
+    48→ 'Contractual',
+    49→ 'Organizational',
+    50→ 'Physical',
+    51→ 'Procedural',
+    52→];
+    53→
+    54→const _kPriorities = ['High', 'Medium', 'Low'];
+    55→const _kCriticalities = ['Critical', 'Major', 'Minor'];
+    56→const _kDataFlows = ['Bidirectional', 'A to B', 'B to A'];
+    57→const _kProtocols = ['API', 'File Transfer', 'Manual', 'Email', 'Shared DB'];
+    58→const _kStatuses = [
+    59→ 'Active',
+    60→ 'Pending',
+    61→ 'Under Review',
+    62→ 'Approved',
+    63→ 'Closed',
+    64→ 'Resolved',
+    65→];
+    66→const _kCadences = [
+    67→ 'Daily',
+    68→ 'Weekly',
+    69→ 'Bi-weekly',
+    70→ 'Monthly',
+    71→ 'Quarterly',
+    72→ 'As Needed',
+    73→];
+    74→
+    75→// ─── Main Screen ────────────────────────────────────────────────────────────
+    76→
+    77→class InterfaceManagementScreen extends StatefulWidget {
+    78→ const InterfaceManagementScreen({super.key});
+    79→
+    80→ static void open(BuildContext context) {
+    81→ Navigator.of(context).push(
+    82→ MaterialPageRoute(builder: (_) => const InterfaceManagementScreen()),
+    83→ );
+    84→ }
+    85→
+    86→ @override
+    87→ State<InterfaceManagementScreen> createState() =>
+    88→ _InterfaceManagementScreenState();
+    89→}
+    90→
+    91→class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
+    92→  _ImTab _selectedTab = _ImTab.register;
+    93→  bool _dialogShown = false;
+    94→
+    95→  @override
+    96→  void initState() {
+    97→    super.initState();
+    98→    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    99→      if (!_dialogShown) {
+   100→        _dialogShown = true;
+   101→        await showInterfaceIdentificationDialog(context);
+   102→        if (mounted) await _autoPopulateFromProjectData(context);
+   103→      }
+   104→    });
+   105→  }
+   106→
+   107→  Future<void> _autoPopulateFromProjectData(BuildContext context) async {
+   108→    final data = ProjectDataHelper.getData(context);
+   109→    if (data.planningNotes['interface_auto_populated'] == 'true') return;
+   110→    if (data.interfaceEntries.isNotEmpty) return;
+   111→
+   112→    final entries = <InterfaceEntry>[];
+   113→    final now = DateTime.now().toIso8601String();
+   114→    final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
+   115→
+   116→    // From Vendors
+   117→    for (final v in data.vendors) {
+   118→      final name = v.name.trim();
+   119→      if (name.isEmpty) continue;
+   120→      entries.add(InterfaceEntry(
+   121→        boundary: name,
+   122→        interfaceType: 'Contractual',
+   123→        partyA: 'Project Team',
+   124→        partyB: name,
+   125→        criticality: 'Major',
+   126→        priority: 'Medium',
+   127→        status: 'Pending',
+   128→        notes: 'Vendor interface - ${v.equipmentOrService.trim()}',
+   129→      ));
+   130→    }
+   131→
+   132→    // From Contractors
+   133→    for (final c in data.contractors) {
+   134→      final name = c.name.trim();
+   135→      if (name.isEmpty) continue;
+   136→      entries.add(InterfaceEntry(
+   137→        boundary: name,
+   138→        interfaceType: 'Contractual',
+   139→        partyA: 'Project Team',
+   140→        partyB: name,
+   141→        criticality: 'Major',
+   142→        priority: 'Medium',
+   143→        status: 'Pending',
+   144→        notes: 'Contractor interface - ${c.service.trim()}',
+   145→      ));
+   146→    }
+   147→
+   148→    // From External Integrations (Technology Planning)
+   149→    for (final ext in data.externalIntegrations) {
+   150→      final name = ext['name']?.toString().trim() ?? '';
+   151→      if (name.isEmpty) continue;
+   152→      entries.add(InterfaceEntry(
+   153→        boundary: name,
+   154→        interfaceType: 'Technical',
+   155→        partyA: 'Project Team',
+   156→        partyB: name,
+   157→        criticality: 'Major',
+   158→        priority: 'Medium',
+   159→        status: 'Pending',
+   160→        owner: ext['description']?.toString() ?? '',
+   161→        notes: 'Technical interface from Technology Planning',
+   162→        id: '',
+   163→      ));
+   164→    }
+   165→
+   166→    if (entries.isEmpty) return;
+   167→
+   168→    for (final entry in entries) {
+   169→      logEntries.add(InterfaceChangeLogEntry(
+   170→        interfaceId: entry.id,
+   171→        interfaceName: entry.boundary,
+   172→        action: 'Auto-Populated',
+   173→        newValue: entry.boundary,
+   174→        changedAt: now,
+   175→      ));
+   176→    }
+   177→
+   178→    await ProjectDataHelper.updateAndSave(
+   179→      context: context,
+   180→      checkpoint: 'interface_management',
+   181→      dataUpdater: (d) => d.copyWith(
+   182→        planningNotes: {
+   183→          ...d.planningNotes,
+   184→          'interface_auto_populated': 'true',
+   185→        },
+   186→        interfaceEntries: [...d.interfaceEntries, ...entries],
+   187→        interfaceChangeLog: [...d.interfaceChangeLog, ...logEntries],
+   188→      ),
+   189→      showSnackbar: true,
+   190→    );
+   191→
+   192→    if (mounted) {
+   193→      ScaffoldMessenger.of(context).showSnackBar(
+   194→        SnackBar(
+   195→          content: Text('Auto-populated ${entries.length} interface(s) from project data'),
+   196→        ),
+   197→      );
+   198→    }
+   199→    unawaited(ActivityLogService.instance.logCheckpointActivity(
+   200→      projectId: data.projectId ?? '',
+   201→      checkpoint: 'interface_management',
+   202→      action: 'Interface Auto-Populated',
+   203→      details: {'count': entries.length},
+   204→    ));
+   205→
+   206→    // After basic auto-populate, kick off AI generation for additional
+   207→    // cross-scope interfaces (vendors, contractors, other orgs, program/portfolio)
+   208→    if (mounted) {
+   209→      unawaited(_aiPopulateInterfaces(context, data));
+   210→    }
+   211→  }
+   212→
+   213→  /// AI-enhanced interface population. Calls generateInterfaceEntries to
+   214→  /// identify cross-scope interfaces with vendors, contractors, other
+   215→  /// companies/organizations, and program/portfolio projects. De-duplicates
+   216→  /// against existing entries by boundary name.
+   217→  /// 
+   218→  /// Enhanced to include comprehensive project context:
+   219→  /// - Stakeholder register data
+   220→  /// - Vendor/contractor information from Procurement
+   221→  /// - Existing interfaces already identified
+   222→  /// - Company/organization info where available
+   223→  Future<void> _aiPopulateInterfaces(
+   224→      BuildContext context, ProjectDataModel data) async {
+   225→    if (data.planningNotes['interface_ai_populated'] == 'true') return;
+   226→
+   227→    final additionalInterfaces =
+   228→        data.planningNotes['additional_interfaces'] ?? 'Not Applicable';
+   229→
+   230→    // Build a comprehensive program/portfolio context including:
+   231→    // - Stakeholder register data
+   232→    // - Vendor/contractor info
+   233→    // - Organization details
+   234→    // - Existing interfaces
+   235→    final programPortfolioContext = <String>[];
+   236→    
+   237→    try {
+   238→      // 1. Stakeholder Management Plan summary from planning notes
+   239→      final stakeholderPlan =
+   240→          data.planningNotes['stakeholder_management_plan'] ??
+   241→          data.planningNotes['stakeholder_engagement_plan'] ??
+   242→          '';
+   243→      if (stakeholderPlan.isNotEmpty) {
+   244→        programPortfolioContext
+   245→            .add('Stakeholder Management Plan: $stakeholderPlan');
+   246→      }
+   247→      
+   248→      // 2. Stakeholder Register Entries - extract key stakeholders for interface analysis
+   249→      if (data.stakeholderEntries.isNotEmpty) {
+   250→        final stakeholderSummary = data.stakeholderEntries
+   251→            .where((s) => (s.name ?? '').trim().isNotEmpty)
+   252→            .take(15)
+   253→            .map((s) => '- ${s.name} (${s.role ?? "Unknown Role"}): ${s.influence ?? ""} influence, ${s.interest ?? ""} interest')
+   254→            .join('\n');
+   255→        if (stakeholderSummary.isNotEmpty) {
+   256→          programPortfolioContext.add('Key Stakeholders:\n$stakeholderSummary');
+   257→        }
+   258→      }
+   259→      
+   260→      // 3. Vendor Information from Procurement
+   261→      if (data.vendors.isNotEmpty) {
+   262→        final vendorSummary = data.vendors
+   263→            .where((v) => v.name.trim().isNotEmpty)
+   264→            .map((v) => '- ${v.name}: ${v.equipmentOrService} (${v.status})')
+   265→            .join('\n');
+   266→        if (vendorSummary.isNotEmpty) {
+   267→          programPortfolioContext.add('Procurement Vendors:\n$vendorSummary');
+   268→        }
+   269→      }
+   270→      
+   271→      // 4. Contractor Information from Procurement
+   272→      if (data.contractors.isNotEmpty) {
+   273→        final contractorSummary = data.contractors
+   274→            .where((c) => c.name.trim().isNotEmpty)
+   275→            .map((c) => '- ${c.name}: ${c.service} (${c.status})')
+   276→            .join('\n');
+   277→        if (contractorSummary.isNotEmpty) {
+   278→          programPortfolioContext.add('Contractors:\n$contractorSummary');
+   279→        }
+   280→      }
+   281→      
+   282→      // 5. Existing interfaces already identified (for de-duplication context)
+   283→      if (data.interfaceEntries.isNotEmpty) {
+   284→        final existingIfaces = data.interfaceEntries
+   285→            .where((e) => e.boundary.trim().isNotEmpty)
+   286→            .take(10)
+   287→            .map((e) => '- ${e.boundary} [${e.interfaceType}] ${e.partyA} ↔ ${e.partyB}')
+   288→            .join('\n');
+   289→        if (existingIfaces.isNotEmpty) {
+   290→          programPortfolioContext.add('Existing Interfaces Already Identified:\n$existingIfaces');
+   291→        }
+   292→      }
+   293→      
+   294→      // 6. External integrations from Technology Planning
+   295→      if (data.externalIntegrations.isNotEmpty) {
+   296→        final extIntegrations = data.externalIntegrations
+   297→            .where((e) => (e['name']?.toString().trim() ?? '').isNotEmpty)
+   298→            .map((e) => '- ${e["name"]}: ${e["description"] ?? ""} (${e["connectionType"] ?? "API"})')
+   299→            .join('\n');
+   300→        if (extIntegrations.isNotEmpty) {
+   301→          programPortfolioContext.add('Technology External Integrations:\n$extIntegrations');
+   302→        }
+   303→      }
+   304→      
+   305→      // 7. Project site/location info if available
+   306→      final siteInfo = data.planningNotes['project_site'] ?? 
+   307→          data.planningNotes['site_location'] ?? 
+   308→          data.planningNotes['location'] ?? '';
+   309→      if (siteInfo.isNotEmpty) {
+   310→        programPortfolioContext.add('Project Site/Location: $siteInfo');
+   311→      }
+   312→      
+   313→    } catch (_) {
+   314→      debugPrint('Error building program/portfolio context for AI interface generation');
+   315→    }
+   316→
+   317→    final projectContext =
+   318→        ProjectDataHelper.buildFepContext(data, sectionLabel: 'Interface Management');
+   319→    if (projectContext.trim().isEmpty) return;
+   320→
+   321→    List<Map<String, dynamic>> aiEntries = [];
+   322→    try {
+   323→      aiEntries = await OpenAiServiceSecure().generateInterfaceEntries(
+   324→        context: projectContext,
+   325→        additionalInterfaces: additionalInterfaces,
+   326→        programPortfolioContext: programPortfolioContext.join('\n\n'),
+   327→        maxItems: 10,
+   328→      );
+   329→    } catch (e) {
+   330→      debugPrint('AI interface generation failed: $e');
+   331→      return;
+   332→    }
+   333→
+   334→    if (!mounted || aiEntries.isEmpty) {
+   335→      // Mark as attempted so we don't retry on every rebuild
+   336→      await ProjectDataHelper.updateAndSave(
+   337→        context: context,
+   338→        checkpoint: 'interface_management',
+   339→        showSnackbar: false,
+   340→        dataUpdater: (d) => d.copyWith(
+   341→          planningNotes: {
+   342→            ...d.planningNotes,
+   343→            'interface_ai_populated': 'true',
+   344→          },
+   345→        ),
+   346→      );
+   347→      return;
+   348→    }
+   349→
+   350→    // De-duplicate against existing entries by boundary name (case-insensitive)
+   351→    final existingBoundaries = data.interfaceEntries
+   352→        .map((e) => e.boundary.trim().toLowerCase())
+   353→        .where((s) => s.isNotEmpty)
+   354→        .toSet();
+   355→
+   356→    final newEntries = <InterfaceEntry>[];
+   357→    final logEntries = <InterfaceChangeLogEntry>[];
+   358→    final now = DateTime.now().toIso8601String();
+   359→
+   360→    for (final m in aiEntries) {
+   361→      final boundary = (m['boundary'] ?? '').toString().trim();
+   362→      if (boundary.isEmpty) continue;
+   363→      if (existingBoundaries.contains(boundary.toLowerCase())) continue;
+   364→      newEntries.add(InterfaceEntry(
+   365→        boundary: boundary,
+   366→        interfaceType: (m['interfaceType'] ?? 'Organizational').toString(),
+   367→        partyA: (m['partyA'] ?? 'Project Team').toString(),
+   368→        partyB: (m['partyB'] ?? '').toString(),
+   369→        criticality: (m['criticality'] ?? 'Major').toString(),
+   370→        priority: (m['priority'] ?? 'Medium').toString(),
+   371→        status: (m['status'] ?? 'Pending').toString(),
+   372→        owner: (m['owner'] ?? '').toString(),
+   373→        notes: (m['notes'] ?? '').toString(),
+   374→      ));
+   375→      existingBoundaries.add(boundary.toLowerCase());
+   376→      logEntries.add(InterfaceChangeLogEntry(
+   377→        interfaceId: '',
+   378→        interfaceName: boundary,
+   379→        action: 'AI-Generated',
+   380→        newValue: boundary,
+   381→        changedAt: now,
+   382→      ));
+   383→    }
+   384→
+   385→    if (newEntries.isEmpty) {
+   386→      await ProjectDataHelper.updateAndSave(
+   387→        context: context,
+   388→        checkpoint: 'interface_management',
+   389→        showSnackbar: false,
+   390→        dataUpdater: (d) => d.copyWith(
+   391→          planningNotes: {
+   392→            ...d.planningNotes,
+   393→            'interface_ai_populated': 'true',
+   394→          },
+   395→        ),
+   396→      );
+   397→      return;
+   398→    }
+   399→
+   400→    await ProjectDataHelper.updateAndSave(
+   401→      context: context,
+   402→      checkpoint: 'interface_management',
+   403→      showSnackbar: false,
+   404→      dataUpdater: (d) => d.copyWith(
+   405→        planningNotes: {
+   406→          ...d.planningNotes,
+   407→          'interface_ai_populated': 'true',
+   408→        },
+   409→        interfaceEntries: [...d.interfaceEntries, ...newEntries],
+   410→        interfaceChangeLog: [...d.interfaceChangeLog, ...logEntries],
+   411→      ),
+   412→    );
+   413→
+   414→    if (!mounted) return;
+   415→    ScaffoldMessenger.of(context).showSnackBar(
+   416→      SnackBar(
+   417→        content: Text(
+   418→            'KAZ AI identified ${newEntries.length} additional cross-scope interface(s).'),
+   419→        duration: const Duration(seconds: 4),
+   420→      ),
+   421→    );
+   422→  }
+   423→
+   424→  @override
+   425→  Widget build(BuildContext context) {
+   426→ final isMobile = AppBreakpoints.isMobile(context);
+   427→ final horizontalPadding = isMobile ? 20.0 : 32.0;
+   428→
+   429→ return Scaffold(
+   430→ backgroundColor: Colors.white,
+   431→ body: SafeArea(
+   432→ child: Row(
+   433→ crossAxisAlignment: CrossAxisAlignment.start,
+   434→ children: [
+   435→ DraggableSidebar(
+   436→ openWidth: AppBreakpoints.sidebarWidth(context),
+   437→ child: const InitiationLikeSidebar(
+   438→ activeItemLabel: 'Interface Management'),
+   439→ ),
+   440→ Expanded(
+   441→ child: Stack(
+   442→ children: [
+   443→ MobileSidebarHamburger(
+   444→ sidebar: const InitiationLikeSidebar(
+   445→ activeItemLabel: 'Interface Management',
+   446→ ),
+   447→ ),
+   448→ SingleChildScrollView(
+   449→ padding: EdgeInsets.symmetric(
+   450→ horizontal: horizontalPadding, vertical: 24),
+   451→ child: Column(
+   452→ crossAxisAlignment: CrossAxisAlignment.start,
+   453→ children: [
+   454→ const SizedBox(height: 20),
+   455→ const PlanningAiNotesCard(
+   456→ title: 'Notes',
+   457→ sectionLabel: 'Interface Management',
+   458→ noteKey: 'planning_interface_management_notes',
+   459→ checkpoint: 'interface_management',
+   460→ description:
+   461→ 'Summarize interface ownership, dependency risks, and governance cadence.',
+   462→ ),
+   463→ const SizedBox(height: 24),
+   464→ const InterfacePlanCard(),
+   465→ const SizedBox(height: 24),
+   466→ _buildMetricsRow(),
+   467→ const SizedBox(height: 24),
+   468→ _buildTabBar(),
+   469→ const SizedBox(height: 16),
+   470→ InnerPageNavigationHint(
+   471→ pageId: 'interface_management',
+   472→ pageTitle: 'Interface Management',
+   473→ sections: _ImTab.values.map((tab) => InnerPageSection(
+   474→ id: tab.name,
+   475→ label: tab.label,
+   476→ status: tab == _selectedTab
+   477→ ? InnerPageSectionStatus.current
+   478→ : InnerPageSectionStatus.available,
+   479→ stepNumber: _ImTab.values.indexOf(tab) + 1,
+   480→ )).toList(),
+   481→ currentSectionId: _selectedTab.name,
+   482→ onSectionTap: (sectionId) {
+   483→ final tab = _ImTab.values.firstWhere(
+   484→ (t) => t.name == sectionId);
+   485→ setState(() => _selectedTab = tab);
+   486→ },
+   487→ ),
+   488→ _buildTabContent(),
+   489→ const SizedBox(height: 24),
+   490→ LaunchPhaseNavigation(
+   491→ backLabel: PlanningPhaseNavigation.backLabel(
+   492→ 'interface_management'),
+   493→ nextLabel: PlanningPhaseNavigation.nextLabel(
+   494→ 'interface_management'),
+   495→ onBack: () =>
+   496→ PlanningPhaseNavigation.goToPrevious(
+   497→ context, 'interface_management'),
+   498→ onNext: () async {
+   499→   final shouldProceed = await SkipConfirmationDialog.show(
+   500→     context: context,
+   501→     sectionTitle: 'Interface Management',
+   502→     sectionName: 'interface_management',
+   503→   );
+   504→   if (shouldProceed == true) {
+   505→     PlanningPhaseNavigation.goToNext(
+   506→       context, 'interface_management');
+   507→   }
+   508→ },
+   509→ ),
+   510→ const SizedBox(height: 40),
+   511→ ],
+   512→ ),
+   513→ ),
+   514→ const Positioned(
+   515→ right: 24,
+   516→ bottom: 24,
+   517→ child: KazAiChatBubble(positioned: false)),
+   518→ ],
+   519→ ),
+   520→ ),
+   521→ ],
+   522→ ),
+   523→ ),
+   524→ );
+   525→ }
+   526→
+   527→ // ── Metrics ────────────────────────────────────────────────────────────
+   528→
+   529→ Widget _buildMetricsRow() {
+   530→ final data = ProjectDataHelper.getDataListening(context);
+   531→ final entries = data.interfaceEntries;
+   532→ final extIntegrations = data.externalIntegrations;
+   533→
+   534→ final activeInterfaces = entries.length;
+   535→ final criticalCount = entries
+   536→ .where((e) =>
+   537→ e.criticality.toLowerCase() == 'critical' ||
+   538→ _isCriticalRisk(e.risk))
+   539→ .length;
+   540→ final ownerCount = entries
+   541→ .map((e) => e.owner.trim())
+   542→ .where((o) => o.isNotEmpty)
+   543→ .toSet()
+   544→ .length;
+   545→ final openCount =
+   546→ entries.where((e) => _isOpenStatus(e.status)).length;
+   547→ final techLinkCount = extIntegrations.length;
+   548→
+   549→ return Wrap(
+   550→ spacing: 12,
+   551→ runSpacing: 12,
+   552→ children: [
+   553→ _MetricCard(
+   554→ label: 'Total Interfaces',
+   555→ value: '$activeInterfaces',
+   556→ accent: const Color(0xFFD97706)),
+   557→ _MetricCard(
+   558→ label: 'Critical',
+   559→ value: '$criticalCount',
+   560→ accent: const Color(0xFFEF4444)),
+   561→ _MetricCard(
+   562→ label: 'Owners',
+   563→ value: '$ownerCount',
+   564→ accent: const Color(0xFF10B981)),
+   565→ _MetricCard(
+   566→ label: 'Open Issues',
+   567→ value: '$openCount',
+   568→ accent: const Color(0xFFF59E0B)),
+   569→ _MetricCard(
+   570→ label: 'Tech Integrations',
+   571→ value: '$techLinkCount',
+   572→ accent: const Color(0xFF8B5CF6),
+   573→ tooltip: 'From Technology Planning'),
+   574→ _MetricCard(
+   575→ label: 'At Risk',
+   576→ value: '${entries.where((e) => _calculateHealth(e) == 'red').length}',
+   577→ accent: const Color(0xFFEF4444),
+   578→ tooltip: 'Critical + open status or blocker risk'),
+   579→ _MetricCard(
+   580→ label: 'Healthy',
+   581→ value: '${entries.where((e) => _calculateHealth(e) == 'green').length}',
+   582→ accent: const Color(0xFF10B981),
+   583→ tooltip: 'Approved/resolved/closed'),
+   584→ ],
+   585→ );
+   586→ }
+   587→
+   588→ // ── Tabs ───────────────────────────────────────────────────────────────
+   589→
+   590→ Widget _buildTabBar() {
+   591→ return Container(
+   592→ padding: const EdgeInsets.all(6),
+   593→ decoration: BoxDecoration(
+   594→ color: const Color(0xFFF4B422),
+   595→ borderRadius: BorderRadius.circular(8),
+   596→ ),
+   597→ child: Row(
+   598→ children: _ImTab.values.map((tab) {
+   599→ final selected = tab == _selectedTab;
+   600→ return Expanded(
+   601→ child: InkWell(
+   602→ onTap: () => setState(() => _selectedTab = tab),
+   603→ borderRadius: BorderRadius.circular(8),
+   604→ child: AnimatedContainer(
+   605→ duration: const Duration(milliseconds: 160),
+   606→ padding:
+   607→ const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+   608→ decoration: BoxDecoration(
+   609→ color: selected ? Colors.white : Colors.transparent,
+   610→ borderRadius: BorderRadius.circular(8),
+   611→ ),
+   612→ child: Text(
+   613→ tab.label,
+   614→ textAlign: TextAlign.center,
+   615→ style: TextStyle(
+   616→ fontSize: 12,
+   617→ fontWeight: FontWeight.w600,
+   618→ color: selected
+   619→ ? const Color(0xFF111827)
+   620→ : Colors.white,
+   621→ ),
+   622→ ),
+   623→ ),
+   624→ ),
+   625→ );
+   626→ }).toList(),
+   627→ ),
+   628→ );
+   629→ }
+   630→
+   631→ Widget _buildTabContent() {
+   632→ return Container(
+   633→ width: double.infinity,
+   634→ padding: const EdgeInsets.all(18),
+   635→ decoration: BoxDecoration(
+   636→ color: Colors.white,
+   637→ borderRadius: BorderRadius.circular(12),
+   638→ border: Border.all(color: const Color(0xFFE5E7EB)),
+   639→ ),
+   640→ child: Column(
+   641→ crossAxisAlignment: CrossAxisAlignment.start,
+   642→ children: [
+   643→ Row(
+   644→ children: [
+   645→ Expanded(
+   646→ child: Text(
+   647→ _selectedTab.label,
+   648→ style: const TextStyle(
+   649→ fontSize: 22,
+   650→ fontWeight: FontWeight.w700,
+   651→ color: Color(0xFF111827),
+   652→ ),
+   653→ ),
+   654→ ),
+   655→ if (_selectedTab == _ImTab.register)
+   656→ ElevatedButton.icon(
+   657→ onPressed: () => _InterfaceRegisterSection
+   658→ .showAddDialog(context),
+   659→ icon: const Icon(Icons.add, size: 16),
+   660→ label: const Text('Add Interface'),
+   661→ ),
+   662→ ],
+   663→ ),
+   664→ const SizedBox(height: 16),
+   665→  switch (_selectedTab) {
+   666→    _ImTab.register => const _InterfaceRegisterSection(),
+   667→    _ImTab.interfaceTypes => const _InterfaceTypesSection(),
+   668→    _ImTab.responsibilities => const _ResponsibilitiesSection(),
+   669→    _ImTab.coordination => const _CoordinationSection(),
+   670→    _ImTab.dependencyMgmt => const _DependencyMgmtSection(),
+   671→    _ImTab.risks => const _RisksDecisionsSection(),
+   672→    _ImTab.monitoring => const _MonitoringSection(),
+   673→    _ImTab.deliverables => const _DeliverablesSection(),
+   674→    _ImTab.audit => const _AuditTrailSection(),
+   675→  },
+   676→ ],
+   677→ ),
+   678→ );
+   679→ }
+   680→
+   681→ Future<void> _exportPdf() async {
+   682→ final projectData = ProjectDataHelper.getData(context);
+   683→ await PdfExportHelper.exportScreenPdf(
+   684→ context: context,
+   685→ screenTitle: 'Interface Management',
+   686→ sections: [
+   687→ PdfSection.keyValue('Project Info', [
+   688→ {'Project Name': projectData.projectName ?? 'N/A'},
+   689→ {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+   690→ ]),
+   691→ PdfSection.text('Notes', projectData.planningNotes['planning_interface_management_notes'] ?? 'No data recorded.'),
+   692→ ],
+   693→ );
+   694→ }
+   695→}
+   696→
+   697→// ─── Top Header ──────────────────────────────────────────────────────────────
+   698→
+   699→
+   700→class InterfacePlanCard extends StatefulWidget {
+   701→ const InterfacePlanCard({super.key});
+   702→
+   703→ @override
+   704→ State<InterfacePlanCard> createState() => _InterfacePlanCardState();
+   705→}
+   706→
+   707→class _InterfacePlanCardState extends State<InterfacePlanCard> {
+   708→ static const String _noteKey = 'planning_interface_management_plan';
+   709→ Timer? _saveDebounce;
+   710→ DateTime? _lastSavedAt;
+   711→ late String _initialText;
+   712→ bool _isAiGenerating = false;
+   713→
+   714→ @override
+   715→ void initState() {
+   716→ super.initState();
+   717→ _initialText =
+   718→ ProjectDataHelper.getData(context).planningNotes[_noteKey] ?? '';
+   719→ // Auto-generate the AI plan if empty and the popup has been completed
+   720→ WidgetsBinding.instance.addPostFrameCallback((_) {
+   721→   if (!mounted) return;
+   722→   final data = ProjectDataHelper.getData(context);
+   723→   final planText = (data.planningNotes[_noteKey] ?? '').trim();
+   724→   final popupDone = data.planningNotes['interface_identification_shown'] == 'true';
+   725→   final aiPlanDone = data.planningNotes['interface_plan_ai_generated'] == 'true';
+   726→   if (planText.isEmpty && popupDone && !aiPlanDone) {
+   727→     _generateAiPlan();
+   728→   }
+   729→ });
+   730→ }
+   731→
+   732→ Future<void> _generateAiPlan() async {
+   733→   if (_isAiGenerating) return;
+   734→   setState(() => _isAiGenerating = true);
+   735→   try {
+   736→     final data = ProjectDataHelper.getData(context);
+   737→     final additionalInterfaces =
+   738→         data.planningNotes['additional_interfaces'] ?? 'Not Applicable';
+   739→     
+   740→     // Build enhanced stakeholder plan context
+   741→     final stakeholderPlanBuffer = StringBuffer();
+   742→     final baseStakeholderPlan =
+   743→         data.planningNotes['stakeholder_management_plan'] ??
+   744→         data.planningNotes['stakeholder_engagement_plan'] ??
+   745→         '';
+   746→     if (baseStakeholderPlan.isNotEmpty) {
+   747→       stakeholderPlanBuffer.writeln(baseStakeholderPlan);
+   748→       stakeholderPlanBuffer.writeln();
+   749→     }
+   750→     
+   751→     // Add vendor/contractor context for richer AI plan generation
+   752→     if (data.vendors.isNotEmpty) {
+   753→       stakeholderPlanBuffer.writeln('Procurement Vendors:');
+   754→       for (final v in data.vendors.take(8)) {
+   755→         if (v.name.trim().isNotEmpty) {
+   756→           stakeholderPlanBuffer.writeln('- ${v.name}: ${v.equipmentOrService}');
+   757→         }
+   758→       }
+   759→       stakeholderPlanBuffer.writeln();
+   760→     }
+   761→     
+   762→     if (data.contractors.isNotEmpty) {
+   763→       stakeholderPlanBuffer.writeln('Contractors:');
+   764→       for (final c in data.contractors.take(6)) {
+   765→         if (c.name.trim().isNotEmpty) {
+   766→           stakeholderPlanBuffer.writeln('- ${c.name}: ${c.service}');
+   767→         }
+   768→       }
+   769→       stakeholderPlanBuffer.writeln();
+   770→     }
+   771→     
+   772→     // Add existing interface summary for context
+   773→     if (data.interfaceEntries.isNotEmpty) {
+   774→       stakeholderPlanBuffer.writeln('Current Interface Register Summary (${data.interfaceEntries.length} entries):');
+   775→       final criticalIfaces = data.interfaceEntries.where((e) => e.criticality.toLowerCase() == 'critical').toList();
+   776→       final majorIfaces = data.interfaceEntries.where((e) => e.criticality.toLowerCase() == 'major').toList();
+   777→       if (criticalIfaces.isNotEmpty) {
+   778→         stakeholderPlanBuffer.writeln('Critical Interfaces: ${criticalIfaces.map((e) => e.boundary).join(", ")}');
+   779→       }
+   780→       if (majorIfaces.isNotEmpty) {
+   781→         stakeholderPlanBuffer.writeln('Major Interfaces: ${majorIfaces.map((e) => e.boundary).join(", ")}');
+   782→       }
+   783→       stakeholderPlanBuffer.writeln();
+   784→     }
+   785→     
+   786→     final enhancedStakeholderPlan = stakeholderPlanBuffer.toString().trim();
+   787→     
+   788→     final projectContext = ProjectDataHelper.buildFepContext(
+   789→         data, sectionLabel: 'Interface Management');
+   790→     if (projectContext.trim().isEmpty) {
+   791→       setState(() => _isAiGenerating = false);
+   792→       return;
+   793→     }
+   794→     final plan = await OpenAiServiceSecure().generateInterfaceManagementPlan(
+   795→       context: projectContext,
+   796→       additionalInterfaces: additionalInterfaces,
+   797→       stakeholderPlanSummary: enhancedStakeholderPlan,
+   798→     );
+   799→     if (!mounted) return;
+   800→     if (plan.trim().isNotEmpty) {
+   801→       setState(() => _initialText = plan.trim());
+   802→       await ProjectDataHelper.updateAndSave(
+   803→         context: context,
+   804→         checkpoint: 'interface_management',
+   805→         showSnackbar: false,
+   806→         dataUpdater: (d) => d.copyWith(
+   807→           planningNotes: {
+   808→             ...d.planningNotes,
+   809→             _noteKey: plan.trim(),
+   810→             'interface_plan_ai_generated': 'true',
+   811→           },
+   812→         ),
+   813→       );
+   814→       if (mounted) {
+   815→         setState(() => _lastSavedAt = DateTime.now());
+   816→       }
+   817→     }
+   818→   } catch (e) {
+   819→     debugPrint('AI Interface Management Plan generation failed: $e');
+   820→   } finally {
+   821→     if (mounted) setState(() => _isAiGenerating = false);
+   822→   }
+   823→ }
+   824→
+   825→ @override
+   826→ void dispose() {
+   827→ _saveDebounce?.cancel();
+   828→ super.dispose();
+   829→ }
+   830→
+   831→ void _handleChanged(String value) {
+   832→ _saveDebounce?.cancel();
+   833→ _saveDebounce = Timer(const Duration(milliseconds: 700), () async {
+   834→ final trimmed = value.trim();
+   835→ final success = await ProjectDataHelper.updateAndSave(
+   836→ context: context,
+   837→ checkpoint: 'interface_management',
+   838→ dataUpdater: (data) => data.copyWith(
+   839→ planningNotes: {
+   840→ ...data.planningNotes,
+   841→ _noteKey: trimmed,
+   842→ },
+   843→ ),
+   844→ showSnackbar: false,
+   845→ );
+   846→ if (!mounted) return;
+   847→ if (success) {
+   848→ setState(() => _lastSavedAt = DateTime.now());
+   849→ }
+   850→ });
+   851→ }
+   852→
+   853→ @override
+   854→ Widget build(BuildContext context) {
+   855→    return _SectionCard(
+   856→      title: 'Interface Management Plan',
+   857→      subtitle:
+   858→          'Define how project interfaces will be identified, coordinated, and managed to ensure effective integration across stakeholders, organizations, systems, disciplines, and deliverables.',
+   859→ child: Column(
+   860→ crossAxisAlignment: CrossAxisAlignment.start,
+   861→ children: [
+   862→          if (_isAiGenerating)
+   863→            Container(
+   864→              padding: const EdgeInsets.all(12),
+   865→              margin: const EdgeInsets.only(bottom: 8),
+   866→              decoration: BoxDecoration(
+   867→                color: const Color(0xFFFFFDF7),
+   868→                borderRadius: BorderRadius.circular(8),
+   869→                border: Border.all(color: const Color(0xFFD97706).withOpacity(0.3)),
+   870→              ),
+   871→              child: Row(
+   872→                children: [
+   873→                  SizedBox(
+   874→                    width: 14,
+   875→                    height: 14,
+   876→                    child: CircularProgressIndicator(
+   877→                      strokeWidth: 2,
+   878→                      valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFFD97706)),
+   879→                    ),
+   880→                  ),
+   881→                  const SizedBox(width: 10),
+   882→                  Expanded(
+   883→                    child: Text(
+   884→                      'KAZ AI is generating a project-specific Interface Management Plan incorporating your additional interfaces input and stakeholder plan...',
+   885→                      style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+   886→                    ),
+   887→                  ),
+   888→                ],
+   889→              ),
+   890→            ),
+   891→          AiSuggestingTextField(
+   892→            fieldLabel: 'Interface Management Plan',
+   893→            hintText:
+   894→                'Define how project interfaces will be identified, coordinated, and managed to ensure effective integration across stakeholders, organizations, systems, disciplines, and deliverables.',
+   895→            sectionLabel: 'Interface Management',
+   896→            showLabel: false,
+   897→            autoGenerate: true,
+   898→            autoGenerateSection: 'Interface Management Plan',
+   899→ initialText: _initialText,
+   900→ onChanged: _handleChanged,
+   901→ ),
+   902→ Row(
+   903→   children: [
+   904→     if (_lastSavedAt != null)
+   905→       Padding(
+   906→         padding: const EdgeInsets.only(top: 8),
+   907→         child: Text(
+   908→           'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}',
+   909→           style:
+   910→               const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+   911→         ),
+   912→       ),
+   913→     const Spacer(),
+   914→     TextButton.icon(
+   915→       onPressed: _isAiGenerating ? null : _generateAiPlan,
+   916→       icon: const Icon(Icons.auto_awesome, size: 14),
+   917→       label: const Text('Regenerate AI Plan',
+   918→           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+   919→       style: TextButton.styleFrom(
+   920→         foregroundColor: const Color(0xFFD97706),
+   921→         minimumSize: Size.zero,
+   922→         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   923→         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+   924→       ),
+   925→     ),
+   926→   ],
+   927→ ),
+   928→ ],
+   929→ ),
+   930→ );
+   931→ }
+   932→}
+   933→
+   934→// ─── Metric Card ─────────────────────────────────────────────────────────────
+   935→
+   936→class _MetricCard extends StatelessWidget {
+   937→ const _MetricCard({
+   938→ required this.label,
+   939→ required this.value,
+   940→ required this.accent,
+   941→ this.tooltip,
+   942→ });
+   943→
+   944→ final String label;
+   945→ final String value;
+   946→ final Color accent;
+   947→ final String? tooltip;
+   948→
+   949→ @override
+   950→ Widget build(BuildContext context) {
+   951→ final child = Container(
+   952→ width: 170,
+   953→ padding: const EdgeInsets.all(14),
+   954→ decoration: BoxDecoration(
+   955→ color: Colors.white,
+   956→ borderRadius: BorderRadius.circular(14),
+   957→ border: Border.all(color: const Color(0xFFE5E7EB)),
+   958→ ),
+   959→ child: Column(
+   960→ crossAxisAlignment: CrossAxisAlignment.start,
+   961→ children: [
+   962→ Text(label,
+   963→ style:
+   964→ const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+   965→ const SizedBox(height: 6),
+   966→ Text(
+   967→ value,
+   968→ style: TextStyle(
+   969→ fontSize: 20, fontWeight: FontWeight.w700, color: accent),
+   970→ ),
+   971→ ],
+   972→ ),
+   973→ );
+   974→ if (tooltip != null) {
+   975→ return Tooltip(message: tooltip!, child: child);
+   976→ }
+   977→ return child;
+   978→ }
+   979→}
+   980→
+   981→// ═══════════════════════════════════════════════════════════════════════════════
+   982→// TAB 1: Interface Register
+   983→// ═══════════════════════════════════════════════════════════════════════════════
+   984→
+   985→class _InterfaceRegisterSection extends StatefulWidget {
+   986→ const _InterfaceRegisterSection();
+   987→
+   988→ static void showAddDialog(BuildContext context) {
+   989→ final data = ProjectDataHelper.getData(context);
+   990→ final entries = List<InterfaceEntry>.from(data.interfaceEntries);
+   991→ final extIntegrations = data.externalIntegrations;
+   992→
+   993→ // Suggest names from Technology Planning external integrations
+   994→ final suggestedNames = extIntegrations
+   995→ .map((e) => e['name']?.toString().trim() ?? '')
+   996→ .where((n) => n.isNotEmpty)
+   997→ .where((n) => !entries.any(
+   998→ (entry) => entry.boundary.trim().toLowerCase() == n.toLowerCase()))
+   999→ .toList();
+  1000→
+  1001→ _InterfaceEntryDialog.show(context, null, suggestedNames);
+  1002→ }
+  1003→
+  1004→ @override
+  1005→ State<_InterfaceRegisterSection> createState() => _InterfaceRegisterSectionState();
+  1006→}
+  1007→
+  1008→class _InterfaceRegisterSectionState extends State<_InterfaceRegisterSection> {
+  1009→ String _searchQuery = '';
+  1010→ String _typeFilter = 'All';
+  1011→ String _statusFilter = 'All';
+  1012→ String _priorityFilter = 'All';
+  1013→
+  1014→ List<InterfaceEntry> _applyFilters(List<InterfaceEntry> entries) {
+  1015→ var filtered = entries;
+  1016→ if (_searchQuery.trim().isNotEmpty) {
+  1017→ final q = _searchQuery.trim().toLowerCase();
+  1018→ filtered = filtered.where((e) =>
+  1019→ e.boundary.toLowerCase().contains(q) ||
+  1020→ e.partyA.toLowerCase().contains(q) ||
+  1021→ e.partyB.toLowerCase().contains(q) ||
+  1022→ e.owner.toLowerCase().contains(q) ||
+  1023→ e.notes.toLowerCase().contains(q)
+  1024→ ).toList();
+  1025→ }
+  1026→ if (_typeFilter != 'All') {
+  1027→ filtered = filtered.where((e) => e.interfaceType == _typeFilter).toList();
+  1028→ }
+  1029→ if (_statusFilter != 'All') {
+  1030→ filtered = filtered.where((e) => e.status == _statusFilter).toList();
+  1031→ }
+  1032→ if (_priorityFilter != 'All') {
+  1033→ filtered = filtered.where((e) => e.priority == _priorityFilter).toList();
+  1034→ }
+  1035→ return filtered;
+  1036→ }
+  1037→
+  1038→ Widget _buildFilterBar() {
+  1039→ return Container(
+  1040→ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  1041→ decoration: BoxDecoration(
+  1042→ color: const Color(0xFFF9FAFB),
+  1043→ borderRadius: BorderRadius.circular(8),
+  1044→ border: Border.all(color: const Color(0xFFE5E7EB)),
+  1045→ ),
+  1046→ child: Wrap(
+  1047→ spacing: 10,
+  1048→ runSpacing: 8,
+  1049→ crossAxisAlignment: WrapCrossAlignment.center,
+  1050→ children: [
+  1051→ SizedBox(
+  1052→ width: 220,
+  1053→ child: VoiceTextField(
+  1054→ onChanged: (v) => setState(() => _searchQuery = v),
+  1055→ decoration: InputDecoration(
+  1056→ prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF9CA3AF)),
+  1057→ hintText: 'Search interfaces...',
+  1058→ hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF9CA3AF)),
+  1059→ border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  1060→ contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1061→ isDense: true,
+  1062→ ),
+  1063→ style: const TextStyle(fontSize: 12),
+  1064→ ),
+  1065→ ),
+  1066→ SizedBox(
+  1067→ width: 140,
+  1068→ child: DropdownButtonFormField<String>(
+  1069→ value: _typeFilter,
+  1070→ decoration: InputDecoration(
+  1071→ labelText: 'Type',
+  1072→ labelStyle: const TextStyle(fontSize: 11),
+  1073→ border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  1074→ contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1075→ isDense: true,
+  1076→ ),
+  1077→ style: const TextStyle(fontSize: 12),
+  1078→ items: ['All', ..._kInterfaceTypes]
+  1079→ .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+  1080→ .toList(),
+  1081→ onChanged: (v) { if (v != null) setState(() => _typeFilter = v); },
+  1082→ ),
+  1083→ ),
+  1084→ SizedBox(
+  1085→ width: 140,
+  1086→ child: DropdownButtonFormField<String>(
+  1087→ value: _statusFilter,
+  1088→ decoration: InputDecoration(
+  1089→ labelText: 'Status',
+  1090→ labelStyle: const TextStyle(fontSize: 11),
+  1091→ border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  1092→ contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1093→ isDense: true,
+  1094→ ),
+  1095→ style: const TextStyle(fontSize: 12),
+  1096→ items: ['All', ..._kStatuses]
+  1097→ .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+  1098→ .toList(),
+  1099→ onChanged: (v) { if (v != null) setState(() => _statusFilter = v); },
+  1100→ ),
+  1101→ ),
+  1102→ SizedBox(
+  1103→ width: 140,
+  1104→ child: DropdownButtonFormField<String>(
+  1105→ value: _priorityFilter,
+  1106→ decoration: InputDecoration(
+  1107→ labelText: 'Priority',
+  1108→ labelStyle: const TextStyle(fontSize: 11),
+  1109→ border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+  1110→ contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1111→ isDense: true,
+  1112→ ),
+  1113→ style: const TextStyle(fontSize: 12),
+  1114→ items: ['All', ..._kPriorities]
+  1115→ .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12))))
+  1116→ .toList(),
+  1117→ onChanged: (v) { if (v != null) setState(() => _priorityFilter = v); },
+  1118→ ),
+  1119→ ),
+  1120→ ],
+  1121→ ),
+  1122→ );
+  1123→ }
+  1124→
+  1125→ @override
+  1126→ Widget build(BuildContext context) {
+  1127→ final data = ProjectDataHelper.getDataListening(context);
+  1128→ final allEntries = data.interfaceEntries;
+  1129→ final entries = _applyFilters(allEntries);
+  1130→
+  1131→ if (allEntries.isEmpty) {
+  1132→ // Show link to auto-import from Technology Planning
+  1133→ final extCount = data.externalIntegrations.length;
+  1134→ return Column(
+  1135→ children: [
+  1136→ _buildFilterBar(),
+  1137→ const SizedBox(height: 12),
+  1138→ const Padding(
+  1139→ padding: EdgeInsets.only(top: 12),
+  1140→ child: Text(
+  1141→ 'No interfaces registered yet. Add entries manually or import from Technology Planning.',
+  1142→ style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+  1143→ ),
+  1144→ ),
+  1145→ if (extCount > 0) ...[
+  1146→ const SizedBox(height: 16),
+  1147→ _ImportFromTechButton(count: extCount),
+  1148→ ],
+  1149→ ],
+  1150→ );
+  1151→ }
+  1152→
+  1153→ return Column(
+  1154→ children: [
+  1155→ // Import hint if there are unlinked external integrations
+  1156→ Builder(builder: (context) {
+  1157→ final extIntegrations = data.externalIntegrations;
+  1158→ final unlinked = extIntegrations.where((ext) {
+  1159→ final name = ext['name']?.toString().trim().toLowerCase() ?? '';
+  1160→ if (name.isEmpty) return false;
+  1161→ return !allEntries.any((e) =>
+  1162→ e.boundary.trim().toLowerCase() == name ||
+  1163→ e.partyA.trim().toLowerCase() == name ||
+  1164→ e.partyB.trim().toLowerCase() == name);
+  1165→ }).length;
+  1166→ if (unlinked > 0) {
+  1167→ return Padding(
+  1168→ padding: const EdgeInsets.only(bottom: 12),
+  1169→ child: _ImportFromTechButton(count: unlinked),
+  1170→ );
+  1171→ }
+  1172→ return const SizedBox.shrink();
+  1173→ }),
+  1174→ // Filter bar
+  1175→ _buildFilterBar(),
+  1176→ const SizedBox(height: 12),
+  1177→ if (entries.isEmpty)
+  1178→ const Padding(
+  1179→ padding: EdgeInsets.only(top: 12),
+  1180→ child: Text(
+  1181→ 'No interfaces match your filters.',
+  1182→ style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+  1183→ ),
+  1184→ )
+  1185→ else ...[
+  1186→  const SizedBox(height: 4),
+  1187→  SingleChildScrollView(
+  1188→    scrollDirection: Axis.horizontal,
+  1189→    child: SizedBox(
+  1190→      width: 1680, // Increased width for additional columns
+  1191→      child: Column(
+  1192→        crossAxisAlignment: CrossAxisAlignment.start,
+  1193→        children: [
+  1194→          _buildTableHeader(),
+  1195→          ...entries.asMap().entries.map((mapEntry) {
+  1196→            final index = mapEntry.key;
+  1197→            final entry = mapEntry.value;
+  1198→            return _InterfaceRegisterRow(
+  1199→              index: index + 1,
+  1200→              entry: entry,
+  1201→            );
+  1202→          }),
+  1203→        ],
+  1204→      ),
+  1205→    ),
+  1206→  ),
+  1207→ ],
+  1208→ ],
+  1209→ );
+  1210→ }
+  1211→
+  1212→ Widget _buildTableHeader() {
+  1213→ const headerStyle = TextStyle(
+  1214→ fontSize: 11,
+  1215→ fontWeight: FontWeight.w700,
+  1216→ color: Color(0xFF374151),
+  1217→ );
+  1218→ return Container(
+  1219→ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+  1220→ decoration: const BoxDecoration(
+  1221→ color: Color(0xFFF8FAFC),
+  1222→ border: Border.fromBorderSide(BorderSide(color: Color(0xFFE5E7EB))),
+  1223→ borderRadius: BorderRadius.only(
+  1224→ topLeft: Radius.circular(8),
+  1225→ topRight: Radius.circular(8),
+  1226→ ),
+  1227→ ),
+  1228→ child: Row(
+  1229→ children: [
+  1230→ // Column 1: # (ID)
+  1231→ const SizedBox(width: 32, child: Text('#', style: headerStyle, textAlign: TextAlign.center)),
+  1232→ const SizedBox(width: 8),
+  1233→ // Column 2: Boundary/Name
+  1234→ const SizedBox(width: 170, child: Text('Boundary / Name', style: headerStyle, maxLines: 1, overflow: TextOverflow.ellipsis)),
+  1235→ const SizedBox(width: 8),
+  1236→ // Column 3: Type
+  1237→ const SizedBox(width: 90, child: Text('Type', style: headerStyle)),
+  1238→ const SizedBox(width: 8),
+  1239→ // Column 4: Party A (Providing)
+  1240→ const SizedBox(width: 110, child: Text('Party A (Provides)', style: headerStyle)),
+  1241→ const SizedBox(width: 8),
+  1242→ // Column 5: Party B (Receiving)
+  1243→ const SizedBox(width: 110, child: Text('Party B (Receives)', style: headerStyle)),
+  1244→ const SizedBox(width: 8),
+  1245→ // Column 6: Criticality
+  1246→ const SizedBox(width: 80, child: Text('Criticality', style: headerStyle, textAlign: TextAlign.center)),
+  1247→ const SizedBox(width: 8),
+  1248→ // Column 7: Priority
+  1249→ const SizedBox(width: 70, child: Text('Priority', style: headerStyle, textAlign: TextAlign.center)),
+  1250→ const SizedBox(width: 8),
+  1251→ // Column 8: Status
+  1252→ const SizedBox(width: 85, child: Text('Status', style: headerStyle, textAlign: TextAlign.center)),
+  1253→ const SizedBox(width: 8),
+  1254→ // Column 9: Data Flow Direction
+  1255→ const SizedBox(width: 100, child: Text('Data Flow', style: headerStyle, textAlign: TextAlign.center)),
+  1256→ const SizedBox(width: 8),
+  1257→ // Column 10: Protocol
+  1258→ const SizedBox(width: 90, child: Text('Protocol', style: headerStyle, textAlign: TextAlign.center)),
+  1259→ const SizedBox(width: 8),
+  1260→ // Column 11: Owner
+  1261→ const SizedBox(width: 110, child: Text('Owner', style: headerStyle)),
+  1262→ const SizedBox(width: 8),
+  1263→ // Column 12: Review Cadence
+  1264→ const SizedBox(width: 95, child: Text('Cadence', style: headerStyle, textAlign: TextAlign.center)),
+  1265→ const SizedBox(width: 8),
+  1266→ // Column 13: Risk (linked)
+  1267→ const SizedBox(width: 130, child: Text('Risk (Linked)', style: headerStyle)),
+  1268→ const SizedBox(width: 8),
+  1269→ // Column 14: Actions
+  1270→ const SizedBox(width: 70, child: Text('Actions', style: headerStyle, textAlign: TextAlign.center)),
+  1271→ ],
+  1272→ ),
+  1273→ );
+  1274→ }
+  1275→}
+  1276→
+  1277→class _ImportFromTechButton extends StatelessWidget {
+  1278→ const _ImportFromTechButton({required this.count});
+  1279→
+  1280→ final int count;
+  1281→
+  1282→ @override
+  1283→ Widget build(BuildContext context) {
+  1284→ return OutlinedButton.icon(
+  1285→ onPressed: () async {
+  1286→ final data = ProjectDataHelper.getData(context);
+  1287→ final entries = List<InterfaceEntry>.from(data.interfaceEntries);
+  1288→ final extIntegrations = data.externalIntegrations;
+  1289→ final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
+  1290→ final now = DateTime.now().toIso8601String();
+  1291→
+  1292→ int added = 0;
+  1293→ for (final ext in extIntegrations) {
+  1294→ final name = ext['name']?.toString().trim() ?? '';
+  1295→ if (name.isEmpty) continue;
+  1296→ final alreadyExists = entries.any((e) =>
+  1297→ e.boundary.trim().toLowerCase() == name.toLowerCase());
+  1298→ if (alreadyExists) continue;
+  1299→
+  1300→ final newEntry = InterfaceEntry(
+  1301→ boundary: name,
+  1302→ owner: ext['description']?.toString() ?? '',
+  1303→ interfaceType: 'Technical',
+  1304→ protocol: ext['connectionType']?.toString() ?? 'API',
+  1305→ status: ext['status']?.toString().isNotEmpty == true
+  1306→ ? ext['status'].toString()
+  1307→ : 'Pending',
+  1308→ notes: 'Imported from Technology Planning',
+  1309→ );
+  1310→ entries.add(newEntry);
+  1311→ logEntries.add(InterfaceChangeLogEntry(
+  1312→ interfaceId: newEntry.id,
+  1313→ interfaceName: name,
+  1314→ action: 'Imported',
+  1315→ newValue: name,
+  1316→ changedAt: now,
+  1317→ ));
+  1318→ added++;
+  1319→ }
+  1320→
+  1321→ if (added > 0) {
+  1322→ await ProjectDataHelper.updateAndSave(
+  1323→ context: context,
+  1324→ checkpoint: 'interface_management',
+  1325→ dataUpdater: (d) => d.copyWith(
+  1326→ interfaceEntries: entries,
+  1327→ interfaceChangeLog: logEntries,
+  1328→ ),
+  1329→ );
+  1330→ if (context.mounted) {
+  1331→ ScaffoldMessenger.of(context).showSnackBar(
+  1332→ SnackBar(
+  1333→ content:
+  1334→ Text('Imported $added interface(s) from Technology Planning')),
+  1335→ );
+  1336→ }
+  1337→ }
+  1338→ },
+  1339→ icon: const Icon(Icons.download_outlined, size: 16),
+  1340→ label: Text('Import $count from Technology Planning'),
+  1341→ );
+  1342→ }
+  1343→}
+  1344→
+  1345→class _InterfaceRegisterRow extends StatelessWidget {
+  1346→ const _InterfaceRegisterRow({
+  1347→ required this.index,
+  1348→ required this.entry,
+  1349→ });
+  1350→
+  1351→ final int index;
+  1352→ final InterfaceEntry entry;
+  1353→
+  1354→ @override
+  1355→ Widget build(BuildContext context) {
+  1356→ final name = entry.boundary.trim().isNotEmpty
+  1357→ ? entry.boundary.trim()
+  1358→ : 'Unnamed';
+  1359→    
+  1360→ final dataFlowText = entry.dataFlow.trim().isEmpty ? '-' : entry.dataFlow;
+  1361→ final protocolText = entry.protocol.trim().isEmpty ? '-' : entry.protocol;
+  1362→ final ownerText = entry.owner.trim().isEmpty ? 'Unassigned' : entry.owner;
+  1363→ final cadenceText = entry.cadence.trim().isEmpty ? '-' : entry.cadence;
+  1364→ final riskText = entry.risk.trim().isEmpty ? 'No risk' : (entry.risk.length > 40 ? '${entry.risk.substring(0, 37)}...' : entry.risk);
+  1365→
+  1366→ return Container(
+  1367→ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+  1368→ decoration: const BoxDecoration(
+  1369→ border: Border(
+  1370→ left: BorderSide(color: Color(0xFFE5E7EB)),
+  1371→ right: BorderSide(color: Color(0xFFE5E7EB)),
+  1372→ bottom: BorderSide(color: Color(0xFFE5E7EB)),
+  1373→ ),
+  1374→ ),
+  1375→  child: Row(
+  1376→    children: [
+  1377→      // Column 1: # (ID)
+  1378→      SizedBox(
+  1379→        width: 32,
+  1380→        child: Text('$index',
+  1381→            textAlign: TextAlign.center,
+  1382→            style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+  1383→      ),
+  1384→      const SizedBox(width: 8),
+  1385→      // Column 2: Boundary/Name with health indicator
+  1386→      SizedBox(
+  1387→        width: 170,
+  1388→        child: Row(
+  1389→          children: [
+  1390→            _HealthDot(entry: entry),
+  1391→            const SizedBox(width: 6),
+  1392→            Expanded(
+  1393→              child: Text(name,
+  1394→                  maxLines: 1,
+  1395→                  overflow: TextOverflow.ellipsis,
+  1396→                  style: const TextStyle(
+  1397→                      fontSize: 11, fontWeight: FontWeight.w600)),
+  1398→            ),
+  1399→          ],
+  1400→        ),
+  1401→      ),
+  1402→      const SizedBox(width: 8),
+  1403→      // Column 3: Type
+  1404→      SizedBox(
+  1405→        width: 90,
+  1406→        child: _TypeBadge(type: entry.interfaceType),
+  1407→      ),
+  1408→      const SizedBox(width: 8),
+  1409→      // Column 4: Party A (Provides)
+  1410→      SizedBox(
+  1411→        width: 110,
+  1412→        child: Text(entry.partyA.trim(),
+  1413→            maxLines: 1,
+  1414→            overflow: TextOverflow.ellipsis,
+  1415→            style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+  1416→      ),
+  1417→      const SizedBox(width: 8),
+  1418→      // Column 5: Party B (Receives)
+  1419→      SizedBox(
+  1420→        width: 110,
+  1421→        child: Text(entry.partyB.trim(),
+  1422→            maxLines: 1,
+  1423→            overflow: TextOverflow.ellipsis,
+  1424→            style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+  1425→      ),
+  1426→      const SizedBox(width: 8),
+  1427→      // Column 6: Criticality
+  1428→      SizedBox(
+  1429→        width: 80,
+  1430→        child: _CriticalityBadge(criticality: entry.criticality),
+  1431→      ),
+  1432→      const SizedBox(width: 8),
+  1433→      // Column 7: Priority
+  1434→      SizedBox(
+  1435→        width: 70,
+  1436→        child: _PriorityBadge(priority: entry.priority),
+  1437→      ),
+  1438→      const SizedBox(width: 8),
+  1439→      // Column 8: Status
+  1440→      SizedBox(
+  1441→        width: 85,
+  1442→        child: _StatusBadge(label: entry.status),
+  1443→      ),
+  1444→      const SizedBox(width: 8),
+  1445→      // Column 9: Data Flow Direction
+  1446→      SizedBox(
+  1447→        width: 100,
+  1448→        child: Center(
+  1449→          child: _DataFlowBadge(dataFlow: dataFlowText),
+  1450→        ),
+  1451→      ),
+  1452→      const SizedBox(width: 8),
+  1453→      // Column 10: Protocol
+  1454→      SizedBox(
+  1455→        width: 90,
+  1456→        child: Center(
+  1457→          child: Text(protocolText,
+  1458→              textAlign: TextAlign.center,
+  1459→              maxLines: 1,
+  1460→              overflow: TextOverflow.ellipsis,
+  1461→              style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+  1462→        ),
+  1463→      ),
+  1464→      const SizedBox(width: 8),
+  1465→      // Column 11: Owner
+  1466→      SizedBox(
+  1467→        width: 110,
+  1468→        child: Text(ownerText,
+  1469→            maxLines: 1,
+  1470→            overflow: TextOverflow.ellipsis,
+  1471→            style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+  1472→      ),
+  1473→      const SizedBox(width: 8),
+  1474→      // Column 12: Review Cadence
+  1475→      SizedBox(
+  1476→        width: 95,
+  1477→        child: Center(
+  1478→          child: Text(cadenceText,
+  1479→              textAlign: TextAlign.center,
+  1480→              maxLines: 1,
+  1481→              overflow: TextOverflow.ellipsis,
+  1482→              style: const TextStyle(fontSize: 11, color: Color(0xFF4B5563))),
+  1483→        ),
+  1484→      ),
+  1485→      const SizedBox(width: 8),
+  1486→      // Column 13: Risk (linked)
+  1487→      SizedBox(
+  1488→        width: 130,
+  1489→        child: _RiskCell(riskText: riskText, hasRisk: entry.risk.trim().isNotEmpty),
+  1490→      ),
+  1491→      const SizedBox(width: 8),
+  1492→      // Column 14: Actions
+  1493→      SizedBox(
+  1494→        width: 70,
+  1495→        child: Row(
+  1496→          mainAxisSize: MainAxisSize.min,
+  1497→          mainAxisAlignment: MainAxisAlignment.center,
+  1498→          children: [
+  1499→            IconButton(
+  1500→              tooltip: 'Edit',
+  1501→              onPressed: () =>
+  1502→                  _InterfaceEntryDialog.show(context, entry, const []),
+  1503→              icon: const Icon(Icons.edit_outlined, size: 15),
+  1504→              padding: EdgeInsets.zero,
+  1505→              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+  1506→            ),
+  1507→            IconButton(
+  1508→              tooltip: 'Delete',
+  1509→              onPressed: () => _deleteEntry(context, entry.id),
+  1510→              icon: const Icon(Icons.delete_outline,
+  1511→                  size: 15, color: Color(0xFFEF4444)),
+  1512→              padding: EdgeInsets.zero,
+  1513→              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+  1514→            ),
+  1515→          ],
+  1516→        ),
+  1517→      ),
+  1518→    ],
+  1519→  ),
+  1520→ );
+  1521→ }
+  1522→}
+  1523→
+  1524→ Future<void> _deleteEntry(BuildContext context, String id) async {
+  1525→ final confirm = await showDialog<bool>(
+  1526→ context: context,
+  1527→ builder: (ctx) => AlertDialog(
+  1528→ title: const Text('Remove interface entry'),
+  1529→ content: const Text(
+  1530→ 'This will delete the interface entry and remove it from AI context.'),
+  1531→ actions: [
+  1532→ TextButton(
+  1533→ onPressed: () => Navigator.of(ctx).pop(false),
+  1534→ child: const Text('Cancel'),
+  1535→ ),
+  1536→ TextButton(
+  1537→ onPressed: () => Navigator.of(ctx).pop(true),
+  1538→ child: const Text('Delete'),
+  1539→ ),
+  1540→ ],
+  1541→ ),
+  1542→ );
+  1543→ if (confirm != true) return;
+  1544→
+  1545→ final data = ProjectDataHelper.getData(context);
+  1546→ final entryToDelete = data.interfaceEntries.firstWhere((e) => e.id == id);
+  1547→ final entries =
+  1548→ data.interfaceEntries.where((e) => e.id != id).toList();
+  1549→ final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
+  1550→ logEntries.add(InterfaceChangeLogEntry(
+  1551→ interfaceId: entryToDelete.id,
+  1552→ interfaceName: entryToDelete.boundary.trim().isNotEmpty ? entryToDelete.boundary.trim() : 'Unnamed',
+  1553→ action: 'Deleted',
+  1554→ oldValue: entryToDelete.boundary,
+  1555→ changedAt: DateTime.now().toIso8601String(),
+  1556→ ));
+  1557→  _removeInterfaceRiskFromGlobal(context: context, interfaceId: id);
+  1558→  await ProjectDataHelper.updateAndSave(
+  1559→    context: context,
+  1560→    checkpoint: 'interface_management',
+  1561→    dataUpdater: (d) => d.copyWith(
+  1562→      interfaceEntries: entries,
+  1563→      interfaceChangeLog: logEntries,
+  1564→    ),
+  1565→    showSnackbar: false,
+  1566→  );
+  1567→  unawaited(ActivityLogService.instance.logCheckpointActivity(
+  1568→    projectId: data.projectId ?? '',
+  1569→    checkpoint: 'interface_management',
+  1570→    action: 'Interface Deleted',
+  1571→    details: {
+  1572→      'interfaceId': id,
+  1573→      'interfaceName': entryToDelete.boundary,
+  1574→    },
+  1575→  ));
+  1576→  }
+  1577→}
+  1578→
+  1579→// ─── Risk Sync Helpers ───────────────────────────────────────────────────────
+  1580→
+  1581→const _kInterfaceRiskCategory = 'Interface';
+  1582→
+  1583→ExecutionRiskItem _interfaceEntryToRiskItem(InterfaceEntry entry) {
+  1584→  return ExecutionRiskItem(
+  1585→    id: 'iface_${entry.id}',
+  1586→    title: 'Interface Risk: ${entry.boundary.trim().isNotEmpty ? entry.boundary.trim() : entry.id}',
+  1587→    description: entry.risk.trim(),
+  1588→    category: _kInterfaceRiskCategory,
+  1589→    owner: entry.owner.trim(),
+  1590→    likelihoodScore: 0,
+  1591→    impactScore: 0,
+  1592→    probability: '',
+  1593→    impact: '',
+  1594→    riskScore: 0,
+  1595→    status: entry.status,
+  1596→    triggerEvents: '',
+  1597→    mitigationStrategy: '',
+  1598→    nextReview: '',
+  1599→    associatedMitigation: '',
+  1600→    createdAt: DateTime.now().toIso8601String(),
+  1601→    lastModified: DateTime.now().toIso8601String(),
+  1602→    controlAccountId: '',
+  1603→    sourceSection: 'interface',
+  1604→    sourceSectionLabel: 'Interface Management',
+  1605→  );
+  1606→}
+  1607→
+  1608→void _syncInterfaceRiskToGlobal({
+  1609→  required BuildContext context,
+  1610→  required InterfaceEntry entry,
+  1611→  InterfaceEntry? oldEntry,
+  1612→}) {
+  1613→  final hasNewRisk = entry.risk.trim().isNotEmpty;
+  1614→
+  1615→  if (hasNewRisk) {
+  1616→    // Use the centralized RiskSyncService for syncing
+  1617→    final riskItem = _interfaceEntryToRiskItem(entry);
+  1618→    unawaited(RiskSyncService.syncRiskToGlobalLog(
+  1619→      context: context,
+  1620→      sectionId: 'interface',
+  1621→      sectionLabel: 'Interface Management',
+  1622→      riskItem: riskItem,
+  1623→      idPrefix: 'iface_',
+  1624→    ));
+  1625→  } else {
+  1626→    // Remove risk from global log when cleared
+  1627→    unawaited(RiskSyncService.removeRiskFromGlobalLog(
+  1628→      context: context,
+  1629→      riskGlobalId: 'iface_${entry.id}',
+  1630→      sectionId: 'interface',
+  1631→    ));
+  1632→  }
+  1633→
+  1634→  // Also sync to the central FEP Risk Register (bidirectional)
+  1635→  if (hasNewRisk) {
+  1636→    unawaited(ProjectDataHelper.upsertRiskToRegister(
+  1637→      context: context,
+  1638→      sourceSection: 'Interface Management',
+  1639→      riskName: 'Interface: ${entry.boundary}',
+  1640→      description: entry.notes.isNotEmpty
+  1641→          ? entry.notes
+  1642→          : 'Risk associated with interface ${entry.boundary} (${entry.partyA} ↔ ${entry.partyB})',
+  1643→      category: 'Interface Management',
+  1644→      impactLevel: entry.criticality.toLowerCase() == 'critical'
+  1645→          ? 'High'
+  1646→          : entry.criticality.toLowerCase() == 'major'
+  1647→              ? 'Medium'
+  1648→              : 'Low',
+  1649→      likelihood: 'Medium',
+  1650→      mitigationStrategy: entry.risk,
+  1651→      discipline: entry.interfaceType,
+  1652→      owner: entry.owner,
+  1653→      status: entry.status,
+  1654→    ));
+  1655→  } else {
+  1656→    unawaited(ProjectDataHelper.removeRiskFromRegister(
+  1657→      context: context,
+  1658→      sourceSection: 'Interface Management',
+  1659→      riskName: 'Interface: ${entry.boundary}',
+  1660→    ));
+  1661→  }
+  1662→
+  1663→  // Log to central activities log
+  1664→  unawaited(ProjectDataHelper.logActivityToCentral(
+  1665→    context: context,
+  1666→    sourceSection: 'Interface Management',
+  1667→    title: 'Interface ${entry.boundary} — ${hasNewRisk ? "Risk identified" : "Risk cleared"}',
+  1668→    description: 'Interface between ${entry.partyA} and ${entry.partyB}. Risk: ${entry.risk}',
+  1669→    phase: 'Planning',
+  1670→    discipline: entry.interfaceType,
+  1671→    role: entry.owner,
+  1672→  ));
+  1673→}
+  1674→
+  1675→void _removeInterfaceRiskFromGlobal({
+  1676→  required BuildContext context,
+  1677→  required String interfaceId,
+  1678→}) {
+  1679→  final data = ProjectDataHelper.getData(context);
+  1680→  final riskItems = List<ExecutionRiskItem>.from(data.executionRiskItems);
+  1681→  // Find the interface entry to get its boundary name for central register cleanup
+  1682→  final entry = data.interfaceEntries.firstWhere(
+  1683→    (e) => e.id == interfaceId,
+  1684→    orElse: () => InterfaceEntry(boundary: ''),
+  1685→  );
+  1686→  riskItems.removeWhere((r) => r.id == 'iface_$interfaceId');
+  1687→  ProjectDataHelper.updateAndSave(
+  1688→    context: context,
+  1689→    checkpoint: 'interface_management',
+  1690→    dataUpdater: (d) => d.copyWith(executionRiskItems: riskItems),
+  1691→    showSnackbar: false,
+  1692→  );
+  1693→  // Also remove from central FEP Risk Register
+  1694→  if (entry.boundary.isNotEmpty) {
+  1695→    unawaited(ProjectDataHelper.removeRiskFromRegister(
+  1696→      context: context,
+  1697→      sourceSection: 'Interface Management',
+  1698→      riskName: 'Interface: ${entry.boundary}',
+  1699→    ));
+  1700→  }
+  1701→}
+  1702→
+  1703→// ─── Entry Dialog (enhanced with new fields) ─────────────────────────────────
+  1704→
+  1705→class _InterfaceEntryDialog extends StatefulWidget {
+  1706→ const _InterfaceEntryDialog({
+  1707→ this.initial,
+  1708→ this.suggestedNames = const [],
+  1709→ });
+  1710→
+  1711→ final InterfaceEntry? initial;
+  1712→ final List<String> suggestedNames;
+  1713→
+  1714→ static void show(
+  1715→ BuildContext context, InterfaceEntry? initial, List<String> suggested) {
+  1716→ showDialog<InterfaceEntry>(
+  1717→ context: context,
+  1718→ builder: (_) => _InterfaceEntryDialog(
+  1719→ initial: initial,
+  1720→ suggestedNames: suggested,
+  1721→ ),
+  1722→ ).then((result) {
+  1723→ if (result == null) return;
+  1724→ final data = ProjectDataHelper.getData(context);
+  1725→ final entries = List<InterfaceEntry>.from(data.interfaceEntries);
+  1726→ final logEntries = List<InterfaceChangeLogEntry>.from(data.interfaceChangeLog);
+  1727→ final index = entries.indexWhere((e) => e.id == result.id);
+  1728→ final isCreate = index == -1;
+  1729→ if (isCreate) {
+  1730→ entries.add(result);
+  1731→ logEntries.add(InterfaceChangeLogEntry(
+  1732→ interfaceId: result.id,
+  1733→ interfaceName: result.boundary.trim().isNotEmpty ? result.boundary.trim() : 'Unnamed',
+  1734→ action: 'Created',
+  1735→ newValue: result.boundary,
+  1736→ changedAt: DateTime.now().toIso8601String(),
+  1737→ ));
+  1738→ } else {
+  1739→ final old = entries[index];
+  1740→ entries[index] = result;
+  1741→ // Create log entries for each changed field
+  1742→ final name = result.boundary.trim().isNotEmpty ? result.boundary.trim() : 'Unnamed';
+  1743→ final now = DateTime.now().toIso8601String();
+  1744→ final fields = <(String, String, String)>[
+  1745→ ('Boundary', old.boundary, result.boundary),
+  1746→ ('Interface Type', old.interfaceType, result.interfaceType),
+  1747→ ('Party A', old.partyA, result.partyA),
+  1748→ ('Party B', old.partyB, result.partyB),
+  1749→ ('Criticality', old.criticality, result.criticality),
+  1750→ ('Priority', old.priority, result.priority),
+  1751→ ('Data Flow', old.dataFlow, result.dataFlow),
+  1752→ ('Protocol', old.protocol, result.protocol),
+  1753→ ('Owner', old.owner, result.owner),
+  1754→ ('Status', old.status, result.status),
+  1755→  ('Cadence', old.cadence, result.cadence),
+  1756→  ('Risk', old.risk, result.risk),
+  1757→  ('Notes', old.notes, result.notes),
+  1758→  ];
+  1759→  for (final (fieldName, oldVal, newVal) in fields) {
+  1760→  if (oldVal.trim() != newVal.trim()) {
+  1761→  final action = fieldName == 'Status' ? 'Status Changed' : 'Updated';
+  1762→  logEntries.add(InterfaceChangeLogEntry(
+  1763→  interfaceId: result.id,
+  1764→  interfaceName: name,
+  1765→  action: action,
+  1766→  fieldName: fieldName,
+  1767→  oldValue: oldVal,
+  1768→  newValue: newVal,
+  1769→  changedAt: now,
+  1770→  ));
+  1771→  }
+  1772→  }
+  1773→  }
+  1774→  _syncInterfaceRiskToGlobal(
+  1775→  context: context,
+  1776→  entry: result,
+  1777→  oldEntry: isCreate ? null : entries[index],
+  1778→  );
+  1779→  ProjectDataHelper.updateAndSave(
+  1780→  context: context,
+  1781→  checkpoint: 'interface_management',
+  1782→  dataUpdater: (d) => d.copyWith(
+  1783→  interfaceEntries: entries,
+  1784→  interfaceChangeLog: logEntries,
+  1785→  ),
+  1786→  showSnackbar: false,
+  1787→  );
+  1788→  unawaited(ActivityLogService.instance.logCheckpointActivity(
+  1789→  projectId: data.projectId ?? '',
+  1790→  checkpoint: 'interface_management',
+  1791→  action: isCreate ? 'Interface Created' : 'Interface Updated',
+  1792→  details: {
+  1793→  'interfaceId': result.id,
+  1794→  'interfaceName': result.boundary,
+  1795→  'hasRisk': result.risk.trim().isNotEmpty,
+  1796→  },
+  1797→  ));
+  1798→  });
+  1799→  }
+  1800→
+  1801→  @override
+  1802→  State<_InterfaceEntryDialog> createState() => _InterfaceEntryDialogState();
+  1803→}
+  1804→
+  1805→class _InterfaceEntryDialogState extends State<_InterfaceEntryDialog> {
+  1806→  late final TextEditingController _boundaryCtrl;
+  1807→  late final TextEditingController _ownerCtrl;
+  1808→  late final TextEditingController _partyACtrl;
+  1809→  late final TextEditingController _partyBCtrl;
+  1810→  late final TextEditingController _notesCtrl;
+  1811→  late final TextEditingController _riskCtrl;
+  1812→
+  1813→ String _interfaceType = '';
+  1814→ String _priority = '';
+  1815→ String _criticality = '';
+  1816→ String _dataFlow = '';
+  1817→ String _protocol = '';
+  1818→  String _status = '';
+  1819→  String _cadence = '';
+  1820→  String _classification = 'External';
+  1821→
+  1822→  @override
+  1823→  void initState() {
+  1824→    super.initState();
+  1825→    final e = widget.initial;
+  1826→    _boundaryCtrl = TextEditingController(text: e?.boundary ?? '');
+  1827→    _ownerCtrl = TextEditingController(text: e?.owner ?? '');
+  1828→    _partyACtrl = TextEditingController(text: e?.partyA ?? '');
+  1829→    _partyBCtrl = TextEditingController(text: e?.partyB ?? '');
+  1830→    _notesCtrl = TextEditingController(text: e?.notes ?? '');
+  1831→    _interfaceType = e?.interfaceType ?? 'Technical';
+  1832→    _priority = e?.priority ?? 'Medium';
+  1833→    _criticality = e?.criticality ?? 'Major';
+  1834→    _dataFlow = e?.dataFlow ?? 'Bidirectional';
+  1835→    _protocol = e?.protocol ?? 'API';
+  1836→    _status = e?.status ?? 'Pending';
+  1837→    _cadence = e?.cadence ?? 'As Needed';
+  1838→    _riskCtrl = TextEditingController(text: e?.risk ?? '');
+  1839→    // Parse classification from notes if stored
+  1840→    if (e?.notes.contains('[Classification: ') == true) {
+  1841→      final start = e!.notes.indexOf('[Classification: ') + 17;
+  1842→      final end = e.notes.indexOf(']', start);
+  1843→      if (end > start) _classification = e.notes.substring(start, end);
+  1844→    }
+  1845→  }
+  1846→
+  1847→ @override
+  1848→  void dispose() {
+  1849→  _boundaryCtrl.dispose();
+  1850→  _ownerCtrl.dispose();
+  1851→  _partyACtrl.dispose();
+  1852→  _partyBCtrl.dispose();
+  1853→  _notesCtrl.dispose();
+  1854→  _riskCtrl.dispose();
+  1855→  super.dispose();
+  1856→  }
+  1857→
+  1858→  void _save() {
+  1859→    final baseNotes = _notesCtrl.text.trim();
+  1860→    final classificationTag = '[Classification: $_classification]';
+  1861→    final notes = baseNotes.contains('[Classification:')
+  1862→        ? baseNotes.replaceAll(RegExp(r'\[Classification:[^\]]*\]'), classificationTag)
+  1863→        : '$classificationTag $baseNotes';
+  1864→    final entry = InterfaceEntry(
+  1865→      id: widget.initial?.id,
+  1866→      boundary: _boundaryCtrl.text.trim(),
+  1867→      owner: _ownerCtrl.text.trim(),
+  1868→      cadence: _cadence,
+  1869→      risk: _riskCtrl.text.trim(),
+  1870→      status: _status,
+  1871→      lastSync: widget.initial?.lastSync ?? '',
+  1872→      notes: notes.trim(),
+  1873→      interfaceType: _interfaceType,
+  1874→      partyA: _partyACtrl.text.trim(),
+  1875→      partyB: _partyBCtrl.text.trim(),
+  1876→      priority: _priority,
+  1877→      criticality: _criticality,
+  1878→      dataFlow: _dataFlow,
+  1879→      protocol: _protocol,
+  1880→    );
+  1881→    Navigator.of(context).pop(entry);
+  1882→  }
+  1883→
+  1884→ Widget _field(String label, TextEditingController ctrl, {int maxLines = 1}) {
+  1885→ return Padding(
+  1886→ padding: const EdgeInsets.only(bottom: 10),
+  1887→ child: VoiceTextField(
+  1888→ controller: ctrl,
+  1889→ maxLines: maxLines,
+  1890→ decoration: InputDecoration(
+  1891→ labelText: label,
+  1892→ border:
+  1893→ OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+  1894→ contentPadding:
+  1895→ const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  1896→ ),
+  1897→ ),
+  1898→ );
+  1899→ }
+  1900→
+  1901→ Widget _dropdown(String label, String value, List<String> items) {
+  1902→ return Padding(
+  1903→ padding: const EdgeInsets.only(bottom: 10),
+  1904→ child: DropdownButtonFormField<String>(
+  1905→ value: items.contains(value) ? value : items.first,
+  1906→ decoration: InputDecoration(
+  1907→ labelText: label,
+  1908→ border:
+  1909→ OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+  1910→ contentPadding:
+  1911→ const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  1912→ ),
+  1913→ items: items
+  1914→ .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+  1915→ .toList(),
+  1916→ onChanged: (v) {
+  1917→ if (v == null) return;
+  1918→ setState(() {
+  1919→ if (label == 'Interface Type *') {
+  1920→ _interfaceType = v;
+  1921→ } else if (label == 'Priority *') {
+  1922→ _priority = v;
+  1923→ } else if (label == 'Criticality *') {
+  1924→ _criticality = v;
+  1925→ } else if (label == 'Data Flow') {
+  1926→ _dataFlow = v;
+  1927→ } else if (label == 'Protocol') {
+  1928→ _protocol = v;
+  1929→ } else if (label == 'Status *') {
+  1930→ _status = v;
+  1931→  } else if (label == 'Review Cadence') {
+  1932→  _cadence = v;
+  1933→  } else if (label == 'Classification') {
+  1934→  _classification = v;
+  1935→  }
+  1936→  });
+  1937→  },
+  1938→  ),
+  1939→  );
+  1940→  }
+  1941→
+  1942→ @override
+  1943→ Widget build(BuildContext context) {
+  1944→ return AlertDialog(
+  1945→ title: Text(widget.initial == null
+  1946→ ? 'Add Interface Entry'
+  1947→ : 'Edit Interface Entry'),
+  1948→ content: SizedBox(
+  1949→ width: MediaQuery.of(context).size.width * 0.85,
+  1950→ child: ConstrainedBox(
+  1951→ constraints: const BoxConstraints(maxWidth: 900),
+  1952→ child: SingleChildScrollView(
+  1953→ child: Column(
+  1954→ mainAxisSize: MainAxisSize.min,
+  1955→ children: [
+  1956→ // Suggested names from Technology Planning
+  1957→ if (widget.suggestedNames.isNotEmpty &&
+  1958→ widget.initial == null) ...[
+  1959→ const Align(
+  1960→ alignment: Alignment.centerLeft,
+  1961→ child: Text('Suggested from Technology Planning:',
+  1962→ style: TextStyle(
+  1963→ fontSize: 12,
+  1964→ fontWeight: FontWeight.w600,
+  1965→ color: Color(0xFF6B7280))),
+  1966→ ),
+  1967→ const SizedBox(height: 6),
+  1968→ Wrap(
+  1969→ spacing: 6,
+  1970→ runSpacing: 4,
+  1971→ children: widget.suggestedNames.take(8).map((name) {
+  1972→ return ActionChip(
+  1973→ label: Text(name),
+  1974→ onPressed: () {
+  1975→ _boundaryCtrl.text = name;
+  1976→ },
+  1977→ );
+  1978→ }).toList(),
+  1979→ ),
+  1980→ const SizedBox(height: 12),
+  1981→ const Divider(),
+  1982→ const SizedBox(height: 8),
+  1983→ ],
+  1984→ _field('Interface Name / Boundary *', _boundaryCtrl),
+  1985→ Row(
+  1986→ crossAxisAlignment: CrossAxisAlignment.start,
+  1987→ children: [
+  1988→ Expanded(child: _dropdown('Interface Type *', _interfaceType, _kInterfaceTypes)),
+  1989→ const SizedBox(width: 12),
+  1990→ Expanded(child: _dropdown('Priority *', _priority, _kPriorities)),
+  1991→ ],
+  1992→ ),
+  1993→  Row(
+  1994→    crossAxisAlignment: CrossAxisAlignment.start,
+  1995→    children: [
+  1996→      Expanded(child: _dropdown('Classification', _classification, const ['Internal', 'External'])),
+  1997→      const SizedBox(width: 12),
+  1998→      Expanded(child: _dropdown('Data Flow', _dataFlow, _kDataFlows)),
+  1999→    ],
+  2000→  ),
+
+[showing lines 1-2000 of 4163; use offset=2001 with limit to continue reading]

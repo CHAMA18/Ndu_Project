@@ -1,0 +1,1874 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:ndu_project/models/design_phase_models.dart';
+     3→import 'package:ndu_project/providers/project_data_provider.dart';
+     4→import 'package:ndu_project/models/project_data_model.dart';
+     5→import 'package:ndu_project/models/project_activity.dart';
+     6→import 'package:ndu_project/models/staffing_row.dart';
+     7→import 'package:ndu_project/services/project_intelligence_service.dart';
+     8→import 'package:ndu_project/services/sidebar_navigation_service.dart';
+     9→import 'package:ndu_project/utils/phase_transition_helper.dart';
+    10→import 'package:ndu_project/wbs/models/wbs_models.dart';
+    11→import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+    12→import 'package:provider/provider.dart';
+    13→
+    14→/// Helper functions for easy integration of ProjectDataProvider across screens
+    15→class ProjectDataHelper {
+    16→  /// The last project name observed by [buildProjectContextScan] or
+    17→  /// [captureProjectName]. Used as a fallback by modules whose `setup()`
+    18→  /// methods don't have access to a [BuildContext] (e.g. the Cost Estimate
+    19→  /// provider's [CostEstimateProvider.setup] method).
+    20→  static String? _lastKnownProjectName;
+    21→  static String? get lastKnownProjectName => _lastKnownProjectName;
+    22→
+    23→  /// Capture the current project name so later modules (Cost Estimate,
+    24→  /// Schedule) can read it without a [BuildContext].
+    25→  static void captureProjectName(String? name) {
+    26→    final trimmed = (name ?? '').trim();
+    27→    if (trimmed.isEmpty) return;
+    28→    _lastKnownProjectName = trimmed;
+    29→  }
+    30→
+    31→  /// Read the project name from the [ProjectDataProvider] in [context], if
+    32→  /// available, and update [lastKnownProjectName]. Returns the name (or null
+    33→  /// if no provider is in scope or the name is empty).
+    34→  static String? readProjectNameFromContext(BuildContext context) {
+    35→    final provider = ProjectDataInherited.maybeOf(context);
+    36→    if (provider == null) return _lastKnownProjectName;
+    37→    final name = provider.projectData.projectName.trim();
+    38→    if (name.isNotEmpty) {
+    39→      _lastKnownProjectName = name;
+    40→    }
+    41→    return _lastKnownProjectName;
+    42→  }
+    43→
+    44→  static ProjectMethodology? projectMethodologyFromOverallFramework(
+    45→      String? framework) {
+    46→    final normalized = (framework ?? '').trim().toLowerCase();
+    47→    if (normalized == 'agile') return ProjectMethodology.agile;
+    48→    if (normalized == 'hybrid') return ProjectMethodology.hybrid;
+    49→    if (normalized == 'waterfall') return ProjectMethodology.waterfall;
+    50→    return null;
+    51→  }
+    52→
+    53→  static String? overallFrameworkFromMethodology(ProjectMethodology? method) {
+    54→    switch (method) {
+    55→      case ProjectMethodology.agile:
+    56→        return 'Agile';
+    57→      case ProjectMethodology.hybrid:
+    58→        return 'Hybrid';
+    59→      case ProjectMethodology.waterfall:
+    60→        return 'Waterfall';
+    61→      case null:
+    62→        return null;
+    63→    }
+    64→  }
+    65→
+    66→  static ProjectMethodology resolvedProjectMethodology(ProjectDataModel data) {
+    67→    final management = data.designManagementData;
+    68→    if (management != null) return management.methodology;
+    69→    return projectMethodologyFromOverallFramework(data.overallFramework) ??
+    70→        ProjectMethodology.waterfall;
+    71→  }
+    72→
+    73→  /// Check if a destination checkpoint is locked/not accessible
+    74→  /// Returns true if the destination is locked, false if accessible
+    75→  static bool isDestinationLocked(
+    76→      BuildContext context, String destinationCheckpoint) {
+    77→    final provider = Provider.of<ProjectDataProvider>(context, listen: false);
+    78→
+    79→    final projectData = provider.projectData;
+    80→    final currentCheckpoint = projectData.currentCheckpoint;
+    81→
+    82→    // Check if it's a Basic Plan locked item
+    83→    const basicPlanLockedCheckpoints = {
+    84→      'fep_contract_vendor_quotes',
+    85→      'fep_security',
+    86→      'fep_allowance',
+    87→      'work_breakdown_structure',
+    88→      'interface_management',
+    89→      'project_baseline',
+    90→      'project_plan_level1_schedule',
+    91→      'project_plan_detailed_schedule',
+    92→      'project_plan_condensed_summary',
+    93→      'team_management',
+    94→      'staff_team',
+    95→      'update_ops_maintenance_plans',
+    96→      'gap_analysis_scope_reconcillation',
+    97→      'punchlist_actions',
+    98→      'salvage_disposal_team',
+    99→      'engineering_design',
+   100→      'specialized_design',
+   101→      'technical_development',
+   102→      'project_summary',
+   103→      'warranties_operations_support',
+   104→      'project_financial_review',
+   105→    };
+   106→
+   107→    if (projectData.isBasicPlanProject &&
+   108→        basicPlanLockedCheckpoints.contains(destinationCheckpoint)) {
+   109→      return true;
+   110→    }
+   111→
+   112→    // Check if checkpoint has been reached
+   113→    if (currentCheckpoint.isEmpty) {
+   114→      // Only allow first checkpoint if no progress
+   115→      return destinationCheckpoint !=
+   116→          SidebarNavigationService.instance.getNextItem(null)?.checkpoint;
+   117→    }
+   118→
+   119→    return !SidebarNavigationService.instance
+   120→        .isCheckpointReached(destinationCheckpoint, currentCheckpoint);
+   121→  }
+   122→
+   123→  /// Show a message when user tries to navigate to a locked destination
+   124→  static void showLockedDestinationMessage(
+   125→      BuildContext context, String destinationName) {
+   126→    if (!context.mounted) return;
+   127→    ScaffoldMessenger.of(context).showSnackBar(
+   128→      SnackBar(
+   129→        content: Text(
+   130→            'Please complete the current requirements before accessing $destinationName.'),
+   131→        backgroundColor: Colors.orange,
+   132→        duration: const Duration(seconds: 3),
+   133→        action: SnackBarAction(
+   134→          label: 'OK',
+   135→          textColor: Colors.white,
+   136→          onPressed: () {},
+   137→        ),
+   138→      ),
+   139→    );
+   140→  }
+   141→
+   142→  /// Show a message when required data is missing
+   143→  static void showMissingDataMessage(BuildContext context, String message) {
+   144→    if (!context.mounted) return;
+   145→    ScaffoldMessenger.of(context).showSnackBar(
+   146→      SnackBar(
+   147→        content: Text(message),
+   148→        backgroundColor: Colors.orange,
+   149→        duration: const Duration(seconds: 3),
+   150→      ),
+   151→    );
+   152→  }
+   153→
+   154→  /// Save current screen data and navigate to next screen with automatic Firebase sync
+   155→  /// Includes security check to prevent navigation to locked destinations
+   156→  static Future<void> saveAndNavigate({
+   157→    required BuildContext context,
+   158→    required String checkpoint,
+   159→    required Widget Function() nextScreenBuilder,
+   160→    ProjectDataModel Function(ProjectDataModel)? dataUpdater,
+   161→    String?
+   162→        destinationCheckpoint, // Optional: checkpoint of destination screen for lock checking
+   163→    String? destinationName, // Optional: human-readable name for error messages
+   164→    bool saveInBackground = false, // Opt-in: navigate immediately, save async
+   165→  }) async {
+   166→    final provider = Provider.of<ProjectDataProvider>(context, listen: false);
+   167→
+   168→    // Security check: Verify destination is not locked
+   169→    if (destinationCheckpoint != null &&
+   170→        isDestinationLocked(context, destinationCheckpoint)) {
+   171→      showLockedDestinationMessage(context, destinationName ?? 'the next page');
+   172→      return; // Block navigation
+   173→    }
+   174→
+   175→    // Update data if updater is provided
+   176→    if (dataUpdater != null) {
+   177→      provider.updateField(dataUpdater);
+   178→    }
+   179→
+   180→    if (saveInBackground) {
+   181→      // Update checkpoint in-memory so downstream widgets can reflect progress
+   182→      // immediately without waiting on network IO.
+   183→      provider
+   184→          .updateField((data) => data.copyWith(currentCheckpoint: checkpoint));
+   185→
+   186→      // Navigate immediately to reduce perceived latency.
+   187→      if (context.mounted) {
+   188→        PhaseTransitionHelper.pushPhaseAware(
+   189→          context: context,
+   190→          builder: (_) => nextScreenBuilder(),
+   191→          destinationCheckpoint: destinationCheckpoint,
+   192→          sourceCheckpoint: checkpoint,
+   193→        );
+   194→      }
+   195→
+   196→      // Save in the background (no UI blocking). We intentionally avoid showing
+   197→      // snackbars here because the source context may be disposed after nav.
+   198→      Future<void>(() async {
+   199→        try {
+   200→          final success = await provider.saveToFirebase(checkpoint: checkpoint);
+   201→          if (!success) {
+   202→            debugPrint(
+   203→              'Warning: ${provider.lastError ?? "Could not save data"} (background save)',
+   204→            );
+   205→          }
+   206→        } catch (e) {
+   207→          debugPrint('Background save error: $e');
+   208→        }
+   209→      });
+   210→
+   211→      return;
+   212→    }
+   213→
+   214→    // Save to Firebase (blocking)
+   215→    final success = await provider.saveToFirebase(checkpoint: checkpoint);
+   216→
+   217→    if (!success && context.mounted) {
+   218→      ScaffoldMessenger.of(context).showSnackBar(
+   219→        SnackBar(
+   220→          content:
+   221→              Text('Warning: ${provider.lastError ?? "Could not save data"}'),
+   222→          backgroundColor: Colors.orange,
+   223→        ),
+   224→      );
+   225→    }
+   226→
+   227→    // Navigate to next screen
+   228→    if (context.mounted) {
+   229→      PhaseTransitionHelper.pushPhaseAware(
+   230→        context: context,
+   231→        builder: (_) => nextScreenBuilder(),
+   232→        destinationCheckpoint: destinationCheckpoint,
+   233→        sourceCheckpoint: checkpoint,
+   234→      );
+   235→    }
+   236→  }
+   237→
+   238→  /// Build a compact, structured context string for Front End Planning prompts.
+   239→  /// This aggregates prior inputs across the project to enable high‑quality AI suggestions.
+   240→  ///
+   241→  /// When [wbs] and/or [costEstimate] are provided, the scan is enriched with
+   242→  /// a WBS structure section (framework + Level 1/2 node names) and a Cost
+   243→  /// Estimate summary (total + top cost lines), so AI prompts on later pages
+   244→  /// (Cost Estimate, Schedule, etc.) can reference the WBS and cost data.
+   245→  static String buildProjectContextScan(
+   246→    ProjectDataModel data, {
+   247→    String? sectionLabel,
+   248→    WBS? wbs,
+   249→    CostEstimate? costEstimate,
+   250→  }) {
+   251→    // Capture the latest project name so modules without a BuildContext
+   252→    // (e.g. CostEstimateProvider.setup) can read it later.
+   253→    captureProjectName(data.projectName);
+   254→
+   255→    final enriched = ProjectIntelligenceService.rebuildActivityLog(data);
+   256→    final base = ProjectIntelligenceService.buildContextScan(
+   257→      enriched,
+   258→      sectionLabel: sectionLabel,
+   259→    );
+   260→
+   261→    final wbsSection = wbs != null ? _wbsContextSection(wbs) : '';
+   262→    final costSection =
+   263→        costEstimate != null ? _costEstimateContextSection(costEstimate) : '';
+   264→
+   265→    final parts = <String>[
+   266→      base,
+   267→      if (wbsSection.isNotEmpty) wbsSection,
+   268→      if (costSection.isNotEmpty) costSection,
+   269→    ];
+   270→    return parts.where((s) => s.trim().isNotEmpty).join('\n\n');
+   271→  }
+   272→
+   273→  /// Build a compact WBS summary section for inclusion in AI context scans.
+   274→  /// Shows the framework, project name, and Level 1 / Level 2 node names so
+   275→  /// downstream AI prompts can reference the WBS structure.
+   276→  static String _wbsContextSection(WBS wbs) {
+   277→    final buf = StringBuffer();
+   278→    final counts = countNodes(wbs);
+   279→    buf.writeln('Work Breakdown Structure');
+   280→    buf.writeln('------------------------');
+   281→    buf.writeln('Project: ${wbs.projectName}');
+   282→    buf.writeln('Framework: ${wbs.framework.label}');
+   283→    buf.writeln(
+   284→        'Levels: ${counts.level1} ${wbs.framework.level1Label} · ${counts.level2} ${wbs.framework.level2Label}');
+   285→    if (wbs.level0.children.isNotEmpty) {
+   286→      buf.writeln('${wbs.framework.level1Label}:');
+   287→      for (final l1 in wbs.level0.children) {
+   288→        buf.writeln('- ${l1.code} ${l1.name}');
+   289→        if (l1.children.isNotEmpty) {
+   290→          for (final l2 in l1.children) {
+   291→            buf.writeln('    · ${l2.code} ${l2.name}');
+   292→          }
+   293→        }
+   294→      }
+   295→    }
+   296→    return buf.toString().trim();
+   297→  }
+   298→
+   299→  /// Build a compact Cost Estimate summary section for inclusion in AI
+   300→  /// context scans. Shows the project name, estimate class, total, and the
+   301→  /// top cost lines by amount so later pages can reference cost data.
+   302→  static String _costEstimateContextSection(CostEstimate estimate) {
+   303→    final buf = StringBuffer();
+   304→    buf.writeln('Cost Estimate');
+   305→    buf.writeln('-------------');
+   306→    buf.writeln('Project: ${estimate.projectName}');
+   307→    buf.writeln('Class: ${estimate.className.label} (${estimate.className.name})');
+   308→    buf.writeln('Delivery model: ${estimate.deliveryModel.label}');
+   309→    buf.writeln('Status: ${estimate.status.label}');
+   310→    buf.writeln('Currency: ${estimate.currency}');
+   311→    final total = estimate.lines.fold<double>(
+   312→        0, (s, l) => s + _effectiveLineTotalForContext(l));
+   313→    buf.writeln('Total: ${total.toStringAsFixed(2)} ${estimate.currency}');
+   314→    buf.writeln('Lines: ${estimate.lines.length}');
+   315→    if (estimate.lines.isNotEmpty) {
+   316→      final sorted = [...estimate.lines]
+   317→        ..sort((a, b) => _effectiveLineTotalForContext(b)
+   318→            .compareTo(_effectiveLineTotalForContext(a)));
+   319→      final top = sorted.take(8).toList();
+   320→      buf.writeln('Top cost lines:');
+   321→      for (final l in top) {
+   322→        final wbsRef = (l.wbsRef ?? '').trim();
+   323→        final refSuffix = wbsRef.isEmpty ? '' : ' [WBS: $wbsRef]';
+   324→        buf.writeln(
+   325→            '- ${l.category.label} · ${l.description}$refSuffix · ${_effectiveLineTotalForContext(l).toStringAsFixed(2)} ${estimate.currency}');
+   326→      }
+   327→    }
+   328→    return buf.toString().trim();
+   329→  }
+   330→
+   331→  /// Mirror of [ComputeUtils] effective line total — kept private to avoid
+   332→  /// importing the cost estimate compute utils from this helper (which would
+   333→  /// create a circular dependency in some downstream import graphs).
+   334→  static double _effectiveLineTotalForContext(CostLine l) {
+   335→    if (l.varianceType == VarianceType.remove) {
+   336→      return -(l.varianceBaselineTotal ?? 0);
+   337→    }
+   338→    if (l.varianceType == VarianceType.change) {
+   339→      return l.varianceDelta ?? 0;
+   340→    }
+   341→    return l.total;
+   342→  }
+   343→
+   344→  static List<String> _formatInterfaceEntriesForContext(
+   345→      List<InterfaceEntry> entries) {
+   346→    final formatted = <String>[];
+   347→    for (final entry in entries) {
+   348→      final boundary = entry.boundary.trim().isNotEmpty
+   349→          ? entry.boundary.trim()
+   350→          : 'Unnamed interface';
+   351→      final details = [
+   352→        if (entry.owner.trim().isNotEmpty) 'Owner: ${entry.owner.trim()}',
+   353→        if (entry.cadence.trim().isNotEmpty) 'Cadence: ${entry.cadence.trim()}',
+   354→        if (entry.risk.trim().isNotEmpty) 'Risk: ${entry.risk.trim()}',
+   355→        if (entry.status.trim().isNotEmpty) 'Status: ${entry.status.trim()}',
+   356→        if (entry.lastSync.trim().isNotEmpty)
+   357→          'Last sync: ${entry.lastSync.trim()}',
+   358→        if (entry.notes.trim().isNotEmpty) 'Notes: ${entry.notes.trim()}',
+   359→      ].join(' | ');
+   360→      final entryText = details.isNotEmpty ? '$boundary | $details' : boundary;
+   361→      formatted.add(entryText);
+   362→    }
+   363→    return formatted;
+   364→  }
+   365→
+   366→  static String buildFepContext(ProjectDataModel data, {String? sectionLabel}) {
+   367→    final buf = StringBuffer();
+   368→    void w(String label, String? value) {
+   369→      final v = (value ?? '').trim();
+   370→      if (v.isEmpty) return;
+   371→      buf.writeln('$label:');
+   372→      buf.writeln(v);
+   373→      buf.writeln();
+   374→    }
+   375→
+   376→    buf.writeln('Project Context');
+   377→    buf.writeln('================');
+   378→    w('Project Name', data.projectName);
+   379→    w('Solution Title', data.solutionTitle);
+   380→    w('Solution Description', data.solutionDescription);
+   381→    w('Business Case', data.businessCase);
+   382→    w('Initiation Notes', data.notes);
+   383→    w('Potential Solution', data.potentialSolution);
+   384→    w('Project Objective', data.projectObjective);
+   385→    w('Overall Framework', data.overallFramework);
+   386→
+   387→    if (data.projectGoals.isNotEmpty) {
+   388→      buf.writeln('Project Goals:');
+   389→      for (final g in data.projectGoals) {
+   390→        final name = (g.name).trim();
+   391→        final desc = (g.description).trim();
+   392→        if (name.isEmpty && desc.isEmpty) continue;
+   393→        buf.writeln(
+   394→            '- ${name.isEmpty ? 'Goal' : name}: ${desc.isEmpty ? '' : desc}');
+   395→      }
+   396→      buf.writeln();
+   397→    }
+   398→
+   399→    if (data.planningGoals.isNotEmpty) {
+   400→      buf.writeln('Planning Goals:');
+   401→      for (final g in data.planningGoals) {
+   402→        final title = (g.title).trim();
+   403→        final desc = (g.description).trim();
+   404→        final year = (g.targetYear).trim();
+   405→        if (title.isEmpty && desc.isEmpty && year.isEmpty) continue;
+   406→        buf.writeln(
+   407→            '- ${title.isEmpty ? 'Goal ${g.goalNumber}' : title} (${year.isEmpty ? 'n/a' : year}): $desc');
+   408→      }
+   409→      buf.writeln();
+   410→    }
+   411→
+   412→    if (data.keyMilestones.isNotEmpty) {
+   413→      buf.writeln('Key Milestones:');
+   414→      for (final m in data.keyMilestones) {
+   415→        final name = (m.name).trim();
+   416→        final due = (m.dueDate).trim();
+   417→        final discipline = (m.discipline).trim();
+   418→        if (name.isEmpty && due.isEmpty && discipline.isEmpty) continue;
+   419→        buf.writeln(
+   420→            '- ${name.isEmpty ? 'Milestone' : name} | Due: ${due.isEmpty ? 'TBD' : due} | ${discipline.isEmpty ? '' : 'Discipline: $discipline'}');
+   421→      }
+   422→      buf.writeln();
+   423→    }
+   424→
+   425→    if (data.planningNotes.isNotEmpty) {
+   426→      buf.writeln('Planning Phase Notes:');
+   427→      data.planningNotes.forEach((key, value) {
+   428→        final v = value.trim();
+   429→        if (v.isEmpty) return;
+   430→        buf.writeln('- ${key.trim()}: $v');
+   431→      });
+   432→      buf.writeln();
+   433→    }
+   434→
+   435→    // Include any prior Front End Planning fields already provided
+   436→    final fep = data.frontEndPlanning;
+   437→    w('Front End Planning – Requirements Notes', fep.requirementsNotes);
+   438→    w('Front End Planning – Requirements', fep.requirements);
+   439→    w('Front End Planning – Risks', fep.risks);
+   440→    w('Front End Planning – Opportunities', fep.opportunities);
+   441→    w('Front End Planning – Contracting', fep.contractVendorQuotes);
+   442→    w('Front End Planning – Procurement', fep.procurement);
+   443→    w('Front End Planning – Security', fep.security);
+   444→    w('Front End Planning – Allowance', fep.allowance);
+   445→    w('Front End Planning – Summary', fep.summary);
+   446→    w('Front End Planning – Technology', fep.technology);
+   447→    w('Front End Planning – Personnel', fep.personnel);
+   448→    w('Front End Planning – Infrastructure', fep.infrastructure);
+   449→
+   450→    final interfaceEntriesContext =
+   451→        _formatInterfaceEntriesForContext(data.interfaceEntries);
+   452→    if (interfaceEntriesContext.isNotEmpty) {
+   453→      buf.writeln('Interface Register:');
+   454→      for (final entry in interfaceEntriesContext) {
+   455→        buf.writeln('- $entry');
+   456→      }
+   457→      buf.writeln();
+   458→    }
+   459→
+   460→    if ((sectionLabel ?? '').isNotEmpty) {
+   461→      buf.writeln('Target Section: ${sectionLabel!.trim()}');
+   462→    }
+   463→
+   464→    return buf.toString().trim();
+   465→  }
+   466→
+   467→  /// Build context for AI-generated Project Objective summaries.
+   468→  /// Includes charter inputs and front-end planning details without reusing
+   469→  /// an existing objective to avoid circular summaries.
+   470→  static String buildProjectObjectiveContext(ProjectDataModel data) {
+   471→    final buf = StringBuffer();
+   472→
+   473→    void w(String label, String? value) {
+   474→      final v = (value ?? '').trim();
+   475→      if (v.isEmpty) return;
+   476→      buf.writeln('$label:');
+   477→      buf.writeln(v);
+   478→      buf.writeln();
+   479→    }
+   480→
+   481→    void wList(String label, Iterable<String> items) {
+   482→      final list =
+   483→          items.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+   484→      if (list.isEmpty) return;
+   485→      buf.writeln('$label:');
+   486→      for (final item in list) {
+   487→        buf.writeln('- $item');
+   488→      }
+   489→      buf.writeln();
+   490→    }
+   491→
+   492→    buf.writeln('Project Context');
+   493→    buf.writeln('================');
+   494→    w('Project Name', data.projectName);
+   495→    w('Solution Title', data.solutionTitle);
+   496→    w('Solution Description', data.solutionDescription);
+   497→    w('Business Case', data.businessCase);
+   498→    w('Initiation Notes', data.notes);
+   499→    w('Potential Solution', data.potentialSolution);
+   500→    w('Overall Framework', data.overallFramework);
+   501→
+   502→    w('Charter Assumptions', data.charterAssumptions);
+   503→    w('Charter Constraints', data.charterConstraints);
+   504→
+   505→    if (data.projectGoals.isNotEmpty) {
+   506→      final items = data.projectGoals.map((g) {
+   507→        final name = g.name.trim().isEmpty ? 'Goal' : g.name.trim();
+   508→        final desc = g.description.trim();
+   509→        return desc.isEmpty ? name : '$name: $desc';
+   510→      });
+   511→      wList('Project Goals', items);
+   512→    }
+   513→
+   514→    if (data.planningGoals.isNotEmpty) {
+   515→      final items = data.planningGoals.map((g) {
+   516→        final title =
+   517→            g.title.trim().isEmpty ? 'Goal ${g.goalNumber}' : g.title.trim();
+   518→        final year = g.targetYear.trim();
+   519→        final desc = g.description.trim();
+   520→        final suffix = [
+   521→          if (year.isNotEmpty) 'Target: $year',
+   522→          if (desc.isNotEmpty) desc,
+   523→        ].join(' | ');
+   524→        return suffix.isEmpty ? title : '$title ($suffix)';
+   525→      });
+   526→      wList('Planning Goals', items);
+   527→    }
+   528→
+   529→    if (data.keyMilestones.isNotEmpty) {
+   530→      final items = data.keyMilestones.map((m) {
+   531→        final name = m.name.trim().isNotEmpty ? m.name.trim() : 'Milestone';
+   532→        final due = m.dueDate.trim();
+   533→        final discipline = m.discipline.trim();
+   534→        final details = [
+   535→          if (due.isNotEmpty) 'Due: $due',
+   536→          if (discipline.isNotEmpty) 'Discipline: $discipline',
+   537→        ].join(' | ');
+   538→        return details.isEmpty ? name : '$name ($details)';
+   539→      });
+   540→      wList('Key Milestones', items);
+   541→    }
+   542→
+   543→    wList('Within Scope', data.withinScopeItems.map((e) => e.description));
+   544→    wList('Out of Scope', data.outOfScopeItems.map((e) => e.description));
+   545→    wList('Assumptions', data.assumptionItems.map((e) => e.description));
+   546→    wList('Constraints', data.constraintItems.map((e) => e.description));
+   547→
+   548→    if (data.planningNotes.isNotEmpty) {
+   549→      final items = data.planningNotes.entries
+   550→          .where((e) => e.value.trim().isNotEmpty)
+   551→          .map((e) => '${e.key}: ${e.value}');
+   552→      wList('Planning Notes', items);
+   553→    }
+   554→
+   555→    final fep = data.frontEndPlanning;
+   556→    w('Front End Planning – Requirements Notes', fep.requirementsNotes);
+   557→    w('Front End Planning – Requirements', fep.requirements);
+   558→    w('Front End Planning – Risks', fep.risks);
+   559→    w('Front End Planning – Opportunities', fep.opportunities);
+   560→    w('Front End Planning – Contracting', fep.contractVendorQuotes);
+   561→    w('Front End Planning – Procurement', fep.procurement);
+   562→    w('Front End Planning – Security', fep.security);
+   563→    w('Front End Planning – Allowance', fep.allowance);
+   564→    w('Front End Planning – Summary', fep.summary);
+   565→    w('Front End Planning – Technology', fep.technology);
+   566→    w('Front End Planning – Personnel', fep.personnel);
+   567→    w('Front End Planning – Infrastructure', fep.infrastructure);
+   568→
+   569→    final interfaceEntriesContext =
+   570→        _formatInterfaceEntriesForContext(data.interfaceEntries);
+   571→    if (interfaceEntriesContext.isNotEmpty) {
+   572→      buf.writeln('Interface Register:');
+   573→      for (final entry in interfaceEntriesContext) {
+   574→        buf.writeln('- $entry');
+   575→      }
+   576→      buf.writeln();
+   577→    }
+   578→
+   579→    buf.writeln('Target Section: Project Objective Summary');
+   580→    return buf.toString().trim();
+   581→  }
+   582→
+   583→  /// Build a richer, cross-application context string for executive plan diagrams.
+   584→  /// Includes only populated fields to avoid noise and random output.
+   585→  static String buildExecutivePlanContext(ProjectDataModel data,
+   586→      {String? sectionLabel}) {
+   587→    final buf = StringBuffer();
+   588→    var hasContent = false;
+   589→
+   590→    String clamp(String value, {int max = 420}) {
+   591→      final trimmed = value.trim();
+   592→      if (trimmed.length <= max) return trimmed;
+   593→      return '${trimmed.substring(0, max - 3)}...';
+   594→    }
+   595→
+   596→    void w(String label, String? value) {
+   597→      final v = clamp(value ?? '');
+   598→      if (v.isEmpty) return;
+   599→      hasContent = true;
+   600→      buf.writeln('$label:');
+   601→      buf.writeln(v);
+   602→      buf.writeln();
+   603→    }
+   604→
+   605→    void wList(String label, Iterable<String> items) {
+   606→      final list = items.map(clamp).where((e) => e.isNotEmpty).toList();
+   607→      if (list.isEmpty) return;
+   608→      hasContent = true;
+   609→      buf.writeln('$label:');
+   610→      for (final item in list) {
+   611→        buf.writeln('- $item');
+   612→      }
+   613→      buf.writeln();
+   614→    }
+   615→
+   616→    buf.writeln('Project Context');
+   617→    buf.writeln('================');
+   618→    w('Project Name', data.projectName);
+   619→    w('Solution Title', data.solutionTitle);
+   620→    w('Solution Description', data.solutionDescription);
+   621→    w('Business Case', data.businessCase);
+   622→    w('Project Objective', data.projectObjective);
+   623→    w('Overall Framework', data.overallFramework);
+   624→    w('Notes', data.notes);
+   625→    wList('Tags', data.tags);
+   626→
+   627→    if (data.projectGoals.isNotEmpty) {
+   628→      final items = data.projectGoals.map((g) {
+   629→        final name = g.name.trim().isEmpty ? 'Goal' : g.name.trim();
+   630→        final desc = g.description.trim();
+   631→        return desc.isEmpty ? name : '$name: $desc';
+   632→      });
+   633→      wList('Project Goals', items);
+   634→    }
+   635→
+   636→    if (data.planningGoals.isNotEmpty) {
+   637→      final items = data.planningGoals.map((g) {
+   638→        final title =
+   639→            g.title.trim().isEmpty ? 'Goal ${g.goalNumber}' : g.title.trim();
+   640→        final year = g.targetYear.trim();
+   641→        final desc = g.description.trim();
+   642→        final suffix = [
+   643→          if (year.isNotEmpty) 'Target: $year',
+   644→          if (desc.isNotEmpty) desc,
+   645→        ].join(' | ');
+   646→        return suffix.isEmpty ? title : '$title ($suffix)';
+   647→      });
+   648→      wList('Planning Goals', items);
+   649→    }
+   650→
+   651→    if (data.keyMilestones.isNotEmpty) {
+   652→      final items = data.keyMilestones.map((m) {
+   653→        final name = m.name.trim().isEmpty ? 'Milestone' : m.name.trim();
+   654→        final due = m.dueDate.trim();
+   655→        final discipline = m.discipline.trim();
+   656→        final details = [
+   657→          if (due.isNotEmpty) 'Due: $due',
+   658→          if (discipline.isNotEmpty) 'Discipline: $discipline',
+   659→        ].join(' | ');
+   660→        return details.isEmpty ? name : '$name ($details)';
+   661→      });
+   662→      wList('Key Milestones', items);
+   663→    }
+   664→
+   665→    if (data.planningNotes.isNotEmpty) {
+   666→      final items = data.planningNotes.entries
+   667→          .where((e) => e.value.trim().isNotEmpty)
+   668→          .map((e) => '${e.key}: ${e.value}');
+   669→      wList('Planning Notes', items);
+   670→    }
+   671→
+   672→    if (data.potentialSolutions.isNotEmpty) {
+   673→      final items = data.potentialSolutions.map((s) {
+   674→        final title = s.title.trim().isEmpty ? 'Solution' : s.title.trim();
+   675→        final desc = s.description.trim();
+   676→        return desc.isEmpty ? title : '$title: $desc';
+   677→      });
+   678→      wList('Potential Solutions', items);
+   679→    }
+   680→
+   681→    final preferred = data.preferredSolutionAnalysis;
+   682→    if (preferred != null) {
+   683→      w('Selected Solution', preferred.selectedSolutionTitle);
+   684→      w('Preferred Solution Notes', preferred.workingNotes);
+   685→    }
+   686→
+   687→    if (data.solutionRisks.isNotEmpty) {
+   688→      final items = <String>[];
+   689→      for (final r in data.solutionRisks) {
+   690→        final title = r.solutionTitle.trim().isEmpty
+   691→            ? 'Solution'
+   692→            : r.solutionTitle.trim();
+   693→        final risks =
+   694→            r.risks.map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+   695→        if (risks.isEmpty) continue;
+   696→        items.add('$title: ${risks.join('; ')}');
+   697→      }
+   698→      wList('Key Risks', items);
+   699→    }
+   700→
+   701→    if ((data.wbsCriteriaA ?? '').trim().isNotEmpty ||
+   702→        (data.wbsCriteriaB ?? '').trim().isNotEmpty) {
+   703→      w('WBS Criteria A', data.wbsCriteriaA);
+   704→      w('WBS Criteria B', data.wbsCriteriaB);
+   705→    }
+   706→
+   707→    if (data.goalWorkItems.isNotEmpty) {
+   708→      final items = <String>[];
+   709→      for (var i = 0; i < data.goalWorkItems.length; i++) {
+   710→        final list = data.goalWorkItems[i]
+   711→            .where((w) => w.title.trim().isNotEmpty)
+   712→            .toList();
+   713→        if (list.isEmpty) continue;
+   714→        final sample = list.take(3).map((w) => w.title.trim()).join(', ');
+   715→        items.add('Goal ${i + 1} Work Items: $sample');
+   716→      }
+   717→      wList('Work Breakdown Highlights', items);
+   718→    }
+   719→
+   720→    // Include Execution Phase Data
+   721→    final exec = data.executionPhaseData;
+   722→    if (exec != null) {
+   723→      w('Execution Plan Outline', exec.executionPlanOutline);
+   724→      w('Execution Plan Strategy', exec.executionPlanStrategy);
+   725→    }
+   726→
+   727→    final fep = data.frontEndPlanning;
+   728→    w('Front End Planning – Requirements', fep.requirements);
+   729→    w('Front End Planning – Risks', fep.risks);
+   730→    w('Front End Planning – Opportunities', fep.opportunities);
+   731→    w('Front End Planning – Contracting', fep.contractVendorQuotes);
+   732→    w('Front End Planning – Procurement', fep.procurement);
+   733→    w('Front End Planning – Security', fep.security);
+   734→    w('Front End Planning – Allowance', fep.allowance);
+   735→    w('Front End Planning – Summary', fep.summary);
+   736→    w('Front End Planning – Technology', fep.technology);
+   737→    w('Front End Planning – Personnel', fep.personnel);
+   738→    w('Front End Planning – Infrastructure', fep.infrastructure);
+   739→    w('Front End Planning – Contracts', fep.contracts);
+   740→    wList('Interface Register',
+   741→        _formatInterfaceEntriesForContext(data.interfaceEntries));
+   742→
+   743→    // Section-specific context for Interface Management Plan
+   744→    if ((sectionLabel ?? '').trim().toLowerCase().contains('interface management plan')) {
+   745→      w('Stakeholder Management Notes',
+   746→          data.planningNotes['stakeholder_management_plan']);
+   747→      w('Additional Interfaces Identified',
+   748→          data.planningNotes['additional_interfaces']);
+   749→
+   750→      if (data.vendors.isNotEmpty) {
+   751→        final items = data.vendors.map((v) {
+   752→          final name = v.name.trim();
+   753→          final svc = v.equipmentOrService.trim();
+   754→          return svc.isEmpty ? name : '$name ($svc)';
+   755→        }).where((e) => e.isNotEmpty);
+   756→        wList('Vendors & Contractors', items);
+   757→      }
+   758→
+   759→      if (data.contractors.isNotEmpty) {
+   760→        final items = data.contractors.map((c) {
+   761→          final name = c.name.trim();
+   762→          final svc = c.service.trim();
+   763→          return svc.isEmpty ? name : '$name: $svc';
+   764→        }).where((e) => e.isNotEmpty);
+   765→        wList('Contractors', items);
+   766→      }
+   767→
+   768→      final fep = data.frontEndPlanning;
+   769→      w('FEP Contracting', fep.contractVendorQuotes);
+   770→      w('FEP Procurement', fep.procurement);
+   771→    }
+   772→
+   773→    if (data.teamMembers.isNotEmpty) {
+   774→      final items = data.teamMembers.map((m) {
+   775→        final name = m.name.trim();
+   776→        final role = m.role.trim();
+   777→        final resp = m.responsibilities.trim();
+   778→        final base = [name, role].where((e) => e.isNotEmpty).join(' - ');
+   779→        return resp.isEmpty ? base : '$base: $resp';
+   780→      }).where((e) => e.isNotEmpty);
+   781→      wList('Team Members', items);
+   782→    }
+   783→
+   784→    final stakeholders = data.coreStakeholdersData;
+   785→    if (stakeholders != null) {
+   786→      w('Core Stakeholders Notes', stakeholders.notes);
+   787→      if (stakeholders.solutionStakeholderData.isNotEmpty) {
+   788→        final items = stakeholders.solutionStakeholderData.map((s) {
+   789→          final title = s.solutionTitle.trim().isEmpty
+   790→              ? 'Solution'
+   791→              : s.solutionTitle.trim();
+   792→          final notable = s.notableStakeholders.trim();
+   793→          return notable.isEmpty ? title : '$title: $notable';
+   794→        });
+   795→        wList('Notable Stakeholders', items);
+   796→      }
+   797→    }
+   798→
+   799→    final it = data.itConsiderationsData;
+   800→    if (it != null) {
+   801→      w('IT Considerations Notes', it.notes);
+   802→      if (it.solutionITData.isNotEmpty) {
+   803→        final items = it.solutionITData.map((s) {
+   804→          final title = s.solutionTitle.trim().isEmpty
+   805→              ? 'Solution'
+   806→              : s.solutionTitle.trim();
+   807→          final tech = s.coreTechnology.trim();
+   808→          return tech.isEmpty ? title : '$title: $tech';
+   809→        });
+   810→        wList('Core Technologies', items);
+   811→      }
+   812→    }
+   813→
+   814→    final infra = data.infrastructureConsiderationsData;
+   815→    if (infra != null) {
+   816→      w('Infrastructure Notes', infra.notes);
+   817→      if (infra.solutionInfrastructureData.isNotEmpty) {
+   818→        final items = infra.solutionInfrastructureData.map((s) {
+   819→          final title = s.solutionTitle.trim().isEmpty
+   820→              ? 'Solution'
+   821→              : s.solutionTitle.trim();
+   822→          final major = s.majorInfrastructure.trim();
+   823→          return major.isEmpty ? title : '$title: $major';
+   824→        });
+   825→        wList('Major Infrastructure', items);
+   826→      }
+   827→    }
+   828→
+   829→    final cost = data.costAnalysisData;
+   830→    if (cost != null) {
+   831→      w('Project Value Target', cost.projectValueAmount);
+   832→      w('Savings Target', cost.savingsTarget);
+   833→      w('Savings Notes', cost.savingsNotes);
+   834→      if (cost.benefitLineItems.isNotEmpty) {
+   835→        final items = cost.benefitLineItems.map((b) {
+   836→          final title = b.title.trim().isEmpty ? 'Benefit' : b.title.trim();
+   837→          final units = b.units.trim();
+   838→          final unitValue = b.unitValue.trim();
+   839→          final details = [
+   840→            if (unitValue.isNotEmpty) 'Unit: $unitValue',
+   841→            if (units.isNotEmpty) 'Units: $units',
+   842→          ].join(' | ');
+   843→          return details.isEmpty ? title : '$title ($details)';
+   844→        });
+   845→        wList('Project Benefits', items.take(6));
+   846→      }
+   847→    }
+   848→
+   849→    final ssher = data.ssherData;
+   850→    if (ssher.entries.isNotEmpty) {
+   851→      final items = ssher.entries.map((entry) {
+   852→        final concern =
+   853→            entry.concern.trim().isEmpty ? 'SSHER Item' : entry.concern.trim();
+   854→        final category = entry.category.trim();
+   855→        return category.isEmpty ? concern : '$concern ($category)';
+   856→      });
+   857→      wList('SSHER Items', items);
+   858→    } else if (ssher.safetyItems.isNotEmpty) {
+   859→      final items = ssher.safetyItems.map((s) {
+   860→        final title = s.title.trim().isEmpty ? 'Safety Item' : s.title.trim();
+   861→        final category = s.category.trim();
+   862→        return category.isEmpty ? title : '$title ($category)';
+   863→      });
+   864→      wList('SSHER Safety Items', items);
+   865→    }
+   866→    w('SSHER Notes', ssher.screen1Data);
+   867→    w('SSHER Notes (2)', ssher.screen2Data);
+   868→    w('SSHER Notes (3)', ssher.screen3Data);
+   869→    w('SSHER Notes (4)', ssher.screen4Data);
+   870→
+   871→    if ((sectionLabel ?? '').trim().isNotEmpty) {
+   872→      buf.writeln('Target Section: ${sectionLabel!.trim()}');
+   873→      buf.writeln();
+   874→    }
+   875→
+   876→    if (!hasContent) return '';
+   877→    return buf.toString().trim();
+   878→  }
+   879→
+   880→  /// Build launch-phase context by appending execution data summaries
+   881→  /// to the base context from buildExecutivePlanContext.
+   882→  /// All parameters are optional summaries pre-loaded from Firestore.
+   883→  static String buildLaunchPhaseContext({
+   884→    required String baseContext,
+   885→    String? sectionLabel,
+   886→    String? staffingSummary,
+   887→    String? contractsSummary,
+   888→    String? vendorsSummary,
+   889→    String? deliverablesSummary,
+   890→    String? budgetSummary,
+   891→    String? scopeTrackingSummary,
+   892→    String? riskTrackingSummary,
+   893→    String? sprintsSummary,
+   894→  }) {
+   895→    final buf = StringBuffer();
+   896→    buf.write(baseContext);
+   897→    buf.writeln();
+   898→    buf.writeln();
+   899→
+   900→    buf.writeln('Execution Phase Data');
+   901→    buf.writeln('=====================');
+   902→
+   903→    if (staffingSummary != null && staffingSummary.trim().isNotEmpty) {
+   904→      buf.writeln();
+   905→      buf.writeln('Staffing:');
+   906→      buf.writeln(staffingSummary.trim());
+   907→    }
+   908→
+   909→    if (contractsSummary != null && contractsSummary.trim().isNotEmpty) {
+   910→      buf.writeln();
+   911→      buf.writeln('Contracts:');
+   912→      buf.writeln(contractsSummary.trim());
+   913→    }
+   914→
+   915→    if (vendorsSummary != null && vendorsSummary.trim().isNotEmpty) {
+   916→      buf.writeln();
+   917→      buf.writeln('Vendors:');
+   918→      buf.writeln(vendorsSummary.trim());
+   919→    }
+   920→
+   921→    if (deliverablesSummary != null && deliverablesSummary.trim().isNotEmpty) {
+   922→      buf.writeln();
+   923→      buf.writeln('Deliverables:');
+   924→      buf.writeln(deliverablesSummary.trim());
+   925→    }
+   926→
+   927→    if (budgetSummary != null && budgetSummary.trim().isNotEmpty) {
+   928→      buf.writeln();
+   929→      buf.writeln('Budget:');
+   930→      buf.writeln(budgetSummary.trim());
+   931→    }
+   932→
+   933→    if (scopeTrackingSummary != null &&
+   934→        scopeTrackingSummary.trim().isNotEmpty) {
+   935→      buf.writeln();
+   936→      buf.writeln('Scope Tracking:');
+   937→      buf.writeln(scopeTrackingSummary.trim());
+   938→    }
+   939→
+   940→    if (riskTrackingSummary != null && riskTrackingSummary.trim().isNotEmpty) {
+   941→      buf.writeln();
+   942→      buf.writeln('Risk Tracking:');
+   943→      buf.writeln(riskTrackingSummary.trim());
+   944→    }
+   945→
+   946→    if (sprintsSummary != null && sprintsSummary.trim().isNotEmpty) {
+   947→      buf.writeln();
+   948→      buf.writeln('Sprints/Milestones:');
+   949→      buf.writeln(sprintsSummary.trim());
+   950→    }
+   951→
+   952→    if ((sectionLabel ?? '').trim().isNotEmpty) {
+   953→      buf.writeln();
+   954→      buf.writeln('Target Section: ${sectionLabel!.trim()}');
+   955→    }
+   956→
+   957→    return buf.toString().trim();
+   958→  }
+   959→
+   960→  /// Get project data from context (non-listening by default, safe for event handlers)
+   961→  static ProjectDataModel getData(BuildContext context, {bool listen = false}) {
+   962→    return Provider.of<ProjectDataProvider>(context, listen: listen)
+   963→        .projectData;
+   964→  }
+   965→
+   966→  /// Get project data with listening (use only in build methods)
+   967→  static ProjectDataModel getDataListening(BuildContext context) {
+   968→    return Provider.of<ProjectDataProvider>(context).projectData;
+   969→  }
+   970→
+   971→  /// Get provider from context
+   972→  static ProjectDataProvider getProvider(BuildContext context) {
+   973→    return Provider.of<ProjectDataProvider>(context, listen: false);
+   974→  }
+   975→
+   976→  /// Update and save data without navigation
+   977→  static Future<bool> updateAndSave({
+   978→    required BuildContext context,
+   979→    required String checkpoint,
+   980→    required ProjectDataModel Function(ProjectDataModel) dataUpdater,
+   981→    bool showSnackbar = true,
+   982→  }) async {
+   983→    final provider = Provider.of<ProjectDataProvider>(context, listen: false);
+   984→    provider.updateField(dataUpdater);
+   985→
+   986→    final success = await provider.saveToFirebase(checkpoint: checkpoint);
+   987→
+   988→    if (!success && context.mounted && showSnackbar) {
+   989→      ScaffoldMessenger.of(context).showSnackBar(
+   990→        SnackBar(
+   991→          content:
+   992→              Text('Error: ${provider.lastError ?? "Could not save data"}'),
+   993→          backgroundColor: Colors.red,
+   994→        ),
+   995→      );
+   996→    } else if (success && context.mounted && showSnackbar) {
+   997→      ScaffoldMessenger.of(context).showSnackBar(
+   998→        const SnackBar(
+   999→          content: Text('Data saved successfully'),
+  1000→          backgroundColor: Colors.green,
+  1001→          duration: Duration(seconds: 1),
+  1002→        ),
+  1003→      );
+  1004→    }
+  1005→
+  1006→    return success;
+  1007→  }
+  1008→
+  1009→  // ── Bidirectional Risk Register Sync ──
+  1010→  //
+  1011→  // Section-specific risks (e.g. Interface Management, SSHER, Design) are
+  1012→  // mirrored into the central `frontEndPlanning.riskRegisterItems` list with
+  1013→  // a `sourceSection` tag. Updates to either side propagate to the other.
+  1014→
+  1015→  /// Upserts a risk into the central Risk Register, tagged with its source
+  1016→  /// section via `requirementType`. The `category` field is preserved for
+  1017→  /// user/discipline classification (e.g. 'Safety', 'Contractual').
+  1018→  /// De-duplication matches on `riskName + requirementType` (the sourceSection).
+  1019→  static Future<void> upsertRiskToRegister({
+  1020→    required BuildContext context,
+  1021→    required String sourceSection,
+  1022→    required String riskName,
+  1023→    String description = '',
+  1024→    String category = '',
+  1025→    String impactLevel = 'Medium',
+  1026→    String likelihood = 'Medium',
+  1027→    String mitigationStrategy = '',
+  1028→    String discipline = '',
+  1029→    String owner = '',
+  1030→    String status = 'Open',
+  1031→    String checkpoint = 'risk_register_sync',
+  1032→  }) async {
+  1033→    await updateAndSave(
+  1034→      context: context,
+  1035→      checkpoint: checkpoint,
+  1036→      showSnackbar: false,
+  1037→      dataUpdater: (d) {
+  1038→        final items = List<RiskRegisterItem>.from(
+  1039→            d.frontEndPlanning.riskRegisterItems);
+  1040→        final idx = items.indexWhere((r) =>
+  1041→            r.riskName.trim().toLowerCase() == riskName.trim().toLowerCase() &&
+  1042→            r.requirementType.trim().toLowerCase() ==
+  1043→                sourceSection.trim().toLowerCase());
+  1044→        if (idx >= 0) {
+  1045→          // Update existing — preserve category if caller didn't provide one
+  1046→          items[idx] = RiskRegisterItem(
+  1047→            riskName: riskName,
+  1048→            description: description.isNotEmpty ? description : items[idx].description,
+  1049→            category: category.isNotEmpty ? category : items[idx].category,
+  1050→            requirement: items[idx].requirement,
+  1051→            requirementType: sourceSection,
+  1052→            impactLevel: impactLevel,
+  1053→            likelihood: likelihood,
+  1054→            mitigationStrategy: mitigationStrategy.isNotEmpty
+  1055→                ? mitigationStrategy
+  1056→                : items[idx].mitigationStrategy,
+  1057→            discipline: discipline.isNotEmpty ? discipline : items[idx].discipline,
+  1058→            projectRole: items[idx].projectRole,
+  1059→            owner: owner.isNotEmpty ? owner : items[idx].owner,
+  1060→            status: status,
+  1061→            probabilityNumeric: items[idx].probabilityNumeric,
+  1062→            costImpactMin: items[idx].costImpactMin,
+  1063→            costImpactMostLikely: items[idx].costImpactMostLikely,
+  1064→            costImpactMax: items[idx].costImpactMax,
+  1065→            scheduleImpactMin: items[idx].scheduleImpactMin,
+  1066→            scheduleImpactMostLikely: items[idx].scheduleImpactMostLikely,
+  1067→            scheduleImpactMax: items[idx].scheduleImpactMax,
+  1068→            controlAccountId: items[idx].controlAccountId,
+  1069→            cbsId: items[idx].cbsId,
+  1070→            riskType: items[idx].riskType,
+  1071→            responseStrategy: items[idx].responseStrategy,
+  1072→            residualProbability: items[idx].residualProbability,
+  1073→            residualCostImpact: items[idx].residualCostImpact,
+  1074→          );
+  1075→        } else {
+  1076→          items.add(RiskRegisterItem(
+  1077→            riskName: riskName,
+  1078→            description: description,
+  1079→            category: category.isNotEmpty ? category : sourceSection,
+  1080→            requirementType: sourceSection,
+  1081→            impactLevel: impactLevel,
+  1082→            likelihood: likelihood,
+  1083→            mitigationStrategy: mitigationStrategy,
+  1084→            discipline: discipline,
+  1085→            owner: owner,
+  1086→            status: status,
+  1087→          ));
+  1088→        }
+  1089→        return d.copyWith(
+  1090→          frontEndPlanning:
+  1091→              d.frontEndPlanning.copyWith(riskRegisterItems: items),
+  1092→        );
+  1093→      },
+  1094→    );
+  1095→  }
+  1096→
+  1097→  /// Removes a risk from the central register by name + source section.
+  1098→  /// Used when a section-specific risk is deleted.
+  1099→  static Future<void> removeRiskFromRegister({
+  1100→    required BuildContext context,
+  1101→    required String sourceSection,
+  1102→    required String riskName,
+  1103→    String checkpoint = 'risk_register_sync',
+  1104→  }) async {
+  1105→    await updateAndSave(
+  1106→      context: context,
+  1107→      checkpoint: checkpoint,
+  1108→      showSnackbar: false,
+  1109→      dataUpdater: (d) {
+  1110→        final items = List<RiskRegisterItem>.from(
+  1111→            d.frontEndPlanning.riskRegisterItems);
+  1112→        items.removeWhere((r) =>
+  1113→            r.riskName.trim().toLowerCase() == riskName.trim().toLowerCase() &&
+  1114→            r.requirementType.trim().toLowerCase() ==
+  1115→                sourceSection.trim().toLowerCase());
+  1116→        return d.copyWith(
+  1117→          frontEndPlanning:
+  1118→              d.frontEndPlanning.copyWith(riskRegisterItems: items),
+  1119→        );
+  1120→      },
+  1121→    );
+  1122→  }
+  1123→
+  1124→  /// Returns all risks from the central register that originate from a
+  1125→  /// specific source section (matched on `requirementType`).
+  1126→  static List<RiskRegisterItem> getRisksForSection(
+  1127→      ProjectDataModel data, String sourceSection) {
+  1128→    return data.frontEndPlanning.riskRegisterItems
+  1129→        .where((r) =>
+  1130→            r.requirementType.trim().toLowerCase() ==
+  1131→                sourceSection.trim().toLowerCase())
+  1132→        .toList();
+  1133→  }
+  1134→
+  1135→  /// One-time migration: backfills `requirementType` on existing risks that
+  1136→  /// have no source-section tag. Uses category heuristics to infer the
+  1137→  /// originating section. Called on project load.
+  1138→  static ProjectDataModel migrateRiskSourceSections(ProjectDataModel data) {
+  1139→    final items = data.frontEndPlanning.riskRegisterItems;
+  1140→    if (items.isEmpty) return data;
+  1141→    bool changed = false;
+  1142→    final migrated = items.map((r) {
+  1143→      final rt = r.requirementType.trim();
+  1144→      if (rt.isNotEmpty) return r;
+  1145→      // Infer from category
+  1146→      final cat = r.category.trim().toLowerCase();
+  1147→      String inferred;
+  1148→      if (cat == 'safety' ||
+  1149→          cat == 'security' ||
+  1150→          cat == 'health' ||
+  1151→          cat == 'environment' ||
+  1152→          cat == 'regulatory') {
+  1153→        inferred = 'SSHER';
+  1154→      } else if (cat.contains('interface')) {
+  1155→        inferred = 'Interface Management';
+  1156→      } else if (cat.contains('design')) {
+  1157→        inferred = 'Design Planning';
+  1158→      } else if (cat.contains('quality')) {
+  1159→        inferred = 'Quality';
+  1160→      } else if (cat.contains('execution') || cat.contains('tracking')) {
+  1161→        inferred = 'Risk Tracking Workspace';
+  1162→      } else {
+  1163→        inferred = 'Front End Planning';
+  1164→      }
+  1165→      changed = true;
+  1166→      return RiskRegisterItem(
+  1167→        riskName: r.riskName,
+  1168→        description: r.description,
+  1169→        category: r.category,
+  1170→        requirement: r.requirement,
+  1171→        requirementType: inferred,
+  1172→        impactLevel: r.impactLevel,
+  1173→        likelihood: r.likelihood,
+  1174→        mitigationStrategy: r.mitigationStrategy,
+  1175→        discipline: r.discipline,
+  1176→        projectRole: r.projectRole,
+  1177→        owner: r.owner,
+  1178→        status: r.status,
+  1179→        probabilityNumeric: r.probabilityNumeric,
+  1180→        costImpactMin: r.costImpactMin,
+  1181→        costImpactMostLikely: r.costImpactMostLikely,
+  1182→        costImpactMax: r.costImpactMax,
+  1183→        scheduleImpactMin: r.scheduleImpactMin,
+  1184→        scheduleImpactMostLikely: r.scheduleImpactMostLikely,
+  1185→        scheduleImpactMax: r.scheduleImpactMax,
+  1186→        controlAccountId: r.controlAccountId,
+  1187→        cbsId: r.cbsId,
+  1188→        riskType: r.riskType,
+  1189→        responseStrategy: r.responseStrategy,
+  1190→        residualProbability: r.residualProbability,
+  1191→        residualCostImpact: r.residualCostImpact,
+  1192→      );
+  1193→    }).toList();
+  1194→    if (!changed) return data;
+  1195→    return data.copyWith(
+  1196→      frontEndPlanning:
+  1197→          data.frontEndPlanning.copyWith(riskRegisterItems: migrated),
+  1198→    );
+  1199→  }
+  1200→
+  1201→  // ── Bidirectional Activities Log Sync ──
+  1202→  //
+  1203→  // Section-specific register/log actions (e.g. interface created, SSHER
+  1204→  // item pushed, quality check added) are mirrored into the central
+  1205→  // `ProjectData.activities` list with a `sourceSection` tag.
+  1206→
+  1207→  /// Logs an activity to the central Project Activities Log with a
+  1208→  /// sourceSection tag for traceability. De-duplicates by title +
+  1209→  /// sourceSection within the same day.
+  1210→  static Future<void> logActivityToCentral({
+  1211→    required BuildContext context,
+  1212→    required String sourceSection,
+  1213→    required String title,
+  1214→    String description = '',
+  1215→    String phase = 'Planning',
+  1216→    String discipline = '',
+  1217→    String role = '',
+  1218→    String assignedTo = '',
+  1219→    String dueDate = '',
+  1220→    String status = 'pending',
+  1221→    String checkpoint = 'activities_log_sync',
+  1222→  }) async {
+  1223→    await updateAndSave(
+  1224→      context: context,
+  1225→      checkpoint: checkpoint,
+  1226→      showSnackbar: false,
+  1227→      dataUpdater: (d) {
+  1228→        final activities = List<ProjectActivity>.from(d.projectActivities);
+  1229→        // De-dup: skip if an activity with the same title + sourceSection
+  1230→        // was already logged today
+  1231→        final today = DateTime.now();
+  1232→        final alreadyLogged = activities.any((a) =>
+  1233→            a.title == title &&
+  1234→            a.sourceSection == sourceSection &&
+  1235→            a.createdAt.year == today.year &&
+  1236→            a.createdAt.month == today.month &&
+  1237→            a.createdAt.day == today.day);
+  1238→        if (alreadyLogged) return d;
+  1239→        final now = DateTime.now();
+  1240→        activities.add(ProjectActivity(
+  1241→          id: now.microsecondsSinceEpoch.toString(),
+  1242→          title: title,
+  1243→          description: description,
+  1244→          sourceSection: sourceSection,
+  1245→          phase: phase,
+  1246→          discipline: discipline,
+  1247→          role: role,
+  1248→          assignedTo: assignedTo.isEmpty ? null : assignedTo,
+  1249→          dueDate: dueDate,
+  1250→          createdAt: now,
+  1251→          updatedAt: now,
+  1252→        ));
+  1253→        return d.copyWith(projectActivities: activities);
+  1254→      },
+  1255→    );
+  1256→  }
+  1257→
+  1258→  /// Returns all activities from the central log that originated from a
+  1259→  /// specific source section.
+  1260→  static List<ProjectActivity> getActivitiesForSection(
+  1261→      ProjectDataModel data, String sourceSection) {
+  1262→    return data.projectActivities
+  1263→        .where((a) =>
+  1264→            a.sourceSection.trim().toLowerCase() ==
+  1265→                sourceSection.trim().toLowerCase())
+  1266→        .toList();
+  1267→  }
+  1268→
+  1269→
+  1270→  static List<ProjectGoal> convertLegacyGoals(
+  1271→      List<Map<String, String>>? legacyGoals) {
+  1272→    if (legacyGoals == null || legacyGoals.isEmpty) return [];
+  1273→
+  1274→    return legacyGoals
+  1275→        .map((g) => ProjectGoal(
+  1276→              name: g['name'] ?? g['title'] ?? '',
+  1277→              description: g['description'] ?? '',
+  1278→              framework: g['framework'],
+  1279→            ))
+  1280→        .toList();
+  1281→  }
+  1282→
+  1283→  /// Convert legacy planning goals to new format
+  1284→  static List<PlanningGoal> convertLegacyPlanningGoals(
+  1285→      List<Map<String, String>>? legacyGoals) {
+  1286→    if (legacyGoals == null || legacyGoals.isEmpty) {
+  1287→      return List.generate(3, (i) => PlanningGoal(goalNumber: i + 1));
+  1288→    }
+  1289→
+  1290→    return legacyGoals.asMap().entries.map((entry) {
+  1291→      final i = entry.key;
+  1292→      final g = entry.value;
+  1293→      return PlanningGoal(
+  1294→        goalNumber: i + 1,
+  1295→        title: g['title'] ?? '',
+  1296→        description: g['description'] ?? '',
+  1297→        targetYear: g['year'] ?? '',
+  1298→      );
+  1299→    }).toList();
+  1300→  }
+  1301→
+  1302→  /// Show saving indicator
+  1303→  static void showSavingIndicator(BuildContext context) {
+  1304→    ScaffoldMessenger.of(context).showSnackBar(
+  1305→      const SnackBar(
+  1306→        content: Row(
+  1307→          children: [
+  1308→            SizedBox(
+  1309→              width: 16,
+  1310→              height: 16,
+  1311→              child: CircularProgressIndicator(
+  1312→                strokeWidth: 2,
+  1313→                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+  1314→              ),
+  1315→            ),
+  1316→            SizedBox(width: 12),
+  1317→            Text('Saving...'),
+  1318→          ],
+  1319→        ),
+  1320→        duration: Duration(seconds: 1),
+  1321→      ),
+  1322→    );
+  1323→  }
+  1324→
+  1325→  /// Helper to update Front End Planning data while preserving other fields
+  1326→  static FrontEndPlanningData updateFEPField({
+  1327→    required FrontEndPlanningData current,
+  1328→    String? requirements,
+  1329→    String? requirementsPlan,
+  1330→    String? requirementsNotes,
+  1331→    String? risks,
+  1332→    String? opportunities,
+  1333→    String? contractVendorQuotes,
+  1334→    String? procurement,
+  1335→    String? security,
+  1336→    String? allowance,
+  1337→    String? summary,
+  1338→    String? technology,
+  1339→    String? personnel,
+  1340→    String? infrastructure,
+  1341→    String? contracts,
+  1342→    String? milestoneStartDate,
+  1343→    String? milestoneEndDate,
+  1344→    bool? milestoneSmeReviewStep1,
+  1345→    bool? milestoneSmeReviewStep2,
+  1346→    bool? charterApproved,
+  1347→    DateTime? charterApprovedAt,
+  1348→    bool? businessCaseLocked,
+  1349→    bool? skippedBusinessCase,
+  1350→    List<RequirementItem>? requirementItems,
+  1351→    // Added optional list fields so screens can update persisted lists centrally
+  1352→    List<ScenarioRecord>? scenarioMatrixItems,
+  1353→    List<RoleItem>? securityRoles,
+  1354→    List<PermissionItem>? securityPermissions,
+  1355→    List<SecuritySetting>? securitySettings,
+  1356→    List<AccessLogItem>? securityAccessLogs,
+  1357→    List<DebtItem>? technicalDebtItems,
+  1358→    List<DebtInsight>? technicalDebtRootCauses,
+  1359→    List<RemediationTrack>? technicalDebtTracks,
+  1360→    List<OwnerItem>? technicalDebtOwners,
+  1361→    List<RiskRegisterItem>? riskRegisterItems,
+  1362→    List<AllowanceItem>? allowanceItems,
+  1363→    List<StaffingRow>? staffingRows,
+  1364→    List<TechnologyPersonnelItem>? technologyPersonnelItems,
+  1365→    List<InfrastructurePlanningItem>? infrastructureItems,
+  1366→    List<OpportunityItem>? opportunityItems,
+  1367→    List<PlanningDashboardItem>? successCriteriaItems,
+  1368→    bool? detailsConfirmed,
+  1369→  }) {
+  1370→    return FrontEndPlanningData(
+  1371→      requirements: requirements ?? current.requirements,
+  1372→      requirementsPlan: requirementsPlan ?? current.requirementsPlan,
+  1373→      requirementsNotes: requirementsNotes ?? current.requirementsNotes,
+  1374→      risks: risks ?? current.risks,
+  1375→      opportunities: opportunities ?? current.opportunities,
+  1376→      contractVendorQuotes:
+  1377→          contractVendorQuotes ?? current.contractVendorQuotes,
+  1378→      procurement: procurement ?? current.procurement,
+  1379→      security: security ?? current.security,
+  1380→      allowance: allowance ?? current.allowance,
+  1381→      summary: summary ?? current.summary,
+  1382→      technology: technology ?? current.technology,
+  1383→      personnel: personnel ?? current.personnel,
+  1384→      infrastructure: infrastructure ?? current.infrastructure,
+  1385→      contracts: contracts ?? current.contracts,
+  1386→      milestoneStartDate: milestoneStartDate ?? current.milestoneStartDate,
+  1387→      milestoneEndDate: milestoneEndDate ?? current.milestoneEndDate,
+  1388→      milestoneSmeReviewStep1:
+  1389→          milestoneSmeReviewStep1 ?? current.milestoneSmeReviewStep1,
+  1390→      milestoneSmeReviewStep2:
+  1391→          milestoneSmeReviewStep2 ?? current.milestoneSmeReviewStep2,
+  1392→      charterApproved: charterApproved ?? current.charterApproved,
+  1393→      charterApprovedAt: charterApprovedAt ?? current.charterApprovedAt,
+  1394→      businessCaseLocked: businessCaseLocked ?? current.businessCaseLocked,
+  1395→      skippedBusinessCase: skippedBusinessCase ?? current.skippedBusinessCase,
+  1396→      requirementItems: requirementItems ?? current.requirementItems,
+  1397→      // Preserve or replace list fields
+  1398→      scenarioMatrixItems: scenarioMatrixItems ?? current.scenarioMatrixItems,
+  1399→      securityRoles: securityRoles ?? current.securityRoles,
+  1400→      securityPermissions: securityPermissions ?? current.securityPermissions,
+  1401→      securitySettings: securitySettings ?? current.securitySettings,
+  1402→      securityAccessLogs: securityAccessLogs ?? current.securityAccessLogs,
+  1403→      technicalDebtItems: technicalDebtItems ?? current.technicalDebtItems,
+  1404→      technicalDebtRootCauses:
+  1405→          technicalDebtRootCauses ?? current.technicalDebtRootCauses,
+  1406→      technicalDebtTracks: technicalDebtTracks ?? current.technicalDebtTracks,
+  1407→      technicalDebtOwners: technicalDebtOwners ?? current.technicalDebtOwners,
+  1408→      riskRegisterItems: riskRegisterItems ?? current.riskRegisterItems,
+  1409→      allowanceItems: allowanceItems ?? current.allowanceItems,
+  1410→      staffingRows: staffingRows ?? current.staffingRows,
+  1411→      technologyPersonnelItems:
+  1412→          technologyPersonnelItems ?? current.technologyPersonnelItems,
+  1413→      infrastructureItems: infrastructureItems ?? current.infrastructureItems,
+  1414→      opportunityItems: opportunityItems ?? current.opportunityItems,
+  1415→      successCriteriaItems:
+  1416→          successCriteriaItems ?? current.successCriteriaItems,
+  1417→      detailsConfirmed: detailsConfirmed ?? current.detailsConfirmed,
+  1418→    );
+  1419→  }
+  1420→
+  1421→  static const String _autoScheduleMarker = '[AUTO_APPLY_SCHEDULE]';
+  1422→  static const String _autoTrainingOpportunityPrefix =
+  1423→      'auto_apply_training_opp_';
+  1424→  static const String _autoTrainingAllowancePrefix =
+  1425→      'auto_apply_training_allow_';
+  1426→  static const String _autoBenefitOpportunityPrefix = 'auto_apply_benefit_opp_';
+  1427→  static const String _autoCostAllowancePrefix = 'auto_apply_cost_allow_';
+  1428→
+  1429→  /// Applies Front End Planning "Apply To" mappings into downstream sections.
+  1430→  ///
+  1431→  /// - `Estimate`: creates auto benefit line items from opportunities and auto
+  1432→  ///   cost estimate items from allowances.
+  1433→  /// - `Schedule`: creates auto milestones.
+  1434→  /// - `Training`: creates auto training activities.
+  1435→  ///
+  1436→  /// Auto-generated entries are refreshed each call and won't overwrite manual
+  1437→  /// entries.
+  1438→  static ProjectDataModel applyTaggedFrontEndPlanningData(
+  1439→      ProjectDataModel data) {
+  1440→    final fep = data.frontEndPlanning;
+  1441→
+  1442→    final mergedMilestones =
+  1443→        _mergeAutoScheduleMilestones(data.keyMilestones, fep);
+  1444→    final mergedTraining =
+  1445→        _mergeAutoTrainingActivities(data.trainingActivities, fep);
+  1446→    final mergedCostAnalysis =
+  1447→        _mergeAutoBenefitLineItems(data.costAnalysisData, fep);
+  1448→    final mergedCostEstimates =
+  1449→        _mergeAutoCostEstimateItems(data.costEstimateItems, fep);
+  1450→
+  1451→    final merged = data.copyWith(
+  1452→      keyMilestones: mergedMilestones,
+  1453→      trainingActivities: mergedTraining,
+  1454→      costAnalysisData: mergedCostAnalysis,
+  1455→      costEstimateItems: mergedCostEstimates,
+  1456→    );
+  1457→    return ProjectIntelligenceService.rebuildActivityLog(merged);
+  1458→  }
+  1459→
+  1460→  /// Count of opportunities shown in charter snapshot.
+  1461→  static int getExpectedOpportunitiesCount(ProjectDataModel data) {
+  1462→    final structuredCount = data.frontEndPlanning.opportunityItems
+  1463→        .where((o) => o.opportunity.trim().isNotEmpty)
+  1464→        .length;
+  1465→    if (structuredCount > 0) return structuredCount;
+  1466→    return data.opportunities.where((o) => o.trim().isNotEmpty).length;
+  1467→  }
+  1468→
+  1469→  /// Sum opportunity savings, optionally only those tagged for `Estimate`.
+  1470→  static double getOpportunitySavingsTotal(
+  1471→    ProjectDataModel data, {
+  1472→    bool estimateOnly = false,
+  1473→  }) {
+  1474→    return data.frontEndPlanning.opportunityItems
+  1475→        .where((o) => o.opportunity.trim().isNotEmpty)
+  1476→        .where((o) => !estimateOnly || _hasTag(o.appliesTo, 'Estimate'))
+  1477→        .fold<double>(
+  1478→            0.0, (sum, o) => sum + _parseNumericValue(o.potentialCostSavings));
+  1479→  }
+  1480→
+  1481→  /// Active cost estimate lines after state reconciliation.
+  1482→  static List<CostEstimateItem> getActiveCostEstimateItems(
+  1483→    ProjectDataModel data, {
+  1484→    String? costState,
+  1485→    bool includeBaseline = true,
+  1486→  }) {
+  1487→    final reconciled = _reconcileCostEstimateItems(data.costEstimateItems);
+  1488→    return reconciled.where((item) {
+  1489→      if (!includeBaseline && item.isBaseline) return false;
+  1490→      if (costState != null && item.costState != costState) return false;
+  1491→      return true;
+  1492→    }).toList();
+  1493→  }
+  1494→
+  1495→  static double getCostEstimateTotalByState(
+  1496→    ProjectDataModel data, {
+  1497→    required String costState,
+  1498→    bool includeBaseline = true,
+  1499→  }) {
+  1500→    return getActiveCostEstimateItems(
+  1501→      data,
+  1502→      costState: costState,
+  1503→      includeBaseline: includeBaseline,
+  1504→    ).fold<double>(0.0, (sum, item) => sum + item.amount);
+  1505→  }
+  1506→
+  1507→  static double getCombinedCostEstimateRollup(
+  1508→    ProjectDataModel data, {
+  1509→    bool includeBaseline = true,
+  1510→  }) {
+  1511→    return getActiveCostEstimateItems(
+  1512→      data,
+  1513→      includeBaseline: includeBaseline,
+  1514→    ).fold<double>(0.0, (sum, item) => sum + item.amount);
+  1515→  }
+  1516→
+  1517→  /// Unified total estimated cost used by Project Charter.
+  1518→  static double getTotalEstimatedCostValue(ProjectDataModel data) {
+  1519→    final forecastTotal =
+  1520→        getCostEstimateTotalByState(data, costState: 'forecast');
+  1521→    if (forecastTotal > 0) return forecastTotal;
+  1522→
+  1523→    final operationalTotal = data.contractors
+  1524→            .fold<double>(0.0, (sum, item) => sum + item.estimatedCost) +
+  1525→        data.vendors
+  1526→            .fold<double>(0.0, (sum, item) => sum + item.estimatedPrice) +
+  1527→        data.frontEndPlanning.allowanceItems
+  1528→            .fold<double>(0.0, (sum, item) => sum + item.amount);
+  1529→    if (operationalTotal > 0) return operationalTotal;
+  1530→
+  1531→    final costAnalysisTotal = data.costAnalysisData?.solutionCosts.fold<double>(
+  1532→            0.0,
+  1533→            (sum, solution) =>
+  1534→                sum +
+  1535→                solution.costRows.fold<double>(0.0,
+  1536→                    (rowSum, row) => rowSum + _parseNumericValue(row.cost))) ??
+  1537→        0.0;
+  1538→
+  1539→    return costAnalysisTotal;
+  1540→  }
+  1541→
+  1542→  static bool _hasTag(List<String> tags, String expected) {
+  1543→    return tags.any((tag) => tag.toLowerCase() == expected.toLowerCase());
+  1544→  }
+  1545→
+  1546→  static String _withFallback(String raw, String fallback) {
+  1547→    final text = raw.trim();
+  1548→    return text.isNotEmpty ? text : fallback;
+  1549→  }
+  1550→
+  1551→  static double _parseNumericValue(String raw) {
+  1552→    final cleaned = raw.replaceAll(',', '');
+  1553→    final match = RegExp(r'-?\d+(?:\.\d+)?').firstMatch(cleaned);
+  1554→    if (match == null) return 0.0;
+  1555→    return double.tryParse(match.group(0) ?? '') ?? 0.0;
+  1556→  }
+  1557→
+  1558→  static String _buildAutoNote({
+  1559→    required String source,
+  1560→    String? owner,
+  1561→    String? extra,
+  1562→  }) {
+  1563→    final parts = <String>[
+  1564→      source,
+  1565→      if ((owner ?? '').trim().isNotEmpty) 'Owner: ${owner!.trim()}',
+  1566→      if ((extra ?? '').trim().isNotEmpty) extra!.trim(),
+  1567→    ];
+  1568→    return parts.join(' | ');
+  1569→  }
+  1570→
+  1571→  static List<Milestone> _mergeAutoScheduleMilestones(
+  1572→    List<Milestone> current,
+  1573→    FrontEndPlanningData fep,
+  1574→  ) {
+  1575→    final manual = current
+  1576→        .where((m) => !m.comments.contains(_autoScheduleMarker))
+  1577→        .toList();
+  1578→
+  1579→    final generated = <Milestone>[];
+  1580→
+  1581→    for (final opp in fep.opportunityItems) {
+  1582→      if (!_hasTag(opp.appliesTo, 'Schedule')) continue;
+  1583→      final title =
+  1584→          _withFallback(opp.opportunity, 'Opportunity ${generated.length + 1}');
+  1585→      final scheduleSavings = opp.potentialScheduleSavings.trim();
+  1586→      final marker = '$_autoScheduleMarker | opp:${opp.id}';
+  1587→      generated.add(
+  1588→        Milestone(
+  1589→          name: 'Opportunity: $title',
+  1590→          discipline: _withFallback(opp.discipline, 'Planning'),
+  1591→          dueDate: '',
+  1592→          comments: _buildAutoNote(
+  1593→            source: marker,
+  1594→            owner: opp.assignedTo,
+  1595→            extra: scheduleSavings.isNotEmpty
+  1596→                ? 'Potential schedule savings: $scheduleSavings'
+  1597→                : null,
+  1598→          ),
+  1599→        ),
+  1600→      );
+  1601→    }
+  1602→
+  1603→    for (final allowance in fep.allowanceItems) {
+  1604→      if (!_hasTag(allowance.appliesTo, 'Schedule')) continue;
+  1605→      if (allowance.name.trim().isEmpty && allowance.notes.trim().isEmpty) {
+  1606→        continue;
+  1607→      }
+  1608→      final title = _withFallback(
+  1609→          allowance.name, 'Allowance ${allowance.number.toString()}');
+  1610→      final marker = '$_autoScheduleMarker | allow:${allowance.id}';
+  1611→      generated.add(
+  1612→        Milestone(
+  1613→          name: 'Allowance: $title',
+  1614→          discipline: _withFallback(allowance.type, 'Planning'),
+  1615→          dueDate: '',
+  1616→          comments: _buildAutoNote(
+  1617→            source: marker,
+  1618→            owner: allowance.assignedTo,
+  1619→            extra: allowance.notes.trim().isNotEmpty ? allowance.notes : null,
+  1620→          ),
+  1621→        ),
+  1622→      );
+  1623→    }
+  1624→
+  1625→    return [...manual, ...generated];
+  1626→  }
+  1627→
+  1628→  static List<TrainingActivity> _mergeAutoTrainingActivities(
+  1629→    List<TrainingActivity> current,
+  1630→    FrontEndPlanningData fep,
+  1631→  ) {
+  1632→    final manual = current
+  1633→        .where((activity) =>
+  1634→            !activity.id.startsWith(_autoTrainingOpportunityPrefix) &&
+  1635→            !activity.id.startsWith(_autoTrainingAllowancePrefix))
+  1636→        .toList();
+  1637→
+  1638→    final generated = <TrainingActivity>[];
+  1639→
+  1640→    for (final opp in fep.opportunityItems) {
+  1641→      if (!_hasTag(opp.appliesTo, 'Training')) continue;
+  1642→      final title =
+  1643→          _withFallback(opp.opportunity, 'Opportunity ${generated.length + 1}');
+  1644→      final scheduleSavings = opp.potentialScheduleSavings.trim();
+  1645→      generated.add(
+  1646→        TrainingActivity(
+  1647→          id: '$_autoTrainingOpportunityPrefix${opp.id}',
+  1648→          title: 'Opportunity Follow-up: $title',
+  1649→          description: _buildAutoNote(
+  1650→            source: 'Auto-applied from Project Opportunities',
+  1651→            owner: opp.assignedTo,
+  1652→            extra: scheduleSavings.isNotEmpty
+  1653→                ? 'Schedule context: $scheduleSavings'
+  1654→                : null,
+  1655→          ),
+  1656→          category: 'Training',
+  1657→          status: 'Upcoming',
+  1658→          duration: '',
+  1659→          isMandatory: false,
+  1660→        ),
+  1661→      );
+  1662→    }
+  1663→
+  1664→    for (final allowance in fep.allowanceItems) {
+  1665→      if (!_hasTag(allowance.appliesTo, 'Training')) continue;
+  1666→      final title = _withFallback(
+  1667→          allowance.name, 'Allowance ${allowance.number.toString()}');
+  1668→      generated.add(
+  1669→        TrainingActivity(
+  1670→          id: '$_autoTrainingAllowancePrefix${allowance.id}',
+  1671→          title: 'Allowance Readiness: $title',
+  1672→          description: _buildAutoNote(
+  1673→            source: 'Auto-applied from Allowance',
+  1674→            owner: allowance.assignedTo,
+  1675→            extra: allowance.notes.trim().isNotEmpty
+  1676→                ? allowance.notes.trim()
+  1677→                : null,
+  1678→          ),
+  1679→          category: 'Training',
+  1680→          status: 'Upcoming',
+  1681→          duration: '',
+  1682→          isMandatory: false,
+  1683→        ),
+  1684→      );
+  1685→    }
+  1686→
+  1687→    return [...manual, ...generated];
+  1688→  }
+  1689→
+  1690→  static CostAnalysisData? _mergeAutoBenefitLineItems(
+  1691→    CostAnalysisData? current,
+  1692→    FrontEndPlanningData fep,
+  1693→  ) {
+  1694→    final manualItems = (current?.benefitLineItems ?? const <BenefitLineItem>[])
+  1695→        .where((item) => !item.id.startsWith(_autoBenefitOpportunityPrefix))
+  1696→        .toList();
+  1697→
+  1698→    final autoItems = <BenefitLineItem>[];
+  1699→    for (final opp in fep.opportunityItems) {
+  1700→      if (!_hasTag(opp.appliesTo, 'Estimate')) continue;
+  1701→      // Only feed approved opportunities into the cost estimate
+  1702→      if (opp.status.toLowerCase() != 'approved') continue;
+  1703→      final savings = _parseNumericValue(opp.potentialCostSavings);
+  1704→      if (savings <= 0) continue;
+  1705→
+  1706→      autoItems.add(
+  1707→        BenefitLineItem(
+  1708→          id: '$_autoBenefitOpportunityPrefix${opp.id}',
+  1709→          categoryKey: 'cost_saving',
+  1710→          title: _withFallback(opp.opportunity, 'Opportunity savings'),
+  1711→          unitValue: savings.toStringAsFixed(2),
+  1712→          units: '1',
+  1713→          notes: _buildAutoNote(
+  1714→            source: 'Auto-applied from Project Opportunities',
+  1715→            owner: opp.assignedTo,
+  1716→            extra: opp.potentialCostSavings.trim(),
+  1717→          ),
+  1718→        ),
+  1719→      );
+  1720→    }
+  1721→
+  1722→    final merged = [...manualItems, ...autoItems];
+  1723→    if (current == null && merged.isEmpty) return null;
+  1724→
+  1725→    final base = current ?? CostAnalysisData();
+  1726→    return CostAnalysisData(
+  1727→      notes: base.notes,
+  1728→      solutionCosts: base.solutionCosts,
+  1729→      projectValueAmount: base.projectValueAmount,
+  1730→      projectValueBenefits: base.projectValueBenefits,
+  1731→      benefitLineItems: merged,
+  1732→      solutionProjectBenefits: base.solutionProjectBenefits,
+  1733→      solutionCategoryCosts: base.solutionCategoryCosts,
+  1734→      solutionCostAssumptions: base.solutionCostAssumptions,
+  1735→      savingsNotes: base.savingsNotes,
+  1736→      savingsTarget: base.savingsTarget,
+  1737→      basisFrequency: base.basisFrequency,
+  1738→      trackerBasisFrequency: base.trackerBasisFrequency,
+  1739→      npvDiscountRate: base.npvDiscountRate,
+  1740→      solutionSavingsSuggestions: base.solutionSavingsSuggestions,
+  1741→    );
+  1742→  }
+  1743→
+  1744→  static List<CostEstimateItem> _mergeAutoCostEstimateItems(
+  1745→    List<CostEstimateItem> current,
+  1746→    FrontEndPlanningData fep,
+  1747→  ) {
+  1748→    final manualItems = current
+  1749→        .where((item) => !item.id.startsWith(_autoCostAllowancePrefix))
+  1750→        .toList();
+  1751→
+  1752→    final autoItems = <CostEstimateItem>[];
+  1753→    for (final allowance in fep.allowanceItems) {
+  1754→      if (!_hasTag(allowance.appliesTo, 'Estimate')) continue;
+  1755→      if (allowance.amount <= 0) continue;
+  1756→
+  1757→      final title = _withFallback(
+  1758→          allowance.name, 'Allowance ${allowance.number.toString()}');
+  1759→      autoItems.add(
+  1760→        CostEstimateItem(
+  1761→          id: '$_autoCostAllowancePrefix${allowance.id}',
+  1762→          title: 'Allowance: $title',
+  1763→          notes: _buildAutoNote(
+  1764→            source: 'Auto-applied from Allowance',
+  1765→            owner: allowance.assignedTo,
+  1766→            extra: allowance.notes.trim(),
+  1767→          ),
+  1768→          amount: allowance.amount,
+  1769→          costType: 'indirect',
+  1770→          source: 'planning_allowance',
+  1771→          costState: 'forecast',
+  1772→          estimatingMethod: 'top_down',
+  1773→          estimatingBasis: 'Auto-applied from allowance register',
+  1774→          contingencyAmount: allowance.amount,
+  1775→          reconciliationReference: 'allowance:${allowance.id}',
+  1776→        ),
+  1777→      );
+  1778→    }
+  1779→
+  1780→    return [...manualItems, ...autoItems];
+  1781→  }
+  1782→
+  1783→  static List<CostEstimateItem> _reconcileCostEstimateItems(
+  1784→      List<CostEstimateItem> items) {
+  1785→    final grouped = <String, List<CostEstimateItem>>{};
+  1786→    final passthrough = <CostEstimateItem>[];
+  1787→
+  1788→    for (final item in items) {
+  1789→      if (item.isBaseline || !_isAutoImportedCostSource(item.source)) {
+  1790→        passthrough.add(item);
+  1791→        continue;
+  1792→      }
+  1793→      final key = _reconciliationGroupKey(item);
+  1794→      if (key == null) {
+  1795→        passthrough.add(item);
+  1796→        continue;
+  1797→      }
+  1798→      grouped.putIfAbsent(key, () => <CostEstimateItem>[]).add(item);
+  1799→    }
+  1800→
+  1801→    final reconciled = <CostEstimateItem>[...passthrough];
+  1802→    for (final groupItems in grouped.values) {
+  1803→      final highestPriority = groupItems
+  1804→          .map(_costStatePriority)
+  1805→          .fold<int>(0, (highest, value) => value > highest ? value : highest);
+  1806→      reconciled.addAll(groupItems.where(
+  1807→        (item) => _costStatePriority(item) == highestPriority,
+  1808→      ));
+  1809→    }
+  1810→    return reconciled;
+  1811→  }
+  1812→
+  1813→  static bool _isAutoImportedCostSource(String source) {
+  1814→    const autoSources = {
+  1815→      'project_contractor',
+  1816→      'project_vendor',
+  1817→      'project_contract',
+  1818→      'project_procurement_item',
+  1819→      'project_procurement_actual',
+  1820→      'project_purchase_order',
+  1821→      'planning_allowance',
+  1822→      'risk_mitigation',
+  1823→      'project_work_package',
+  1824→      'project_work_package_actual',
+  1825→      'planning_staffing',
+  1826→      'planning_infrastructure',
+  1827→      'planning_technology',
+  1828→    };
+  1829→    return autoSources.contains(source);
+  1830→  }
+  1831→
+  1832→  static String? _reconciliationGroupKey(CostEstimateItem item) {
+  1833→    if (item.reconciliationReference.trim().isNotEmpty) {
+  1834→      return item.reconciliationReference.trim();
+  1835→    }
+  1836→    if (item.workPackageId.trim().isNotEmpty) {
+  1837→      return 'work_package:${item.workPackageId.trim()}';
+  1838→    }
+  1839→    if (item.contractId.trim().isNotEmpty) {
+  1840→      return 'contract:${item.contractId.trim()}';
+  1841→    }
+  1842→    final procurementId = _procurementRecordKey(item);
+  1843→    if (procurementId != null) {
+  1844→      return 'procurement:$procurementId';
+  1845→    }
+  1846→    return null;
+  1847→  }
+  1848→
+  1849→  static String? _procurementRecordKey(CostEstimateItem item) {
+  1850→    const prefixes = {
+  1851→      'src_procurement_actual_',
+  1852→      'src_procurement_',
+  1853→    };
+  1854→    for (final prefix in prefixes) {
+  1855→      if (item.id.startsWith(prefix)) {
+  1856→        return item.id.substring(prefix.length);
+  1857→      }
+  1858→    }
+  1859→    return null;
+  1860→  }
+  1861→
+  1862→  static int _costStatePriority(CostEstimateItem item) {
+  1863→    switch (item.costState) {
+  1864→      case 'actual':
+  1865→        return 3;
+  1866→      case 'committed':
+  1867→        return 2;
+  1868→      case 'forecast':
+  1869→      default:
+  1870→        return 1;
+  1871→    }
+  1872→  }
+  1873→}
+  1874→

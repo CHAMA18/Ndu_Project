@@ -1,0 +1,1913 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:ndu_project/widgets/app_logo.dart';
+     3→import 'package:ndu_project/services/firebase_auth_service.dart';
+     4→import 'package:ndu_project/services/openai_service_secure.dart';
+     5→import 'package:ndu_project/widgets/voice_text_field.dart';
+     6→// AiSolutionItem is exported from openai_service_secure.dart
+     7→import 'package:ndu_project/services/api_key_manager.dart';
+     8→import 'package:ndu_project/services/auth_nav.dart';
+     9→import 'package:ndu_project/providers/project_data_provider.dart';
+    10→import 'package:ndu_project/models/project_data_model.dart';
+    11→import 'package:ndu_project/screens/infrastructure_considerations_screen.dart';
+    12→import 'package:ndu_project/screens/core_stakeholders_screen.dart';
+    13→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+    14→import 'package:ndu_project/widgets/responsive.dart';
+    15→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    16→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+    17→import 'package:ndu_project/widgets/admin_edit_toggle.dart';
+    18→import 'package:ndu_project/widgets/content_text.dart';
+    19→import 'package:ndu_project/widgets/business_case_header.dart';
+    20→import 'package:ndu_project/widgets/business_case_navigation_buttons.dart';
+    21→// Removed AppLogo to match updated header pattern
+    22→import 'package:ndu_project/screens/initiation_phase_screen.dart';
+    23→import 'package:ndu_project/screens/potential_solutions_screen.dart';
+    24→import 'package:ndu_project/screens/risk_identification_screen.dart';
+    25→import 'package:ndu_project/screens/settings_screen.dart';
+    26→import 'package:ndu_project/screens/cost_analysis_screen.dart';
+    27→import 'package:ndu_project/screens/preferred_solution_analysis_screen.dart';
+    28→import 'package:ndu_project/screens/home_screen.dart';
+    29→import 'package:ndu_project/utils/project_data_helper.dart';
+    30→import 'package:ndu_project/utils/rich_text_editing_controller.dart';
+    31→import 'package:ndu_project/services/sidebar_navigation_service.dart';
+    32→import 'package:ndu_project/utils/auto_bullet_text_controller.dart';
+    33→import 'package:ndu_project/services/user_service.dart';
+    34→import 'package:ndu_project/widgets/page_hint_dialog.dart';
+    35→import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
+    36→import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+    37→import 'package:ndu_project/widgets/page_regenerate_all_button.dart';
+    38→import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+    39→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    40→
+    41→enum _MissingItConsiderationsAction { manual, autoFill, skip }
+    42→
+    43→class _ItAutoFillPreviewRow {
+    44→  const _ItAutoFillPreviewRow({
+    45→    required this.title,
+    46→    required this.items,
+    47→  });
+    48→
+    49→  final String title;
+    50→  final List<String> items;
+    51→}
+    52→
+    53→class ITConsiderationsScreen extends StatefulWidget {
+    54→  final String notes;
+    55→  final List<AiSolutionItem> solutions;
+    56→  const ITConsiderationsScreen(
+    57→      {super.key, required this.notes, required this.solutions});
+    58→
+    59→  @override
+    60→  State<ITConsiderationsScreen> createState() => _ITConsiderationsScreenState();
+    61→}
+    62→
+    63→class _ITConsiderationsScreenState extends State<ITConsiderationsScreen> {
+    64→  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+    65→  final ScrollController _reviewScrollController = ScrollController();
+    66→  late final TextEditingController _notesController;
+    67→  late List<TextEditingController>
+    68→      _techControllers; // one per solution (now mutable)
+    69→  late final List<AiSolutionItem> _solutions; // Local mutable list
+    70→  final OpenAiServiceSecure _openAi = OpenAiServiceSecure();
+    71→  bool _isGenerating = false;
+    72→  String? _error;
+    73→  bool _initiationExpanded = true;
+    74→  bool _businessCaseExpanded = true;
+    75→  bool _frontEndExpanded = true;
+    76→  bool _isAdmin = false;
+    77→  bool _didInitFromProvider = false;
+    78→  bool _reviewConfirmed = false;
+    79→
+    80→  // ignore: unused_element
+    81→  void _addNewItem() {
+    82→    if (!_isAdmin) return; // Only admins can add items
+    83→    setState(() {
+    84→      _solutions.add(AiSolutionItem(
+    85→          title: '', description: '')); // Add a new solution item
+    86→      final newController = RichTextEditingController();
+    87→      newController.enableAutoBullet(); // Enable auto-bullet for new field
+    88→      _techControllers.add(newController); // Add a new controller
+    89→    });
+    90→  }
+    91→
+    92→  Future<void> _exportPdf() async {
+    93→    final notes = _notesController.text.trim();
+    94→    final techRows = <List<String>>[];
+    95→    for (int i = 0; i < _solutions.length && i < _techControllers.length; i++) {
+    96→      final title = _solutions[i].title.trim().isEmpty
+    97→          ? 'Solution ${i + 1}'
+    98→          : _solutions[i].title.trim();
+    99→      final tech = _techControllers[i].text.trim();
+   100→      techRows.add([title, tech.isEmpty ? 'No data recorded.' : tech]);
+   101→    }
+   102→    await PdfExportHelper.exportScreenPdf(
+   103→      context: context,
+   104→      screenTitle: 'IT Considerations',
+   105→      sections: [
+   106→        PdfSection.text('Notes', notes.isEmpty ? 'No data recorded.' : notes),
+   107→        if (techRows.isNotEmpty)
+   108→          PdfSection.table(
+   109→            'Core Technology by Solution',
+   110→            headers: ['Solution', 'Core Technology'],
+   111→            rows: techRows,
+   112→          ),
+   113→      ],
+   114→    );
+   115→  }
+   116→
+   117→  @override
+   118→  void initState() {
+   119→    super.initState();
+   120→    // IMPORTANT: don't read inherited widgets in initState (causes dependOnInheritedWidget errors).
+   121→    // We'll hydrate from provider in didChangeDependencies.
+   122→    _notesController = RichTextEditingController(text: widget.notes);
+   123→    // Notes = prose; no auto-bullet
+   124→
+   125→    _solutions = List.from(widget.solutions); // Create mutable copy
+   126→    // Initialize with at least one empty item if solutions list is empty
+   127→    if (_solutions.isEmpty) {
+   128→      _solutions.add(AiSolutionItem(title: '', description: ''));
+   129→    }
+   130→    _techControllers = List.generate(_solutions.length, (_) {
+   131→      final controller = RichTextEditingController();
+   132→      controller.enableAutoBullet(); // Enable auto-bullet for each tech field
+   133→      return controller;
+   134→    });
+   135→
+   136→    // Check admin status
+   137→    UserService.isCurrentUserAdmin().then((isAdmin) {
+   138→      if (mounted) setState(() => _isAdmin = isAdmin);
+   139→    });
+   140→    ApiKeyManager.initializeApiKey();
+   141→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   142→      if (!mounted) return;
+   143→      try {
+   144→        _loadExistingData();
+   145→      } catch (e) {
+   146→        debugPrint('initState error: $e');
+   147→      }
+   148→
+   149→      // Only auto-generate if there is NO existing IT data with content
+   150→      // AND we have solutions to generate for
+   151→      final provider = ProjectDataInherited.maybeOf(context);
+   152→      final existingItData = provider?.projectData.itConsiderationsData;
+   153→      final hasExistingData = existingItData != null &&
+   154→          existingItData.solutionITData.isNotEmpty &&
+   155→          existingItData.solutionITData
+   156→              .any((item) => item.coreTechnology.trim().isNotEmpty);
+   157→
+   158→      // Ensure _techControllers aligns with ALL solutions
+   159→      if (mounted) {
+   160→        setState(() {
+   161→          while (_techControllers.length < _solutions.length) {
+   162→            final controller = RichTextEditingController();
+   163→            controller.enableAutoBullet();
+   164→            _techControllers.add(controller);
+   165→          }
+   166→        });
+   167→      }
+   168→
+   169→      if (_solutions.isNotEmpty && !hasExistingData) {
+   170→        _generateTechnologies();
+   171→      }
+   172→
+   173→      Future.delayed(const Duration(milliseconds: 500), () {
+   174→        if (!mounted) return;
+   175→        PageHintDialog.showIfNeeded(
+   176→          context: context,
+   177→          pageId: 'it_considerations',
+   178→          title: 'IT Considerations',
+   179→          message:
+   180→              'List the core technology considerations for each potential solution. Click "Generate Technologies" to get AI suggestions tailored to each solution.',
+   181→        );
+   182→      });
+   183→    });
+   184→  }
+   185→
+   186→  @override
+   187→  void didChangeDependencies() {
+   188→    super.didChangeDependencies();
+   189→    if (_didInitFromProvider) return;
+   190→    _didInitFromProvider = true;
+   191→
+   192→    final provider = ProjectDataInherited.maybeOf(context);
+   193→    final existingNotes = provider?.projectData.itConsiderationsData?.notes;
+   194→    if (existingNotes != null && existingNotes.trim().isNotEmpty) {
+   195→      _notesController.text = existingNotes;
+   196→    }
+   197→  }
+   198→
+   199→  void _loadExistingData() {
+   200→    try {
+   201→      final provider = ProjectDataInherited.read(context);
+   202→      final itData = provider.projectData.itConsiderationsData;
+   203→
+   204→      if (itData == null) return;
+   205→
+   206→      // Load notes
+   207→      if (itData.notes.isNotEmpty) {
+   208→        _notesController.text = itData.notes;
+   209→      }
+   210→
+   211→      // Load IT data for each solution
+   212→      final maxItems = itData.solutionITData.length;
+   213→
+   214→      while (_techControllers.length < maxItems) {
+   215→        _solutions.add(AiSolutionItem(title: '', description: ''));
+   216→        final newController = RichTextEditingController();
+   217→        newController.enableAutoBullet(); // Enable auto-bullet for new field
+   218→        _techControllers.add(newController);
+   219→      }
+   220→      for (int i = 0; i < maxItems && i < _techControllers.length; i++) {
+   221→        final solutionIT = itData.solutionITData[i];
+   222→        if (i < _solutions.length) {
+   223→          _solutions[i] = AiSolutionItem(
+   224→            title: _cleanSolutionTitle(solutionIT.solutionTitle),
+   225→            description: '',
+   226→          );
+   227→        }
+   228→        _techControllers[i].text = solutionIT.coreTechnology;
+   229→      }
+   230→
+   231→      if (mounted) setState(() {});
+   232→    } catch (e) {
+   233→      debugPrint('Error loading existing IT considerations data: $e');
+   234→    }
+   235→  }
+   236→
+   237→  Future<void> _generateTechnologies() async {
+   238→    if (_isGenerating) return;
+   239→    setState(() {
+   240→      _isGenerating = true;
+   241→      _error = null;
+   242→    });
+   243→    try {
+   244→      final provider = ProjectDataHelper.getProvider(context);
+   245→
+   246→      // Add current values to history before regenerating
+   247→      for (int i = 0;
+   248→          i < _solutions.length && i < _techControllers.length;
+   249→          i++) {
+   250→        final fieldKey = 'it_tech_${_solutions[i].title}_$i';
+   251→        provider.addFieldToHistory(fieldKey, _techControllers[i].text,
+   252→            isAiGenerated: true);
+   253→      }
+   254→
+   255→      // Get project context for fallback if solutions are empty
+   256→      final projectData = provider.projectData;
+   257→      final projectName = projectData.projectName;
+   258→      final projectDescription = projectData.solutionDescription;
+   259→
+   260→      // Use solutions if available, otherwise create a placeholder from project name
+   261→      final solutionsToUse = _solutions
+   262→          .where((s) => s.title.isNotEmpty || s.description.isNotEmpty)
+   263→          .toList();
+   264→      if (solutionsToUse.isEmpty && projectName.isNotEmpty) {
+   265→        solutionsToUse.add(AiSolutionItem(
+   266→          title: projectName,
+   267→          description: projectDescription,
+   268→        ));
+   269→        // Ensure we have a controller for this
+   270→        if (_techControllers.isEmpty) {
+   271→          _techControllers.add(RichTextEditingController());
+   272→        }
+   273→        if (_solutions.isEmpty) {
+   274→          _solutions.addAll(solutionsToUse);
+   275→        }
+   276→      }
+   277→
+   278→      if (solutionsToUse.isEmpty) {
+   279→        setState(() {
+   280→          _error =
+   281→              'Please add at least one solution or project name to generate IT considerations.';
+   282→          _isGenerating = false;
+   283→        });
+   284→        return;
+   285→      }
+   286→
+   287→      // Build context notes with project info if available
+   288→      String contextNotes = _notesController.text.trim();
+   289→      if (contextNotes.isEmpty && projectName.isNotEmpty) {
+   290→        contextNotes = 'Project: $projectName';
+   291→        if (projectDescription.isNotEmpty) {
+   292→          contextNotes += '\nDescription: $projectDescription';
+   293→        }
+   294→      }
+   295→
+   296→      final map = await _openAi.generateTechnologiesForSolutions(
+   297→        solutionsToUse,
+   298→        contextNotes: contextNotes,
+   299→      );
+   300→
+   301→      // Apply generated data to controllers
+   302→      for (int i = 0;
+   303→          i < solutionsToUse.length && i < _techControllers.length;
+   304→          i++) {
+   305→        final title = solutionsToUse[i].title;
+   306→        final tech = map[title] ?? const <String>[];
+   307→        _techControllers[i].text = tech.isEmpty
+   308→            ? 'Not applicable based on the current project context. Add your own IT considerations for this solution.'
+   309→            : tech.map((e) => '- $e').join('\n');
+   310→      }
+   311→
+   312→      // Auto-save after regeneration
+   313→      await provider.saveToFirebase(
+   314→          checkpoint: 'it_considerations_regenerated');
+   315→
+   316→      if (mounted) {
+   317→        ScaffoldMessenger.of(context).showSnackBar(
+   318→          const SnackBar(
+   319→              content: Text('IT considerations regenerated successfully')),
+   320→        );
+   321→      }
+   322→    } catch (e) {
+   323→      _error = (e.toString().contains('Failed to fetch') ||
+   324→              e.toString().contains('ClientException') ||
+   325→              e.toString().contains('XMLHttpRequest') ||
+   326→              e.toString().contains('Connection refused'))
+   327→          ? 'AI assist is being set up. Please try again later or enter content manually.'
+   328→          : e.toString();
+   329→      if (mounted) {
+   330→        ScaffoldMessenger.of(context).showSnackBar(
+   331→          SnackBar(content: Text('Failed to regenerate IT considerations: $e')),
+   332→        );
+   333→      }
+   334→    } finally {
+   335→      if (mounted) {
+   336→        setState(() => _isGenerating = false);
+   337→        // Auto-save after generation
+   338→        _saveITConsiderationsData();
+   339→      }
+   340→    }
+   341→  }
+   342→
+   343→  Future<void> _regenerateAllTechnologies() async {
+   344→    await _generateTechnologies();
+   345→  }
+   346→
+   347→  @override
+   348→  Widget build(BuildContext context) {
+   349→    final isMobile = AppBreakpoints.isMobile(context);
+   350→    if (isMobile) {
+   351→      return _buildMobileScaffold();
+   352→    }
+   353→    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
+   354→    return Scaffold(
+   355→      key: _scaffoldKey,
+   356→      backgroundColor: Colors.white,
+   357→      drawer: null,
+   358→      body: SafeArea(
+   359→        top: true,
+   360→        child: Stack(
+   361→          children: [
+   362→            Row(children: [
+   363→              DraggableSidebar(
+   364→                openWidth: sidebarWidth,
+   365→                child: const InitiationLikeSidebar(
+   366→                    activeItemLabel: 'IT Considerations'),
+   367→              ),
+   368→              Expanded(
+   369→                  child: Column(children: [
+   370→                BusinessCaseHeader(
+   371→                    scaffoldKey: _scaffoldKey, onExportPdf: _exportPdf),
+   372→                Expanded(child: _buildMainContent()),
+   373→              ])),
+   374→            ]),
+   375→            MobileSidebarHamburger(
+   376→              sidebar: const InitiationLikeSidebar(
+   377→                activeItemLabel: 'IT Considerations',
+   378→              ),
+   379→            ),
+   380→            const KazAiChatBubble(),
+   381→            const AdminEditToggle(),
+   382→          ],
+   383→        ),
+   384→      ),
+   385→    );
+   386→  }
+   387→
+   388→  Widget _buildMobileScaffold() {
+   389→    final projectName = ProjectDataHelper.getData(context).projectName.trim();
+   390→    final displayCount = _isAdmin
+   391→        ? _techControllers.length
+   392→        : (_techControllers.length > 3 ? 3 : _techControllers.length);
+   393→
+   394→    return Scaffold(
+   395→      key: _scaffoldKey,
+   396→      backgroundColor: Colors.white,
+   397→      drawer: _buildMobileDrawer(),
+   398→      body: SafeArea(
+   399→        child: Column(
+   400→          children: [
+   401→            Container(
+   402→              height: 56,
+   403→              padding: const EdgeInsets.symmetric(horizontal: 6),
+   404→              child: Row(
+   405→                children: [
+   406→                  IconButton(
+   407→                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+   408→                    icon: const Icon(Icons.menu_rounded, size: 18),
+   409→                  ),
+   410→                  const Expanded(
+   411→                    child: Text(
+   412→                      'IT Considerations',
+   413→                      style: TextStyle(
+   414→                        fontSize: 16.5,
+   415→                        fontWeight: FontWeight.w700,
+   416→                        color: Color(0xFF1F2937),
+   417→                      ),
+   418→                    ),
+   419→                  ),
+   420→                  IconButton(
+   421→                    onPressed:
+   422→                        _isGenerating ? null : _regenerateAllTechnologies,
+   423→                    icon: const Icon(Icons.refresh_rounded,
+   424→                        color: Color(0xFFF59E0B), size: 18),
+   425→                    tooltip: 'Regenerate all',
+   426→                  ),
+   427→                ],
+   428→              ),
+   429→            ),
+   430→            Expanded(
+   431→              child: SingleChildScrollView(
+   432→                padding: const EdgeInsets.fromLTRB(10, 0, 10, 94),
+   433→                child: Column(
+   434→                  crossAxisAlignment: CrossAxisAlignment.start,
+   435→                  children: [
+   436→                    Text(
+   437→                      '${projectName.isEmpty ? 'PROJECT' : projectName.toUpperCase()} > Initiation Phase',
+   438→                      style: const TextStyle(
+   439→                        fontSize: 9.2,
+   440→                        color: Color(0xFFF59E0B),
+   441→                        fontWeight: FontWeight.w700,
+   442→                        letterSpacing: 0.35,
+   443→                      ),
+   444→                    ),
+   445→                    const SizedBox(height: 8),
+   446→                    const Text(
+   447→                      'IT Considerations',
+   448→                      style: TextStyle(
+   449→                        fontSize: 37,
+   450→                        fontWeight: FontWeight.w800,
+   451→                        color: Color(0xFF111827),
+   452→                        height: 1,
+   453→                      ),
+   454→                    ),
+   455→                    const SizedBox(height: 4),
+   456→                    Text(
+   457→                      'List core IT considerations for each potential solution.',
+   458→                      style: TextStyle(
+   459→                        fontSize: 12.5,
+   460→                        color: Colors.grey.shade600,
+   461→                      ),
+   462→                    ),
+   463→                    const SizedBox(height: 12),
+   464→                    const Text(
+   465→                      'Notes',
+   466→                      style: TextStyle(
+   467→                        fontSize: 13.5,
+   468→                        fontWeight: FontWeight.w700,
+   469→                        color: Color(0xFF374151),
+   470→                      ),
+   471→                    ),
+   472→                    const SizedBox(height: 6),
+   473→                    Container(
+   474→                      padding: const EdgeInsets.all(10),
+   475→                      decoration: BoxDecoration(
+   476→                        color: Colors.white,
+   477→                        borderRadius: BorderRadius.circular(12),
+   478→                        border: Border.all(color: const Color(0xFFDCE3EE)),
+   479→                      ),
+   480→                      child: VoiceTextField(
+   481→                        controller: _notesController,
+   482→                        minLines: 3,
+   483→                        maxLines: 6,
+   484→                        style: const TextStyle(
+   485→                          fontSize: 12.5,
+   486→                          color: Color(0xFF374151),
+   487→                        ),
+   488→                        decoration: const InputDecoration(
+   489→                          border: InputBorder.none,
+   490→                          hintText: 'Enter overall project IT notes here...',
+   491→                          isDense: true,
+   492→                        ),
+   493→                      ),
+   494→                    ),
+   495→                    const SizedBox(height: 14),
+   496→                    const Text(
+   497→                      'SOLUTION TECH BREAKDOWN',
+   498→                      style: TextStyle(
+   499→                        fontSize: 11,
+   500→                        fontWeight: FontWeight.w800,
+   501→                        color: Color(0xFF9CA3AF),
+   502→                        letterSpacing: 0.45,
+   503→                      ),
+   504→                    ),
+   505→                    const SizedBox(height: 8),
+   506→                    for (int i = 0; i < displayCount; i++) ...[
+   507→                      _buildMobileSolutionCard(i),
+   508→                      const SizedBox(height: 10),
+   509→                    ],
+   510→                  ],
+   511→                ),
+   512→              ),
+   513→            ),
+   514→          ],
+   515→        ),
+   516→      ),
+   517→      bottomNavigationBar: SafeArea(
+   518→        top: false,
+   519→        child: Container(
+   520→          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+   521→          decoration: const BoxDecoration(
+   522→            color: Color(0xFFF3F5F9),
+   523→            border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+   524→          ),
+   525→          child: Row(
+   526→            children: [
+   527→              Expanded(
+   528→                child: OutlinedButton.icon(
+   529→                  onPressed: () async {
+   530→                    await _saveITConsiderationsData();
+   531→                    if (!mounted) return;
+   532→                    _openRiskIdentification();
+   533→                  },
+   534→                  icon: const Icon(Icons.chevron_left_rounded, size: 17),
+   535→                  label: const Text('Back'),
+   536→                  style: OutlinedButton.styleFrom(
+   537→                    foregroundColor: const Color(0xFF374151),
+   538→                    backgroundColor: Colors.white,
+   539→                    side: const BorderSide(color: Color(0xFFD1D5DB)),
+   540→                    shape: RoundedRectangleBorder(
+   541→                        borderRadius: BorderRadius.circular(10)),
+   542→                    padding: const EdgeInsets.symmetric(vertical: 12),
+   543→                    textStyle: const TextStyle(
+   544→                        fontWeight: FontWeight.w700, fontSize: 13.5),
+   545→                  ),
+   546→                ),
+   547→              ),
+   548→              const SizedBox(width: 10),
+   549→              Expanded(
+   550→                child: ElevatedButton(
+   551→                  onPressed: _openInfrastructureConsiderations,
+   552→                  style: ElevatedButton.styleFrom(
+   553→                    backgroundColor: const Color(0xFFFBBF24),
+   554→                    foregroundColor: Colors.black,
+   555→                    elevation: 0,
+   556→                    shape: RoundedRectangleBorder(
+   557→                        borderRadius: BorderRadius.circular(10)),
+   558→                    padding: const EdgeInsets.symmetric(vertical: 12),
+   559→                    textStyle: const TextStyle(
+   560→                        fontWeight: FontWeight.w800, fontSize: 13.5),
+   561→                  ),
+   562→                  child: const Text('Next Step'),
+   563→                ),
+   564→              ),
+   565→            ],
+   566→          ),
+   567→        ),
+   568→      ),
+   569→    );
+   570→  }
+   571→
+   572→  Widget _buildMobileSolutionCard(int index) {
+   573→    final provider = ProjectDataHelper.getProvider(context);
+   574→    final canUndo =
+   575→        provider.canUndoField('it_tech_${_solutions[index].title}_$index');
+   576→    final solution = _solutions[index];
+   577→    final title = _cleanSolutionTitle(solution.title).trim();
+   578→    return Container(
+   579→      width: double.infinity,
+   580→      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+   581→      decoration: BoxDecoration(
+   582→        color: Colors.white,
+   583→        borderRadius: BorderRadius.circular(14),
+   584→        border: Border.all(color: const Color(0xFFE2E8F0)),
+   585→      ),
+   586→      child: Column(
+   587→        crossAxisAlignment: CrossAxisAlignment.start,
+   588→        children: [
+   589→          Row(
+   590→            crossAxisAlignment: CrossAxisAlignment.start,
+   591→            children: [
+   592→              Container(
+   593→                width: 21,
+   594→                height: 21,
+   595→                decoration: const BoxDecoration(
+   596→                  color: Color(0xFFFBBF24),
+   597→                  shape: BoxShape.circle,
+   598→                ),
+   599→                alignment: Alignment.center,
+   600→                child: Text(
+   601→                  '${index + 1}',
+   602→                  style: const TextStyle(
+   603→                    fontSize: 11,
+   604→                    fontWeight: FontWeight.w800,
+   605→                    color: Colors.white,
+   606→                  ),
+   607→                ),
+   608→              ),
+   609→              const SizedBox(width: 8),
+   610→              Expanded(
+   611→                child: Column(
+   612→                  crossAxisAlignment: CrossAxisAlignment.start,
+   613→                  children: [
+   614→                    Text(
+   615→                      title.isEmpty ? 'Potential Solution ${index + 1}' : title,
+   616→                      style: const TextStyle(
+   617→                        fontSize: 19,
+   618→                        fontWeight: FontWeight.w800,
+   619→                        color: Color(0xFF1F2937),
+   620→                        height: 1.05,
+   621→                      ),
+   622→                    ),
+   623→                    if (solution.description.trim().isNotEmpty)
+   624→                      Padding(
+   625→                        padding: const EdgeInsets.only(top: 4),
+   626→                        child: Text(
+   627→                          solution.description.trim(),
+   628→                          maxLines: 2,
+   629→                          overflow: TextOverflow.ellipsis,
+   630→                          style: TextStyle(
+   631→                            fontSize: 11.5,
+   632→                            color: Colors.grey.shade500,
+   633→                          ),
+   634→                        ),
+   635→                      ),
+   636→                  ],
+   637→                ),
+   638→              ),
+   639→            ],
+   640→          ),
+   641→          const SizedBox(height: 8),
+   642→          Container(
+   643→            width: double.infinity,
+   644→            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+   645→            decoration: BoxDecoration(
+   646→              color: const Color(0xFFF8FAFC),
+   647→              borderRadius: BorderRadius.circular(10),
+   648→              border: Border.all(color: const Color(0xFFDDE3EE)),
+   649→            ),
+   650→            child: Column(
+   651→              crossAxisAlignment: CrossAxisAlignment.start,
+   652→              children: [
+   653→                Row(
+   654→                  children: [
+   655→                    Text(
+   656→                      'CORE TECHNOLOGY',
+   657→                      style: TextStyle(
+   658→                        fontSize: 9.5,
+   659→                        color: Colors.grey.shade500,
+   660→                        fontWeight: FontWeight.w800,
+   661→                        letterSpacing: 0.35,
+   662→                      ),
+   663→                    ),
+   664→                    const Spacer(),
+   665→                    IconButton(
+   666→                      onPressed: () => _regenerateSingleTechField(
+   667→                          _techControllers[index], index),
+   668→                      icon: const Icon(Icons.refresh_rounded, size: 15),
+   669→                      visualDensity: VisualDensity.compact,
+   670→                      splashRadius: 18,
+   671→                      tooltip: 'Regenerate field',
+   672→                    ),
+   673→                    IconButton(
+   674→                      onPressed: canUndo
+   675→                          ? () async {
+   676→                              final previous = provider.projectData.undoField(
+   677→                                  'it_tech_${_solutions[index].title}_$index');
+   678→                              if (previous != null) {
+   679→                                _techControllers[index].text = previous;
+   680→                                await provider.saveToFirebase(
+   681→                                    checkpoint: 'it_tech_undo');
+   682→                              }
+   683→                            }
+   684→                          : null,
+   685→                      icon: const Icon(Icons.undo_rounded, size: 15),
+   686→                      visualDensity: VisualDensity.compact,
+   687→                      splashRadius: 18,
+   688→                      tooltip: 'Undo',
+   689→                    ),
+   690→                  ],
+   691→                ),
+   692→                VoiceTextField(
+   693→                  controller: _techControllers[index],
+   694→                  minLines: 4,
+   695→                  maxLines: null,
+   696→                  style: const TextStyle(
+   697→                    fontSize: 12.2,
+   698→                    color: Color(0xFF334155),
+   699→                    height: 1.4,
+   700→                  ),
+   701→                  decoration: const InputDecoration(
+   702→                    border: InputBorder.none,
+   703→                    hintText:
+   704→                        '- HTML5 for web-based interfaces\n- JavaScript frameworks ...',
+   705→                    isDense: true,
+   706→                  ),
+   707→                ),
+   708→              ],
+   709→            ),
+   710→          ),
+   711→        ],
+   712→      ),
+   713→    );
+   714→  }
+   715→
+   716→  // ignore: unused_element
+   717→  Widget _buildTopHeader() {
+   718→    final isMobile = AppBreakpoints.isMobile(context);
+   719→    return Container(
+   720→      height: isMobile ? 72 : 88,
+   721→      color: Colors.white,
+   722→      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24),
+   723→      child: Row(children: [
+   724→        Row(children: [
+   725→          if (isMobile)
+   726→            IconButton(
+   727→                icon: const Icon(Icons.menu),
+   728→                onPressed: () => _scaffoldKey.currentState?.openDrawer()),
+   729→          if (!isMobile)
+   730→            IconButton(
+   731→                icon: const Icon(Icons.arrow_back_ios, size: 16),
+   732→                onPressed: () => Navigator.pop(context)),
+   733→        ]),
+   734→        const Spacer(),
+   735→        if (!isMobile)
+   736→          const Text('Initiation Phase',
+   737→              style: TextStyle(
+   738→                  fontSize: 18,
+   739→                  fontWeight: FontWeight.w600,
+   740→                  color: Colors.black)),
+   741→        const Spacer(),
+   742→        Row(children: [
+   743→          Container(
+   744→              width: 40,
+   745→              height: 40,
+   746→              decoration: const BoxDecoration(
+   747→                  color: const Color(0xFFD97706), shape: BoxShape.circle),
+   748→              child: const Icon(Icons.person, color: Colors.white, size: 20)),
+   749→          if (!isMobile) ...[
+   750→            const SizedBox(width: 12),
+   751→            Column(
+   752→                mainAxisAlignment: MainAxisAlignment.center,
+   753→                crossAxisAlignment: CrossAxisAlignment.start,
+   754→                children: [
+   755→                  Text(FirebaseAuthService.displayNameOrEmail(fallback: 'User'),
+   756→                      style: const TextStyle(
+   757→                          fontSize: 14,
+   758→                          fontWeight: FontWeight.w600,
+   759→                          color: Colors.black)),
+   760→                  const Text('Owner',
+   761→                      style: TextStyle(fontSize: 12, color: Colors.grey)),
+   762→                ]),
+   763→            const SizedBox(width: 8),
+   764→            const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 20),
+   765→          ],
+   766→        ]),
+   767→      ]),
+   768→    );
+   769→  }
+   770→
+   771→  // ignore: unused_element
+   772→  Widget _buildSidebar() {
+   773→    final isMobile = AppBreakpoints.isMobile(context);
+   774→    final double bannerHeight = isMobile ? 72 : 96;
+   775→    final sidebarWidth = AppBreakpoints.sidebarWidth(context);
+   776→    return Container(
+   777→      width: sidebarWidth,
+   778→      decoration: BoxDecoration(
+   779→        color: Colors.white,
+   780→        border: Border(
+   781→          right: BorderSide(color: Colors.grey.withOpacity(0.25), width: 0.8),
+   782→        ),
+   783→      ),
+   784→      child: Column(children: [
+   785→        // Full-width banner image above "StackOne"
+   786→        SizedBox(
+   787→          width: double.infinity,
+   788→          height: bannerHeight,
+   789→          child: Center(child: AppLogo(height: 64)),
+   790→        ),
+   791→        Container(
+   792→          padding: const EdgeInsets.all(24),
+   793→          decoration: const BoxDecoration(
+   794→            border: Border(
+   795→              bottom: BorderSide(color: Color(0xFFFFD700), width: 1),
+   796→            ),
+   797→          ),
+   798→          child: const Row(children: [
+   799→            CircleAvatar(
+   800→              radius: 20,
+   801→              backgroundColor: Color(0xFFFFD700),
+   802→              child: Icon(Icons.person_outline, color: Colors.black87),
+   803→            ),
+   804→            SizedBox(width: 12),
+   805→            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+   806→              Text('StackOne',
+   807→                  style: TextStyle(
+   808→                      fontSize: 16,
+   809→                      fontWeight: FontWeight.w600,
+   810→                      color: Colors.black)),
+   811→            ])
+   812→          ]),
+   813→        ),
+   814→        Expanded(
+   815→          child: ListView(
+   816→              padding: const EdgeInsets.symmetric(vertical: 20),
+   817→              children: [
+   818→                _buildMenuItem(Icons.home_outlined, 'Home',
+   819→                    onTap: () => HomeScreen.open(context)),
+   820→                _buildExpandableHeader(
+   821→                  Icons.flag_outlined,
+   822→                  'Initiation Phase',
+   823→                  expanded: _initiationExpanded,
+   824→                  onTap: () => setState(
+   825→                      () => _initiationExpanded = !_initiationExpanded),
+   826→                  isActive: true,
+   827→                ),
+   828→                if (_initiationExpanded) ...[
+   829→                  _buildExpandableHeader(
+   830→                    Icons.business_center_outlined,
+   831→                    'Business Case',
+   832→                    expanded: _businessCaseExpanded,
+   833→                    onTap: () => setState(
+   834→                        () => _businessCaseExpanded = !_businessCaseExpanded),
+   835→                    isActive: false,
+   836→                  ),
+   837→                  if (_businessCaseExpanded) ...[
+   838→                    _buildNestedSubMenuItem('Potential Solutions',
+   839→                        onTap: _openPotentialSolutions),
+   840→                    _buildNestedSubMenuItem('Risk Identification',
+   841→                        onTap: _openRiskIdentification),
+   842→                    _buildNestedSubMenuItem('IT Considerations',
+   843→                        isActive: true),
+   844→                    _buildNestedSubMenuItem('Infrastructure Considerations',
+   845→                        onTap: _openInfrastructureConsiderations),
+   846→                    _buildNestedSubMenuItem('Core Stakeholders',
+   847→                        onTap: _openCoreStakeholders),
+   848→                    _buildNestedSubMenuItem('Initial Cost Estimate',
+   849→                        onTap: _openCostAnalysis),
+   850→                    _buildNestedSubMenuItem('Preferred Solution Analysis',
+   851→                        onTap: _openPreferredSolutionAnalysis),
+   852→                  ],
+   853→                  _buildExpandableHeader(
+   854→                    Icons.timeline,
+   855→                    'Initiation: Front End Planning',
+   856→                    expanded: _frontEndExpanded,
+   857→                    onTap: () =>
+   858→                        setState(() => _frontEndExpanded = !_frontEndExpanded),
+   859→                    isActive: false,
+   860→                  ),
+   861→                  if (_frontEndExpanded) ...[
+   862→                    _buildNestedSubMenuItem('Project Requirements'),
+   863→                    _buildNestedSubMenuItem('Project Risks'),
+   864→                    _buildNestedSubMenuItem('Project Opportunities'),
+   865→                  ],
+   866→                ],
+   867→                _buildMenuItem(Icons.account_tree_outlined, 'Workflow Roadmap'),
+   868→                _buildMenuItem(Icons.flash_on, 'Agile Roadmap'),
+   869→                _buildMenuItem(Icons.description_outlined, 'Contracting'),
+   870→                _buildMenuItem(Icons.shopping_cart_outlined, 'Procurement'),
+   871→                const SizedBox(height: 20),
+   872→                _buildMenuItem(Icons.settings_outlined, 'Settings'),
+   873→                _buildMenuItem(Icons.logout_outlined, 'LogOut'),
+   874→              ]),
+   875→        ),
+   876→      ]),
+   877→    );
+   878→  }
+   879→
+   880→  Drawer _buildMobileDrawer() {
+   881→    return Drawer(
+   882→      width: MediaQuery.sizeOf(context).width * 0.88,
+   883→      child: const SafeArea(
+   884→        child: InitiationLikeSidebar(
+   885→          activeItemLabel: 'IT Considerations',
+   886→        ),
+   887→      ),
+   888→    );
+   889→  }
+   890→
+   891→  Widget _buildMenuItem(IconData icon, String title,
+   892→      {VoidCallback? onTap, bool selected = false}) {
+   893→    final primary = Theme.of(context).colorScheme.primary;
+   894→    return Padding(
+   895→      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+   896→      child: InkWell(
+   897→        onTap: onTap ??
+   898→            () {
+   899→              if (title == 'LogOut') {
+   900→                AuthNav.signOutAndExit(context);
+   901→              } else if (title == 'Settings') {
+   902→                SettingsScreen.open(context);
+   903→              }
+   904→            },
+   905→        child: Container(
+   906→          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+   907→          decoration: selected
+   908→              ? BoxDecoration(
+   909→                  color: primary.withOpacity(0.08),
+   910→                  borderRadius: BorderRadius.circular(8),
+   911→                  border: Border(left: BorderSide(color: primary, width: 3)),
+   912→                )
+   913→              : null,
+   914→          child: Row(children: [
+   915→            Icon(icon, size: 20, color: selected ? primary : Colors.black87),
+   916→            const SizedBox(width: 16),
+   917→            Expanded(
+   918→              child: Text(
+   919→                title,
+   920→                style: TextStyle(
+   921→                    fontSize: 14,
+   922→                    color: selected ? primary : Colors.black87,
+   923→                    fontWeight: FontWeight.w600),
+   924→                softWrap: true,
+   925→                maxLines: 2,
+   926→                overflow: TextOverflow.ellipsis,
+   927→              ),
+   928→            ),
+   929→          ]),
+   930→        ),
+   931→      ),
+   932→    );
+   933→  }
+   934→
+   935→  // ignore: unused_element
+   936→  Widget _buildSubMenuItem(String title,
+   937→      {VoidCallback? onTap, bool isActive = false}) {
+   938→    final primary = Theme.of(context).colorScheme.primary;
+   939→    return Padding(
+   940→      padding: const EdgeInsets.only(left: 48, right: 24, top: 2, bottom: 2),
+   941→      child: InkWell(
+   942→        onTap: onTap,
+   943→        child: Container(
+   944→          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+   945→          decoration: BoxDecoration(
+   946→            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
+   947→            borderRadius: BorderRadius.circular(8),
+   948→          ),
+   949→          child: Row(children: [
+   950→            Icon(Icons.circle,
+   951→                size: 8, color: isActive ? primary : Colors.grey[500]),
+   952→            const SizedBox(width: 12),
+   953→            Expanded(
+   954→              child: Text(title,
+   955→                  style: TextStyle(
+   956→                      fontSize: 13,
+   957→                      color: isActive ? primary : Colors.black87,
+   958→                      fontWeight:
+   959→                          isActive ? FontWeight.w600 : FontWeight.normal),
+   960→                  maxLines: 2,
+   961→                  overflow: TextOverflow.ellipsis),
+   962→            ),
+   963→          ]),
+   964→        ),
+   965→      ),
+   966→    );
+   967→  }
+   968→
+   969→  // Third-level nested menu item (under Business Case)
+   970→  Widget _buildNestedSubMenuItem(String title,
+   971→      {VoidCallback? onTap, bool isActive = false}) {
+   972→    final primary = Theme.of(context).colorScheme.primary;
+   973→    return Padding(
+   974→      padding: const EdgeInsets.only(left: 72, right: 24, top: 2, bottom: 2),
+   975→      child: InkWell(
+   976→        onTap: onTap,
+   977→        child: Container(
+   978→          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+   979→          decoration: BoxDecoration(
+   980→            color: isActive ? primary.withOpacity(0.10) : Colors.transparent,
+   981→            borderRadius: BorderRadius.circular(8),
+   982→          ),
+   983→          child: Row(children: [
+   984→            Icon(Icons.circle,
+   985→                size: 6, color: isActive ? primary : Colors.grey[400]),
+   986→            const SizedBox(width: 12),
+   987→            Expanded(
+   988→              child: Text(title,
+   989→                  style: TextStyle(
+   990→                      fontSize: 12,
+   991→                      color: isActive ? primary : Colors.black87,
+   992→                      fontWeight:
+   993→                          isActive ? FontWeight.w600 : FontWeight.normal),
+   994→                  maxLines: 2,
+   995→                  overflow: TextOverflow.ellipsis),
+   996→            ),
+   997→          ]),
+   998→        ),
+   999→      ),
+  1000→    );
+  1001→  }
+  1002→
+  1003→  Widget _buildExpandableHeader(IconData icon, String title,
+  1004→      {required bool expanded,
+  1005→      required VoidCallback onTap,
+  1006→      bool isActive = false}) {
+  1007→    final primary = Theme.of(context).colorScheme.primary;
+  1008→    return Padding(
+  1009→      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+  1010→      child: InkWell(
+  1011→        onTap: onTap,
+  1012→        child: Container(
+  1013→          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  1014→          decoration: BoxDecoration(
+  1015→            color: isActive ? primary.withOpacity(0.12) : Colors.transparent,
+  1016→            borderRadius: BorderRadius.circular(8),
+  1017→          ),
+  1018→          child: Row(
+  1019→            children: [
+  1020→              Icon(icon, size: 20, color: isActive ? primary : Colors.black87),
+  1021→              const SizedBox(width: 16),
+  1022→              Expanded(
+  1023→                child: Text(
+  1024→                  title,
+  1025→                  style: TextStyle(
+  1026→                    fontSize: 14,
+  1027→                    color: isActive ? primary : Colors.black87,
+  1028→                    fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+  1029→                  ),
+  1030→                  softWrap: true,
+  1031→                  maxLines: 2,
+  1032→                  overflow: TextOverflow.ellipsis,
+  1033→                ),
+  1034→              ),
+  1035→              Icon(
+  1036→                  expanded
+  1037→                      ? Icons.keyboard_arrow_up
+  1038→                      : Icons.keyboard_arrow_down,
+  1039→                  color: Colors.grey[700],
+  1040→                  size: 20),
+  1041→            ],
+  1042→          ),
+  1043→        ),
+  1044→      ),
+  1045→    );
+  1046→  }
+  1047→
+  1048→  // ignore: unused_element
+  1049→  void _openBusinessCase() {
+  1050→    Navigator.push(
+  1051→      context,
+  1052→      MaterialPageRoute(
+  1053→        builder: (_) => const InitiationPhaseScreen(scrollToBusinessCase: true),
+  1054→      ),
+  1055→    );
+  1056→  }
+  1057→
+  1058→  void _openPotentialSolutions() {
+  1059→    Navigator.push(
+  1060→      context,
+  1061→      MaterialPageRoute(
+  1062→        builder: (_) => const PotentialSolutionsScreen(),
+  1063→      ),
+  1064→    );
+  1065→  }
+  1066→
+  1067→  void _openRiskIdentification() {
+  1068→    Navigator.push(
+  1069→      context,
+  1070→      MaterialPageRoute(
+  1071→        builder: (_) => RiskIdentificationScreen(
+  1072→          notes: _notesController.text,
+  1073→          solutions: widget.solutions,
+  1074→        ),
+  1075→      ),
+  1076→    );
+  1077→  }
+  1078→
+  1079→  bool _hasRequiredItData(ProjectDataModel projectData) {
+  1080→    final data = projectData.itConsiderationsData;
+  1081→    if (data == null || data.solutionITData.isEmpty) return false;
+  1082→    return data.solutionITData
+  1083→        .any((item) => item.coreTechnology.trim().isNotEmpty);
+  1084→  }
+  1085→
+  1086→  Future<_MissingItConsiderationsAction?> _showMissingItDataDialog() {
+  1087→    return showDialog<_MissingItConsiderationsAction>(
+  1088→      context: context,
+  1089→      builder: (dialogContext) => AlertDialog(
+  1090→        title: const Text('IT Considerations Incomplete'),
+  1091→        content: const Text(
+  1092→          'No IT considerations were found. Add them manually, let AI generate them, or continue and complete later.',
+  1093→        ),
+  1094→        actions: [
+  1095→          TextButton(
+  1096→            onPressed: () => Navigator.of(dialogContext)
+  1097→                .pop(_MissingItConsiderationsAction.manual),
+  1098→            child: const Text('Add Manually'),
+  1099→          ),
+  1100→          TextButton(
+  1101→            onPressed: () => Navigator.of(dialogContext)
+  1102→                .pop(_MissingItConsiderationsAction.autoFill),
+  1103→            child: const Text('Auto Fill with AI'),
+  1104→          ),
+  1105→          ElevatedButton(
+  1106→            onPressed: () => Navigator.of(dialogContext)
+  1107→                .pop(_MissingItConsiderationsAction.skip),
+  1108→            child: const Text('Skip for Now'),
+  1109→          ),
+  1110→        ],
+  1111→      ),
+  1112→    );
+  1113→  }
+  1114→
+  1115→  List<AiSolutionItem> _resolveItSolutionsForAutofill(
+  1116→    ProjectDataModel projectData,
+  1117→  ) {
+  1118→    final solutions = _solutions
+  1119→        .where(
+  1120→            (s) => s.title.trim().isNotEmpty || s.description.trim().isNotEmpty)
+  1121→        .toList(growable: true);
+  1122→    if (solutions.isEmpty && projectData.projectName.trim().isNotEmpty) {
+  1123→      solutions.add(
+  1124→        AiSolutionItem(
+  1125→          title: projectData.projectName.trim(),
+  1126→          description: projectData.solutionDescription.trim(),
+  1127→        ),
+  1128→      );
+  1129→    }
+  1130→    return solutions;
+  1131→  }
+  1132→
+  1133→  Future<List<_ItAutoFillPreviewRow>> _buildItAutofillPreview() async {
+  1134→    final provider = ProjectDataHelper.getProvider(context);
+  1135→    final projectData = provider.projectData;
+  1136→    final solutionsToUse = _resolveItSolutionsForAutofill(projectData);
+  1137→    if (solutionsToUse.isEmpty) return const <_ItAutoFillPreviewRow>[];
+  1138→
+  1139→    var contextNotes = _notesController.text.trim();
+  1140→    if (contextNotes.isEmpty && projectData.projectName.trim().isNotEmpty) {
+  1141→      contextNotes = 'Project: ${projectData.projectName.trim()}';
+  1142→      if (projectData.solutionDescription.trim().isNotEmpty) {
+  1143→        contextNotes +=
+  1144→            '\nDescription: ${projectData.solutionDescription.trim()}';
+  1145→      }
+  1146→    }
+  1147→
+  1148→    final generated = await _openAi.generateTechnologiesForSolutions(
+  1149→      solutionsToUse,
+  1150→      contextNotes: contextNotes,
+  1151→    );
+  1152→
+  1153→    final preview = <_ItAutoFillPreviewRow>[];
+  1154→    for (var i = 0; i < solutionsToUse.length; i++) {
+  1155→      final sourceTitle = solutionsToUse[i].title.trim();
+  1156→      final title = _cleanSolutionTitle(sourceTitle).trim().isEmpty
+  1157→          ? 'Solution ${i + 1}'
+  1158→          : _cleanSolutionTitle(sourceTitle).trim();
+  1159→      final suggestions = (generated[sourceTitle] ?? const <String>[])
+  1160→          .map((entry) => entry.trim())
+  1161→          .where((entry) => entry.isNotEmpty)
+  1162→          .toList(growable: false);
+  1163→      if (suggestions.isEmpty) continue;
+  1164→      preview.add(_ItAutoFillPreviewRow(title: title, items: suggestions));
+  1165→    }
+  1166→    return preview;
+  1167→  }
+  1168→
+  1169→  Future<bool> _showItAutofillPreviewDialog(
+  1170→    List<_ItAutoFillPreviewRow> previewRows,
+  1171→  ) async {
+  1172→    if (previewRows.isEmpty) return false;
+  1173→    final approved = await showDialog<bool>(
+  1174→      context: context,
+  1175→      builder: (dialogContext) => AlertDialog(
+  1176→        title: const Text('Confirm AI Autofill'),
+  1177→        content: SizedBox(
+  1178→          width: 620,
+  1179→          child: ConstrainedBox(
+  1180→            constraints: const BoxConstraints(maxHeight: 420),
+  1181→            child: SingleChildScrollView(
+  1182→              child: Column(
+  1183→                crossAxisAlignment: CrossAxisAlignment.start,
+  1184→                children: [
+  1185→                  const Text(
+  1186→                    'Review what AI will add before applying:',
+  1187→                    style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+  1188→                  ),
+  1189→                  const SizedBox(height: 12),
+  1190→                  for (var i = 0; i < previewRows.length; i++) ...[
+  1191→                    Text(
+  1192→                      previewRows[i].title,
+  1193→                      style: const TextStyle(
+  1194→                        fontSize: 14,
+  1195→                        fontWeight: FontWeight.w700,
+  1196→                        color: Color(0xFF0F172A),
+  1197→                      ),
+  1198→                    ),
+  1199→                    const SizedBox(height: 6),
+  1200→                    Text(
+  1201→                      previewRows[i].items.map((item) => '- $item').join('\n'),
+  1202→                      style: const TextStyle(
+  1203→                        fontSize: 12,
+  1204→                        color: Color(0xFF334155),
+  1205→                      ),
+  1206→                    ),
+  1207→                    if (i != previewRows.length - 1) ...[
+  1208→                      const SizedBox(height: 10),
+  1209→                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+  1210→                      const SizedBox(height: 10),
+  1211→                    ],
+  1212→                  ],
+  1213→                ],
+  1214→              ),
+  1215→            ),
+  1216→          ),
+  1217→        ),
+  1218→        actions: [
+  1219→          TextButton(
+  1220→            onPressed: () => Navigator.of(dialogContext).pop(false),
+  1221→            child: const Text('Cancel'),
+  1222→          ),
+  1223→          ElevatedButton(
+  1224→            onPressed: () => Navigator.of(dialogContext).pop(true),
+  1225→            child: const Text('Apply AI Suggestions'),
+  1226→          ),
+  1227→        ],
+  1228→      ),
+  1229→    );
+  1230→    return approved == true;
+  1231→  }
+  1232→
+  1233→  Future<bool> _autoFillItWithConfirmation() async {
+  1234→    if (_isGenerating) return false;
+  1235→    setState(() {
+  1236→      _isGenerating = true;
+  1237→      _error = null;
+  1238→    });
+  1239→
+  1240→    try {
+  1241→      final previewRows = await _buildItAutofillPreview();
+  1242→      if (!mounted) return false;
+  1243→
+  1244→      if (previewRows.isEmpty) {
+  1245→        ScaffoldMessenger.of(context).showSnackBar(
+  1246→          const SnackBar(
+  1247→            content: Text(
+  1248→              'AI could not generate IT suggestions. Add an entry manually or try again.',
+  1249→            ),
+  1250→          ),
+  1251→        );
+  1252→        return false;
+  1253→      }
+  1254→
+  1255→      final approved = await _showItAutofillPreviewDialog(previewRows);
+  1256→      if (!mounted || !approved) return false;
+  1257→
+  1258→      final provider = ProjectDataHelper.getProvider(context);
+  1259→      setState(() {
+  1260→        while (_solutions.length < previewRows.length) {
+  1261→          _solutions.add(
+  1262→            AiSolutionItem(
+  1263→                title: previewRows[_solutions.length].title, description: ''),
+  1264→          );
+  1265→        }
+  1266→        while (_techControllers.length < previewRows.length) {
+  1267→          final controller = RichTextEditingController();
+  1268→          controller.enableAutoBullet();
+  1269→          _techControllers.add(controller);
+  1270→        }
+  1271→
+  1272→        for (var i = 0; i < previewRows.length; i++) {
+  1273→          final row = previewRows[i];
+  1274→          final previous =
+  1275→              i < _techControllers.length ? _techControllers[i].text : '';
+  1276→          final fieldKey = 'it_tech_${row.title}_$i';
+  1277→          provider.addFieldToHistory(fieldKey, previous, isAiGenerated: true);
+  1278→          _solutions[i] = AiSolutionItem(
+  1279→            title: row.title,
+  1280→            description: _solutions[i].description,
+  1281→          );
+  1282→          _techControllers[i].text =
+  1283→              row.items.map((item) => '- $item').join('\n');
+  1284→        }
+  1285→      });
+  1286→
+  1287→      await provider.saveToFirebase(
+  1288→          checkpoint: 'it_considerations_regenerated');
+  1289→      await _saveITConsiderationsData();
+  1290→
+  1291→      if (!mounted) return false;
+  1292→      ScaffoldMessenger.of(context).showSnackBar(
+  1293→        const SnackBar(content: Text('AI IT suggestions applied.')),
+  1294→      );
+  1295→      return true;
+  1296→    } catch (e) {
+  1297→      _error = (e.toString().contains('Failed to fetch') ||
+  1298→              e.toString().contains('ClientException') ||
+  1299→              e.toString().contains('XMLHttpRequest') ||
+  1300→              e.toString().contains('Connection refused'))
+  1301→          ? 'AI assist is being set up. Please try again later or enter content manually.'
+  1302→          : e.toString();
+  1303→      if (!mounted) return false;
+  1304→      ScaffoldMessenger.of(context).showSnackBar(
+  1305→        SnackBar(content: Text('AI autofill failed: $e')),
+  1306→      );
+  1307→      return false;
+  1308→    } finally {
+  1309→      if (mounted) {
+  1310→        setState(() => _isGenerating = false);
+  1311→      }
+  1312→    }
+  1313→  }
+  1314→
+  1315→  Future<void> _openInfrastructureConsiderations() async {
+  1316→    // 1. Save data FIRST before validation
+  1317→    await _saveITConsiderationsData();
+  1318→    if (!mounted) return;
+  1319→
+  1320→    // 2. Validate data completeness
+  1321→    var hasITData =
+  1322→        _hasRequiredItData(ProjectDataInherited.read(context).projectData);
+  1323→
+  1324→    if (!hasITData) {
+  1325→      final action = await _showMissingItDataDialog();
+  1326→      if (!mounted || action == null) return;
+  1327→
+  1328→      if (action == _MissingItConsiderationsAction.manual) {
+  1329→        ScaffoldMessenger.of(context).showSnackBar(
+  1330→          const SnackBar(
+  1331→            content: Text(
+  1332→              'Continuing without IT considerations. You can complete this later or let AI fill it in later.',
+  1333→            ),
+  1334→          ),
+  1335→        );
+  1336→      }
+  1337→
+  1338→      if (action == _MissingItConsiderationsAction.autoFill) {
+  1339→        final applied = await _autoFillItWithConfirmation();
+  1340→        if (!mounted || !applied) return;
+  1341→        if (!mounted) return;
+  1342→        hasITData =
+  1343→            _hasRequiredItData(ProjectDataInherited.read(context).projectData);
+  1344→        if (!hasITData) {
+  1345→          ScaffoldMessenger.of(context).showSnackBar(
+  1346→            const SnackBar(
+  1347→              content: Text(
+  1348→                'AI could not generate IT considerations right now. Continuing anyway so you can complete this later.',
+  1349→              ),
+  1350→            ),
+  1351→          );
+  1352→        }
+  1353→      } else {
+  1354→        ScaffoldMessenger.of(context).showSnackBar(
+  1355→          const SnackBar(
+  1356→            content: Text(
+  1357→              'Continuing without IT considerations. You can complete this later.',
+  1358→            ),
+  1359→          ),
+  1360→        );
+  1361→      }
+  1362→    }
+  1363→
+  1364→    // 3. Smart checkpoint check
+  1365→    final nextCheckpoint =
+  1366→        SidebarNavigationService.instance.getNextItem('it_considerations');
+  1367→    if (nextCheckpoint?.checkpoint != 'infrastructure_considerations') {
+  1368→      // Use standard lock check for non-sequential navigation
+  1369→      final isLocked = ProjectDataHelper.isDestinationLocked(
+  1370→          context, 'infrastructure_considerations');
+  1371→      if (isLocked) {
+  1372→        ProjectDataHelper.showLockedDestinationMessage(
+  1373→            context, 'Infrastructure Considerations');
+  1374→        return;
+  1375→      }
+  1376→    }
+  1377→
+  1378→    // Show loading dialog
+  1379→    if (!mounted) return;
+  1380→    showDialog(
+  1381→      context: context,
+  1382→      barrierDismissible: false,
+  1383→      builder: (context) => const Center(
+  1384→        child: Card(
+  1385→          child: Padding(
+  1386→            padding: EdgeInsets.all(24),
+  1387→            child: Column(
+  1388→              mainAxisSize: MainAxisSize.min,
+  1389→              children: [
+  1390→                CircularProgressIndicator(),
+  1391→                SizedBox(height: 16),
+  1392→                Text('Processing IT considerations data...'),
+  1393→              ],
+  1394→            ),
+  1395→          ),
+  1396→        ),
+  1397→      ),
+  1398→    );
+  1399→
+  1400→    await Future.delayed(const Duration(seconds: 1)); // Reduced delay
+  1401→
+  1402→    if (!mounted) return;
+  1403→    Navigator.of(context).pop(); // Close loading dialog
+  1404→
+  1405→    Navigator.push(
+  1406→      context,
+  1407→      MaterialPageRoute(
+  1408→        builder: (_) => InfrastructureConsiderationsScreen(
+  1409→          notes: _notesController.text,
+  1410→          solutions: widget.solutions,
+  1411→        ),
+  1412→      ),
+  1413→    );
+  1414→  }
+  1415→
+  1416→  Future<void> _saveITConsiderationsData() async {
+  1417→    try {
+  1418→      final provider = ProjectDataInherited.read(context);
+  1419→
+  1420→      // Collect all IT data from all solutions — persist ALL rows (even empty)
+  1421→      // so the saved list stays index-aligned with _solutions and load doesn't shift rows.
+  1422→      final solutionITData = <SolutionITData>[];
+  1423→      for (int i = 0;
+  1424→          i < _solutions.length && i < _techControllers.length;
+  1425→          i++) {
+  1426→        final solutionTitle = _solutions[i].title.isNotEmpty
+  1427→            ? _solutions[i].title
+  1428→            : 'IT Entry ${i + 1}';
+  1429→        final coreTechnology = _techControllers[i].text.trim();
+  1430→
+  1431→        solutionITData.add(SolutionITData(
+  1432→          solutionTitle: solutionTitle,
+  1433→          coreTechnology: coreTechnology,
+  1434→        ));
+  1435→      }
+  1436→
+  1437→      final itConsiderationsData = ITConsiderationsData(
+  1438→        notes: _notesController.text,
+  1439→        solutionITData: solutionITData,
+  1440→      );
+  1441→
+  1442→      provider.updateProjectData(
+  1443→        provider.projectData
+  1444→            .copyWith(itConsiderationsData: itConsiderationsData),
+  1445→      );
+  1446→
+  1447→      // Save to Firebase with checkpoint
+  1448→      await provider.saveToFirebase(checkpoint: 'it_considerations');
+  1449→    } catch (e) {
+  1450→      debugPrint('Error saving IT considerations data: $e');
+  1451→    }
+  1452→  }
+  1453→
+  1454→  void _openCoreStakeholders() {
+  1455→    Navigator.push(
+  1456→      context,
+  1457→      MaterialPageRoute(
+  1458→        builder: (_) => CoreStakeholdersScreen(
+  1459→          notes: _notesController.text,
+  1460→          solutions: widget.solutions,
+  1461→        ),
+  1462→      ),
+  1463→    );
+  1464→  }
+  1465→
+  1466→  void _openCostAnalysis() {
+  1467→    Navigator.push(
+  1468→      context,
+  1469→      MaterialPageRoute(
+  1470→        builder: (_) => CostAnalysisScreen(
+  1471→          notes: _notesController.text,
+  1472→          solutions: widget.solutions,
+  1473→        ),
+  1474→      ),
+  1475→    );
+  1476→  }
+  1477→
+  1478→  void _openPreferredSolutionAnalysis() {
+  1479→    Navigator.push(
+  1480→      context,
+  1481→      MaterialPageRoute(
+  1482→        builder: (_) => PreferredSolutionAnalysisScreen(
+  1483→          notes: _notesController.text,
+  1484→          solutions: widget.solutions,
+  1485→          businessCase: '',
+  1486→        ),
+  1487→      ),
+  1488→    );
+  1489→  }
+  1490→
+  1491→  Widget _buildMainContent() {
+  1492→    final isMobile = AppBreakpoints.isMobile(context);
+  1493→    return ScrollIndicatorOverlay(
+  1494→      controller: _reviewScrollController,
+  1495→      child: SingleChildScrollView(
+  1496→        controller: _reviewScrollController,
+  1497→        padding: EdgeInsets.all(AppBreakpoints.pagePadding(context)),
+  1498→        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  1499→          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+  1500→            const EditableContentText(
+  1501→                contentKey: 'it_considerations_heading',
+  1502→                fallback: 'IT Considerations ',
+  1503→                category: 'business_case',
+  1504→                style: TextStyle(
+  1505→                    fontSize: 22,
+  1506→                    fontWeight: FontWeight.w700,
+  1507→                    color: Colors.black)),
+  1508→            Expanded(
+  1509→              child: EditableContentText(
+  1510→                  contentKey: 'it_considerations_description',
+  1511→                  fallback: '(List core IT considerations for each solution)',
+  1512→                  category: 'business_case',
+  1513→                  style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+  1514→            ),
+  1515→            // Page-level Regenerate All button
+  1516→            PageRegenerateAllButton(
+  1517→              onRegenerateAll: () async {
+  1518→                final confirmed = await showRegenerateAllConfirmation(context);
+  1519→                if (confirmed && mounted) {
+  1520→                  await _regenerateAllTechnologies();
+  1521→                }
+  1522→              },
+  1523→              isLoading: _isGenerating,
+  1524→              tooltip: 'Regenerate all IT considerations',
+  1525→            ),
+  1526→          ]),
+  1527→          SizedBox(height: AppBreakpoints.fieldGap(context)),
+  1528→          const EditableContentText(
+  1529→            contentKey: 'it_considerations_notes_heading',
+  1530→            fallback: 'Notes',
+  1531→            category: 'business_case',
+  1532→            style: TextStyle(
+  1533→                fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black),
+  1534→          ),
+  1535→          const SizedBox(height: 8),
+  1536→          Container(
+  1537→            width: double.infinity,
+  1538→            padding: const EdgeInsets.all(16),
+  1539→            decoration: BoxDecoration(
+  1540→                color: Colors.white,
+  1541→                borderRadius: BorderRadius.circular(8),
+  1542→                border: Border.all(color: Colors.grey.withOpacity(0.3))),
+  1543→            child: VoiceTextField(
+  1544→              controller: _notesController,
+  1545→              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+  1546→              decoration: InputDecoration(
+  1547→                  hintText: 'Input your notes here...',
+  1548→                  hintStyle: TextStyle(color: Colors.grey[400]),
+  1549→                  border: InputBorder.none,
+  1550→                  contentPadding: EdgeInsets.zero),
+  1551→              minLines: 1,
+  1552→              maxLines: null,
+  1553→            ),
+  1554→          ),
+  1555→          const SizedBox(height: 16),
+  1556→          if (_error != null)
+  1557→            Container(
+  1558→              width: double.infinity,
+  1559→              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+  1560→              margin: const EdgeInsets.only(bottom: 8),
+  1561→              decoration: BoxDecoration(
+  1562→                  color: Colors.red.withOpacity(0.08),
+  1563→                  borderRadius: BorderRadius.circular(6),
+  1564→                  border: Border.all(color: Colors.red.withOpacity(0.3))),
+  1565→              child: Column(
+  1566→                  crossAxisAlignment: CrossAxisAlignment.start,
+  1567→                  children: [
+  1568→                    Row(children: [
+  1569→                      const Icon(Icons.cloud_off_outlined,
+  1570→                          color: Colors.red, size: 18),
+  1571→                      const SizedBox(width: 8),
+  1572→                      Expanded(
+  1573→                          child: Text(_error!,
+  1574→                              style: const TextStyle(
+  1575→                                  color: Colors.red, fontSize: 12),
+  1576→                              maxLines: 5,
+  1577→                              overflow: TextOverflow.ellipsis)),
+  1578→                    ]),
+  1579→                    const SizedBox(height: 8),
+  1580→                    Align(
+  1581→                      alignment: Alignment.centerRight,
+  1582→                      child: TextButton(
+  1583→                          onPressed:
+  1584→                              _isGenerating ? null : _generateTechnologies,
+  1585→                          child: const Text('Retry')),
+  1586→                    ),
+  1587→                  ]),
+  1588→            ),
+  1589→          const SizedBox(height: 8),
+  1590→          const Text('IT Considerations for each potential solution',
+  1591→              style: TextStyle(
+  1592→                  fontSize: 16,
+  1593→                  fontWeight: FontWeight.w600,
+  1594→                  color: Colors.black)),
+  1595→          const SizedBox(height: 6),
+  1596→          Text('Reminder: update text within each Core Technology box.',
+  1597→              style: TextStyle(
+  1598→                  fontSize: 12,
+  1599→                  color: Colors.grey[600],
+  1600→                  fontStyle: FontStyle.italic)),
+  1601→          const SizedBox(height: 12),
+  1602→          if (isMobile) ...[
+  1603→            Column(
+  1604→                children:
+  1605→                    List.generate(_techControllers.length, (i) => _row(i))),
+  1606→          ] else ...[
+  1607→            // Table header
+  1608→            Container(
+  1609→              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+  1610→              decoration: BoxDecoration(
+  1611→                  color: const Color(0xFFF5F7FB),
+  1612→                  borderRadius:
+  1613→                      const BorderRadius.vertical(top: Radius.circular(8)),
+  1614→                  border: Border.all(color: const Color(0xFFE4E7EC))),
+  1615→              child: const Row(children: [
+  1616→                Expanded(
+  1617→                    flex: 2,
+  1618→                    child: Align(
+  1619→                        alignment: Alignment.centerLeft,
+  1620→                        child: Text('Solution',
+  1621→                            style: TextStyle(
+  1622→                                fontSize: 13,
+  1623→                                fontWeight: FontWeight.w600,
+  1624→                                color: Color(0xFF475467))))),
+  1625→                SizedBox(width: 16),
+  1626→                Expanded(
+  1627→                    flex: 3,
+  1628→                    child: Align(
+  1629→                        alignment: Alignment.centerLeft,
+  1630→                        child: Text('Core Technology',
+  1631→                            style: TextStyle(
+  1632→                                fontSize: 13,
+  1633→                                fontWeight: FontWeight.w600,
+  1634→                                color: Color(0xFF475467))))),
+  1635→              ]),
+  1636→            ),
+  1637→            // Table body
+  1638→            Container(
+  1639→              decoration: BoxDecoration(
+  1640→                  color: Colors.white,
+  1641→                  borderRadius:
+  1642→                      const BorderRadius.vertical(bottom: Radius.circular(8)),
+  1643→                  border: Border.all(color: const Color(0xFFE4E7EC))),
+  1644→              child: _techControllers.isEmpty
+  1645→                  ? Padding(
+  1646→                      padding: const EdgeInsets.all(32),
+  1647→                      child: Center(
+  1648→                        child: Text(
+  1649→                          'No solutions added yet. Add solutions from the Potential Solutions page to generate IT considerations.',
+  1650→                          style:
+  1651→                              TextStyle(fontSize: 14, color: Colors.grey[500]),
+  1652→                          textAlign: TextAlign.center,
+  1653→                        ),
+  1654→                      ),
+  1655→                    )
+  1656→                  : Column(
+  1657→                      children: List.generate(
+  1658→                          _techControllers.length, (i) => _row(i))),
+  1659→            ),
+  1660→          ],
+  1661→          const SizedBox(height: 24),
+  1662→
+  1663→          // Navigation Buttons
+  1664→          BusinessCaseNavigationButtons(
+  1665→            currentScreen: 'IT Considerations',
+  1666→            padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 24),
+  1667→            onNext: _openInfrastructureConsiderations,
+  1668→            isNextEnabled: _reviewConfirmed,
+  1669→            showReviewGate: true,
+  1670→            reviewConfirmed: _reviewConfirmed,
+  1671→            onReviewChanged: (value) {
+  1672→              setState(() => _reviewConfirmed = value);
+  1673→            },
+  1674→            reviewScrollController: _reviewScrollController,
+  1675→          ),
+  1676→        ]),
+  1677→      ),
+  1678→    );
+  1679→  }
+  1680→
+  1681→  String _potentialSolutionLabel(int index) {
+  1682→    final number = index + 1;
+  1683→    if (index < 0 || index >= _solutions.length) {
+  1684→      return 'Solution $number';
+  1685→    }
+  1686→    final title = _cleanSolutionTitle(_solutions[index].title).trim();
+  1687→    if (title.isEmpty) {
+  1688→      return 'Solution $number';
+  1689→    }
+  1690→    return title;
+  1691→  }
+  1692→
+  1693→  static String _cleanSolutionTitle(String raw) {
+  1694→    final t = raw.trim();
+  1695→    if (t.isEmpty) return '';
+  1696→    // Remove legacy prefixes like:
+  1697→    // "Potential Solution 1", "Potential Solution 2: Foo", etc.
+  1698→    return t
+  1699→        .replaceFirst(
+  1700→          RegExp(r'^Potential\s+Solution\s+\d+\s*:?\s*', caseSensitive: false),
+  1701→          '',
+  1702→        )
+  1703→        .trim();
+  1704→  }
+  1705→
+  1706→  Widget _row(int index) {
+  1707→    final isMobile = AppBreakpoints.isMobile(context);
+  1708→    final isStriped = index.isOdd;
+  1709→    // Handle cases where we have more controllers than solutions (user added items)
+  1710→    final s = index < _solutions.length
+  1711→        ? _solutions[index]
+  1712→        : AiSolutionItem(title: '', description: '');
+  1713→    return Container(
+  1714→      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+  1715→      decoration: BoxDecoration(
+  1716→          color: isStriped ? const Color(0xFFF9FAFC) : Colors.white,
+  1717→          border: Border(top: BorderSide(color: const Color(0xFFE4E7EC)))),
+  1718→      child: isMobile
+  1719→          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  1720→              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  1721→                _numberBadge(index + 1),
+  1722→                const SizedBox(width: 8),
+  1723→                Expanded(
+  1724→                    child: Text(_potentialSolutionLabel(index),
+  1725→                        style: const TextStyle(
+  1726→                            fontSize: 14, fontWeight: FontWeight.w600))),
+  1727→              ]),
+  1728→              if (s.description.isNotEmpty) ...[
+  1729→                const SizedBox(height: 6),
+  1730→                Text(s.description,
+  1731→                    style: const TextStyle(fontSize: 12, color: Colors.grey)),
+  1732→              ],
+  1733→              const SizedBox(height: 10),
+  1734→              _techTextArea(_techControllers[index], index),
+  1735→            ])
+  1736→          : Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  1737→              Expanded(
+  1738→                flex: 2,
+  1739→                child: Align(
+  1740→                  alignment: Alignment.topLeft,
+  1741→                  child: Column(
+  1742→                      crossAxisAlignment: CrossAxisAlignment.start,
+  1743→                      children: [
+  1744→                        Row(
+  1745→                            mainAxisAlignment: MainAxisAlignment.start,
+  1746→                            crossAxisAlignment: CrossAxisAlignment.start,
+  1747→                            children: [
+  1748→                              _numberBadge(index + 1),
+  1749→                              const SizedBox(width: 8),
+  1750→                              Expanded(
+  1751→                                child: Text(
+  1752→                                  _potentialSolutionLabel(index),
+  1753→                                  textAlign: TextAlign.left,
+  1754→                                  style: const TextStyle(
+  1755→                                      fontSize: 13,
+  1756→                                      color: Color(0xFF1F2937),
+  1757→                                      fontWeight: FontWeight.w600),
+  1758→                                ),
+  1759→                              ),
+  1760→                            ]),
+  1761→                        if (s.description.isNotEmpty) ...[
+  1762→                          const SizedBox(height: 6),
+  1763→                          Text(s.description,
+  1764→                              textAlign: TextAlign.left,
+  1765→                              style: const TextStyle(
+  1766→                                  fontSize: 12, color: Color(0xFF6B7280)),
+  1767→                              maxLines: 5,
+  1768→                              softWrap: true,
+  1769→                              overflow: TextOverflow.ellipsis),
+  1770→                        ]
+  1771→                      ]),
+  1772→                ),
+  1773→              ),
+  1774→              const SizedBox(width: 16),
+  1775→              Expanded(
+  1776→                flex: 3,
+  1777→                child: _techTextArea(_techControllers[index], index),
+  1778→              ),
+  1779→            ]),
+  1780→    );
+  1781→  }
+  1782→
+  1783→  Widget _numberBadge(int number) {
+  1784→    return Container(
+  1785→      width: 22,
+  1786→      height: 22,
+  1787→      alignment: Alignment.center,
+  1788→      decoration: BoxDecoration(
+  1789→        color: const Color(0xFFFBBF24),
+  1790→        borderRadius: BorderRadius.circular(11),
+  1791→      ),
+  1792→      child: Text('$number',
+  1793→          style: const TextStyle(
+  1794→              fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+  1795→    );
+  1796→  }
+  1797→
+  1798→  Widget _techTextArea(TextEditingController controller, [int? index]) {
+  1799→    final provider = ProjectDataHelper.getProvider(context);
+  1800→    final idx = index ?? _techControllers.indexOf(controller);
+  1801→    final solutionTitle =
+  1802→        idx >= 0 && idx < _solutions.length ? _solutions[idx].title : '';
+  1803→    final fieldKey = 'it_tech_${solutionTitle}_$idx';
+  1804→    final canUndo = provider.canUndoField(fieldKey);
+  1805→    final canRedo = provider.canRedoField(fieldKey);
+  1806→
+  1807→    return HoverableFieldControls(
+  1808→      isAiGenerated: true,
+  1809→      isLoading: false,
+  1810→      canUndo: canUndo,
+  1811→      canRedo: canRedo,
+  1812→      onRegenerate: () async {
+  1813→        // Add current value to history
+  1814→        provider.addFieldToHistory(fieldKey, controller.text,
+  1815→            isAiGenerated: true);
+  1816→        // Regenerate this specific tech field
+  1817→        await _regenerateSingleTechField(controller, idx);
+  1818→      },
+  1819→      onUndo: () async {
+  1820→        final previousValue = provider.projectData.undoField(fieldKey);
+  1821→        if (previousValue != null) {
+  1822→          controller.text = previousValue;
+  1823→          await provider.saveToFirebase(checkpoint: 'it_tech_undo');
+  1824→        }
+  1825→      },
+  1826→      onRedo: () async {
+  1827→        final nextValue = provider.projectData.redoField(fieldKey);
+  1828→        if (nextValue != null) {
+  1829→          controller.text = nextValue;
+  1830→          await provider.saveToFirebase(checkpoint: 'it_tech_redo');
+  1831→        }
+  1832→      },
+  1833→      child: Column(
+  1834→        crossAxisAlignment: CrossAxisAlignment.start,
+  1835→        children: [
+  1836→          Container(
+  1837→            padding: const EdgeInsets.all(10),
+  1838→            decoration: BoxDecoration(
+  1839→                color: const Color(0xFFF8FAFC),
+  1840→                borderRadius: BorderRadius.circular(8),
+  1841→                border: Border.all(color: const Color(0xFFE4E7EC))),
+  1842→            child: VoiceTextField(
+  1843→              controller: controller,
+  1844→              minLines: 3,
+  1845→              maxLines: null,
+  1846→              onChanged: (value) {
+  1847→                provider.addFieldToHistory(fieldKey, value,
+  1848→                    isAiGenerated: true);
+  1849→              },
+  1850→              decoration: InputDecoration(
+  1851→                border: InputBorder.none,
+  1852→                isDense: true,
+  1853→                contentPadding: EdgeInsets.zero,
+  1854→                hintText:
+  1855→                    'Enter core technologies specific to this solution (e.g., platforms, frameworks, databases, tools)...',
+  1856→                hintStyle: TextStyle(fontSize: 12, color: Colors.grey[400]),
+  1857→              ),
+  1858→              style: const TextStyle(
+  1859→                  fontSize: 12, color: Color(0xFF334155), height: 1.5),
+  1860→            ),
+  1861→          ),
+  1862→        ],
+  1863→      ),
+  1864→    );
+  1865→  }
+  1866→
+  1867→  Future<void> _regenerateSingleTechField(
+  1868→      TextEditingController controller, int index) async {
+  1869→    if (index >= _solutions.length) return;
+  1870→
+  1871→    final provider = ProjectDataHelper.getProvider(context);
+  1872→    final messenger = ScaffoldMessenger.of(context);
+  1873→    try {
+  1874→      final solution = _solutions[index];
+  1875→      final solutionsToUse = [solution];
+  1876→      final contextNotes = _notesController.text.trim();
+  1877→
+  1878→      final map = await _openAi.generateTechnologiesForSolutions(
+  1879→        solutionsToUse,
+  1880→        contextNotes: contextNotes,
+  1881→      );
+  1882→      if (!mounted) return;
+  1883→
+  1884→      final tech = map[solution.title] ?? const <String>[];
+  1885→      controller.text = tech.isEmpty ? '' : tech.map((e) => '- $e').join('\n');
+  1886→
+  1887→      await provider.saveToFirebase(checkpoint: 'it_tech_field_regenerated');
+  1888→
+  1889→      if (mounted) {
+  1890→        messenger.showSnackBar(
+  1891→          const SnackBar(content: Text('IT tech field regenerated')),
+  1892→        );
+  1893→      }
+  1894→    } catch (e) {
+  1895→      if (mounted) {
+  1896→        messenger.showSnackBar(
+  1897→          SnackBar(content: Text('Failed to regenerate: $e')),
+  1898→        );
+  1899→      }
+  1900→    }
+  1901→  }
+  1902→
+  1903→  @override
+  1904→  void dispose() {
+  1905→    _reviewScrollController.dispose();
+  1906→    _notesController.dispose();
+  1907→    for (final c in _techControllers) {
+  1908→      c.dispose();
+  1909→    }
+  1910→    super.dispose();
+  1911→  }
+  1912→}
+  1913→

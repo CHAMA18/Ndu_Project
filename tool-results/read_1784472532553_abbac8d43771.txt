@@ -1,0 +1,2002 @@
+     1→     1→import 'dart:async';
+     2→     2→
+     3→     3→import 'package:flutter/material.dart';
+     4→     4→import 'package:intl/intl.dart';
+     5→     5→import 'package:ndu_project/models/project_data_model.dart';
+     6→     6→import 'package:ndu_project/models/cost_of_quality.dart';
+     7→     7→
+     8→     8→import 'package:ndu_project/services/api_key_manager.dart';
+     9→     9→import 'package:ndu_project/services/execution_phase_service.dart';
+    10→    10→import 'package:ndu_project/services/openai_service_secure.dart';
+    11→    11→import 'package:ndu_project/utils/project_data_helper.dart';
+    12→    12→import 'package:ndu_project/utils/quality_metrics_calculator.dart';
+    13→    13→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+    14→    14→import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
+    15→    15→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+    16→    16→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    17→    17→import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
+    18→    18→import 'package:ndu_project/widgets/responsive.dart';
+    19→    19→import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
+    20→    20→import 'package:ndu_project/utils/planning_phase_navigation.dart';
+    21→    21→
+    22→    22→import 'package:ndu_project/widgets/voice_text_field.dart';
+    23→    23→import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
+    24→    24→import 'package:ndu_project/widgets/planning_phase_header.dart';
+    25→    25→import 'package:ndu_project/widgets/launch_editable_section.dart';
+    26→    26→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    27→    27→import 'package:ndu_project/widgets/csv_import_dialog.dart';
+    28→    28→import 'package:ndu_project/utils/csv_import_helper.dart';
+    29→    29→enum _QualityTab { plan, objectives, inspection, audit, metrics, coq }
+    30→    30→
+    31→    31→const _dateHint = 'Select date';
+    32→    32→
+    33→    33→String _newId() => DateTime.now().microsecondsSinceEpoch.toString();
+    34→    34→
+    35→    35→QualityManagementData _qualityData(BuildContext context,
+    36→    36→ {bool listen = false}) {
+    37→    37→ final data = ProjectDataHelper.getData(context, listen: listen);
+    38→    38→ return data.qualityManagementData ?? QualityManagementData.empty();
+    39→    39→}
+    40→    40→
+    41→    41→Future<bool> _updateQualityData(
+    42→    42→ BuildContext context, {
+    43→    43→ required String checkpoint,
+    44→    44→ required QualityManagementData Function(QualityManagementData current)
+    45→    45→ updater,
+    46→    46→ String? successMessage,
+    47→    47→}) async {
+    48→    48→ final success = await ProjectDataHelper.updateAndSave(
+    49→    49→ context: context,
+    50→    50→ checkpoint: checkpoint,
+    51→    51→ showSnackbar: false,
+    52→    52→ dataUpdater: (data) {
+    53→    53→ final current =
+    54→    54→ data.qualityManagementData ?? QualityManagementData.empty();
+    55→    55→ return data.copyWith(qualityManagementData: updater(current));
+    56→    56→ },
+    57→    57→ );
+    58→    58→
+    59→    59→ if (context.mounted && success && successMessage != null) {
+    60→    60→ ScaffoldMessenger.of(context).showSnackBar(
+    61→    61→ SnackBar(
+    62→    62→ content: Text(successMessage),
+    63→    63→ behavior: SnackBarBehavior.floating,
+    64→    64→ backgroundColor: const Color(0xFF16A34A),
+    65→    65→ ),
+    66→    66→ );
+    67→    67→ }
+    68→    68→
+    69→    69→ if (context.mounted && !success) {
+    70→    70→ ScaffoldMessenger.of(context).showSnackBar(
+    71→    71→ const SnackBar(
+    72→    72→ content: Text('Unable to save quality data'),
+    73→    73→ behavior: SnackBarBehavior.floating,
+    74→    74→ backgroundColor: Color(0xFFDC2626),
+    75→    75→ ),
+    76→    76→ );
+    77→    77→ }
+    78→    78→
+    79→    79→ return success;
+    80→    80→}
+    81→    81→
+    82→    82→DateTime? _parseFlexibleDate(String raw) {
+    83→    83→ final trimmed = raw.trim();
+    84→    84→ if (trimmed.isEmpty) return null;
+    85→    85→
+    86→    86→ final parsedIso = DateTime.tryParse(trimmed);
+    87→    87→ if (parsedIso != null) return parsedIso;
+    88→    88→
+    89→    89→ final mmdd = RegExp(r'^(\d{1,2})\/(\d{1,2})$').firstMatch(trimmed);
+    90→    90→ if (mmdd != null) {
+    91→    91→ final month = int.tryParse(mmdd.group(1) ?? '');
+    92→    92→ final day = int.tryParse(mmdd.group(2) ?? '');
+    93→    93→ if (month != null && day != null) {
+    94→    94→ return DateTime(DateTime.now().year, month, day);
+    95→    95→ }
+    96→    96→ }
+    97→    97→
+    98→    98→ final mmddyy =
+    99→    99→ RegExp(r'^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$').firstMatch(trimmed);
+   100→   100→ if (mmddyy != null) {
+   101→   101→ final month = int.tryParse(mmddyy.group(1) ?? '');
+   102→   102→ final day = int.tryParse(mmddyy.group(2) ?? '');
+   103→   103→ final yearRaw = int.tryParse(mmddyy.group(3) ?? '');
+   104→   104→ if (month != null && day != null && yearRaw != null) {
+   105→   105→ final year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
+   106→   106→ return DateTime(year, month, day);
+   107→   107→ }
+   108→   108→ }
+   109→   109→
+   110→   110→ return null;
+   111→   111→}
+   112→   112→
+   113→   113→String _formatDate(DateTime? value) {
+   114→   114→ if (value == null) return '';
+   115→   115→ return DateFormat('yyyy-MM-dd').format(value);
+   116→   116→}
+   117→   117→
+   118→   118→String _normalizedDateText(String raw, {bool fallbackToToday = false}) {
+   119→   119→ final parsed = _parseFlexibleDate(raw);
+   120→   120→ if (parsed != null) return _formatDate(parsed);
+   121→   121→ return fallbackToToday ? _formatDate(DateTime.now()) : '';
+   122→   122→}
+   123→   123→
+   124→   124→Future<DateTime?> _showQualityDatePicker(
+   125→   125→ BuildContext context, {
+   126→   126→ required String currentValue,
+   127→   127→}) async {
+   128→   128→ final now = DateTime.now();
+   129→   129→ final firstDate = DateTime(now.year - 20);
+   130→   130→ final lastDate = DateTime(now.year + 20);
+   131→   131→ final parsed = _parseFlexibleDate(currentValue);
+   132→   132→ var initialDate = parsed ?? now;
+   133→   133→ if (initialDate.isBefore(firstDate)) initialDate = firstDate;
+   134→   134→ if (initialDate.isAfter(lastDate)) initialDate = lastDate;
+   135→   135→
+   136→   136→ return showDatePicker(
+   137→   137→ context: context,
+   138→   138→ initialDate: initialDate,
+   139→   139→ firstDate: firstDate,
+   140→   140→ lastDate: lastDate,
+   141→   141→ );
+   142→   142→}
+   143→   143→
+   144→   144→Widget _datePickerField(
+   145→   145→ BuildContext context, {
+   146→   146→ required TextEditingController controller,
+   147→   147→ required Future<void> Function() onTap,
+   148→   148→}) {
+   149→   149→ return VoiceTextField(
+   150→   150→ controller: controller,
+   151→   151→ readOnly: true,
+   152→   152→ onTap: () => onTap(),
+   153→   153→ decoration: _inputDecoration(context, _dateHint).copyWith(
+   154→   154→ suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+   155→   155→ ),
+   156→   156→ );
+   157→   157→}
+   158→   158→
+   159→   159→int? _durationDays(String start, String end) {
+   160→   160→ final s = _parseFlexibleDate(start);
+   161→   161→ final e = _parseFlexibleDate(end);
+   162→   162→ if (s == null || e == null) return null;
+   163→   163→ return e.difference(s).inDays.abs();
+   164→   164→}
+   165→   165→
+   166→   166→List<String> _ownerOptions(BuildContext context) {
+   167→   167→ final data = ProjectDataHelper.getData(context);
+   168→   168→ final options = <String>{};
+   169→   169→
+   170→   170→ for (final role in data.projectRoles) {
+   171→   171→ final title = role.title.trim();
+   172→   172→ if (title.isNotEmpty) options.add(title);
+   173→   173→ }
+   174→   174→ for (final member in data.teamMembers) {
+   175→   175→ final name = member.name.trim();
+   176→   176→ if (name.isNotEmpty) options.add(name);
+   177→   177→ }
+   178→   178→
+   179→   179→ if (options.isEmpty) {
+   180→   180→ return const ['Owner'];
+   181→   181→ }
+   182→   182→
+   183→   183→ final sorted = options.toList()..sort((a, b) => a.compareTo(b));
+   184→   184→ return sorted;
+   185→   185→}
+   186→   186→
+   187→   187→String _buildQualityAiContext(ProjectDataModel data) {
+   188→   188→  final methodology =
+   189→   189→  ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
+   190→   190→  final location = data.orgLocation.trim();
+   191→   191→
+   192→   192→  // Collect risk context for quality risk identification
+   193→   193→  final riskItems = data.frontEndPlanning.riskRegisterItems;
+   194→   194→  final riskContext = riskItems.isNotEmpty
+   195→   195→      ? '\nTop Project Risks: ${riskItems.take(5).map((r) => "${r.riskName} (${r.impactLevel}/${r.likelihood})").join('; ')}'
+   196→   196→      : '';
+   197→   197→  
+   198→   198→  // Collect opportunity context for quality opportunities
+   199→   199→  final opportunityContext = data.frontEndPlanning.opportunityItems.isNotEmpty
+   200→   200→      ? '\nOpportunities: ${data.frontEndPlanning.opportunityItems.take(3).map((o) => o.opportunity.isNotEmpty ? o.opportunity : 'Opportunity').join('; ')}'
+   201→   201→      : '';
+   202→   202→      
+   203→   203→  // IT Considerations from Initiation phase for tech-related quality
+   204→   204→  final itContext = data.itConsiderationsData != null 
+   205→   205→      ? [
+   206→   206→          if (data.itConsiderationsData!.softwareRequirements.isNotEmpty)
+   207→   207→            'Software Requirements: ${data.itConsiderationsData!.softwareRequirements}',
+   208→   208→          if (data.itConsiderationsData!.hardwareRequirements.isNotEmpty)
+   209→   209→            'Hardware Requirements: ${data.itConsiderationsData!.hardwareRequirements}',
+   210→   210→          if (data.itConsiderationsData!.networkRequirements.isNotEmpty)
+   211→   211→            'Network Requirements: ${data.itConsiderationsData!.networkRequirements}',
+   212→   212→        ].join('\n')
+   213→   213→      : '';
+   214→   214→
+   215→   215→  // Team size and structure for scaling quality activities
+   216→   216→  final teamSize = data.teamMembers.length;
+   217→   217→  final roleCount = data.projectRoles.length;
+   218→   218→
+   219→   219→  return [
+   220→   220→    'Generate a comprehensive project quality management package tailored to the current project.',
+   221→   221→    'Use this context to recommend appropriate quality standards, metrics, and activities based on project type, scale, and risks.',
+   222→   222→    '',
+   223→   223→    '=== PROJECT IDENTITY ===',
+   224→   224→    'Project Name: ${data.projectName}',
+   225→   225→    'Solution Title: ${data.solutionTitle}',
+   226→   226→    'Solution Description: ${data.solutionDescription}',
+   227→   227→    'Project Objective: ${data.projectObjective}',
+   228→   228→    'Business Case: ${data.businessCase}',
+   229→   229→    '',
+   230→   230→    '=== PROJECT CLASSIFICATION ===',
+   231→   231→    'Industry / Sector: ${data.overallFramework ?? 'Not specified'}',
+   232→   232→    'Delivery Framework: $methodology',
+   233→   233→    'Project Location: ${location.isEmpty ? 'Not specified' : location}',
+   234→   234→    'Team Size: $teamSize members, $roleCount defined roles',
+   235→   235→    '',
+   236→   236→    '=== TECHNICAL CONTEXT ===',
+   237→   237→    'Technology Notes: ${data.frontEndPlanning.technology}',
+   238→   238→    if (itContext.isNotEmpty) itContext,
+   239→   239→    'Security Context: ${data.frontEndPlanning.security}',
+   240→   240→    'Requirements Summary: ${data.frontEndPlanning.requirements}',
+   241→   241→    '',
+   242→   242→    '=== RISK & OPPORTUNITY CONTEXT ===',
+   243→   243→    if (riskContext.isNotEmpty) riskContext,
+   244→   244→    if (opportunityContext.isNotEmpty) opportunityContext,
+   245→   245→    '',
+   246→   246→    '=== ADDITIONAL NOTES ===',
+   247→   247→    'General Notes: ${data.notes}',
+   248→   248→    '',
+   249→   249→    '=== QUALITY GENERATION GUIDELINES ===',
+   250→   250→    'Based on the above context:',
+   251→   251→    '- Recommend industry-appropriate quality standards (ISO 9001, ISO 25010, ISO 27001, CMMI, etc.)',
+   252→   252→    '- Suggest relevant quality metrics based on project type and framework ($methodology)',
+   253→   253→    '- Identify potential quality risks based on project characteristics',
+   254→   254→    '- Propose inspection and test activities appropriate to the delivery approach',
+   255→   255→    '- Consider team size and location when recommending QA/QC resource needs',
+   256→   256→    '- For agile projects: include sprint-level quality gates, definition of done, continuous integration quality',
+   257→   257→    '- For waterfall projects: include phase-gate quality reviews, milestone inspections',
+   258→   258→    '- Include applicable regulatory/compliance requirements based on industry',
+   259→   259→  ].join('\n');
+   260→   260→}
+   261→   261→
+   262→   262→Map<String, List<LaunchEntry>> _buildExecutionQualitySections(
+   263→   263→ QualityManagementData quality,
+   264→   264→) {
+   265→   265→ return {
+   266→   266→ 'quality_management_plan': [
+   267→   267→ LaunchEntry(
+   268→   268→ title: 'Project Quality Management Plan',
+   269→   269→ details: [
+   270→   270→ quality.qualityPlan,
+   271→   271→ if (quality.reviewCadence.isNotEmpty)
+   272→   272→ 'Review Cadence: ${quality.reviewCadence}',
+   273→   273→ if (quality.escalationPath.isNotEmpty)
+   274→   274→ 'Escalation Path: ${quality.escalationPath}',
+   275→   275→ if (quality.changeControlProcess.isNotEmpty)
+   276→   276→ 'Change Control: ${quality.changeControlProcess}',
+   277→   277→ ].where((value) => value.trim().isNotEmpty).join('\n\n'),
+   278→   278→ status: 'Active',
+   279→   279→ ),
+   280→   280→ ],
+   281→   281→ 'quality_objectives': quality.objectives
+   282→   282→ .map(
+   283→   283→ (objective) => LaunchEntry(
+   284→   284→ title: objective.title,
+   285→   285→ details: [
+   286→   286→ 'Acceptance Criteria: ${objective.acceptanceCriteria}',
+   287→   287→ 'Metric: ${objective.successMetric}',
+   288→   288→ 'Target: ${objective.targetValue}',
+   289→   289→ 'Current: ${objective.currentValue}',
+   290→   290→ 'Owner: ${objective.owner}',
+   291→   291→ 'Requirement: ${objective.linkedRequirement}',
+   292→   292→ 'WBS: ${objective.linkedWbs}',
+   293→   293→ ].join('\n'),
+   294→   294→ status: objective.status,
+   295→   295→ ),
+   296→   296→ )
+   297→   297→ .toList(),
+   298→   298→ 'inspection_test_plan': [
+   299→   299→ ...quality.workflowControls
+   300→   300→ .where((control) => control.type == QualityWorkflowType.qa)
+   301→   301→ .map(
+   302→   302→ (control) => LaunchEntry(
+   303→   303→ title: control.name,
+   304→   304→ details: [
+   305→   305→ 'Method: ${control.method}',
+   306→   306→ 'Tools: ${control.tools}',
+   307→   307→ 'Checklist: ${control.checklist}',
+   308→   308→ 'Frequency: ${control.frequency}',
+   309→   309→ 'Owner: ${control.owner}',
+   310→   310→ 'Standards: ${control.standardsReference}',
+   311→   311→ ].join('\n'),
+   312→   312→ status: 'Inspection Control',
+   313→   313→ ),
+   314→   314→ ),
+   315→   315→ ...quality.qaTaskLog.map(
+   316→   316→ (task) => LaunchEntry(
+   317→   317→ title: task.task,
+   318→   318→ details: [
+   319→   319→ 'Responsible: ${task.responsible}',
+   320→   320→ 'Start: ${task.startDate}',
+   321→   321→ 'End: ${task.endDate}',
+   322→   322→ 'Comments: ${task.comments}',
+   323→   323→ ].join('\n'),
+   324→   324→ status: task.status.name,
+   325→   325→ ),
+   326→   326→ ),
+   327→   327→ ],
+   328→   328→ 'quality_metrics_dashboard': [
+   329→   329→ LaunchEntry(
+   330→   330→ title: 'Quality KPI Dashboard',
+   331→   331→ details: [
+   332→   332→ 'Defect Density: ${quality.metrics.defectDensity.value} ${quality.metrics.defectDensity.unit}'.trim(),
+   333→   333→ 'Customer Satisfaction: ${quality.metrics.customerSatisfaction.value} ${quality.metrics.customerSatisfaction.unit}'.trim(),
+   334→   334→ 'On-Time Delivery: ${quality.metrics.onTimeDelivery.value} ${quality.metrics.onTimeDelivery.unit}'.trim(),
+   335→   335→ 'Target Resolution Days: ${quality.dashboardConfig.targetTimeToResolutionDays}',
+   336→   336→ 'Manual Override: ${quality.dashboardConfig.allowManualMetricsOverride ? 'Enabled' : 'Disabled'}',
+   337→   337→ ].join('\n'),
+   338→   338→ status: 'Tracking',
+   339→   339→ ),
+   340→   340→ ],
+   341→   341→ 'quality_audit_plan': [
+   342→   342→ ...quality.workflowControls
+   343→   343→ .where((control) => control.type == QualityWorkflowType.qc)
+   344→   344→ .map(
+   345→   345→ (control) => LaunchEntry(
+   346→   346→ title: control.name,
+   347→   347→ details: [
+   348→   348→ 'Method: ${control.method}',
+   349→   349→ 'Frequency: ${control.frequency}',
+   350→   350→ 'Owner: ${control.owner}',
+   351→   351→ 'Checklist: ${control.checklist}',
+   352→   352→ ].join('\n'),
+   353→   353→ status: 'Audit Control',
+   354→   354→ ),
+   355→   355→ ),
+   356→   356→ ...quality.auditPlan.map(
+   357→   357→ (audit) => LaunchEntry(
+   358→   358→ title: audit.title,
+   359→   359→ details: [
+   360→   360→ 'Scope: ${audit.scope}',
+   361→   361→ 'Planned Date: ${audit.plannedDate}',
+   362→   362→ 'Completed Date: ${audit.completedDate}',
+   363→   363→ 'Owner: ${audit.owner}',
+   364→   364→ 'Findings: ${audit.findings}',
+   365→   365→ 'Notes: ${audit.notes}',
+   366→   366→ ].join('\n'),
+   367→   367→ status: audit.result.name,
+   368→   368→ ),
+   369→   369→ ),
+   370→   370→ ],
+   371→   371→ 'nonconformance_corrective_actions': quality.correctiveActions
+   372→   372→ .map(
+   373→   373→ (action) => LaunchEntry(
+   374→   374→ title: action.title,
+   375→   375→ details: [
+   376→   376→ 'Root Cause: ${action.rootCause}',
+   377→   377→ 'Action: ${action.action}',
+   378→   378→ 'Owner: ${action.owner}',
+   379→   379→ 'Due Date: ${action.dueDate}',
+   380→   380→ 'Verification: ${action.verificationNotes}',
+   381→   381→ ].join('\n'),
+   382→   382→ status: action.status.name,
+   383→   383→ ),
+   384→   384→ )
+   385→   385→ .toList(),
+   386→   386→ };
+   387→   387→}
+   388→   388→
+   389→   389→List<ScheduleActivity> _syncQualityActivitiesToCalendar(
+   390→   390→ ProjectDataModel data,
+   391→   391→ QualityManagementData quality,
+   392→   392→) {
+   393→   393→ final updated = List<ScheduleActivity>.from(data.scheduleActivities);
+   394→   394→
+   395→   395→ void upsertActivity({
+   396→   396→ required String key,
+   397→   397→ required String title,
+   398→   398→ required String date,
+   399→   399→ required String assignee,
+   400→   400→ }) {
+   401→   401→ final normalizedDate = _normalizedDateText(date);
+   402→   402→ if (normalizedDate.isEmpty) return;
+   403→   403→ final entry = ScheduleActivity(
+   404→   404→ id: key,
+   405→   405→ title: title,
+   406→   406→ assignee: assignee,
+   407→   407→ startDate: normalizedDate,
+   408→   408→ dueDate: normalizedDate,
+   409→   409→ status: 'planned',
+   410→   410→ phase: 'execution',
+   411→   411→ workPackageType: 'execution',
+   412→   412→ discipline: 'Quality',
+   413→   413→ milestone: 'Quality',
+   414→   414→ durationDays: 1,
+   415→   415→ );
+   416→   416→ final index = updated.indexWhere(
+   417→   417→ (activity) => activity.id == key || activity.title == title,
+   418→   418→ );
+   419→   419→ if (index == -1) {
+   420→   420→ updated.add(entry);
+   421→   421→ } else {
+   422→   422→ updated[index] = entry;
+   423→   423→ }
+   424→   424→ }
+   425→   425→
+   426→   426→ for (final control in quality.workflowControls) {
+   427→   427→ upsertActivity(
+   428→   428→ key: 'quality-control-${control.id}',
+   429→   429→ title: 'Quality ${control.type.name.toUpperCase()} Review: ${control.name}',
+   430→   430→ date: control.frequency,
+   431→   431→ assignee: control.owner,
+   432→   432→ );
+   433→   433→ }
+   434→   434→ for (final audit in quality.auditPlan) {
+   435→   435→ upsertActivity(
+   436→   436→ key: 'quality-audit-${audit.id}',
+   437→   437→ title: 'Quality Audit: ${audit.title}',
+   438→   438→ date: audit.plannedDate,
+   439→   439→ assignee: audit.owner,
+   440→   440→ );
+   441→   441→ }
+   442→   442→ for (final task in [...quality.qaTaskLog, ...quality.qcTaskLog]) {
+   443→   443→ upsertActivity(
+   444→   444→ key: 'quality-task-${task.id}',
+   445→   445→ title: 'Quality Task: ${task.task}',
+   446→   446→ date: task.endDate.isNotEmpty ? task.endDate : task.startDate,
+   447→   447→ assignee: task.responsible,
+   448→   448→ );
+   449→   449→ }
+   450→   450→ for (final action in quality.correctiveActions) {
+   451→   451→ upsertActivity(
+   452→   452→ key: 'quality-corrective-${action.id}',
+   453→   453→ title: 'Corrective Action: ${action.title}',
+   454→   454→ date: action.dueDate,
+   455→   455→ assignee: action.owner,
+   456→   456→ );
+   457→   457→ }
+   458→   458→
+   459→   459→ return updated;
+   460→   460→}
+   461→   461→
+   462→   462→List<QualityStandard> _standardsPresets(ProjectDataModel data) {
+   463→   463→ final contextText = [
+   464→   464→ data.projectName,
+   465→   465→ data.solutionTitle,
+   466→   466→ data.solutionDescription,
+   467→   467→ data.projectObjective,
+   468→   468→ data.businessCase,
+   469→   469→ data.frontEndPlanning.requirements,
+   470→   470→ data.frontEndPlanning.security,
+   471→   471→ ].join(' ').toLowerCase();
+   472→   472→
+   473→   473→ final presets = <QualityStandard>[
+   474→   474→ QualityStandard(
+   475→   475→ id: _newId(),
+   476→   476→ name: 'ISO 9001 Process Quality Management',
+   477→   477→ source: 'ISO 9001',
+   478→   478→ category: 'Quality Management',
+   479→   479→ description:
+   480→   480→ 'Document procedures, establish ownership, and run periodic quality audits.',
+   481→   481→ applicability: 'Project-wide',
+   482→   482→ ),
+   483→   483→ QualityStandard(
+   484→   484→ id: _newId(),
+   485→   485→ name: 'Stakeholder Acceptance Criteria Governance',
+   486→   486→ source: 'Project requirements',
+   487→   487→ category: 'Acceptance',
+   488→   488→ description:
+   489→   489→ 'Define measurable acceptance criteria for deliverables and approvals.',
+   490→   490→ applicability: 'Requirements and deliverables',
+   491→   491→ ),
+   492→   492→ ];
+   493→   493→
+   494→   494→ if (contextText.contains('software') ||
+   495→   495→ contextText.contains('application') ||
+   496→   496→ contextText.contains('api')) {
+   497→   497→ presets.add(
+   498→   498→ QualityStandard(
+   499→   499→ id: _newId(),
+   500→   500→ name: 'ISO/IEC 25010 Software Quality',
+   501→   501→ source: 'ISO/IEC 25010',
+   502→   502→ category: 'Software Quality',
+   503→   503→ description:
+   504→   504→ 'Apply quality characteristics such as reliability, security, and maintainability.',
+   505→   505→ applicability: 'Software components',
+   506→   506→ ),
+   507→   507→ );
+   508→   508→ }
+   509→   509→
+   510→   510→ if (contextText.contains('security') || contextText.contains('access')) {
+   511→   511→ presets.add(
+   512→   512→ QualityStandard(
+   513→   513→ id: _newId(),
+   514→   514→ name: 'ISO 27001 Control Evidence Readiness',
+   515→   515→ source: 'ISO 27001',
+   516→   516→ category: 'Security Compliance',
+   517→   517→ description:
+   518→   518→ 'Maintain audit trail for controls, access reviews, and incident handling.',
+   519→   519→ applicability: 'Security-sensitive workflows',
+   520→   520→ ),
+   521→   521→ );
+   522→   522→ }
+   523→   523→
+   524→   524→ if (contextText.contains('construction') ||
+   525→   525→ contextText.contains('facility') ||
+   526→   526→ contextText.contains('equipment')) {
+   527→   527→ presets.add(
+   528→   528→ QualityStandard(
+   529→   529→ id: _newId(),
+   530→   530→ name: 'Inspection and Test Plan (ITP) Discipline',
+   531→   531→ source: 'Industry best practice',
+   532→   532→ category: 'Inspection',
+   533→   533→ description:
+   534→   534→ 'Set hold points, witness points, and inspection acceptance criteria.',
+   535→   535→ applicability: 'Physical works and procurement',
+   536→   536→ ),
+   537→   537→ );
+   538→   538→ }
+   539→   539→
+   540→   540→ return presets;
+   541→   541→}
+   542→   542→
+   543→   543→Future<void> _createTrainingActivityShortcut(
+   544→   544→ BuildContext context, {
+   545→   545→ required String checkpoint,
+   546→   546→ String defaultTitle = 'Quality Training Session',
+   547→   547→}) async {
+   548→   548→ final result = await showDialog<TrainingActivity>(
+   549→   549→ context: context,
+   550→   550→ builder: (_) => _TrainingShortcutDialog(defaultTitle: defaultTitle),
+   551→   551→ );
+   552→   552→
+   553→   553→ if (!context.mounted) return;
+   554→   554→ if (result == null) return;
+   555→   555→
+   556→   556→ await ProjectDataHelper.updateAndSave(
+   557→   557→ context: context,
+   558→   558→ checkpoint: checkpoint,
+   559→   559→ showSnackbar: false,
+   560→   560→ dataUpdater: (data) {
+   561→   561→ final updated = List<TrainingActivity>.from(data.trainingActivities)
+   562→   562→ ..add(result);
+   563→   563→ return data.copyWith(trainingActivities: updated);
+   564→   564→ },
+   565→   565→ );
+   566→   566→
+   567→   567→ if (context.mounted) {
+   568→   568→ ScaffoldMessenger.of(context).showSnackBar(
+   569→   569→ const SnackBar(
+   570→   570→ content: Text('Training activity created'),
+   571→   571→ behavior: SnackBarBehavior.floating,
+   572→   572→ backgroundColor: Color(0xFF16A34A),
+   573→   573→ ),
+   574→   574→ );
+   575→   575→ }
+   576→   576→}
+   577→   577→
+   578→   578→class QualityManagementScreen extends StatefulWidget {
+   579→   579→ const QualityManagementScreen({super.key});
+   580→   580→
+   581→   581→ static void open(BuildContext context) {
+   582→   582→ Navigator.of(context).push(
+   583→   583→ MaterialPageRoute(builder: (_) => const QualityManagementScreen()),
+   584→   584→ );
+   585→   585→ }
+   586→   586→
+   587→   587→ @override
+   588→   588→ State<QualityManagementScreen> createState() =>
+   589→   589→ _QualityManagementScreenState();
+   590→   590→}
+   591→   591→
+   592→   592→class _QualityManagementScreenState extends State<QualityManagementScreen> {
+   593→   593→ _QualityTab _selectedTab = _QualityTab.plan;
+   594→   594→
+   595→   595→ void _handleTabSelected(_QualityTab tab) {
+   596→   596→ if (_selectedTab == tab) return;
+   597→   597→ setState(() => _selectedTab = tab);
+   598→   598→ }
+   599→   599→
+   600→   600→ Widget _buildNavigationHint() {
+   601→   601→ return InnerPageNavigationHint(
+   602→   602→ pageId: 'quality_management',
+   603→   603→ pageTitle: 'Quality Management',
+   604→   604→ description: 'Navigate between quality management sections',
+   605→   605→ currentSectionId: _selectedTab.name,
+   606→   606→ onSectionTap: (sectionId) {
+   607→   607→ final tab = _QualityTab.values.firstWhere(
+   608→   608→ (t) => t.name == sectionId,
+   609→   609→ orElse: () => _selectedTab,
+   610→   610→ );
+   611→   611→ _handleTabSelected(tab);
+   612→   612→ },
+   613→   613→ sections: [
+   614→   614→ InnerPageSection(
+   615→   615→ id: _QualityTab.plan.name,
+   616→   616→ label: 'Quality Plan',
+   617→   617→ icon: Icons.description_outlined,
+   618→   618→ stepNumber: 1,
+   619→   619→ status: _selectedTab == _QualityTab.plan
+   620→   620→ ? InnerPageSectionStatus.current
+   621→   621→ : InnerPageSectionStatus.available,
+   622→   622→ ),
+   623→   623→ InnerPageSection(
+   624→   624→ id: _QualityTab.objectives.name,
+   625→   625→ label: 'Objectives',
+   626→   626→ icon: Icons.flag_outlined,
+   627→   627→ stepNumber: 2,
+   628→   628→ status: _selectedTab == _QualityTab.objectives
+   629→   629→ ? InnerPageSectionStatus.current
+   630→   630→ : InnerPageSectionStatus.available,
+   631→   631→ ),
+   632→   632→ InnerPageSection(
+   633→   633→ id: _QualityTab.inspection.name,
+   634→   634→ label: 'Inspection & Test',
+   635→   635→ icon: Icons.verified_outlined,
+   636→   636→ stepNumber: 3,
+   637→   637→ status: _selectedTab == _QualityTab.inspection
+   638→   638→ ? InnerPageSectionStatus.current
+   639→   639→ : InnerPageSectionStatus.available,
+   640→   640→ ),
+   641→   641→ InnerPageSection(
+   642→   642→ id: _QualityTab.audit.name,
+   643→   643→ label: 'Audit & Register',
+   644→   644→ icon: Icons.fact_check_outlined,
+   645→   645→ stepNumber: 4,
+   646→   646→ status: _selectedTab == _QualityTab.audit
+   647→   647→ ? InnerPageSectionStatus.current
+   648→   648→ : InnerPageSectionStatus.available,
+   649→   649→ ),
+   650→   650→  InnerPageSection(
+   651→   651→  id: _QualityTab.metrics.name,
+   652→   652→  label: 'Metrics',
+   653→   653→  icon: Icons.analytics_outlined,
+   654→   654→  stepNumber: 5,
+   655→   655→  status: _selectedTab == _QualityTab.metrics
+   656→   656→  ? InnerPageSectionStatus.current
+   657→   657→  : InnerPageSectionStatus.available,
+   658→   658→  ),
+   659→   659→  InnerPageSection(
+   660→   660→  id: _QualityTab.coq.name,
+   661→   661→  label: 'Cost of Quality',
+   662→   662→  icon: Icons.account_balance_wallet_outlined,
+   663→   663→  stepNumber: 6,
+   664→   664→  status: _selectedTab == _QualityTab.coq
+   665→   665→  ? InnerPageSectionStatus.current
+   666→   666→  : InnerPageSectionStatus.available,
+   667→   667→  ),
+   668→   668→  ],
+   669→   669→  );
+   670→   670→ }
+   671→   671→
+   672→   672→ @override
+   673→   673→ Widget build(BuildContext context) {
+   674→   674→ final isMobile = AppBreakpoints.isMobile(context);
+   675→   675→ final horizontalPadding = isMobile ? 16.0 : 32.0;
+   676→   676→
+   677→   677→ // Mobile: Scaffold with drawer → full-width content
+   678→   678→ if (isMobile) {
+   679→   679→ return Scaffold(
+   680→   680→ backgroundColor: Colors.white,
+   681→   681→ drawer: MobileSidebarDrawer(
+   682→   682→ sidebar: const InitiationLikeSidebar(
+   683→   683→ activeItemLabel: 'Quality Management',
+   684→   684→ ),
+   685→   685→ ),
+   686→   686→ body: SafeArea(
+   687→   687→ child: Stack(
+   688→   688→ children: [
+   689→   689→ SingleChildScrollView(
+   690→   690→ padding: EdgeInsets.symmetric(
+   691→   691→ horizontal: horizontalPadding, vertical: 16),
+   692→   692→ child: Column(
+   693→   693→ crossAxisAlignment: CrossAxisAlignment.start,
+   694→   694→ children: [
+   695→   695→ PlanningPhaseHeader(title: 'Quality Management', onExportPdf: _exportPdf),
+   696→   696→ const SizedBox(height: 16),
+   697→   697→ // Hamburger + title row for mobile
+   698→   698→ Row(
+   699→   699→ children: [
+   700→   700→ Builder(builder: (ctx) {
+   701→   701→ return IconButton(
+   702→   702→ icon: const Icon(Icons.menu,
+   703→   703→ color: Color(0xFF374151)),
+   704→   704→ onPressed: () {
+   705→   705→ final scaffold = Scaffold.maybeOf(ctx);
+   706→   706→ if (scaffold != null && scaffold.hasDrawer) {
+   707→   707→ scaffold.openDrawer();
+   708→   708→ }
+   709→   709→ },
+   710→   710→ tooltip: 'Open menu',
+   711→   711→ );
+   712→   712→ }),
+   713→   713→ const Expanded(child: _PageHeader()),
+   714→   714→ ],
+   715→   715→ ),
+   716→   716→ const SizedBox(height: 24),
+   717→   717→ const PlanningAiNotesCard(
+   718→   718→ title: 'Notes',
+   719→   719→ sectionLabel: 'Quality Management',
+   720→   720→ noteKey: 'planning_quality_management_notes',
+   721→   721→ checkpoint: 'quality_management',
+   722→   722→ description:
+   723→   723→ 'Summarize quality targets, assurance cadence, and control measures.',
+   724→   724→ ),
+   725→   725→ const SizedBox(height: 24),
+   726→   726→ _TabStrip(
+   727→   727→ selectedTab: _selectedTab,
+   728→   728→ onSelected: _handleTabSelected,
+   729→   729→ ),
+   730→   730→ const SizedBox(height: 16),
+   731→   731→ _buildNavigationHint(),
+   732→   732→ const SizedBox(height: 28),
+   733→   733→ _TabContent(selectedTab: _selectedTab),
+   734→   734→ const SizedBox(height: 28),
+   735→   735→ _NavigationRow(
+   736→   736→ onBack: () => PlanningPhaseNavigation.goToPrevious(
+   737→   737→ context,
+   738→   738→ 'quality_management',
+   739→   739→ ),
+   740→   740→ onNext: () => PlanningPhaseNavigation.goToNext(
+   741→   741→ context,
+   742→   742→ 'quality_management',
+   743→   743→ ),
+   744→   744→ ),
+   745→   745→ const SizedBox(height: 48),
+   746→   746→ ],
+   747→   747→ ),
+   748→   748→ ),
+   749→   749→ const KazAiChatBubble(),
+   750→   750→ ],
+   751→   751→ ),
+   752→   752→ ),
+   753→   753→ );
+   754→   754→ }
+   755→   755→
+   756→   756→ // Desktop/Tablet: Row with sidebar
+   757→   757→ return Scaffold(
+   758→   758→ backgroundColor: Colors.white,
+   759→   759→ body: SafeArea(
+   760→   760→ child: Row(
+   761→   761→ crossAxisAlignment: CrossAxisAlignment.start,
+   762→   762→ children: [
+   763→   763→ DraggableSidebar(
+   764→   764→ openWidth: AppBreakpoints.sidebarWidth(context),
+   765→   765→ child: const InitiationLikeSidebar(
+   766→   766→ activeItemLabel: 'Quality Management',
+   767→   767→ ),
+   768→   768→ ),
+   769→   769→ Expanded(
+   770→   770→ child: Stack(
+   771→   771→ children: [
+   772→   772→ SingleChildScrollView(
+   773→   773→ padding: EdgeInsets.symmetric(
+   774→   774→ horizontal: horizontalPadding, vertical: 28),
+   775→   775→ child: Column(
+   776→   776→ crossAxisAlignment: CrossAxisAlignment.start,
+   777→   777→ children: [
+   778→   778→ PlanningPhaseHeader(title: 'Quality Management', onExportPdf: _exportPdf),
+   779→   779→ const SizedBox(height: 16),
+   780→   780→ const _PageHeader(),
+   781→   781→ const SizedBox(height: 24),
+   782→   782→ const PlanningAiNotesCard(
+   783→   783→ title: 'Notes',
+   784→   784→ sectionLabel: 'Quality Management',
+   785→   785→ noteKey: 'planning_quality_management_notes',
+   786→   786→ checkpoint: 'quality_management',
+   787→   787→ description:
+   788→   788→ 'Summarize quality targets, assurance cadence, and control measures.',
+   789→   789→ ),
+   790→   790→ const SizedBox(height: 24),
+   791→   791→ _TabStrip(
+   792→   792→ selectedTab: _selectedTab,
+   793→   793→ onSelected: _handleTabSelected,
+   794→   794→ ),
+   795→   795→ const SizedBox(height: 16),
+   796→   796→ _buildNavigationHint(),
+   797→   797→ const SizedBox(height: 28),
+   798→   798→ _TabContent(selectedTab: _selectedTab),
+   799→   799→ const SizedBox(height: 28),
+   800→   800→ _NavigationRow(
+   801→   801→ onBack: () => PlanningPhaseNavigation.goToPrevious(
+   802→   802→ context,
+   803→   803→ 'quality_management',
+   804→   804→ ),
+   805→   805→ onNext: () => PlanningPhaseNavigation.goToNext(
+   806→   806→ context,
+   807→   807→ 'quality_management',
+   808→   808→ ),
+   809→   809→ ),
+   810→   810→ const SizedBox(height: 48),
+   811→   811→ ],
+   812→   812→ ),
+   813→   813→ ),
+   814→   814→ const KazAiChatBubble(),
+   815→   815→ ],
+   816→   816→ ),
+   817→   817→ ),
+   818→   818→ ],
+   819→   819→ ),
+   820→   820→ ),
+   821→   821→ );
+   822→   822→ }
+   823→   823→
+   824→   824→ Future<void> _exportPdf() async {
+   825→   825→ final projectData = ProjectDataHelper.getData(context);
+   826→   826→ await PdfExportHelper.exportScreenPdf(
+   827→   827→ context: context,
+   828→   828→ screenTitle: 'Quality Management',
+   829→   829→ sections: [
+   830→   830→ PdfSection.keyValue('Project Info', [
+   831→   831→ {'Project Name': projectData.projectName ?? 'N/A'},
+   832→   832→ {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+   833→   833→ ]),
+   834→   834→ PdfSection.text('Notes', projectData.planningNotes['planning_quality_management_notes'] ?? 'No data recorded.'),
+   835→   835→ ],
+   836→   836→ );
+   837→   837→ }
+   838→   838→}
+   839→   839→
+   840→   840→class _PageHeader extends StatelessWidget {
+   841→   841→ const _PageHeader();
+   842→   842→
+   843→   843→ @override
+   844→   844→ Widget build(BuildContext context) {
+   845→   845→ return Column(
+   846→   846→ crossAxisAlignment: CrossAxisAlignment.start,
+   847→   847→ children: [
+   848→   848→ Row(
+   849→   849→ children: [
+   850→   850→ const Expanded(
+   851→   851→ child: Column(
+   852→   852→ crossAxisAlignment: CrossAxisAlignment.start,
+   853→   853→ children: [
+   854→   854→ Text(
+   855→   855→ 'Quality Management',
+   856→   856→ style: TextStyle(
+   857→   857→ fontSize: 30,
+   858→   858→ fontWeight: FontWeight.w700,
+   859→   859→ color: Color(0xFF111827),
+   860→   860→ ),
+   861→   861→ ),
+   862→   862→ SizedBox(height: 8),
+   863→   863→ Text(
+   864→   864→ 'Manage quality standards, objectives, QA/QC workflows, audits, and corrective actions',
+   865→   865→ style: TextStyle(
+   866→   866→ fontSize: 15,
+   867→   867→ fontWeight: FontWeight.w500,
+   868→   868→ color: Color(0xFF6B7280),
+   869→   869→ ),
+   870→   870→ ),
+   871→   871→ ],
+   872→   872→ ),
+   873→   873→ ),
+   874→   874→ const SizedBox(width: 16),
+   875→   875→ ],
+   876→   876→ ),
+   877→   877→ ],
+   878→   878→ );
+   879→   879→ }
+   880→   880→}
+   881→   881→
+   882→   882→class _NavigationRow extends StatelessWidget {
+   883→   883→ const _NavigationRow({required this.onBack, required this.onNext});
+   884→   884→
+   885→   885→ final VoidCallback onBack;
+   886→   886→ final VoidCallback onNext;
+   887→   887→
+   888→   888→ @override
+   889→   889→ Widget build(BuildContext context) {
+   890→   890→ final isMobile = AppBreakpoints.isMobile(context);
+   891→   891→ return Row(
+   892→   892→ children: [
+   893→   893→ Expanded(
+   894→   894→ child: OutlinedButton.icon(
+   895→   895→ onPressed: onBack,
+   896→   896→ icon: const Icon(Icons.arrow_back, size: 16),
+   897→   897→ label: Flexible(
+   898→   898→ child: FittedBox(
+   899→   899→ fit: BoxFit.scaleDown,
+   900→   900→ child: Text(
+   901→   901→ PlanningPhaseNavigation.backLabel('quality_management')),
+   902→   902→ ),
+   903→   903→ ),
+   904→   904→ style: OutlinedButton.styleFrom(
+   905→   905→ foregroundColor: const Color(0xFF374151),
+   906→   906→ side: const BorderSide(color: Color(0xFFD1D5DB)),
+   907→   907→ padding: EdgeInsets.symmetric(
+   908→   908→ horizontal: isMobile ? 8 : 20,
+   909→   909→ vertical: 12,
+   910→   910→ ),
+   911→   911→ shape: RoundedRectangleBorder(
+   912→   912→ borderRadius: BorderRadius.circular(8)),
+   913→   913→ ),
+   914→   914→ ),
+   915→   915→ ),
+   916→   916→ const SizedBox(width: 12),
+   917→   917→ Expanded(
+   918→   918→ flex: 2,
+   919→   919→ child: FilledButton.icon(
+   920→   920→ onPressed: onNext,
+   921→   921→ icon: const Icon(Icons.arrow_forward, size: 16),
+   922→   922→ label: Flexible(
+   923→   923→ child: FittedBox(
+   924→   924→ fit: BoxFit.scaleDown,
+   925→   925→ child: Text(
+   926→   926→ PlanningPhaseNavigation.nextLabel('quality_management')),
+   927→   927→ ),
+   928→   928→ ),
+   929→   929→ style: FilledButton.styleFrom(
+   930→   930→ backgroundColor: const Color(0xFFFFC044),
+   931→   931→ foregroundColor: const Color(0xFF111827),
+   932→   932→ padding: EdgeInsets.symmetric(
+   933→   933→ horizontal: isMobile ? 8 : 20,
+   934→   934→ vertical: 12,
+   935→   935→ ),
+   936→   936→ shape: RoundedRectangleBorder(
+   937→   937→ borderRadius: BorderRadius.circular(8)),
+   938→   938→ ),
+   939→   939→ ),
+   940→   940→ ),
+   941→   941→ ],
+   942→   942→ );
+   943→   943→ }
+   944→   944→}
+   945→   945→
+   946→   946→class _TabStrip extends StatelessWidget {
+   947→   947→ const _TabStrip({required this.selectedTab, required this.onSelected});
+   948→   948→
+   949→   949→ final _QualityTab selectedTab;
+   950→   950→ final ValueChanged<_QualityTab> onSelected;
+   951→   951→
+   952→   952→ @override
+   953→   953→ Widget build(BuildContext context) {
+   954→   954→ const tabs = [
+   955→   955→ _TabData(
+   956→   956→ label: 'Quality Plan',
+   957→   957→ icon: Icons.description_outlined,
+   958→   958→ tab: _QualityTab.plan,
+   959→   959→ ),
+   960→   960→ _TabData(
+   961→   961→ label: 'Objectives',
+   962→   962→ icon: Icons.flag_outlined,
+   963→   963→ tab: _QualityTab.objectives,
+   964→   964→ ),
+   965→   965→ _TabData(
+   966→   966→ label: 'Inspection & Test',
+   967→   967→ icon: Icons.verified_outlined,
+   968→   968→ tab: _QualityTab.inspection,
+   969→   969→ ),
+   970→   970→ _TabData(
+   971→   971→ label: 'Audit & Register',
+   972→   972→ icon: Icons.fact_check_outlined,
+   973→   973→ tab: _QualityTab.audit,
+   974→   974→ ),
+   975→   975→  _TabData(
+   976→   976→  label: 'Metrics',
+   977→   977→  icon: Icons.analytics_outlined,
+   978→   978→  tab: _QualityTab.metrics,
+   979→   979→  ),
+   980→   980→  _TabData(
+   981→   981→  label: 'Cost of Quality',
+   982→   982→  icon: Icons.account_balance_wallet_outlined,
+   983→   983→  tab: _QualityTab.coq,
+   984→   984→  ),
+   985→   985→  ];
+   986→   986→
+   987→   987→ return Container(
+   988→   988→ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+   989→   989→ decoration: BoxDecoration(
+   990→   990→ color: Colors.white,
+   991→   991→ borderRadius: BorderRadius.circular(16),
+   992→   992→ border: Border.all(color: const Color(0xFFE5E7EB)),
+   993→   993→ boxShadow: [
+   994→   994→ BoxShadow(
+   995→   995→ color: Colors.black.withOpacity(0.04),
+   996→   996→ blurRadius: 18,
+   997→   997→ offset: const Offset(0, 12),
+   998→   998→ ),
+   999→   999→ ],
+  1000→  1000→ ),
+  1001→  1001→ child: SingleChildScrollView(
+  1002→  1002→ scrollDirection: Axis.horizontal,
+  1003→  1003→ child: Row(
+  1004→  1004→ children: [
+  1005→  1005→ for (int i = 0; i < tabs.length; i++) ...[
+  1006→  1006→ _TabChip(
+  1007→  1007→ data: tabs[i],
+  1008→  1008→ selected: tabs[i].tab == selectedTab,
+  1009→  1009→ onTap: () => onSelected(tabs[i].tab),
+  1010→  1010→ ),
+  1011→  1011→ if (i != tabs.length - 1) const SizedBox(width: 12),
+  1012→  1012→ ],
+  1013→  1013→ ],
+  1014→  1014→ ),
+  1015→  1015→ ),
+  1016→  1016→ );
+  1017→  1017→ }
+  1018→  1018→}
+  1019→  1019→
+  1020→  1020→class _TabData {
+  1021→  1021→ const _TabData({required this.label, required this.icon, required this.tab});
+  1022→  1022→
+  1023→  1023→ final String label;
+  1024→  1024→ final IconData icon;
+  1025→  1025→ final _QualityTab tab;
+  1026→  1026→}
+  1027→  1027→
+  1028→  1028→class _TabChip extends StatelessWidget {
+  1029→  1029→ const _TabChip({
+  1030→  1030→ required this.data,
+  1031→  1031→ required this.selected,
+  1032→  1032→ required this.onTap,
+  1033→  1033→ });
+  1034→  1034→
+  1035→  1035→ final _TabData data;
+  1036→  1036→ final bool selected;
+  1037→  1037→ final VoidCallback onTap;
+  1038→  1038→
+  1039→  1039→ @override
+  1040→  1040→ Widget build(BuildContext context) {
+  1041→  1041→ final background = selected ? const Color(0xFFFFC044) : Colors.transparent;
+  1042→  1042→ final textColor =
+  1043→  1043→ selected ? const Color(0xFF1A1D1F) : const Color(0xFF4B5563);
+  1044→  1044→
+  1045→  1045→ return Material(
+  1046→  1046→ color: Colors.transparent,
+  1047→  1047→ child: InkWell(
+  1048→  1048→ onTap: onTap,
+  1049→  1049→ borderRadius: BorderRadius.circular(16),
+  1050→  1050→ child: AnimatedContainer(
+  1051→  1051→ duration: const Duration(milliseconds: 160),
+  1052→  1052→ padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+  1053→  1053→ decoration: BoxDecoration(
+  1054→  1054→ color: background,
+  1055→  1055→ borderRadius: BorderRadius.circular(16),
+  1056→  1056→ ),
+  1057→  1057→ child: Row(
+  1058→  1058→ mainAxisSize: MainAxisSize.min,
+  1059→  1059→ children: [
+  1060→  1060→ Icon(data.icon, color: textColor, size: 18),
+  1061→  1061→ const SizedBox(width: 10),
+  1062→  1062→ Text(
+  1063→  1063→ data.label,
+  1064→  1064→ style: TextStyle(
+  1065→  1065→ fontSize: 15,
+  1066→  1066→ fontWeight: FontWeight.w600,
+  1067→  1067→ color: textColor,
+  1068→  1068→ ),
+  1069→  1069→ ),
+  1070→  1070→ ],
+  1071→  1071→ ),
+  1072→  1072→ ),
+  1073→  1073→ ),
+  1074→  1074→ );
+  1075→  1075→ }
+  1076→  1076→}
+  1077→  1077→
+  1078→  1078→class _TabContent extends StatelessWidget {
+  1079→  1079→ const _TabContent({required this.selectedTab});
+  1080→  1080→
+  1081→  1081→ final _QualityTab selectedTab;
+  1082→  1082→
+  1083→  1083→ @override
+  1084→  1084→ Widget build(BuildContext context) {
+  1085→  1085→ switch (selectedTab) {
+  1086→  1086→ case _QualityTab.plan:
+  1087→  1087→ return const _QualityPlanView();
+  1088→  1088→ case _QualityTab.objectives:
+  1089→  1089→ return const _ObjectivesView();
+  1090→  1090→ case _QualityTab.inspection:
+  1091→  1091→ return const _QaTrackingView();
+  1092→  1092→ case _QualityTab.audit:
+  1093→  1093→ return const _QcTrackingView();
+  1094→  1094→  case _QualityTab.metrics:
+  1095→  1095→  return const _MetricsView();
+  1096→  1096→  case _QualityTab.coq:
+  1097→  1097→  return const _CoqView();
+  1098→  1098→ }
+  1099→  1099→ }
+  1100→  1100→}
+  1101→  1101→
+  1102→  1102→class _QualityPlanView extends StatefulWidget {
+  1103→  1103→ const _QualityPlanView();
+  1104→  1104→
+  1105→  1105→ @override
+  1106→  1106→ State<_QualityPlanView> createState() => _QualityPlanViewState();
+  1107→  1107→}
+  1108→  1108→
+  1109→  1109→class _QualityPlanViewState extends State<_QualityPlanView> {
+  1110→  1110→ late final TextEditingController _planController;
+  1111→  1111→ late final TextEditingController _reviewCadenceController;
+  1112→  1112→ late final TextEditingController _escalationPathController;
+  1113→  1113→ late final TextEditingController _changeControlController;
+  1114→  1114→ bool _didInit = false;
+  1115→  1115→ bool _isGenerating = false;
+  1116→  1116→ Timer? _saveDebounce;
+  1117→  1117→
+  1118→  1118→ // ── Per-field history + AI state ─────────────────────────────────────
+  1119→  1119→ final Map<String, List<String>> _fieldHistories = {};
+  1120→  1120→ final Map<String, int> _fieldHistoryIndices = {};
+  1121→  1121→ final Map<String, bool> _fieldIsAiGenerated = {};
+  1122→  1122→ final Map<String, bool> _fieldIsRegenerating = {};
+  1123→  1123→
+  1124→  1124→ static const _fieldKeys = {
+  1125→  1125→ 'quality_narrative': 'Quality Narrative',
+  1126→  1126→ 'review_cadence': 'Review Cadence',
+  1127→  1127→ 'escalation_path': 'Escalation Path',
+  1128→  1128→ 'change_control': 'Change Control Process',
+  1129→  1129→ };
+  1130→  1130→
+  1131→  1131→ void _onFieldChanged() {
+  1132→  1132→ _saveDebounce?.cancel();
+  1133→  1133→ _saveDebounce = Timer(const Duration(milliseconds: 300), () {
+  1134→  1134→ if (mounted) _savePlan();
+  1135→  1135→ });
+  1136→  1136→ }
+  1137→  1137→
+  1138→  1138→ @override
+  1139→  1139→ void initState() {
+  1140→  1140→ super.initState();
+  1141→  1141→ ApiKeyManager.initializeApiKey();
+  1142→  1142→ _planController = TextEditingController();
+  1143→  1143→ _reviewCadenceController = TextEditingController();
+  1144→  1144→ _escalationPathController = TextEditingController();
+  1145→  1145→ _changeControlController = TextEditingController();
+  1146→  1146→ }
+  1147→  1147→
+  1148→  1148→ @override
+  1149→  1149→ void didChangeDependencies() {
+  1150→  1150→ super.didChangeDependencies();
+  1151→  1151→ if (_didInit) return;
+  1152→  1152→ final qData = _qualityData(context);
+  1153→  1153→ _planController.text = qData.qualityPlan;
+  1154→  1154→ _reviewCadenceController.text = qData.reviewCadence;
+  1155→  1155→ _escalationPathController.text = qData.escalationPath;
+  1156→  1156→ _changeControlController.text = qData.changeControlProcess;
+  1157→  1157→ // Record initial values in history for undo/redo
+  1158→  1158→ if (qData.qualityPlan.isNotEmpty) {
+  1159→  1159→ _recordFieldHistory('quality_narrative', qData.qualityPlan);
+  1160→  1160→ }
+  1161→  1161→ if (qData.reviewCadence.isNotEmpty) {
+  1162→  1162→ _recordFieldHistory('review_cadence', qData.reviewCadence);
+  1163→  1163→ }
+  1164→  1164→ if (qData.escalationPath.isNotEmpty) {
+  1165→  1165→ _recordFieldHistory('escalation_path', qData.escalationPath);
+  1166→  1166→ }
+  1167→  1167→ if (qData.changeControlProcess.isNotEmpty) {
+  1168→  1168→ _recordFieldHistory('change_control', qData.changeControlProcess);
+  1169→  1169→ }
+  1170→  1170→ _planController.addListener(_onFieldChanged);
+  1171→  1171→ _reviewCadenceController.addListener(_onFieldChanged);
+  1172→  1172→ _escalationPathController.addListener(_onFieldChanged);
+  1173→  1173→ _changeControlController.addListener(_onFieldChanged);
+  1174→  1174→ _didInit = true;
+  1175→  1175→ }
+  1176→  1176→
+  1177→  1177→ @override
+  1178→  1178→ void dispose() {
+  1179→  1179→ _saveDebounce?.cancel();
+  1180→  1180→ _planController.removeListener(_onFieldChanged);
+  1181→  1181→ _reviewCadenceController.removeListener(_onFieldChanged);
+  1182→  1182→ _escalationPathController.removeListener(_onFieldChanged);
+  1183→  1183→ _changeControlController.removeListener(_onFieldChanged);
+  1184→  1184→ _planController.dispose();
+  1185→  1185→ _reviewCadenceController.dispose();
+  1186→  1186→ _escalationPathController.dispose();
+  1187→  1187→ _changeControlController.dispose();
+  1188→  1188→ super.dispose();
+  1189→  1189→ }
+  1190→  1190→
+  1191→  1191→ Future<void> _savePlan() async {
+  1192→  1192→ await _updateQualityData(
+  1193→  1193→ context,
+  1194→  1194→ checkpoint: 'quality_management',
+  1195→  1195→ successMessage: 'Quality plan saved',
+  1196→  1196→ updater: (current) => current.copyWith(
+  1197→  1197→ qualityPlan: _planController.text.trim(),
+  1198→  1198→ reviewCadence: _reviewCadenceController.text.trim(),
+  1199→  1199→ escalationPath: _escalationPathController.text.trim(),
+  1200→  1200→ changeControlProcess: _changeControlController.text.trim(),
+  1201→  1201→ ),
+  1202→  1202→ );
+  1203→  1203→ }
+  1204→  1204→
+  1205→  1205→ // ── Field history tracking for undo/redo ─────────────────────────────
+  1206→  1206→ void _recordFieldHistory(String key, String value, {bool isAi = false}) {
+  1207→  1207→ final history = _fieldHistories.putIfAbsent(key, () => []);
+  1208→  1208→ final index = _fieldHistoryIndices.putIfAbsent(key, () => -1);
+  1209→  1209→ if (index < history.length - 1) {
+  1210→  1210→ history.removeRange(index + 1, history.length);
+  1211→  1211→ }
+  1212→  1212→ if (history.isEmpty || history.last != value) {
+  1213→  1213→ history.add(value);
+  1214→  1214→ _fieldHistoryIndices[key] = history.length - 1;
+  1215→  1215→ }
+  1216→  1216→ if (isAi) _fieldIsAiGenerated[key] = true;
+  1217→  1217→ }
+  1218→  1218→
+  1219→  1219→ bool _canUndoField(String key) =>
+  1220→  1220→ (_fieldHistoryIndices[key] ?? -1) > 0;
+  1221→  1221→
+  1222→  1222→ bool _canRedoField(String key) {
+  1223→  1223→ final idx = _fieldHistoryIndices[key] ?? -1;
+  1224→  1224→ final history = _fieldHistories[key] ?? [];
+  1225→  1225→ return idx >= 0 && idx < history.length - 1;
+  1226→  1226→ }
+  1227→  1227→
+  1228→  1228→ void _undoField(String key, TextEditingController controller) {
+  1229→  1229→ if (!_canUndoField(key)) return;
+  1230→  1230→ final idx = _fieldHistoryIndices[key]! - 1;
+  1231→  1231→ _fieldHistoryIndices[key] = idx;
+  1232→  1232→ controller.text = _fieldHistories[key]![idx];
+  1233→  1233→ _onFieldChanged();
+  1234→  1234→ }
+  1235→  1235→
+  1236→  1236→ void _redoField(String key, TextEditingController controller) {
+  1237→  1237→ if (!_canRedoField(key)) return;
+  1238→  1238→ final idx = _fieldHistoryIndices[key]! + 1;
+  1239→  1239→ _fieldHistoryIndices[key] = idx;
+  1240→  1240→ controller.text = _fieldHistories[key]![idx];
+  1241→  1241→ _onFieldChanged();
+  1242→  1242→ }
+  1243→  1243→
+  1244→  1244→ // ── Per-field AI regeneration ────────────────────────────────────────
+  1245→  1245→ Future<void> _regenerateField(String key, String label) async {
+  1246→  1246→ setState(() => _fieldIsRegenerating[key] = true);
+  1247→  1247→ try {
+  1248→  1248→ final project = ProjectDataHelper.getData(context);
+  1249→  1249→ final contextText =
+  1250→  1250→ ProjectDataHelper.buildFepContext(project, sectionLabel: label);
+  1251→  1251→ final ai = OpenAiServiceSecure();
+  1252→  1252→ final result = await ai.generateCompletion(
+  1253→  1253→ 'Based on this project context, regenerate the "$label" section.\n\n'
+  1254→  1254→ 'Context:\n$contextText\n\n'
+  1255→  1255→ 'Provide 2-3 sentences of specific, actionable recommendations. '
+  1256→  1256→ 'Return ONLY the text content (no JSON, no markdown headers).',
+  1257→  1257→ maxTokens: 300,
+  1258→  1258→ temperature: 0.6,
+  1259→  1259→ );
+  1260→  1260→ final cleaned = result.trim();
+  1261→  1261→ if (cleaned.isNotEmpty) {
+  1262→  1262→ final controller = _controllerForKey(key);
+  1263→  1263→ controller.text = cleaned;
+  1264→  1264→ _recordFieldHistory(key, cleaned, isAi: true);
+  1265→  1265→ _onFieldChanged();
+  1266→  1266→ }
+  1267→  1267→ } catch (e) {
+  1268→  1268→ if (mounted) {
+  1269→  1269→ ScaffoldMessenger.of(context).showSnackBar(
+  1270→  1270→ SnackBar(content: Text('AI regeneration failed: $e')),
+  1271→  1271→ );
+  1272→  1272→ }
+  1273→  1273→ }
+  1274→  1274→ if (mounted) setState(() => _fieldIsRegenerating[key] = false);
+  1275→  1275→ }
+  1276→  1276→
+  1277→  1277→ TextEditingController _controllerForKey(String key) {
+  1278→  1278→ switch (key) {
+  1279→  1279→ case 'quality_narrative':
+  1280→  1280→ return _planController;
+  1281→  1281→ case 'review_cadence':
+  1282→  1282→ return _reviewCadenceController;
+  1283→  1283→ case 'escalation_path':
+  1284→  1284→ return _escalationPathController;
+  1285→  1285→ case 'change_control':
+  1286→  1286→ return _changeControlController;
+  1287→  1287→ default:
+  1288→  1288→ return _planController;
+  1289→  1289→ }
+  1290→  1290→ }
+  1291→  1291→
+  1292→  1292→ // ── Build a field with KAZ AI + clear + formatting toolbar ───────────
+  1293→  1293→ Widget _buildEnhancedField({
+  1294→  1294→ required String key,
+  1295→  1295→ required String label,
+  1296→  1296→ required TextEditingController controller,
+  1297→  1297→ required String hint,
+  1298→  1298→ int minLines = 3,
+  1299→  1299→ int maxLines = 6,
+  1300→  1300→ }) {
+  1301→  1301→ final isAiGenerated = _fieldIsAiGenerated[key] ?? false;
+  1302→  1302→
+  1303→  1303→ return Column(
+  1304→  1304→ crossAxisAlignment: CrossAxisAlignment.start,
+  1305→  1305→ children: [
+  1306→  1306→ // ── Label row with AI badge ──────────────────────────────
+  1307→  1307→ Row(
+  1308→  1308→ mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  1309→  1309→ children: [
+  1310→  1310→ _FieldLabel(label),
+  1311→  1311→ if (isAiGenerated)
+  1312→  1312→ Container(
+  1313→  1313→ padding:
+  1314→  1314→ const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+  1315→  1315→ decoration: BoxDecoration(
+  1316→  1316→ color: const Color(0xFFFFF7E6),
+  1317→  1317→ borderRadius: BorderRadius.circular(6),
+  1318→  1318→ ),
+  1319→  1319→ child: const Row(
+  1320→  1320→ mainAxisSize: MainAxisSize.min,
+  1321→  1321→ children: [
+  1322→  1322→ Icon(Icons.auto_awesome,
+  1323→  1323→ size: 10, color: Color(0xFFD97706)),
+  1324→  1324→ SizedBox(width: 3),
+  1325→  1325→ Text('AI',
+  1326→  1326→ style: TextStyle(
+  1327→  1327→ fontSize: 9,
+  1328→  1328→ fontWeight: FontWeight.w700,
+  1329→  1329→ color: Color(0xFFD97706))),
+  1330→  1330→ ],
+  1331→  1331→ ),
+  1332→  1332→ ),
+  1333→  1333→ ],
+  1334→  1334→ ),
+  1335→  1335→ const SizedBox(height: 6),
+  1336→  1336→
+  1337→  1337→ // ── VoiceTextField (already includes TextFormattingToolbar +
+  1338→  1338→ //    KAZ AI button + Clear button + mic + docx import) ──
+  1339→  1339→ VoiceTextField(
+  1340→  1340→ controller: controller,
+  1341→  1341→ minLines: minLines,
+  1342→  1342→ maxLines: maxLines,
+  1343→  1343→ kazAiLabel: label,
+  1344→  1344→ onChanged: (value) {
+  1345→  1345→ _recordFieldHistory(key, value);
+  1346→  1346→ _onFieldChanged();
+  1347→  1347→ setState(() {});
+  1348→  1348→ },
+  1349→  1349→ decoration: _inputDecoration(context, hint),
+  1350→  1350→ ),
+  1351→  1351→ ],
+  1352→  1352→ );
+  1353→  1353→ }
+  1354→  1354→
+  1355→  1355→ Future<void> _generateFromContext() async {
+  1356→  1356→ if (_isGenerating) return;
+  1357→  1357→ if (!mounted) return;
+  1358→  1358→ setState(() => _isGenerating = true);
+  1359→  1359→
+  1360→  1360→ try {
+  1361→  1361→ final project = ProjectDataHelper.getData(context);
+  1362→  1362→ final contextText = _buildQualityAiContext(project);
+  1363→  1363→
+  1364→  1364→ final ai = OpenAiServiceSecure();
+  1365→  1365→ final seed = await ai.generateQualitySeedBundle(
+  1366→  1366→ context: contextText,
+  1367→  1367→ section: 'Quality Management',
+  1368→  1368→ );
+  1369→  1369→
+  1370→  1370→ final narrative = _composeNarrative(seed);
+  1371→  1371→ _planController.text = narrative;
+  1372→  1372→
+  1373→  1373→ if (!mounted) return;
+  1374→  1374→ await _updateQualityData(
+  1375→  1375→ context,
+  1376→  1376→ checkpoint: 'quality_management',
+  1377→  1377→ successMessage: 'Quality planning data generated',
+  1378→  1378→ updater: (current) => current.copyWith(
+  1379→  1379→ qualityPlan: narrative,
+  1380→  1380→ standards:
+  1381→  1381→ seed.standards.isNotEmpty ? seed.standards : current.standards,
+  1382→  1382→ objectives:
+  1383→  1383→ seed.objectives.isNotEmpty ? seed.objectives : current.objectives,
+  1384→  1384→ workflowControls: seed.workflowControls.isNotEmpty
+  1385→  1385→ ? seed.workflowControls
+  1386→  1386→ : current.workflowControls,
+  1387→  1387→ auditPlan:
+  1388→  1388→ seed.auditPlan.isNotEmpty ? seed.auditPlan : current.auditPlan,
+  1389→  1389→ dashboardConfig: seed.dashboardConfig,
+  1390→  1390→ ),
+  1391→  1391→ );
+  1392→  1392→ } catch (error) {
+  1393→  1393→ if (!mounted) return;
+  1394→  1394→ ScaffoldMessenger.of(context).showSnackBar(
+  1395→  1395→ SnackBar(
+  1396→  1396→ content: Text('Unable to generate seed: $error'),
+  1397→  1397→ behavior: SnackBarBehavior.floating,
+  1398→  1398→ backgroundColor: const Color(0xFFDC2626),
+  1399→  1399→ ),
+  1400→  1400→ );
+  1401→  1401→ } finally {
+  1402→  1402→ if (mounted) setState(() => _isGenerating = false);
+  1403→  1403→ }
+  1404→  1404→ }
+  1405→  1405→
+  1406→  1406→ String _composeNarrative(QualitySeedBundle seed) {
+  1407→  1407→ final lines = <String>[
+  1408→  1408→ 'Quality objectives and controls are defined for planning, delivery, and acceptance.',
+  1409→  1409→ '',
+  1410→  1410→ ];
+  1411→  1411→
+  1412→  1412→ if (seed.objectives.isNotEmpty) {
+  1413→  1413→ lines.add('Key Objectives:');
+  1414→  1414→ for (final objective in seed.objectives.take(6)) {
+  1415→  1415→ lines.add('- ${objective.title}: ${objective.acceptanceCriteria}');
+  1416→  1416→ }
+  1417→  1417→ lines.add('');
+  1418→  1418→ }
+  1419→  1419→
+  1420→  1420→ if (seed.workflowControls.isNotEmpty) {
+  1421→  1421→ lines.add('QA/QC Controls:');
+  1422→  1422→ for (final control in seed.workflowControls.take(6)) {
+  1423→  1423→ final kind = control.type == QualityWorkflowType.qa ? 'QA' : 'QC';
+  1424→  1424→ lines.add('- [$kind] ${control.name} (${control.frequency})');
+  1425→  1425→ }
+  1426→  1426→ lines.add('');
+  1427→  1427→ }
+  1428→  1428→
+  1429→  1429→ if (seed.standards.isNotEmpty) {
+  1430→  1430→ lines.add('Standards and References:');
+  1431→  1431→ for (final standard in seed.standards.take(6)) {
+  1432→  1432→ final source = standard.source.isEmpty ? 'Source TBD' : standard.source;
+  1433→  1433→ lines.add('- ${standard.name} ($source)');
+  1434→  1434→ }
+  1435→  1435→ }
+  1436→  1436→
+  1437→  1437→ return lines.join('\n').trim();
+  1438→  1438→ }
+  1439→  1439→
+  1440→  1440→ Future<void> _applyPresetStandards() async {
+  1441→  1441→ final project = ProjectDataHelper.getData(context);
+  1442→  1442→ final presets = _standardsPresets(project);
+  1443→  1443→
+  1444→  1444→ await _updateQualityData(
+  1445→  1445→ context,
+  1446→  1446→ checkpoint: 'quality_management',
+  1447→  1447→ successMessage: 'Standards presets applied',
+  1448→  1448→ updater: (current) {
+  1449→  1449→ final byName = <String, QualityStandard>{
+  1450→  1450→ for (final standard in current.standards)
+  1451→  1451→ standard.name.trim().toLowerCase(): standard,
+  1452→  1452→ };
+  1453→  1453→ for (final preset in presets) {
+  1454→  1454→ byName[preset.name.trim().toLowerCase()] = preset;
+  1455→  1455→ }
+  1456→  1456→ return current.copyWith(standards: byName.values.toList());
+  1457→  1457→ },
+  1458→  1458→ );
+  1459→  1459→ }
+  1460→  1460→
+  1461→  1461→ Future<void> _syncToExecutionTracking() async {
+  1462→  1462→ final project = ProjectDataHelper.getData(context);
+  1463→  1463→ final projectId = project.projectId;
+  1464→  1464→ if (projectId == null || projectId.isEmpty) {
+  1465→  1465→ ScaffoldMessenger.of(context).showSnackBar(
+  1466→  1466→ const SnackBar(
+  1467→  1467→ content: Text('Project must be saved before syncing execution tracking.'),
+  1468→  1468→ ),
+  1469→  1469→ );
+  1470→  1470→ return;
+  1471→  1471→ }
+  1472→  1472→
+  1473→  1473→ final quality = _qualityData(context);
+  1474→  1474→ await ExecutionPhaseService.savePageData(
+  1475→  1475→ projectId: projectId,
+  1476→  1476→ pageKey: 'execution_quality_tracking',
+  1477→  1477→ sections: _buildExecutionQualitySections(quality),
+  1478→  1478→ );
+  1479→  1479→
+  1480→  1480→ await ProjectDataHelper.updateAndSave(
+  1481→  1481→ context: context,
+  1482→  1482→ checkpoint: 'quality_management',
+  1483→  1483→ showSnackbar: false,
+  1484→  1484→ dataUpdater: (data) => data.copyWith(
+  1485→  1485→ scheduleActivities: _syncQualityActivitiesToCalendar(data, quality),
+  1486→  1486→ ),
+  1487→  1487→ );
+  1488→  1488→
+  1489→  1489→ if (!mounted) return;
+  1490→  1490→ ScaffoldMessenger.of(context).showSnackBar(
+  1491→  1491→ const SnackBar(
+  1492→  1492→ content: Text(
+  1493→  1493→ 'Execution quality tracking synced and calendar reminders created.',
+  1494→  1494→ ),
+  1495→  1495→ ),
+  1496→  1496→ );
+  1497→  1497→ }
+  1498→  1498→
+  1499→  1499→ Future<void> _addStandard() async {
+  1500→  1500→ final result = await showDialog<QualityStandard>(
+  1501→  1501→ context: context,
+  1502→  1502→ builder: (_) => const _QualityStandardDialog(),
+  1503→  1503→ );
+  1504→  1504→ if (!mounted) return;
+  1505→  1505→ if (result == null) return;
+  1506→  1506→
+  1507→  1507→ await _updateQualityData(
+  1508→  1508→ context,
+  1509→  1509→ checkpoint: 'quality_management',
+  1510→  1510→ successMessage: 'Standard added',
+  1511→  1511→ updater: (current) {
+  1512→  1512→ final updated = List<QualityStandard>.from(current.standards)
+  1513→  1513→ ..add(result);
+  1514→  1514→ return current.copyWith(standards: updated);
+  1515→  1515→ },
+  1516→  1516→ );
+  1517→  1517→ }
+  1518→  1518→
+  1519→  1519→ Future<void> _editStandard(int index) async {
+  1520→  1520→ final standards = _qualityData(context).standards;
+  1521→  1521→ if (index < 0 || index >= standards.length) return;
+  1522→  1522→
+  1523→  1523→ final result = await showDialog<QualityStandard>(
+  1524→  1524→ context: context,
+  1525→  1525→ builder: (_) => _QualityStandardDialog(initialValue: standards[index]),
+  1526→  1526→ );
+  1527→  1527→ if (!mounted) return;
+  1528→  1528→ if (result == null) return;
+  1529→  1529→
+  1530→  1530→ await _updateQualityData(
+  1531→  1531→ context,
+  1532→  1532→ checkpoint: 'quality_management',
+  1533→  1533→ successMessage: 'Standard updated',
+  1534→  1534→ updater: (current) {
+  1535→  1535→ final updated = List<QualityStandard>.from(current.standards);
+  1536→  1536→ updated[index] = result;
+  1537→  1537→ return current.copyWith(standards: updated);
+  1538→  1538→ },
+  1539→  1539→ );
+  1540→  1540→ }
+  1541→  1541→
+  1542→  1542→ Future<void> _removeStandard(int index) async {
+  1543→  1543→ await _updateQualityData(
+  1544→  1544→ context,
+  1545→  1545→ checkpoint: 'quality_management',
+  1546→  1546→ successMessage: 'Standard removed',
+  1547→  1547→ updater: (current) {
+  1548→  1548→ final updated = List<QualityStandard>.from(current.standards);
+  1549→  1549→ if (index >= 0 && index < updated.length) {
+  1550→  1550→ updated.removeAt(index);
+  1551→  1551→ }
+  1552→  1552→ return current.copyWith(standards: updated);
+  1553→  1553→ },
+  1554→  1554→ );
+  1555→  1555→ }
+  1556→  1556→
+  1557→  1557→ Future<void> _addChangeLog() async {
+  1558→  1558→ final result = await showDialog<QualityChangeEntry>(
+  1559→  1559→ context: context,
+  1560→  1560→ builder: (_) => const _QualityChangeDialog(),
+  1561→  1561→ );
+  1562→  1562→ if (!mounted) return;
+  1563→  1563→ if (result == null) return;
+  1564→  1564→
+  1565→  1565→ await _updateQualityData(
+  1566→  1566→ context,
+  1567→  1567→ checkpoint: 'quality_management',
+  1568→  1568→ successMessage: 'Change log entry added',
+  1569→  1569→ updater: (current) {
+  1570→  1570→ final updated = List<QualityChangeEntry>.from(current.qualityChangeLog)
+  1571→  1571→ ..add(result);
+  1572→  1572→ return current.copyWith(qualityChangeLog: updated);
+  1573→  1573→ },
+  1574→  1574→ );
+  1575→  1575→ }
+  1576→  1576→
+  1577→  1577→ Future<void> _editChangeLog(int index) async {
+  1578→  1578→ final entries = _qualityData(context).qualityChangeLog;
+  1579→  1579→ if (index < 0 || index >= entries.length) return;
+  1580→  1580→
+  1581→  1581→ final result = await showDialog<QualityChangeEntry>(
+  1582→  1582→ context: context,
+  1583→  1583→ builder: (_) => _QualityChangeDialog(initialValue: entries[index]),
+  1584→  1584→ );
+  1585→  1585→ if (!mounted) return;
+  1586→  1586→ if (result == null) return;
+  1587→  1587→
+  1588→  1588→ await _updateQualityData(
+  1589→  1589→ context,
+  1590→  1590→ checkpoint: 'quality_management',
+  1591→  1591→ successMessage: 'Change log entry updated',
+  1592→  1592→ updater: (current) {
+  1593→  1593→ final updated = List<QualityChangeEntry>.from(current.qualityChangeLog);
+  1594→  1594→ updated[index] = result;
+  1595→  1595→ return current.copyWith(qualityChangeLog: updated);
+  1596→  1596→ },
+  1597→  1597→ );
+  1598→  1598→ }
+  1599→  1599→
+  1600→  1600→ Future<void> _removeChangeLog(int index) async {
+  1601→  1601→ await _updateQualityData(
+  1602→  1602→ context,
+  1603→  1603→ checkpoint: 'quality_management',
+  1604→  1604→ successMessage: 'Change log entry removed',
+  1605→  1605→ updater: (current) {
+  1606→  1606→ final updated = List<QualityChangeEntry>.from(current.qualityChangeLog);
+  1607→  1607→ if (index >= 0 && index < updated.length) {
+  1608→  1608→ updated.removeAt(index);
+  1609→  1609→ }
+  1610→  1610→ return current.copyWith(qualityChangeLog: updated);
+  1611→  1611→ },
+  1612→  1612→ );
+  1613→  1613→ }
+  1614→  1614→
+  1615→  1615→ @override
+  1616→  1616→ Widget build(BuildContext context) {
+  1617→  1617→ final quality = _qualityData(context, listen: true);
+  1618→  1618→
+  1619→  1619→ return _PrimaryCard(
+  1620→  1620→ icon: Icons.description_outlined,
+  1621→  1621→ iconBackground: const Color(0xFFFFF7E6),
+  1622→  1622→ iconColor: const Color(0xFFD97706),
+  1623→  1623→ title: 'Quality Plan',
+  1624→  1624→ subtitle:
+  1625→  1625→ 'Project Quality Management Plan with AI-generated standards, controls, and governance based on project context.',
+  1626→  1626→ actions: [
+  1627→  1627→ ElevatedButton.icon(
+  1628→  1628→ onPressed: _isGenerating ? null : _generateFromContext,
+  1629→  1629→ icon: _isGenerating
+  1630→  1630→ ? const SizedBox(
+  1631→  1631→ width: 16,
+  1632→  1632→ height: 16,
+  1633→  1633→ child: CircularProgressIndicator(strokeWidth: 2),
+  1634→  1634→ )
+  1635→  1635→ : const Icon(Icons.auto_awesome),
+  1636→  1636→ label: const Text('Generate from Context'),
+  1637→  1637→ style: ElevatedButton.styleFrom(
+  1638→  1638→  backgroundColor: const Color(0xFFFFC812),
+  1639→  1639→  foregroundColor: Colors.white,
+  1640→  1640→  elevation: 0,
+  1641→  1641→  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+  1642→  1642→ shape:
+  1643→  1643→ RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  1644→  1644→ ),
+  1645→  1645→ ),
+  1646→  1646→ OutlinedButton.icon(
+  1647→  1647→ onPressed: _applyPresetStandards,
+  1648→  1648→ icon: const Icon(Icons.tune),
+  1649→  1649→ label: const Text('Apply Presets'),
+  1650→  1650→ ),
+  1651→  1651→ OutlinedButton.icon(
+  1652→  1652→ onPressed: _syncToExecutionTracking,
+  1653→  1653→ icon: const Icon(Icons.sync_outlined),
+  1654→  1654→ label: const Text('Sync to Execution'),
+  1655→  1655→ ),
+  1656→  1656→ ElevatedButton.icon(
+  1657→  1657→ onPressed: _savePlan,
+  1658→  1658→ icon: const Icon(Icons.save_outlined),
+  1659→  1659→ label: const Text('Save Plan'),
+  1660→  1660→ style: ElevatedButton.styleFrom(
+  1661→  1661→ backgroundColor: Theme.of(context).colorScheme.primary,
+  1662→  1662→ foregroundColor: Colors.white,
+  1663→  1663→ elevation: 0,
+  1664→  1664→ ),
+  1665→  1665→ ),
+  1666→  1666→ ],
+  1667→  1667→ child: Column(
+  1668→  1668→ crossAxisAlignment: CrossAxisAlignment.start,
+  1669→  1669→ children: [
+  1670→  1670→ _buildEnhancedField(
+  1671→  1671→ key: 'quality_narrative',
+  1672→  1672→ label: 'Quality Narrative',
+  1673→  1673→ controller: _planController,
+  1674→  1674→ hint:
+  1675→  1675→ 'Describe goals, assurance methods, control steps, and KPI governance.',
+  1676→  1676→ minLines: 5,
+  1677→  1677→ maxLines: 10,
+  1678→  1678→ ),
+  1679→  1679→ const SizedBox(height: 18),
+  1680→  1680→ Row(
+  1681→  1681→ children: [
+  1682→  1682→ Expanded(
+  1683→  1683→ child: _buildEnhancedField(
+  1684→  1684→ key: 'review_cadence',
+  1685→  1685→ label: 'Review Cadence',
+  1686→  1686→ controller: _reviewCadenceController,
+  1687→  1687→ hint: 'e.g. Weekly QA review, monthly management audit',
+  1688→  1688→ minLines: 2,
+  1689→  1689→ maxLines: 4,
+  1690→  1690→ ),
+  1691→  1691→ ),
+  1692→  1692→ const SizedBox(width: 12),
+  1693→  1693→ Expanded(
+  1694→  1694→ child: _buildEnhancedField(
+  1695→  1695→ key: 'escalation_path',
+  1696→  1696→ label: 'Escalation Path',
+  1697→  1697→ controller: _escalationPathController,
+  1698→  1698→ hint: 'e.g. QA Lead -> PM -> Sponsor',
+  1699→  1699→ minLines: 2,
+  1700→  1700→ maxLines: 4,
+  1701→  1701→ ),
+  1702→  1702→ ),
+  1703→  1703→ ],
+  1704→  1704→ ),
+  1705→  1705→ const SizedBox(height: 12),
+  1706→  1706→ _buildEnhancedField(
+  1707→  1707→ key: 'change_control',
+  1708→  1708→ label: 'Change Control Process',
+  1709→  1709→ controller: _changeControlController,
+  1710→  1710→ hint:
+  1711→  1711→ 'Document approval and communication process for quality plan changes.',
+  1712→  1712→ minLines: 2,
+  1713→  1713→ maxLines: 4,
+  1714→  1714→ ),
+  1715→  1715→ const SizedBox(height: 24),
+  1716→  1716→ _SectionHeader(
+  1717→  1717→ title: 'Applicable Standards',
+  1718→  1718→ subtitle:
+  1719→  1719→ 'Capture industry and project-specific standards that drive quality controls.',
+  1720→  1720→ trailing: Row(
+  1721→  1721→ mainAxisSize: MainAxisSize.min,
+  1722→  1722→ children: [
+  1723→  1723→ OutlinedButton.icon(
+  1724→  1724→ onPressed: () async {
+  1725→  1725→ final rows = await showCsvImportDialog(context, tableTitle: 'Quality Standards', columns: [
+  1726→  1726→ CsvColumnSpec(key: 'name', label: 'Standard Name', sampleValue: 'ISO 9001'),
+  1727→  1727→ CsvColumnSpec(key: 'source', label: 'Source', sampleValue: 'ISO'),
+  1728→  1728→ CsvColumnSpec(key: 'category', label: 'Category', sampleValue: 'Quality'),
+  1729→  1729→ ]);
+  1730→  1730→ if (rows == null || !mounted) return;
+  1731→  1731→ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${rows.length} standards imported from CSV'), backgroundColor: Colors.green));
+  1732→  1732→ },
+  1733→  1733→ icon: const Icon(Icons.upload_file_outlined, size: 16),
+  1734→  1734→ label: const Text('Import CSV'),
+  1735→  1735→  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFFFFC812), side: const BorderSide(color: Color(0xFFFDE68A))),
+  1736→  1736→ ),
+  1737→  1737→ const SizedBox(width: 8),
+  1738→  1738→ ElevatedButton.icon(
+  1739→  1739→ onPressed: _addStandard,
+  1740→  1740→ icon: const Icon(Icons.add, size: 16),
+  1741→  1741→ label: const Text('Add Standard'),
+  1742→  1742→ ),
+  1743→  1743→ ],
+  1744→  1744→ ),
+  1745→  1745→ ),
+  1746→  1746→ const SizedBox(height: 12),
+  1747→  1747→ _StandardsTable(
+  1748→  1748→ standards: quality.standards,
+  1749→  1749→ onEdit: _editStandard,
+  1750→  1750→ onRemove: _removeStandard,
+  1751→  1751→ ),
+  1752→  1752→ const SizedBox(height: 24),
+  1753→  1753→ _SectionHeader(
+  1754→  1754→ title: 'Quality Change Log',
+  1755→  1755→ subtitle:
+  1756→  1756→ 'Track post-approval quality plan updates and decision trail.',
+  1757→  1757→ trailing: ElevatedButton.icon(
+  1758→  1758→ onPressed: _addChangeLog,
+  1759→  1759→ icon: const Icon(Icons.add, size: 16),
+  1760→  1760→ label: const Text('Add Change'),
+  1761→  1761→ ),
+  1762→  1762→ ),
+  1763→  1763→ const SizedBox(height: 12),
+  1764→  1764→ _QualityChangeLogTable(
+  1765→  1765→ entries: quality.qualityChangeLog,
+  1766→  1766→ onEdit: _editChangeLog,
+  1767→  1767→ onRemove: _removeChangeLog,
+  1768→  1768→ ),
+  1769→  1769→ ],
+  1770→  1770→ ),
+  1771→  1771→ );
+  1772→  1772→ }
+  1773→  1773→}
+  1774→  1774→
+  1775→  1775→class _ObjectivesView extends StatefulWidget {
+  1776→  1776→ const _ObjectivesView();
+  1777→  1777→
+  1778→  1778→ @override
+  1779→  1779→ State<_ObjectivesView> createState() => _ObjectivesViewState();
+  1780→  1780→}
+  1781→  1781→
+  1782→  1782→class _ObjectivesViewState extends State<_ObjectivesView> {
+  1783→  1783→ Future<void> _addObjective() async {
+  1784→  1784→ final result = await showDialog<QualityObjective>(
+  1785→  1785→ context: context,
+  1786→  1786→ builder: (_) =>
+  1787→  1787→ _QualityObjectiveDialog(ownerOptions: _ownerOptions(context)),
+  1788→  1788→ );
+  1789→  1789→ if (!mounted) return;
+  1790→  1790→ if (result == null) return;
+  1791→  1791→
+  1792→  1792→ await _updateQualityData(
+  1793→  1793→ context,
+  1794→  1794→ checkpoint: 'quality_management',
+  1795→  1795→ successMessage: 'Objective added',
+  1796→  1796→ updater: (current) {
+  1797→  1797→ final updated = List<QualityObjective>.from(current.objectives)
+  1798→  1798→ ..add(result);
+  1799→  1799→ return current.copyWith(objectives: updated);
+  1800→  1800→ },
+  1801→  1801→ );
+  1802→  1802→ }
+  1803→  1803→
+  1804→  1804→ Future<void> _editObjective(int index) async {
+  1805→  1805→ final objectives = _qualityData(context).objectives;
+  1806→  1806→ if (index < 0 || index >= objectives.length) return;
+  1807→  1807→
+  1808→  1808→ final result = await showDialog<QualityObjective>(
+  1809→  1809→ context: context,
+  1810→  1810→ builder: (_) => _QualityObjectiveDialog(
+  1811→  1811→ ownerOptions: _ownerOptions(context),
+  1812→  1812→ initialValue: objectives[index],
+  1813→  1813→ ),
+  1814→  1814→ );
+  1815→  1815→ if (!mounted) return;
+  1816→  1816→ if (result == null) return;
+  1817→  1817→
+  1818→  1818→ await _updateQualityData(
+  1819→  1819→ context,
+  1820→  1820→ checkpoint: 'quality_management',
+  1821→  1821→ successMessage: 'Objective updated',
+  1822→  1822→ updater: (current) {
+  1823→  1823→ final updated = List<QualityObjective>.from(current.objectives);
+  1824→  1824→ updated[index] = result;
+  1825→  1825→ return current.copyWith(objectives: updated);
+  1826→  1826→ },
+  1827→  1827→ );
+  1828→  1828→ }
+  1829→  1829→
+  1830→  1830→ Future<void> _removeObjective(int index) async {
+  1831→  1831→ await _updateQualityData(
+  1832→  1832→ context,
+  1833→  1833→ checkpoint: 'quality_management',
+  1834→  1834→ successMessage: 'Objective removed',
+  1835→  1835→ updater: (current) {
+  1836→  1836→ final updated = List<QualityObjective>.from(current.objectives);
+  1837→  1837→ if (index >= 0 && index < updated.length) updated.removeAt(index);
+  1838→  1838→ return current.copyWith(objectives: updated);
+  1839→  1839→ },
+  1840→  1840→ );
+  1841→  1841→ }
+  1842→  1842→
+  1843→  1843→ @override
+  1844→  1844→ Widget build(BuildContext context) {
+  1845→  1845→ final objectives = _qualityData(context, listen: true).objectives;
+  1846→  1846→
+  1847→  1847→ return _PrimaryCard(
+  1848→  1848→ icon: Icons.flag_outlined,
+  1849→  1849→ iconBackground: const Color(0xFFF3F4FF),
+  1850→  1850→ iconColor: const Color(0xFF7C3AED),
+  1851→  1851→ title: 'Quality Objectives & Acceptance Criteria',
+  1852→  1852→ subtitle:
+  1853→  1853→ 'Define measurable objectives, acceptance criteria, and linked requirements/WBS references.',
+  1854→  1854→ actions: [
+  1855→  1855→ ElevatedButton.icon(
+  1856→  1856→ onPressed: _addObjective,
+  1857→  1857→ icon: const Icon(Icons.add),
+  1858→  1858→ label: const Text('Add Objective'),
+  1859→  1859→ style: ElevatedButton.styleFrom(
+  1860→  1860→ backgroundColor: Theme.of(context).colorScheme.primary,
+  1861→  1861→ foregroundColor: Colors.white,
+  1862→  1862→ elevation: 0,
+  1863→  1863→ ),
+  1864→  1864→ ),
+  1865→  1865→ ],
+  1866→  1866→ child: _ObjectivesTable(
+  1867→  1867→ objectives: objectives,
+  1868→  1868→ onEdit: _editObjective,
+  1869→  1869→ onRemove: _removeObjective,
+  1870→  1870→ ),
+  1871→  1871→ );
+  1872→  1872→ }
+  1873→  1873→}
+  1874→  1874→
+  1875→  1875→class _QaTrackingView extends StatefulWidget {
+  1876→  1876→ const _QaTrackingView();
+  1877→  1877→
+  1878→  1878→ @override
+  1879→  1879→ State<_QaTrackingView> createState() => _QaTrackingViewState();
+  1880→  1880→}
+  1881→  1881→
+  1882→  1882→class _QaTrackingViewState extends State<_QaTrackingView> {
+  1883→  1883→ Future<void> _addWorkflowControl() async {
+  1884→  1884→ final result = await showDialog<QualityWorkflowControl>(
+  1885→  1885→ context: context,
+  1886→  1886→ builder: (_) => _WorkflowControlDialog(
+  1887→  1887→ initialType: QualityWorkflowType.qa,
+  1888→  1888→ ownerOptions: _ownerOptions(context),
+  1889→  1889→ ),
+  1890→  1890→ );
+  1891→  1891→ if (!mounted) return;
+  1892→  1892→ if (result == null) return;
+  1893→  1893→
+  1894→  1894→ await _updateQualityData(
+  1895→  1895→ context,
+  1896→  1896→ checkpoint: 'quality_management',
+  1897→  1897→ successMessage: 'QA control added',
+  1898→  1898→ updater: (current) {
+  1899→  1899→ final updated =
+  1900→  1900→ List<QualityWorkflowControl>.from(current.workflowControls)
+  1901→  1901→ ..add(result);
+  1902→  1902→ return current.copyWith(workflowControls: updated);
+  1903→  1903→ },
+  1904→  1904→ );
+  1905→  1905→ }
+  1906→  1906→
+  1907→  1907→ Future<void> _editWorkflowControl(QualityWorkflowControl control) async {
+  1908→  1908→ final result = await showDialog<QualityWorkflowControl>(
+  1909→  1909→ context: context,
+  1910→  1910→ builder: (_) => _WorkflowControlDialog(
+  1911→  1911→ initialType: control.type,
+  1912→  1912→ ownerOptions: _ownerOptions(context),
+  1913→  1913→ initialValue: control,
+  1914→  1914→ ),
+  1915→  1915→ );
+  1916→  1916→ if (!mounted) return;
+  1917→  1917→ if (result == null) return;
+  1918→  1918→
+  1919→  1919→ await _updateQualityData(
+  1920→  1920→ context,
+  1921→  1921→ checkpoint: 'quality_management',
+  1922→  1922→ successMessage: 'QA control updated',
+  1923→  1923→ updater: (current) {
+  1924→  1924→ final updated =
+  1925→  1925→ List<QualityWorkflowControl>.from(current.workflowControls);
+  1926→  1926→ final index = updated.indexWhere((e) => e.id == control.id);
+  1927→  1927→ if (index != -1) updated[index] = result;
+  1928→  1928→ return current.copyWith(workflowControls: updated);
+  1929→  1929→ },
+  1930→  1930→ );
+  1931→  1931→ }
+  1932→  1932→
+  1933→  1933→ Future<void> _removeWorkflowControl(QualityWorkflowControl control) async {
+  1934→  1934→ await _updateQualityData(
+  1935→  1935→ context,
+  1936→  1936→ checkpoint: 'quality_management',
+  1937→  1937→ successMessage: 'QA control removed',
+  1938→  1938→ updater: (current) {
+  1939→  1939→ final updated =
+  1940→  1940→ List<QualityWorkflowControl>.from(current.workflowControls)
+  1941→  1941→ ..removeWhere((e) => e.id == control.id);
+  1942→  1942→ return current.copyWith(workflowControls: updated);
+  1943→  1943→ },
+  1944→  1944→ );
+  1945→  1945→ }
+  1946→  1946→
+  1947→  1947→ Future<void> _addTask() async {
+  1948→  1948→ final result = await showDialog<QualityTaskEntry>(
+  1949→  1949→ context: context,
+  1950→  1950→ builder: (_) => _QualityTaskDialog(ownerOptions: _ownerOptions(context)),
+  1951→  1951→ );
+  1952→  1952→ if (!mounted) return;
+  1953→  1953→ if (result == null) return;
+  1954→  1954→
+  1955→  1955→ await _updateQualityData(
+  1956→  1956→ context,
+  1957→  1957→ checkpoint: 'quality_management',
+  1958→  1958→ successMessage: 'QA task added',
+  1959→  1959→ updater: (current) {
+  1960→  1960→ final updated = List<QualityTaskEntry>.from(current.qaTaskLog)
+  1961→  1961→ ..add(result);
+  1962→  1962→ return current.copyWith(qaTaskLog: updated);
+  1963→  1963→ },
+  1964→  1964→ );
+  1965→  1965→ }
+  1966→  1966→
+  1967→  1967→ Future<void> _editTask(QualityTaskEntry task) async {
+  1968→  1968→ final result = await showDialog<QualityTaskEntry>(
+  1969→  1969→ context: context,
+  1970→  1970→ builder: (_) => _QualityTaskDialog(
+  1971→  1971→ ownerOptions: _ownerOptions(context),
+  1972→  1972→ initialValue: task,
+  1973→  1973→ ),
+  1974→  1974→ );
+  1975→  1975→ if (!mounted) return;
+  1976→  1976→ if (result == null) return;
+  1977→  1977→
+  1978→  1978→ await _updateQualityData(
+  1979→  1979→ context,
+  1980→  1980→ checkpoint: 'quality_management',
+  1981→  1981→ successMessage: 'QA task updated',
+  1982→  1982→ updater: (current) {
+  1983→  1983→ final updated = List<QualityTaskEntry>.from(current.qaTaskLog);
+  1984→  1984→ final index = updated.indexWhere((e) => e.id == task.id);
+  1985→  1985→ if (index != -1) updated[index] = result;
+  1986→  1986→ return current.copyWith(qaTaskLog: updated);
+  1987→  1987→ },
+  1988→  1988→ );
+  1989→  1989→ }
+  1990→  1990→
+  1991→  1991→ Future<void> _removeTask(QualityTaskEntry task) async {
+  1992→  1992→ await _updateQualityData(
+  1993→  1993→ context,
+  1994→  1994→ checkpoint: 'quality_management',
+  1995→  1995→ successMessage: 'QA task removed',
+  1996→  1996→ updater: (current) {
+  1997→  1997→ final updated = List<QualityTaskEntry>.from(current.qaTaskLog)
+  1998→  1998→ ..removeWhere((e) => e.id == task.id);
+  1999→  1999→ return current.copyWith(qaTaskLog: updated);
+  2000→  2000→ },
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]

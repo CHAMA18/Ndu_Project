@@ -1,0 +1,2002 @@
+     1→import 'dart:async';
+     2→
+     3→import 'package:flutter/material.dart';
+     4→import 'package:intl/intl.dart';
+     5→import 'package:ndu_project/models/planning_contracting_models.dart';
+     6→import 'package:ndu_project/models/procurement/procurement_models.dart';
+     7→import 'package:ndu_project/models/procurement/procurement_ui_extensions.dart';
+     8→import 'package:ndu_project/models/procurement/procurement_workflow_step.dart';
+     9→import 'package:ndu_project/models/project_data_model.dart';
+    10→import 'package:ndu_project/screens/planning_contracting_screen.dart';
+    11→import 'package:ndu_project/services/contract_service.dart'
+    12→ as planning_contracts;
+    13→import 'package:ndu_project/widgets/voice_text_field.dart';
+    14→import 'package:ndu_project/services/planning_contracting_service.dart';
+    15→import 'package:ndu_project/services/procurement_seeding_service.dart';
+    16→import 'package:ndu_project/services/procurement_service.dart';
+    17→import 'package:ndu_project/services/procurement_workflow_service.dart';
+    18→import 'package:ndu_project/services/schedule_linkage_service.dart';
+    19→import 'package:ndu_project/services/vendor_service.dart';
+    20→import 'package:ndu_project/utils/project_data_helper.dart';
+    21→import 'package:ndu_project/widgets/admin_edit_toggle.dart';
+    22→import 'package:ndu_project/widgets/draggable_sidebar.dart';
+    23→import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
+    24→import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
+    25→import 'package:ndu_project/widgets/procurement/budget_tracking_table.dart';
+    26→import 'package:ndu_project/widgets/procurement/po_approval_dialog.dart';
+    27→import 'package:ndu_project/widgets/procurement_dialogs.dart';
+    28→import 'package:ndu_project/widgets/procurement/procurement_common_widgets.dart';
+    29→import 'package:ndu_project/widgets/procurement/procurement_items_list_view.dart';
+    30→import 'package:ndu_project/widgets/procurement/procurement_reports_view.dart';
+    31→import 'package:ndu_project/widgets/procurement/procurement_timeline_view.dart';
+    32→import 'package:ndu_project/widgets/procurement/procurement_vendor_management.dart';
+    33→import 'package:ndu_project/widgets/procurement/procurement_workflow_builder.dart';
+    34→import 'package:ndu_project/widgets/responsive.dart';
+    35→import 'package:ndu_project/widgets/planning_phase_header.dart';
+    36→import 'package:ndu_project/utils/pdf_export_helper.dart';
+    37→
+    38→class PlanningProcurementV2Screen extends StatefulWidget {
+    39→ const PlanningProcurementV2Screen({super.key});
+    40→
+    41→ static void open(BuildContext context) {
+    42→ Navigator.of(context).push(
+    43→ MaterialPageRoute(builder: (_) => const PlanningProcurementV2Screen()),
+    44→ );
+    45→ }
+    46→
+    47→ @override
+    48→ State<PlanningProcurementV2Screen> createState() =>
+    49→ _PlanningProcurementV2ScreenState();
+    50→}
+    51→
+    52→class _PlanningProcurementV2ScreenState
+    53→ extends State<PlanningProcurementV2Screen> {
+    54→ static const List<ProcurementWorkflowStep> _defaultProcurementWorkflowTemplate = [
+    55→ ProcurementWorkflowStep(
+    56→ id: 'request_for_quote',
+    57→ name: 'Request for Quote (RFQ)',
+    58→ duration: 2,
+    59→ unit: 'week',
+    60→ ),
+    61→ ProcurementWorkflowStep(
+    62→ id: 'quote_evaluation',
+    63→ name: 'Quote Evaluation',
+    64→ duration: 2,
+    65→ unit: 'week',
+    66→ ),
+    67→ ProcurementWorkflowStep(
+    68→ id: 'request_for_information',
+    69→ name: 'Request for Information',
+    70→ duration: 1,
+    71→ unit: 'week',
+    72→ ),
+    73→ ProcurementWorkflowStep(
+    74→ id: 'purchase_order',
+    75→ name: 'Purchase Order',
+    76→ duration: 1,
+    77→ unit: 'week',
+    78→ ),
+    79→ ];
+    80→
+    81→ static const List<String> _tabLabels = [
+    82→ 'Overview',
+    83→ 'Procurement Items',
+    84→ 'Timeline',
+    85→ 'Vendor Management',
+    86→ 'Purchase Orders',
+    87→ 'Budget Tracking',
+    88→ 'Workflows',
+    89→ 'Reports',
+    90→ ];
+    91→
+    92→ final List<StreamSubscription<dynamic>> _subscriptions = [];
+    93→
+    94→ int _selectedTab = 0;
+    95→ String _projectId = '';
+    96→ bool _didInitialize = false;
+    97→ bool _seedCheckRunning = false;
+    98→ bool _workflowLoading = false;
+    99→ bool _workflowSaving = false;
+   100→ bool _customizeWorkflowByScope = false;
+   101→
+   102→ List<ProcurementItemModel> _items = const [];
+   103→ List<ProcurementItemModel> _trackableItems = const [];
+   104→ int _selectedTrackableIndex = 0;
+   105→ List<PurchaseOrderModel> _pos = const [];
+   106→ List<PlanningRfq> _rfqs = const [];
+   107→ List<planning_contracts.ContractModel> _contracts = const [];
+   108→ String? _selectedWorkflowScopeId;
+   109→ List<ProcurementWorkflowStep> _globalWorkflowSteps =
+   110→ List<ProcurementWorkflowStep>.from(_defaultProcurementWorkflowTemplate);
+   111→ List<ProcurementWorkflowStep> _workflowDraftSteps =
+   112→ List<ProcurementWorkflowStep>.from(_defaultProcurementWorkflowTemplate);
+   113→ Map<String, List<ProcurementWorkflowStep>> _scopeWorkflowOverrides = const {};
+   114→
+   115→ List<VendorModel> _vendors = const [];
+   116→ final Set<String> _selectedVendorIds = {};
+   117→ bool _approvedOnly = false;
+   118→ bool _preferredOnly = false;
+   119→ bool _listView = true;
+   120→ String _categoryFilter = 'All Categories';
+   121→
+   122→ final List<VendorHealthMetric> _vendorHealthMetrics = const [];
+   123→ final List<VendorOnboardingTask> _vendorOnboardingTasks = const [];
+   124→ final List<VendorRiskItem> _vendorRiskItems = const [];
+   125→
+   126→ List<ReportKpi> _reportKpis = const [];
+   127→ List<SpendBreakdown> _spendBreakdownList = const [];
+   128→ List<LeadTimeMetric> _leadTimeMetrics = const [];
+   129→ List<SavingsOpportunity> _savingsOpportunities = const [];
+   130→ List<ComplianceMetric> _complianceMetrics = const [];
+   131→
+   132→ StreamSubscription<List<VendorModel>>? _vendorsSub;
+   133→
+   134→ @override
+   135→ void didChangeDependencies() {
+   136→ super.didChangeDependencies();
+   137→ if (_didInitialize) return;
+   138→
+   139→ final data = ProjectDataHelper.getData(context);
+   140→ _projectId = data.projectId ?? '';
+   141→ _didInitialize = true;
+   142→
+   143→ if (_projectId.isEmpty) {
+   144→ return;
+   145→ }
+   146→
+   147→ _subscribeToData();
+   148→ Future.microtask(() async {
+   149→ if (!mounted) return;
+   150→ await _loadProcurementWorkflowData();
+   151→ if (!mounted) return;
+   152→ await ScheduleLinkageService.checkAndSyncOnOpen(context);
+   153→ if (!mounted) return;
+   154→ await _checkAutoSeed();
+   155→ });
+   156→ }
+   157→
+   158→ @override
+   159→ void dispose() {
+   160→ for (final subscription in _subscriptions) {
+   161→ subscription.cancel();
+   162→ }
+   163→ _vendorsSub?.cancel();
+   164→ super.dispose();
+   165→ }
+   166→
+   167→ @override
+   168→ Widget build(BuildContext context) {
+   169→ final isMobile = AppBreakpoints.isMobile(context);
+   170→
+   171→ return Scaffold(
+   172→ backgroundColor: Colors.white,
+   173→ body: SafeArea(
+   174→ child: Row(
+   175→ crossAxisAlignment: CrossAxisAlignment.start,
+   176→ children: [
+   177→ DraggableSidebar(
+   178→ openWidth: AppBreakpoints.sidebarWidth(context),
+   179→ child: const InitiationLikeSidebar(
+   180→ activeItemLabel: 'Planning Procurement',
+   181→ ),
+   182→ ),
+   183→ Expanded(
+   184→ child: Stack(
+   185→ children: [
+   186→ Column(
+   187→ children: [
+   188→ Expanded(
+   189→ child: SingleChildScrollView(
+   190→ padding: EdgeInsets.symmetric(
+   191→ horizontal: isMobile ? 20 : 40,
+   192→ vertical: isMobile ? 20 : 32,
+   193→ ),
+   194→ child: Column(
+   195→ crossAxisAlignment: CrossAxisAlignment.start,
+   196→ children: [
+   197→ PlanningPhaseHeader(title: 'Procurement', onExportPdf: _exportPdf),
+   198→ const SizedBox(height: 16),
+   199→ _buildHeader(context),
+   200→ const SizedBox(height: 24),
+   201→ _buildTabBar(),
+   202→ const SizedBox(height: 24),
+   203→ _buildTabContent(),
+   204→ const SizedBox(height: 96),
+   205→ ],
+   206→ ),
+   207→ ),
+   208→ ),
+   209→ ],
+   210→ ),
+   211→ MobileSidebarHamburger(
+   212→ sidebar: const InitiationLikeSidebar(
+   213→ activeItemLabel: 'Planning Procurement',
+   214→ ),
+   215→ ),
+   216→ const KazAiChatBubble(),
+   217→ const AdminEditToggle(),
+   218→ ],
+   219→ ),
+   220→ ),
+   221→ ],
+   222→ ),
+   223→ ),
+   224→ );
+   225→ }
+   226→
+   227→ Widget _buildHeader(BuildContext context) {
+   228→ final data = ProjectDataHelper.getData(context, listen: true);
+   229→ final summaryCards = [
+   230→ _SummaryCardData(
+   231→ label: 'Items',
+   232→ value: '${_items.length}',
+   233→ supporting: 'Procurement records in planning',
+   234→ ),
+   235→ _SummaryCardData(
+   236→ label: 'Pending POs',
+   237→ value: '${_pos.where((po) => po.approvalStatus == 'pending').length}',
+   238→ supporting: 'Awaiting approval',
+   239→ ),
+   240→ _SummaryCardData(
+   241→ label: 'RFQs',
+   242→ value: '${_rfqs.length}',
+   243→ supporting: 'Planning RFQs feeding procurement',
+   244→ ),
+   245→ _SummaryCardData(
+   246→ label: 'Contracts',
+   247→ value: '${_contracts.length}',
+   248→ supporting: 'Live procurement contracts',
+   249→ ),
+   250→ ];
+   251→
+   252→ return Column(
+   253→ crossAxisAlignment: CrossAxisAlignment.start,
+   254→ children: [
+   255→ Row(
+   256→ crossAxisAlignment: CrossAxisAlignment.start,
+   257→ children: [
+   258→ Expanded(
+   259→ child: Column(
+   260→ crossAxisAlignment: CrossAxisAlignment.start,
+   261→ children: [
+   262→ Text(
+   263→ 'Planning Procurement',
+   264→ style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+   265→ fontWeight: FontWeight.w700,
+   266→ color: const Color(0xFF111827),
+   267→ ),
+   268→ ),
+   269→ const SizedBox(height: 8),
+   270→ Text(
+   271→ 'Continue procurement planning with contracting handoff, '
+   272→ 'schedule-linked items, and approval tracking for ${data.projectName.isNotEmpty ? data.projectName : 'this project'}.',
+   273→ style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+   274→ color: const Color(0xFF4B5563),
+   275→ ),
+   276→ ),
+   277→ ],
+   278→ ),
+   279→ ),
+   280→ const SizedBox(width: 16),
+   281→ const SizedBox(width: 8),
+   282→ OutlinedButton.icon(
+   283→ onPressed: () => PlanningContractingScreen.open(context),
+   284→ icon: const Icon(Icons.arrow_back),
+   285→ label: const Text('Open Contracting'),
+   286→ ),
+   287→ ],
+   288→ ),
+   289→ const SizedBox(height: 20),
+   290→ Wrap(
+   291→ spacing: 16,
+   292→ runSpacing: 16,
+   293→ children: summaryCards
+   294→ .map((card) => _SummaryCard(card: card))
+   295→ .toList(growable: false),
+   296→ ),
+   297→ ],
+   298→ );
+   299→ }
+   300→
+   301→ Widget _buildTabBar() {
+   302→ return Wrap(
+   303→ spacing: 10,
+   304→ runSpacing: 10,
+   305→ children: List<Widget>.generate(_tabLabels.length, (index) {
+   306→ final selected = index == _selectedTab;
+   307→ return ChoiceChip(
+   308→ label: Text(_tabLabels[index]),
+   309→ selected: selected,
+   310→ onSelected: (_) => setState(() => _selectedTab = index),
+   311→ selectedColor: const Color(0xFF111827),
+   312→ labelStyle: TextStyle(
+   313→ color: selected ? Colors.white : const Color(0xFF111827),
+   314→ fontWeight: FontWeight.w600,
+   315→ ),
+   316→ backgroundColor: Colors.white,
+   317→ shape: RoundedRectangleBorder(
+   318→ borderRadius: BorderRadius.circular(12),
+   319→ side: BorderSide(
+   320→ color: selected
+   321→ ? const Color(0xFF111827)
+   322→ : const Color(0xFFE5E7EB),
+   323→ ),
+   324→ ),
+   325→ );
+   326→ }),
+   327→ );
+   328→ }
+   329→
+   330→ Widget _buildTabContent() {
+   331→ switch (_selectedTab) {
+   332→ case 0:
+   333→ return _buildOverviewTab();
+   334→ case 1:
+   335→ return _buildItemsTab();
+   336→ case 2:
+   337→ return _buildTimelineTab();
+   338→ case 3:
+   339→ return _buildVendorManagementTab();
+   340→ case 4:
+   341→ return _buildPurchaseOrdersTab();
+   342→ case 5:
+   343→ return _buildBudgetTrackingTab();
+   344→ case 6:
+   345→ return _buildWorkflowsTab();
+   346→ case 7:
+   347→ return _buildReportsTab();
+   348→ default:
+   349→ return const SizedBox.shrink();
+   350→ }
+   351→ }
+   352→
+   353→ Widget _buildOverviewTab() {
+   354→ final data = ProjectDataHelper.getData(context, listen: true);
+   355→ final pendingApprovals =
+   356→ _pos.where((po) => po.approvalStatus == 'pending').toList();
+   357→ final overdueItems =
+   358→ ScheduleLinkageService.getOverdueItems(_items).take(5).toList();
+   359→ final totalBudget =
+   360→ _items.fold<double>(0, (v, i) => v + i.budget);
+   361→ final totalSpend =
+   362→ _pos.fold<double>(0, (t, po) => t + po.amount);
+   363→ final committedRate = totalBudget == 0
+   364→ ? 0
+   365→ : ((totalSpend / totalBudget) * 100).round();
+   366→
+   367→ return Column(
+   368→ crossAxisAlignment: CrossAxisAlignment.start,
+   369→ children: [
+   370→ Container(
+   371→ width: double.infinity,
+   372→ padding: const EdgeInsets.all(20),
+   373→ decoration: BoxDecoration(
+   374→ gradient: const LinearGradient(
+   375→ colors: [Color(0xFF78350F), Color(0xFF2D5A8E)],
+   376→ begin: Alignment.topLeft,
+   377→ end: Alignment.bottomRight,
+   378→ ),
+   379→ borderRadius: BorderRadius.circular(18),
+   380→ ),
+   381→ child: Column(
+   382→ crossAxisAlignment: CrossAxisAlignment.start,
+   383→ children: [
+   384→ Text(
+   385→ 'Planning Procurement Overview',
+   386→ style: Theme.of(context).textTheme.titleLarge?.copyWith(
+   387→ fontWeight: FontWeight.w700,
+   388→ color: Colors.white,
+   389→ ),
+   390→ ),
+   391→ const SizedBox(height: 8),
+   392→ Text(
+   393→ 'Plan and manage procurement items, vendors, purchase orders, '
+   394→ 'and budgets for ${data.projectName.isNotEmpty ? data.projectName : 'this project'}. '
+   395→ 'Items flow in from contracting handoff.',
+   396→ style: TextStyle(
+   397→ color: Colors.white.withValues(alpha: 0.8),
+   398→ fontSize: 13,
+   399→ ),
+   400→ ),
+   401→ const SizedBox(height: 20),
+   402→ Wrap(
+   403→ spacing: 16,
+   404→ runSpacing: 16,
+   405→ children: [
+   406→ _OverviewStat(
+   407→ label: 'Procurement Items',
+   408→ value: '${_items.length}',
+   409→ icon: Icons.inventory_2_outlined,
+   410→ ),
+   411→ _OverviewStat(
+   412→ label: 'Pending Approvals',
+   413→ value: '${pendingApprovals.length}',
+   414→ icon: Icons.approval_outlined,
+   415→ ),
+   416→ _OverviewStat(
+   417→ label: 'Overdue Items',
+   418→ value: '${overdueItems.length}',
+   419→ icon: Icons.warning_amber_rounded,
+   420→ ),
+   421→ _OverviewStat(
+   422→ label: 'Budget Committed',
+   423→ value: '$committedRate%',
+   424→ icon: Icons.attach_money_outlined,
+   425→ ),
+   426→ ],
+   427→ ),
+   428→ ],
+   429→ ),
+   430→ ),
+   431→ const SizedBox(height: 20),
+   432→ Row(
+   433→ crossAxisAlignment: CrossAxisAlignment.start,
+   434→ children: [
+   435→ Expanded(
+   436→ child: _SectionCard(
+   437→ title: 'Contracting Handoff',
+   438→ subtitle:
+   439→ 'RFQs from contract planning feed procurement items. '
+   440→ 'Complete evaluation in contracting to push RFQs here.',
+   441→ child: Column(
+   442→ crossAxisAlignment: CrossAxisAlignment.start,
+   443→ children: [
+   444→ _StatRow(
+   445→ label: 'RFQs in handoff',
+   446→ value: '${_rfqs.length}',
+   447→ icon: Icons.request_quote_outlined,
+   448→ ),
+   449→ const SizedBox(height: 8),
+   450→ _StatRow(
+   451→ label: 'Active contracts',
+   452→ value: '${_contracts.length}',
+   453→ icon: Icons.assignment_outlined,
+   454→ ),
+   455→ const SizedBox(height: 12),
+   456→ OutlinedButton.icon(
+   457→ onPressed: () =>
+   458→ PlanningContractingScreen.open(context),
+   459→ icon: const Icon(Icons.arrow_forward, size: 16),
+   460→ label: const Text('Open Contracting'),
+   461→ ),
+   462→ ],
+   463→ ),
+   464→ ),
+   465→ ),
+   466→ const SizedBox(width: 16),
+   467→ Expanded(
+   468→ child: _SectionCard(
+   469→ title: 'Schedule Alignment',
+   470→ subtitle:
+   471→ 'Items linked to schedule milestones sync '
+   472→ 'required-by dates automatically.',
+   473→ child: Column(
+   474→ crossAxisAlignment: CrossAxisAlignment.start,
+   475→ children: [
+   476→ _StatRow(
+   477→ label: 'Linked to milestone',
+   478→ value:
+   479→ '${_items.where((i) => i.linkedMilestoneId != null).length}',
+   480→ icon: Icons.event_outlined,
+   481→ ),
+   482→ const SizedBox(height: 8),
+   483→ _StatRow(
+   484→ label: 'Overdue items',
+   485→ value: '${overdueItems.length}',
+   486→ icon: Icons.schedule_outlined,
+   487→ ),
+   488→ const SizedBox(height: 12),
+   489→ OutlinedButton.icon(
+   490→ onPressed: () {},
+   491→ icon: const Icon(Icons.sync, size: 16),
+   492→ label: const Text('Sync Schedule'),
+   493→ ),
+   494→ ],
+   495→ ),
+   496→ ),
+   497→ ),
+   498→ const SizedBox(width: 16),
+   499→ Expanded(
+   500→ child: _SectionCard(
+   501→ title: 'Vendors & Reports',
+   502→ subtitle:
+   503→ 'Manage vendor relationships and view procurement '
+   504→ 'performance metrics.',
+   505→ child: Column(
+   506→ crossAxisAlignment: CrossAxisAlignment.start,
+   507→ children: [
+   508→ _StatRow(
+   509→ label: 'Active vendors',
+   510→ value: '${_vendors.length}',
+   511→ icon: Icons.storefront_outlined,
+   512→ ),
+   513→ const SizedBox(height: 8),
+   514→ _StatRow(
+   515→ label: 'Purchase orders',
+   516→ value: '${_pos.length}',
+   517→ icon: Icons.receipt_long_outlined,
+   518→ ),
+   519→ const SizedBox(height: 12),
+   520→ OutlinedButton.icon(
+   521→ onPressed: () =>
+   522→ setState(() => _selectedTab = 7),
+   523→ icon: const Icon(Icons.auto_awesome, size: 16),
+   524→ label: const Text('View Reports'),
+   525→ ),
+   526→ ],
+   527→ ),
+   528→ ),
+   529→ ),
+   530→ ],
+   531→ ),
+   532→ ],
+   533→ );
+   534→ }
+   535→
+   536→ Widget _buildItemsTab() {
+   537→ final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+   538→ return ProcurementItemsListView(
+   539→ items: _items,
+   540→ trackableItems: _trackableItems,
+   541→ selectedIndex: _selectedTrackableIndex,
+   542→ onSelectTrackable: (index) =>
+   543→ setState(() => _selectedTrackableIndex = index),
+   544→ currencyFormat: currencyFormat,
+   545→ onAddItem: _openAddItemDialog,
+   546→ onEditItem: (item) => _openEditItemDialog(item),
+   547→ onDeleteItem: (item) => _removeItem(item),
+   548→ );
+   549→ }
+   550→
+   551→ List<Widget> _buildDialogContextChips() {
+   552→ final data = ProjectDataHelper.getData(context);
+   553→ return [
+   554→ if (data.projectName.trim().isNotEmpty)
+   555→ ContextChip(label: 'Project', value: data.projectName.trim()),
+   556→ if (data.solutionTitle.trim().isNotEmpty)
+   557→ ContextChip(label: 'Solution', value: data.solutionTitle.trim()),
+   558→ ContextChip(label: 'Phase', value: 'Planning'),
+   559→ ];
+   560→ }
+   561→
+   562→ List<ProcurementAssignableMemberOption> _assignableMembers() {
+   563→ final data = ProjectDataHelper.getData(context);
+   564→ final options = <ProcurementAssignableMemberOption>[];
+   565→ if (data.charterProjectManagerName.trim().isNotEmpty) {
+   566→ options.add(
+   567→ ProcurementAssignableMemberOption(
+   568→ id: 'project_manager',
+   569→ name: data.charterProjectManagerName.trim(),
+   570→ email: '',
+   571→ role: 'Project Manager',
+   572→ source: 'Charter',
+   573→ ),
+   574→ );
+   575→ }
+   576→ if (data.charterProjectSponsorName.trim().isNotEmpty) {
+   577→ options.add(
+   578→ ProcurementAssignableMemberOption(
+   579→ id: 'project_sponsor',
+   580→ name: data.charterProjectSponsorName.trim(),
+   581→ email: '',
+   582→ role: 'Project Sponsor',
+   583→ source: 'Charter',
+   584→ ),
+   585→ );
+   586→ }
+   587→ return options;
+   588→ }
+   589→
+   590→ Future<void> _openAddItemDialog() async {
+   591→ final result = await showDialog<ProcurementItemModel>(
+   592→ context: context,
+   593→ builder: (dialogContext) {
+   594→ return AddItemDialog(
+   595→ contextChips: _buildDialogContextChips(),
+   596→ categoryOptions: const [
+   597→ 'Materials',
+   598→ 'Equipment',
+   599→ 'Services',
+   600→ 'IT Equipment',
+   601→ 'Construction Services',
+   602→ 'Furniture',
+   603→ 'Security',
+   604→ 'Logistics',
+   605→ 'Other',
+   606→ ],
+   607→ responsibleOptions: _assignableMembers(),
+   608→ showAiGenerateButton: false,
+   609→ itemDomainLabel: 'Procurement',
+   610→ );
+   611→ },
+   612→ );
+   613→
+   614→ if (result == null) return;
+   615→ try {
+   616→ final normalized = result.copyWith(projectId: _projectId);
+   617→ await ProcurementService.createItem(normalized);
+   618→ if (!mounted) return;
+   619→ ScaffoldMessenger.of(context).showSnackBar(
+   620→ SnackBar(content: Text('Added item "${normalized.name}".')),
+   621→ );
+   622→ } catch (e) {
+   623→ if (!mounted) return;
+   624→ ScaffoldMessenger.of(context).showSnackBar(
+   625→ SnackBar(content: Text('Error creating procurement item: $e')),
+   626→ );
+   627→ }
+   628→ }
+   629→
+   630→ Future<void> _openEditItemDialog(ProcurementItemModel item) async {
+   631→ final result = await showDialog<ProcurementItemModel>(
+   632→ context: context,
+   633→ builder: (dialogContext) {
+   634→ return AddItemDialog(
+   635→ contextChips: _buildDialogContextChips(),
+   636→ categoryOptions: const [
+   637→ 'Materials',
+   638→ 'Equipment',
+   639→ 'Services',
+   640→ 'IT Equipment',
+   641→ 'Construction Services',
+   642→ 'Furniture',
+   643→ 'Security',
+   644→ 'Logistics',
+   645→ 'Other',
+   646→ ],
+   647→ responsibleOptions: _assignableMembers(),
+   648→ initialItem: item,
+   649→ showAiGenerateButton: false,
+   650→ itemDomainLabel: 'Procurement',
+   651→ );
+   652→ },
+   653→ );
+   654→
+   655→ if (result == null) return;
+   656→ try {
+   657→ await ProcurementService.updateItem(_projectId, item.id, {
+   658→ 'name': result.name.trim(),
+   659→ 'description': result.description.trim(),
+   660→ 'category': result.category.trim(),
+   661→ 'status': result.status.name,
+   662→ 'priority': result.priority.name,
+   663→ 'budget': result.budget,
+   664→ 'spent': result.spent,
+   665→ 'estimatedDelivery': result.estimatedDelivery,
+   666→ 'actualDelivery': result.actualDelivery,
+   667→ 'progress': result.progress.clamp(0.0, 1.0),
+   668→ 'vendorId': result.vendorId,
+   669→ 'contractId': result.contractId,
+   670→ 'events': result.events.map((event) => event.toJson()).toList(),
+   671→ 'notes': result.notes,
+   672→ 'projectPhase': result.projectPhase,
+   673→ 'responsibleMember': result.responsibleMember,
+   674→ 'comments': result.comments,
+   675→ });
+   676→ if (!mounted) return;
+   677→ ScaffoldMessenger.of(context).showSnackBar(
+   678→ SnackBar(content: Text('Updated item "${result.name}".')),
+   679→ );
+   680→ } catch (e) {
+   681→ if (!mounted) return;
+   682→ ScaffoldMessenger.of(context).showSnackBar(
+   683→ SnackBar(content: Text('Unable to edit item: $e')),
+   684→ );
+   685→ }
+   686→ }
+   687→
+   688→ Future<void> _removeItem(ProcurementItemModel item) async {
+   689→ final confirmed = await showDialog<bool>(
+   690→ context: context,
+   691→ builder: (dialogContext) => AlertDialog(
+   692→ title: const Text('Remove Procurement Item'),
+   693→ content: Text(
+   694→ 'Delete "${item.name}"? This action cannot be undone.',
+   695→ ),
+   696→ actions: [
+   697→ TextButton(
+   698→ onPressed: () => Navigator.of(dialogContext).pop(false),
+   699→ child: const Text('Cancel'),
+   700→ ),
+   701→ ElevatedButton(
+   702→ onPressed: () => Navigator.of(dialogContext).pop(true),
+   703→ style: ElevatedButton.styleFrom(
+   704→ backgroundColor: const Color(0xFFDC2626),
+   705→ foregroundColor: Colors.white,
+   706→ ),
+   707→ child: const Text('Delete'),
+   708→ ),
+   709→ ],
+   710→ ),
+   711→ ) ??
+   712→ false;
+   713→ if (!confirmed) return;
+   714→
+   715→ try {
+   716→ await ProcurementService.deleteItem(_projectId, item.id);
+   717→ if (!mounted) return;
+   718→ ScaffoldMessenger.of(context).showSnackBar(
+   719→ SnackBar(content: Text('Deleted item "${item.name}".')),
+   720→ );
+   721→ } catch (e) {
+   722→ if (!mounted) return;
+   723→ ScaffoldMessenger.of(context).showSnackBar(
+   724→ SnackBar(content: Text('Unable to delete item: $e')),
+   725→ );
+   726→ }
+   727→ }
+   728→
+   729→ Future<void> _openAddVendorDialog() async {
+   730→ final categoryOptions = const [
+   731→ 'IT Equipment',
+   732→ 'Construction Services',
+   733→ 'Furniture',
+   734→ 'Security',
+   735→ 'Logistics',
+   736→ 'Services',
+   737→ 'Materials',
+   738→ 'Other',
+   739→ ];
+   740→
+   741→ final result = await showDialog<VendorModel>(
+   742→ context: context,
+   743→ barrierDismissible: true,
+   744→ barrierColor: Colors.black.withValues(alpha: 0.45),
+   745→ builder: (dialogContext) {
+   746→ return AddVendorDialog(
+   747→ contextChips: _buildDialogContextChips(),
+   748→ categoryOptions: categoryOptions,
+   749→ showAiGenerateButton: false,
+   750→ partnerLabel: 'Vendor',
+   751→ partnerPluralLabel: 'Vendors',
+   752→ existingPartners: _vendors,
+   753→ allowExistingAutofill: true,
+   754→ );
+   755→ },
+   756→ );
+   757→
+   758→ if (result == null) return;
+   759→ try {
+   760→ final normalizedName = result.name.trim().toLowerCase();
+   761→ final alreadyExists = _vendors.any(
+   762→ (vendor) => vendor.name.trim().toLowerCase() == normalizedName,
+   763→ );
+   764→ if (alreadyExists) {
+   765→ if (mounted) {
+   766→ ScaffoldMessenger.of(context).showSnackBar(
+   767→ const SnackBar(
+   768→ content: Text('Vendor already exists.'),
+   769→ ),
+   770→ );
+   771→ }
+   772→ return;
+   773→ }
+   774→ await VendorService.createVendor(
+   775→ projectId: _projectId,
+   776→ name: result.name,
+   777→ category: result.category,
+   778→ criticality: result.criticality,
+   779→ rating: result.rating,
+   780→ status: result.status,
+   781→ sla: result.sla,
+   782→ slaPerformance: result.slaPerformance,
+   783→ leadTime: result.leadTime,
+   784→ requiredDeliverables: result.requiredDeliverables,
+   785→ nextReview: result.nextReview,
+   786→ onTimeDelivery: result.onTimeDelivery,
+   787→ incidentResponse: result.incidentResponse,
+   788→ qualityScore: result.qualityScore,
+   789→ costAdherence: result.costAdherence,
+   790→ createdById: 'user',
+   791→ createdByEmail: 'user@email',
+   792→ createdByName: 'User',
+   793→ );
+   794→ if (mounted) {
+   795→ ScaffoldMessenger.of(context).showSnackBar(
+   796→ const SnackBar(content: Text('Vendor added.')),
+   797→ );
+   798→ }
+   799→ } catch (e) {
+   800→ if (mounted) {
+   801→ ScaffoldMessenger.of(context).showSnackBar(
+   802→ SnackBar(
+   803→ content: Text('Unable to add vendor: $e'),
+   804→ backgroundColor: Colors.red,
+   805→ ),
+   806→ );
+   807→ }
+   808→ }
+   809→ }
+   810→
+   811→ Future<void> _openEditVendorDialog(VendorModel vendor) async {
+   812→ final categoryOptions = const [
+   813→ 'IT Equipment',
+   814→ 'Construction Services',
+   815→ 'Furniture',
+   816→ 'Security',
+   817→ 'Logistics',
+   818→ 'Services',
+   819→ 'Materials',
+   820→ 'Other',
+   821→ ];
+   822→
+   823→ final result = await showDialog<VendorModel>(
+   824→ context: context,
+   825→ barrierDismissible: true,
+   826→ barrierColor: Colors.black.withValues(alpha: 0.45),
+   827→ builder: (dialogContext) {
+   828→ return AddVendorDialog(
+   829→ contextChips: _buildDialogContextChips(),
+   830→ categoryOptions: categoryOptions,
+   831→ initialVendor: vendor,
+   832→ showAiGenerateButton: false,
+   833→ partnerLabel: 'Vendor',
+   834→ partnerPluralLabel: 'Vendors',
+   835→ existingPartners: _vendors,
+   836→ allowExistingAutofill: true,
+   837→ );
+   838→ },
+   839→ );
+   840→
+   841→ if (result == null) return;
+   842→ try {
+   843→ await VendorService.updateVendor(
+   844→ projectId: _projectId,
+   845→ vendorId: vendor.id,
+   846→ name: result.name,
+   847→ category: result.category,
+   848→ criticality: result.criticality,
+   849→ sla: result.sla,
+   850→ slaPerformance: result.slaPerformance,
+   851→ leadTime: result.leadTime,
+   852→ requiredDeliverables: result.requiredDeliverables,
+   853→ rating: result.rating,
+   854→ status: result.status,
+   855→ nextReview: result.nextReview,
+   856→ onTimeDelivery: result.onTimeDelivery,
+   857→ incidentResponse: result.incidentResponse,
+   858→ qualityScore: result.qualityScore,
+   859→ costAdherence: result.costAdherence,
+   860→ notes: result.notes,
+   861→ );
+   862→ if (mounted) {
+   863→ ScaffoldMessenger.of(context).showSnackBar(
+   864→ const SnackBar(content: Text('Vendor updated.')),
+   865→ );
+   866→ }
+   867→ } catch (e) {
+   868→ if (mounted) {
+   869→ ScaffoldMessenger.of(context).showSnackBar(
+   870→ SnackBar(
+   871→ content: Text('Unable to update vendor: $e'),
+   872→ backgroundColor: Colors.red,
+   873→ ),
+   874→ );
+   875→ }
+   876→ }
+   877→ }
+   878→
+   879→ Future<void> _openInviteVendorDialog() async {
+   880→ final nameController = TextEditingController();
+   881→ final emailController = TextEditingController();
+   882→
+   883→ final sent = await showDialog<bool>(
+   884→ context: context,
+   885→ builder: (dialogContext) => AlertDialog(
+   886→ title: const Text('Invite Vendor'),
+   887→ content: SizedBox(
+   888→ width: 460,
+   889→ child: Column(
+   890→ mainAxisSize: MainAxisSize.min,
+   891→ children: [
+   892→ VoiceTextField(
+   893→ controller: nameController,
+   894→ decoration: const InputDecoration(
+   895→ labelText: 'Vendor or Contact Name (Optional)',
+   896→ hintText: 'e.g. Acme Supplies',
+   897→ ),
+   898→ textCapitalization: TextCapitalization.words,
+   899→ ),
+   900→ const SizedBox(height: 12),
+   901→ VoiceTextField(
+   902→ controller: emailController,
+   903→ decoration: const InputDecoration(
+   904→ labelText: 'Email Address',
+   905→ hintText: 'name@company.com',
+   906→ ),
+   907→ keyboardType: TextInputType.emailAddress,
+   908→ textInputAction: TextInputAction.send,
+   909→ ),
+   910→ ],
+   911→ ),
+   912→ ),
+   913→ actions: [
+   914→ TextButton(
+   915→ onPressed: () => Navigator.of(dialogContext).pop(false),
+   916→ child: const Text('Cancel'),
+   917→ ),
+   918→ ElevatedButton(
+   919→ onPressed: () {
+   920→ final email = emailController.text.trim();
+   921→ final isEmailValid = RegExp(
+   922→ r'^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$',
+   923→ ).hasMatch(email);
+   924→ if (!isEmailValid) {
+   925→ ScaffoldMessenger.of(context).showSnackBar(
+   926→ const SnackBar(
+   927→ content: Text('Enter a valid email address.'),
+   928→ ),
+   929→ );
+   930→ return;
+   931→ }
+   932→ Navigator.of(dialogContext).pop(true);
+   933→ },
+   934→ child: const Text('Send Invite'),
+   935→ ),
+   936→ ],
+   937→ ),
+   938→ );
+   939→
+   940→ nameController.dispose();
+   941→ emailController.dispose();
+   942→ if (sent != true || !mounted) return;
+   943→
+   944→ ScaffoldMessenger.of(context).showSnackBar(
+   945→ const SnackBar(
+   946→ content: Text('Invitation sent.'),
+   947→ backgroundColor: Color(0xFF16A34A),
+   948→ ),
+   949→ );
+   950→ }
+   951→
+   952→ void _removeVendor(String vendorId) async {
+   953→ try {
+   954→ await VendorService.deleteVendor(
+   955→ projectId: _projectId, vendorId: vendorId);
+   956→ if (mounted) {
+   957→ setState(() {
+   958→ _vendors.removeWhere((vendor) => vendor.id == vendorId);
+   959→ _selectedVendorIds.remove(vendorId);
+   960→ _recomputeDerivedProcurementData();
+   961→ });
+   962→ }
+   963→ } catch (e) {
+   964→ if (mounted) {
+   965→ ScaffoldMessenger.of(context).showSnackBar(
+   966→ SnackBar(
+   967→ content: Text('Unable to remove vendor: $e'),
+   968→ backgroundColor: Colors.red,
+   969→ ),
+   970→ );
+   971→ }
+   972→ }
+   973→ }
+   974→
+   975→ Widget _buildTimelineTab() {
+   976→ return _SectionCard(
+   977→ title: 'Timeline',
+   978→ subtitle:
+   979→ 'Schedule-linked items already sync through `ScheduleLinkageService`. This tab now uses an extracted shared timeline view.',
+   980→ child: ProcurementTimelineView(items: _items),
+   981→ );
+   982→ }
+   983→
+   984→ Widget _buildVendorManagementTab() {
+   985→ if (_vendors.isEmpty && _contracts.isEmpty) {
+   986→ return Center(
+   987→ child: ProcurementEmptyStateCard(
+   988→ icon: Icons.storefront_outlined,
+   989→ title: 'No vendors yet',
+   990→ message:
+   991→ 'Add vendors to manage approvals, ratings, and performance.',
+   992→ actionLabel: 'Add Vendor',
+   993→ onAction: _openAddVendorDialog,
+   994→ ),
+   995→ );
+   996→ }
+   997→
+   998→ return VendorManagementView(
+   999→ vendors: _filteredVendors,
+  1000→ allVendors: _vendors,
+  1001→ selectedVendorIds: _selectedVendorIds,
+  1002→ approvedOnly: _approvedOnly,
+  1003→ preferredOnly: _preferredOnly,
+  1004→ listView: _listView,
+  1005→ categoryFilter: _categoryFilter,
+  1006→ categoryOptions: _categoryOptions,
+  1007→ healthMetrics: _vendorHealthMetrics,
+  1008→ onboardingTasks: _vendorOnboardingTasks,
+  1009→ riskItems: _vendorRiskItems,
+  1010→ onAddVendor: _openAddVendorDialog,
+  1011→ onInviteVendor: _openInviteVendorDialog,
+  1012→ onApprovedChanged: (v) => setState(() => _approvedOnly = v),
+  1013→ onPreferredChanged: (v) => setState(() => _preferredOnly = v),
+  1014→ onCategoryChanged: (v) => setState(() => _categoryFilter = v),
+  1015→ onViewModeChanged: (v) => setState(() => _listView = v),
+  1016→ onToggleVendorSelected: (id, selected) {
+  1017→ setState(() {
+  1018→ if (selected) {
+  1019→ _selectedVendorIds.add(id);
+  1020→ } else {
+  1021→ _selectedVendorIds.remove(id);
+  1022→ }
+  1023→ });
+  1024→ },
+  1025→ onEditVendor: _openEditVendorDialog,
+  1026→ onDeleteVendor: _removeVendor,
+  1027→ onOpenApprovedVendorList: () {
+  1028→ ScaffoldMessenger.of(context).showSnackBar(
+  1029→ const SnackBar(
+  1030→ content: Text('Company approved vendor list feature coming soon.'),
+  1031→ ),
+  1032→ );
+  1033→ },
+  1034→ );
+  1035→ }
+  1036→
+  1037→ Widget _buildPurchaseOrdersTab() {
+  1038→ final data = ProjectDataHelper.getData(context, listen: true);
+  1039→ final pendingApprovals =
+  1040→ _pos.where((po) => po.approvalStatus == 'pending').length;
+  1041→ final overdueApprovals =
+  1042→ _pos.where((po) => po.approvalStatus == 'pending' && po.isPendingApproval).length;
+  1043→
+  1044→ return _SectionCard(
+  1045→ title: 'Purchase orders',
+  1046→ subtitle:
+  1047→ 'Approval workflow methods are now wired into this tab. Draft POs can be submitted, pending POs can be reviewed, and overdue requests can be escalated.',
+  1048→ child: _pos.isEmpty
+  1049→ ? const Text(
+  1050→ 'No purchase orders yet.',
+  1051→ style: TextStyle(color: Color(0xFF6B7280)),
+  1052→ )
+  1053→ : Column(
+  1054→ crossAxisAlignment: CrossAxisAlignment.start,
+  1055→ children: [
+  1056→ Wrap(
+  1057→ spacing: 12,
+  1058→ runSpacing: 12,
+  1059→ children: [
+  1060→ _MetricTile(
+  1061→ label: 'POs',
+  1062→ value: '${_pos.length}',
+  1063→ ),
+  1064→ _MetricTile(
+  1065→ label: 'Pending approvals',
+  1066→ value: '$pendingApprovals',
+  1067→ ),
+  1068→ _MetricTile(
+  1069→ label: 'Overdue approvals',
+  1070→ value: '$overdueApprovals',
+  1071→ ),
+  1072→ ],
+  1073→ ),
+  1074→ const SizedBox(height: 18),
+  1075→ for (var i = 0; i < _pos.length; i++) ...[
+  1076→ _PurchaseOrderCard(
+  1077→ po: _pos[i],
+  1078→ projectOwnerName: _projectOwnerName(data),
+  1079→ onSubmit: () => _submitPoForApproval(_pos[i], data),
+  1080→ onReview: () => _reviewPo(_pos[i], data),
+  1081→ onEscalate: () => _escalatePo(_pos[i], data),
+  1082→ ),
+  1083→ if (i != _pos.length - 1) const SizedBox(height: 12),
+  1084→ ],
+  1085→ ],
+  1086→ ),
+  1087→ );
+  1088→ }
+  1089→
+  1090→ Future<void> _submitPoForApproval(
+  1091→ PurchaseOrderModel po,
+  1092→ ProjectDataModel data,
+  1093→ ) async {
+  1094→ final approverId = _primaryApproverId(data);
+  1095→ final approverName = _projectOwnerName(data);
+  1096→ try {
+  1097→ await ProcurementService.submitPoForApproval(
+  1098→ _projectId,
+  1099→ po.id,
+  1100→ approverId,
+  1101→ approverName,
+  1102→ po.escalationDays,
+  1103→ );
+  1104→ if (!mounted) return;
+  1105→ ScaffoldMessenger.of(context).showSnackBar(
+  1106→ SnackBar(content: Text('Submitted PO #${po.poNumber} for approval.')),
+  1107→ );
+  1108→ } catch (e) {
+  1109→ if (!mounted) return;
+  1110→ ScaffoldMessenger.of(context).showSnackBar(
+  1111→ SnackBar(content: Text('Unable to submit PO for approval: $e')),
+  1112→ );
+  1113→ }
+  1114→ }
+  1115→
+  1116→ Future<void> _reviewPo(
+  1117→ PurchaseOrderModel po,
+  1118→ ProjectDataModel data,
+  1119→ ) async {
+  1120→ final result = await showPoApprovalDialog(
+  1121→ context,
+  1122→ po: po,
+  1123→ projectOwnerId: _primaryApproverId(data),
+  1124→ projectOwnerName: _projectOwnerName(data),
+  1125→ );
+  1126→ if (result == null) return;
+  1127→
+  1128→ try {
+  1129→ if (result.isApprove) {
+  1130→ await ProcurementService.approvePo(
+  1131→ _projectId,
+  1132→ po.id,
+  1133→ comments: result.comments,
+  1134→ );
+  1135→ } else if (result.isReject) {
+  1136→ await ProcurementService.rejectPo(
+  1137→ _projectId,
+  1138→ po.id,
+  1139→ result.comments,
+  1140→ );
+  1141→ }
+  1142→ if (!mounted) return;
+  1143→ ScaffoldMessenger.of(context).showSnackBar(
+  1144→ SnackBar(
+  1145→ content: Text(
+  1146→ result.isApprove
+  1147→ ? 'Approved PO #${po.poNumber}.'
+  1148→ : 'Rejected PO #${po.poNumber}.',
+  1149→ ),
+  1150→ ),
+  1151→ );
+  1152→ } catch (e) {
+  1153→ if (!mounted) return;
+  1154→ ScaffoldMessenger.of(context).showSnackBar(
+  1155→ SnackBar(content: Text('Unable to update PO approval: $e')),
+  1156→ );
+  1157→ }
+  1158→ }
+  1159→
+  1160→ Future<void> _escalatePo(
+  1161→ PurchaseOrderModel po,
+  1162→ ProjectDataModel data,
+  1163→ ) async {
+  1164→ final targets = _escalationTargets(data);
+  1165→ if (targets.isEmpty) {
+  1166→ ScaffoldMessenger.of(context).showSnackBar(
+  1167→ const SnackBar(content: Text('No escalation targets configured.')),
+  1168→ );
+  1169→ return;
+  1170→ }
+  1171→
+  1172→ final targetId = await showDialog<String>(
+  1173→ context: context,
+  1174→ builder: (context) => PoEscalationDialog(
+  1175→ po: po,
+  1176→ availableEscalationTargets: targets,
+  1177→ ),
+  1178→ );
+  1179→ if (targetId == null) return;
+  1180→
+  1181→ try {
+  1182→ await ProcurementService.escalatePo(_projectId, po.id, targetId);
+  1183→ if (!mounted) return;
+  1184→ ScaffoldMessenger.of(context).showSnackBar(
+  1185→ SnackBar(content: Text('Escalated PO #${po.poNumber}.')),
+  1186→ );
+  1187→ } catch (e) {
+  1188→ if (!mounted) return;
+  1189→ ScaffoldMessenger.of(context).showSnackBar(
+  1190→ SnackBar(content: Text('Unable to escalate PO: $e')),
+  1191→ );
+  1192→ }
+  1193→ }
+  1194→
+  1195→ String _projectOwnerName(ProjectDataModel data) {
+  1196→ final manager = data.charterProjectManagerName.trim();
+  1197→ final sponsor = data.charterProjectSponsorName.trim();
+  1198→ if (manager.isNotEmpty) return manager;
+  1199→ if (sponsor.isNotEmpty) return sponsor;
+  1200→ return 'Project Owner';
+  1201→ }
+  1202→
+  1203→ String _primaryApproverId(ProjectDataModel data) {
+  1204→ final manager = data.charterProjectManagerName.trim();
+  1205→ if (manager.isNotEmpty) return 'project_manager';
+  1206→ final sponsor = data.charterProjectSponsorName.trim();
+  1207→ if (sponsor.isNotEmpty) return 'project_sponsor';
+  1208→ return 'project_owner';
+  1209→ }
+  1210→
+  1211→ List<EscalationTarget> _escalationTargets(ProjectDataModel data) {
+  1212→ final targets = <EscalationTarget>[];
+  1213→ final manager = data.charterProjectManagerName.trim();
+  1214→ final sponsor = data.charterProjectSponsorName.trim();
+  1215→ if (manager.isNotEmpty) {
+  1216→ targets.add(
+  1217→ EscalationTarget(
+  1218→ id: 'project_manager',
+  1219→ name: manager,
+  1220→ role: 'Project Manager',
+  1221→ ),
+  1222→ );
+  1223→ }
+  1224→ if (sponsor.isNotEmpty) {
+  1225→ targets.add(
+  1226→ EscalationTarget(
+  1227→ id: 'project_sponsor',
+  1228→ name: sponsor,
+  1229→ role: 'Project Sponsor',
+  1230→ ),
+  1231→ );
+  1232→ }
+  1233→ if (targets.isEmpty) {
+  1234→ targets.add(
+  1235→ const EscalationTarget(
+  1236→ id: 'project_owner',
+  1237→ name: 'Project Owner',
+  1238→ role: 'Owner',
+  1239→ ),
+  1240→ );
+  1241→ }
+  1242→ return targets;
+  1243→ }
+  1244→
+  1245→ Widget _buildBudgetTrackingTab() {
+  1246→ return _SectionCard(
+  1247→ title: 'Budget tracking',
+  1248→ subtitle:
+  1249→ 'Committed amount now calculates from approved, issued POs. This tab now uses the shared budget tracking table widget.',
+  1250→ child: BudgetTrackingTable(
+  1251→ items: _items,
+  1252→ purchaseOrders: _pos,
+  1253→ ),
+  1254→ );
+  1255→ }
+  1256→
+  1257→ Widget _buildWorkflowsTab() {
+  1258→ final workflowScopeId = _resolveWorkflowScopeId();
+  1259→ final workflowScope = _findWorkflowScopeById(workflowScopeId);
+  1260→ final workflowDisabledForSelection = _customizeWorkflowByScope &&
+  1261→ workflowScope != null &&
+  1262→ !_scopeRequiresProcurementWorkflow(workflowScope);
+  1263→ final workflowSteps =
+  1264→ workflowDisabledForSelection ? const <ProcurementWorkflowStep>[] : _workflowDraftSteps;
+  1265→
+  1266→ return _SectionCard(
+  1267→ title: 'Workflows',
+  1268→ subtitle:
+  1269→ 'The workflow builder is now extracted into a shared widget and persists per project. Global and scope-specific procurement cycles can be managed here.',
+  1270→ child: ProcurementWorkflowBuilder(
+  1271→ scopeItems: _items,
+  1272→ customizeWorkflowByScope: _customizeWorkflowByScope,
+  1273→ selectedScopeId: workflowScopeId,
+  1274→ selectedScopeName: workflowScope?.name ?? '',
+  1275→ workflowDisabledForSelection: workflowDisabledForSelection,
+  1276→ workflowTotalWeeks: _totalWorkflowDurationInWeeks(workflowSteps),
+  1277→ workflowSteps: workflowSteps,
+  1278→ workflowLoading: _workflowLoading,
+  1279→ workflowSaving: _workflowSaving,
+  1280→ onCustomizeByScopeChanged: _setCustomizeWorkflowByScope,
+  1281→ onWorkflowScopeSelected: _selectWorkflowScope,
+  1282→ onAddWorkflowStep: _addWorkflowStepToDraft,
+  1283→ onEditWorkflowStep: _editWorkflowStep,
+  1284→ onDeleteWorkflowStep: _deleteWorkflowStepFromDraft,
+  1285→ onMoveWorkflowStep: _moveWorkflowStepInDraft,
+  1286→ onResetWorkflow: _resetWorkflowDraftToPreset,
+  1287→ onSaveWorkflow: _saveWorkflowForSelection,
+  1288→ onApplyWorkflowToAllScopes: _applyWorkflowDraftToAllScopes,
+  1289→ ),
+  1290→ );
+  1291→ }
+  1292→
+  1293→ Widget _buildReportsTab() {
+  1294→ final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+  1295→ return ProcurementReportsView(
+  1296→ kpis: _reportKpis,
+  1297→ spendBreakdown: _spendBreakdownList,
+  1298→ leadTimeMetrics: _leadTimeMetrics,
+  1299→ savingsOpportunities: _savingsOpportunities,
+  1300→ complianceMetrics: _complianceMetrics,
+  1301→ currencyFormat: currencyFormat,
+  1302→ onGenerateReports: () {
+  1303→ _recomputeDerivedProcurementData();
+  1304→ if (mounted) {
+  1305→ setState(() {});
+  1306→ ScaffoldMessenger.of(context).showSnackBar(
+  1307→ const SnackBar(
+  1308→ content: Text('Reports refreshed from current data.'),
+  1309→ backgroundColor: Color(0xFF16A34A),
+  1310→ ),
+  1311→ );
+  1312→ }
+  1313→ },
+  1314→ );
+  1315→ }
+  1316→
+  1317→ Future<void> _checkAutoSeed() async {
+  1318→ if (_seedCheckRunning || _projectId.isEmpty) {
+  1319→ return;
+  1320→ }
+  1321→
+  1322→ _seedCheckRunning = true;
+  1323→ try {
+  1324→ final data = ProjectDataHelper.getData(context);
+  1325→ if (ProcurementSeedingService.hasSeeded(data) || _items.isNotEmpty) {
+  1326→ return;
+  1327→ }
+  1328→
+  1329→ final created =
+  1330→ await ProcurementSeedingService.seedFromContracting(context);
+  1331→ if (created > 0 && mounted) {
+  1332→ ScaffoldMessenger.of(context).showSnackBar(
+  1333→ SnackBar(
+  1334→ content: Text('Imported $created procurement item(s) from contracting.'),
+  1335→ ),
+  1336→ );
+  1337→ }
+  1338→ } finally {
+  1339→ _seedCheckRunning = false;
+  1340→ }
+  1341→ }
+  1342→
+  1343→ void _subscribeToData() {
+  1344→ _subscriptions.addAll([
+  1345→ ProcurementService.streamItems(_projectId).listen((items) {
+  1346→ if (!mounted) return;
+  1347→ setState(() {
+  1348→ _items = items;
+  1349→ _trackableItems = items.where(
+  1350→ (item) => item.status != ProcurementItemStatus.planning,
+  1351→ ).toList();
+  1352→ _syncWorkflowStateWithScopes();
+  1353→ _recomputeDerivedProcurementData();
+  1354→ });
+  1355→ }),
+  1356→ ProcurementService.streamPos(_projectId).listen((pos) {
+  1357→ if (!mounted) return;
+  1358→ setState(() {
+  1359→ _pos = pos;
+  1360→ _recomputeDerivedProcurementData();
+  1361→ });
+  1362→ }),
+  1363→ PlanningContractingService.streamRfqs(_projectId).listen((rfqs) {
+  1364→ if (!mounted) return;
+  1365→ setState(() {
+  1366→ _rfqs = rfqs;
+  1367→ _recomputeDerivedProcurementData();
+  1368→ });
+  1369→ }),
+  1370→ planning_contracts.ContractService.streamContracts(_projectId)
+  1371→ .listen((contracts) {
+  1372→ if (!mounted) return;
+  1373→ setState(() => _contracts = contracts);
+  1374→ }),
+  1375→ ]);
+  1376→
+  1377→ _vendorsSub = VendorService.streamVendors(_projectId).listen((vendors) {
+  1378→ if (!mounted) return;
+  1379→ setState(() {
+  1380→ _vendors = vendors;
+  1381→ _recomputeDerivedProcurementData();
+  1382→ });
+  1383→ }, onError: (error) {
+  1384→ debugPrint('Vendors stream error: $error');
+  1385→ });
+  1386→ }
+  1387→
+  1388→ List<ProcurementWorkflowStep> _cloneWorkflowSteps(
+  1389→ List<ProcurementWorkflowStep> steps,
+  1390→ ) {
+  1391→ return ProcurementWorkflowService.cloneSteps(steps);
+  1392→ }
+  1393→
+  1394→ List<String> get _categoryOptions {
+  1395→ final categories =
+  1396→ _vendors.map((vendor) => vendor.category).toSet().toList()..sort();
+  1397→ return ['All Categories', ...categories];
+  1398→ }
+  1399→
+  1400→ List<VendorModel> get _filteredVendors {
+  1401→ return _vendors.where((vendor) {
+  1402→ if (_approvedOnly && !vendor.isApproved) return false;
+  1403→ if (_preferredOnly && !vendor.isPreferred) return false;
+  1404→ if (_categoryFilter != 'All Categories' &&
+  1405→ vendor.category != _categoryFilter) {
+  1406→ return false;
+  1407→ }
+  1408→ return true;
+  1409→ }).toList();
+  1410→ }
+  1411→
+  1412→ void _recomputeDerivedProcurementData() {
+  1413→ if (_projectId.isEmpty) return;
+  1414→
+  1415→ final totalSpend =
+  1416→ _pos.fold<double>(0, (total, order) => total + order.amount);
+  1417→ final openOrders =
+  1418→ _pos.where((po) => po.status == PurchaseOrderStatus.awaitingApproval)
+  1419→ .length;
+  1420→ final awaitingApprovals =
+  1421→ _pos.where((po) => po.approvalStatus == 'pending').length;
+  1422→ final deliveredCount = _items
+  1423→ .where((item) => item.status == ProcurementItemStatus.delivered)
+  1424→ .length;
+  1425→ final onTimeDelivered = _items
+  1426→ .where((item) =>
+  1427→ item.status == ProcurementItemStatus.delivered &&
+  1428→ item.actualDelivery != null &&
+  1429→ item.estimatedDelivery != null &&
+  1430→ !item.actualDelivery!.isAfter(item.estimatedDelivery!))
+  1431→ .length;
+  1432→ final onTimeRate = deliveredCount == 0 ? 1.0 : onTimeDelivered / deliveredCount;
+  1433→ final totalBudget = _items.fold<double>(0, (v, i) => v + i.budget);
+  1434→ final budgetUtilization = totalBudget == 0 ? 0.0 : totalSpend / totalBudget;
+  1435→ final averageLeadDays = deliveredCount == 0
+  1436→ ? 0
+  1437→ : _items
+  1438→ .where((item) =>
+  1439→ item.status == ProcurementItemStatus.delivered &&
+  1440→ item.actualDelivery != null &&
+  1441→ item.estimatedDelivery != null)
+  1442→ .fold<int>(
+  1443→ 0,
+  1444→ (sum, item) =>
+  1445→ sum +
+  1446→ item.actualDelivery!
+  1447→ .difference(item.estimatedDelivery!)
+  1448→ .inDays
+  1449→ .abs(),
+  1450→ ) ~/
+  1451→ deliveredCount;
+  1452→
+  1453→ _reportKpis = [
+  1454→ ReportKpi(
+  1455→ label: 'Total Spend',
+  1456→ value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+  1457→ .format(totalSpend),
+  1458→ delta: 'Budget utilization ${(budgetUtilization * 100).round()}%',
+  1459→ positive: budgetUtilization <= 1.0,
+  1460→ ),
+  1461→ ReportKpi(
+  1462→ label: 'Open Orders',
+  1463→ value: '$openOrders',
+  1464→ delta: '$awaitingApprovals awaiting approval',
+  1465→ positive: awaitingApprovals <= (openOrders == 0 ? 1 : openOrders),
+  1466→ ),
+  1467→ ReportKpi(
+  1468→ label: 'Avg Lead Time',
+  1469→ value: averageLeadDays == 0 ? 'N/A' : '$averageLeadDays days',
+  1470→ delta:
+  1471→ '${_items.length} tracked item${_items.length == 1 ? '' : 's'}',
+  1472→ positive: averageLeadDays <= 45 || averageLeadDays == 0,
+  1473→ ),
+  1474→ ReportKpi(
+  1475→ label: 'On-time Delivery',
+  1476→ value: '${(onTimeRate * 100).round()}%',
+  1477→ delta:
+  1478→ '$deliveredCount delivered item${deliveredCount == 1 ? '' : 's'}',
+  1479→ positive: onTimeRate >= 0.8 || deliveredCount == 0,
+  1480→ ),
+  1481→ ];
+  1482→
+  1483→ final categoryTotals = <String, double>{};
+  1484→ if (_pos.isNotEmpty) {
+  1485→ for (final order in _pos) {
+  1486→ final key =
+  1487→ order.category.trim().isEmpty ? 'Uncategorized' : order.category;
+  1488→ categoryTotals[key] = (categoryTotals[key] ?? 0) + order.amount;
+  1489→ }
+  1490→ } else {
+  1491→ for (final item in _items) {
+  1492→ final key =
+  1493→ item.category.trim().isEmpty ? 'Uncategorized' : item.category;
+  1494→ categoryTotals[key] = (categoryTotals[key] ?? 0) + item.budget;
+  1495→ }
+  1496→ }
+  1497→
+  1498→ final palette = <Color>[
+  1499→ const Color(0xFFD97706),
+  1500→ const Color(0xFF10B981),
+  1501→ const Color(0xFFF59E0B),
+  1502→ const Color(0xFF6D28D9),
+  1503→ const Color(0xFFEF4444),
+  1504→ ];
+  1505→ final categoryEntries = categoryTotals.entries.toList()
+  1506→ ..sort((a, b) => b.value.compareTo(a.value));
+  1507→ final totalCategories =
+  1508→ categoryEntries.fold<double>(0, (t, e) => t + e.value);
+  1509→ final spendList = <SpendBreakdown>[];
+  1510→ for (var i = 0; i < categoryEntries.length && i < palette.length; i++) {
+  1511→ final entry = categoryEntries[i];
+  1512→ spendList.add(SpendBreakdown(
+  1513→ label: entry.key,
+  1514→ amount: entry.value.round(),
+  1515→ percent: totalCategories == 0
+  1516→ ? 0
+  1517→ : (entry.value / totalCategories).clamp(0.0, 1.0),
+  1518→ color: palette[i],
+  1519→ ));
+  1520→ }
+  1521→ _spendBreakdownList = spendList;
+  1522→
+  1523→ final categories = _items.map((item) => item.category.trim()).toSet()
+  1524→ ..removeWhere((value) => value.isEmpty);
+  1525→ final leadList = <LeadTimeMetric>[];
+  1526→ for (final category in categories.take(4)) {
+  1527→ final catItems =
+  1528→ _items.where((item) => item.category.trim() == category).toList();
+  1529→ if (catItems.isEmpty) continue;
+  1530→ final delivered = catItems
+  1531→ .where((item) => item.status == ProcurementItemStatus.delivered)
+  1532→ .length;
+  1533→ final onTime = catItems
+  1534→ .where((item) =>
+  1535→ item.status == ProcurementItemStatus.delivered &&
+  1536→ item.actualDelivery != null &&
+  1537→ item.estimatedDelivery != null &&
+  1538→ !item.actualDelivery!.isAfter(item.estimatedDelivery!))
+  1539→ .length;
+  1540→ final rate =
+  1541→ delivered == 0 ? 0.0 : (onTime / delivered).clamp(0.0, 1.0);
+  1542→ leadList.add(LeadTimeMetric(label: category, onTimeRate: rate));
+  1543→ }
+  1544→ _leadTimeMetrics = leadList;
+  1545→
+  1546→ final savingsList = <SavingsOpportunity>[];
+  1547→ if (_rfqs.isNotEmpty) {
+  1548→ savingsList.add(SavingsOpportunity(
+  1549→ title: 'Competitive RFQ consolidation',
+  1550→ value: 'Based on ${_rfqs.length} active RFQ${_rfqs.length == 1 ? '' : 's'}',
+  1551→ owner: 'Sourcing Lead',
+  1552→ ));
+  1553→ }
+  1554→ if (_vendors.length > 2) {
+  1555→ savingsList.add(SavingsOpportunity(
+  1556→ title: 'Preferred vendor renegotiation',
+  1557→ value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+  1558→ .format(totalSpend * 0.04),
+  1559→ owner: 'Procurement Manager',
+  1560→ ));
+  1561→ }
+  1562→ if (savingsList.isEmpty && totalSpend > 0) {
+  1563→ savingsList.add(SavingsOpportunity(
+  1564→ title: 'Spend optimization review',
+  1565→ value: NumberFormat.currency(symbol: '\$', decimalDigits: 0)
+  1566→ .format(totalSpend * 0.03),
+  1567→ owner: 'Finance Partner',
+  1568→ ));
+  1569→ }
+  1570→ _savingsOpportunities = savingsList;
+  1571→
+  1572→ _complianceMetrics = [
+  1573→ ComplianceMetric(
+  1574→ label: 'PO ownership',
+  1575→ value: _pos.isEmpty
+  1576→ ? 0
+  1577→ : (_pos.where((order) => order.owner.trim().isNotEmpty).length /
+  1578→ _pos.length)
+  1579→ .clamp(0.0, 1.0),
+  1580→ ),
+  1581→ ComplianceMetric(
+  1582→ label: 'Items with delivery date',
+  1583→ value: _items.isEmpty
+  1584→ ? 0
+  1585→ : (_items
+  1586→ .where((item) => item.estimatedDelivery != null)
+  1587→ .length /
+  1588→ _items.length)
+  1589→ .clamp(0.0, 1.0),
+  1590→ ),
+  1591→ ComplianceMetric(
+  1592→ label: 'Items with vendor assigned',
+  1593→ value: _items.isEmpty
+  1594→ ? 0
+  1595→ : (_items
+  1596→ .where(
+  1597→ (item) => (item.vendorId ?? '').trim().isNotEmpty)
+  1598→ .length /
+  1599→ _items.length)
+  1600→ .clamp(0.0, 1.0),
+  1601→ ),
+  1602→ ComplianceMetric(
+  1603→ label: 'Active vendor coverage',
+  1604→ value: _vendors.isEmpty
+  1605→ ? 0
+  1606→ : (_vendors.where((vendor) => vendor.isApproved).length /
+  1607→ _vendors.length)
+  1608→ .clamp(0.0, 1.0),
+  1609→ ),
+  1610→ ];
+  1611→ }
+  1612→
+  1613→ Future<void> _loadProcurementWorkflowData() async {
+  1614→ if (_projectId.isEmpty) return;
+  1615→ setState(() => _workflowLoading = true);
+  1616→
+  1617→ try {
+  1618→ final snapshot = await ProcurementWorkflowService.load(_projectId);
+  1619→ if (!mounted) return;
+  1620→ setState(() {
+  1621→ _globalWorkflowSteps = snapshot.globalSteps.isEmpty
+  1622→ ? _cloneWorkflowSteps(_defaultProcurementWorkflowTemplate)
+  1623→ : _cloneWorkflowSteps(snapshot.globalSteps);
+  1624→ _scopeWorkflowOverrides = snapshot.scopeOverrides;
+  1625→ if (_customizeWorkflowByScope) {
+  1626→ _selectedWorkflowScopeId = _resolveWorkflowScopeId();
+  1627→ _hydrateWorkflowDraftForSelection();
+  1628→ } else {
+  1629→ _selectedWorkflowScopeId = null;
+  1630→ _workflowDraftSteps = _cloneWorkflowSteps(_globalWorkflowSteps);
+  1631→ }
+  1632→ _syncWorkflowStateWithScopes();
+  1633→ });
+  1634→ } catch (e) {
+  1635→ if (!mounted) return;
+  1636→ // Show user-friendly message instead of raw Firestore internals
+  1637→ final msg = e.toString().contains('INTERNAL ASSERTION')
+  1638→ ? 'Network glitch while loading workflow — please refresh the page.'
+  1639→ : 'Unable to load procurement workflow. Please try again.';
+  1640→ ScaffoldMessenger.of(context).showSnackBar(
+  1641→ SnackBar(content: Text(msg)),
+  1642→ );
+  1643→ } finally {
+  1644→ if (mounted) {
+  1645→ setState(() => _workflowLoading = false);
+  1646→ }
+  1647→ }
+  1648→ }
+  1649→
+  1650→ bool _scopeRequiresProcurementWorkflow(ProcurementItemModel item) {
+  1651→ final value = item.responsibleMember.trim().toLowerCase();
+  1652→ if ((item.vendorId ?? '').trim().isNotEmpty) return false;
+  1653→ if (value == 'no' || value.startsWith('no ')) return false;
+  1654→ if (value == 'not required' || value == 'none') return false;
+  1655→ final potentialVendors = item.notes
+  1656→ .replaceAll('\n', ',')
+  1657→ .replaceAll(';', ',')
+  1658→ .split(',')
+  1659→ .map((entry) => entry.trim())
+  1660→ .where((entry) => entry.isNotEmpty)
+  1661→ .toList();
+  1662→ if (potentialVendors.length == 1) {
+  1663→ return false;
+  1664→ }
+  1665→ return true;
+  1666→ }
+  1667→
+  1668→ ProcurementItemModel? _findWorkflowScopeById(String? scopeId) {
+  1669→ if (scopeId == null || scopeId.isEmpty) return null;
+  1670→ for (final item in _items) {
+  1671→ if (item.id == scopeId) return item;
+  1672→ }
+  1673→ return null;
+  1674→ }
+  1675→
+  1676→ String? _resolveWorkflowScopeId() {
+  1677→ if (_items.isEmpty) return null;
+  1678→ if (_selectedWorkflowScopeId != null &&
+  1679→ _items.any((item) => item.id == _selectedWorkflowScopeId)) {
+  1680→ return _selectedWorkflowScopeId;
+  1681→ }
+  1682→ return _items.first.id;
+  1683→ }
+  1684→
+  1685→ int _totalWorkflowDurationInWeeks(List<ProcurementWorkflowStep> steps) {
+  1686→ var total = 0;
+  1687→ for (final step in steps) {
+  1688→ final duration = step.duration <= 0 ? 1 : step.duration;
+  1689→ total += step.unit == 'month' ? duration * 4 : duration;
+  1690→ }
+  1691→ return total;
+  1692→ }
+  1693→
+  1694→ void _hydrateWorkflowDraftForSelection() {
+  1695→ if (!_customizeWorkflowByScope) {
+  1696→ _workflowDraftSteps = _cloneWorkflowSteps(_globalWorkflowSteps);
+  1697→ return;
+  1698→ }
+  1699→
+  1700→ final scopeId = _resolveWorkflowScopeId();
+  1701→ if (scopeId == null) {
+  1702→ _selectedWorkflowScopeId = null;
+  1703→ _workflowDraftSteps = <ProcurementWorkflowStep>[];
+  1704→ return;
+  1705→ }
+  1706→
+  1707→ _selectedWorkflowScopeId = scopeId;
+  1708→ final scoped = _scopeWorkflowOverrides[scopeId];
+  1709→ if (scoped != null) {
+  1710→ _workflowDraftSteps = _cloneWorkflowSteps(scoped);
+  1711→ } else {
+  1712→ _workflowDraftSteps = _cloneWorkflowSteps(_globalWorkflowSteps);
+  1713→ }
+  1714→ }
+  1715→
+  1716→ void _syncWorkflowStateWithScopes() {
+  1717→ final validScopeIds = _items
+  1718→ .map((item) => item.id.trim())
+  1719→ .where((id) => id.isNotEmpty)
+  1720→ .toSet();
+  1721→ _scopeWorkflowOverrides =
+  1722→ Map<String, List<ProcurementWorkflowStep>>.from(_scopeWorkflowOverrides)
+  1723→ ..removeWhere((scopeId, _) => !validScopeIds.contains(scopeId));
+  1724→
+  1725→ var shouldHydrate = false;
+  1726→ if (_customizeWorkflowByScope) {
+  1727→ final resolved = _resolveWorkflowScopeId();
+  1728→ if (_selectedWorkflowScopeId != resolved) {
+  1729→ _selectedWorkflowScopeId = resolved;
+  1730→ shouldHydrate = true;
+  1731→ }
+  1732→ } else if (_workflowDraftSteps.isEmpty) {
+  1733→ shouldHydrate = true;
+  1734→ }
+  1735→
+  1736→ if (shouldHydrate) {
+  1737→ _hydrateWorkflowDraftForSelection();
+  1738→ }
+  1739→ }
+  1740→
+  1741→ void _setCustomizeWorkflowByScope(bool value) {
+  1742→ setState(() {
+  1743→ _customizeWorkflowByScope = value;
+  1744→ if (!value) {
+  1745→ _selectedWorkflowScopeId = null;
+  1746→ }
+  1747→ _hydrateWorkflowDraftForSelection();
+  1748→ });
+  1749→ }
+  1750→
+  1751→ void _selectWorkflowScope(String scopeId) {
+  1752→ setState(() {
+  1753→ _selectedWorkflowScopeId = scopeId;
+  1754→ _hydrateWorkflowDraftForSelection();
+  1755→ });
+  1756→ }
+  1757→
+  1758→ void _resetWorkflowDraftToPreset() {
+  1759→ setState(() {
+  1760→ _workflowDraftSteps =
+  1761→ _cloneWorkflowSteps(_defaultProcurementWorkflowTemplate);
+  1762→ });
+  1763→ }
+  1764→
+  1765→ Future<ProcurementWorkflowStep?> _showWorkflowStepDialog({
+  1766→ ProcurementWorkflowStep? initialStep,
+  1767→ }) async {
+  1768→ final nameController = TextEditingController(text: initialStep?.name ?? '');
+  1769→ final durationController = TextEditingController(
+  1770→ text: (initialStep?.duration ?? 1).toString(),
+  1771→ );
+  1772→ var unit = initialStep?.unit == 'month' ? 'month' : 'week';
+  1773→
+  1774→ final result = await showDialog<ProcurementWorkflowStep>(
+  1775→ context: context,
+  1776→ builder: (dialogContext) => StatefulBuilder(
+  1777→ builder: (context, setDialogState) => AlertDialog(
+  1778→ title: Text(initialStep == null ? 'Add Workflow Step' : 'Edit Step'),
+  1779→ content: SizedBox(
+  1780→ width: 420,
+  1781→ child: Column(
+  1782→ mainAxisSize: MainAxisSize.min,
+  1783→ children: [
+  1784→ VoiceTextField(
+  1785→ controller: nameController,
+  1786→ decoration: const InputDecoration(
+  1787→ labelText: 'Step name',
+  1788→ hintText: 'e.g. Quote Evaluation',
+  1789→ ),
+  1790→ ),
+  1791→ const SizedBox(height: 12),
+  1792→ Row(
+  1793→ children: [
+  1794→ Expanded(
+  1795→ child: VoiceTextField(
+  1796→ controller: durationController,
+  1797→ keyboardType: TextInputType.number,
+  1798→ decoration:
+  1799→ const InputDecoration(labelText: 'Duration'),
+  1800→ ),
+  1801→ ),
+  1802→ const SizedBox(width: 12),
+  1803→ Expanded(
+  1804→ child: DropdownButtonFormField<String>(
+  1805→ value: unit,
+  1806→ decoration: const InputDecoration(labelText: 'Unit'),
+  1807→ items: const [
+  1808→ DropdownMenuItem(value: 'week', child: Text('Week')),
+  1809→ DropdownMenuItem(
+  1810→ value: 'month',
+  1811→ child: Text('Month'),
+  1812→ ),
+  1813→ ],
+  1814→ onChanged: (value) {
+  1815→ if (value == null) return;
+  1816→ setDialogState(() => unit = value);
+  1817→ },
+  1818→ ),
+  1819→ ),
+  1820→ ],
+  1821→ ),
+  1822→ ],
+  1823→ ),
+  1824→ ),
+  1825→ actions: [
+  1826→ TextButton(
+  1827→ onPressed: () => Navigator.of(dialogContext).pop(),
+  1828→ child: const Text('Cancel'),
+  1829→ ),
+  1830→ ElevatedButton(
+  1831→ onPressed: () {
+  1832→ final name = nameController.text.trim();
+  1833→ final duration = int.tryParse(durationController.text.trim()) ??
+  1834→ initialStep?.duration ??
+  1835→ 1;
+  1836→ if (name.isEmpty || duration <= 0) {
+  1837→ ScaffoldMessenger.of(context).showSnackBar(
+  1838→ const SnackBar(
+  1839→ content: Text('Provide a step name and valid duration.'),
+  1840→ ),
+  1841→ );
+  1842→ return;
+  1843→ }
+  1844→
+  1845→ Navigator.of(dialogContext).pop(
+  1846→ ProcurementWorkflowStep(
+  1847→ id: initialStep?.id ??
+  1848→ 'wf_${DateTime.now().microsecondsSinceEpoch}',
+  1849→ name: name,
+  1850→ duration: duration,
+  1851→ unit: unit,
+  1852→ ),
+  1853→ );
+  1854→ },
+  1855→ child: Text(initialStep == null ? 'Add Step' : 'Save'),
+  1856→ ),
+  1857→ ],
+  1858→ ),
+  1859→ ),
+  1860→ );
+  1861→
+  1862→ nameController.dispose();
+  1863→ durationController.dispose();
+  1864→ return result;
+  1865→ }
+  1866→
+  1867→ Future<void> _addWorkflowStepToDraft() async {
+  1868→ final result = await _showWorkflowStepDialog();
+  1869→ if (result == null) return;
+  1870→ setState(() => _workflowDraftSteps = [..._workflowDraftSteps, result]);
+  1871→ }
+  1872→
+  1873→ Future<void> _editWorkflowStep(ProcurementWorkflowStep step) async {
+  1874→ final result = await _showWorkflowStepDialog(initialStep: step);
+  1875→ if (result == null) return;
+  1876→
+  1877→ setState(() {
+  1878→ final next = List<ProcurementWorkflowStep>.from(_workflowDraftSteps);
+  1879→ final index = next.indexWhere((entry) => entry.id == step.id);
+  1880→ if (index == -1) return;
+  1881→ next[index] = result.copyWith(id: step.id);
+  1882→ _workflowDraftSteps = next;
+  1883→ });
+  1884→ }
+  1885→
+  1886→ void _deleteWorkflowStepFromDraft(String stepId) {
+  1887→ setState(() {
+  1888→ _workflowDraftSteps =
+  1889→ _workflowDraftSteps.where((step) => step.id != stepId).toList();
+  1890→ });
+  1891→ }
+  1892→
+  1893→ void _moveWorkflowStepInDraft(int index, int direction) {
+  1894→ final target = index + direction;
+  1895→ if (index < 0 ||
+  1896→ index >= _workflowDraftSteps.length ||
+  1897→ target < 0 ||
+  1898→ target >= _workflowDraftSteps.length) {
+  1899→ return;
+  1900→ }
+  1901→
+  1902→ setState(() {
+  1903→ final next = List<ProcurementWorkflowStep>.from(_workflowDraftSteps);
+  1904→ final step = next.removeAt(index);
+  1905→ next.insert(target, step);
+  1906→ _workflowDraftSteps = next;
+  1907→ });
+  1908→ }
+  1909→
+  1910→ void _saveWorkflowForSelection() {
+  1911→ if (_workflowSaving) return;
+  1912→ if (_customizeWorkflowByScope) {
+  1913→ final scopeId = _resolveWorkflowScopeId();
+  1914→ if (scopeId == null) return;
+  1915→ setState(() {
+  1916→ _scopeWorkflowOverrides = {
+  1917→ ..._scopeWorkflowOverrides,
+  1918→ scopeId: _cloneWorkflowSteps(_workflowDraftSteps),
+  1919→ };
+  1920→ });
+  1921→ } else {
+  1922→ setState(() {
+  1923→ _globalWorkflowSteps = _cloneWorkflowSteps(_workflowDraftSteps);
+  1924→ _scopeWorkflowOverrides = {};
+  1925→ });
+  1926→ }
+  1927→ _persistProcurementWorkflowData(
+  1928→ successMessage: _customizeWorkflowByScope
+  1929→ ? 'Saved workflow for selected scope.'
+  1930→ : 'Saved global procurement workflow.',
+  1931→ );
+  1932→ }
+  1933→
+  1934→ void _applyWorkflowDraftToAllScopes() {
+  1935→ if (_workflowSaving) return;
+  1936→ final normalized = _cloneWorkflowSteps(_workflowDraftSteps);
+  1937→ setState(() {
+  1938→ _globalWorkflowSteps = _cloneWorkflowSteps(normalized);
+  1939→ final next = <String, List<ProcurementWorkflowStep>>{};
+  1940→ for (final item in _items) {
+  1941→ if (!_scopeRequiresProcurementWorkflow(item)) {
+  1942→ continue;
+  1943→ }
+  1944→ next[item.id] = _cloneWorkflowSteps(normalized);
+  1945→ }
+  1946→ _scopeWorkflowOverrides = next;
+  1947→ _customizeWorkflowByScope = false;
+  1948→ _selectedWorkflowScopeId = null;
+  1949→ _hydrateWorkflowDraftForSelection();
+  1950→ });
+  1951→ _persistProcurementWorkflowData(
+  1952→ successMessage: 'Applied workflow to all scopes requiring bidding.',
+  1953→ );
+  1954→ }
+  1955→
+  1956→ Future<void> _persistProcurementWorkflowData({
+  1957→ required String successMessage,
+  1958→ }) async {
+  1959→ if (_projectId.isEmpty) return;
+  1960→ setState(() => _workflowSaving = true);
+  1961→
+  1962→ try {
+  1963→ await ProcurementWorkflowService.save(
+  1964→ projectId: _projectId,
+  1965→ globalSteps: _globalWorkflowSteps,
+  1966→ scopeOverrides: _scopeWorkflowOverrides,
+  1967→ );
+  1968→ if (!mounted) return;
+  1969→ ScaffoldMessenger.of(context).showSnackBar(
+  1970→ SnackBar(content: Text(successMessage)),
+  1971→ );
+  1972→ } catch (e) {
+  1973→ if (!mounted) return;
+  1974→ ScaffoldMessenger.of(context).showSnackBar(
+  1975→ SnackBar(content: Text('Unable to save procurement workflow: $e')),
+  1976→ );
+  1977→ } finally {
+  1978→ if (mounted) {
+  1979→ setState(() => _workflowSaving = false);
+  1980→ }
+  1981→ }
+  1982→ }
+  1983→
+  1984→ Future<void> _exportPdf() async {
+  1985→ final projectData = ProjectDataHelper.getData(context);
+  1986→ await PdfExportHelper.exportScreenPdf(
+  1987→ context: context,
+  1988→ screenTitle: 'Planning Procurement',
+  1989→ sections: [
+  1990→ PdfSection.keyValue('Project Info', [
+  1991→ {'Project Name': projectData.projectName ?? 'N/A'},
+  1992→ {'Solution Title': projectData.solutionTitle ?? 'N/A'},
+  1993→ ]),
+  1994→ PdfSection.text('Notes', projectData.planningNotes['planning_procurement_v2_notes'] ?? 'No data recorded.'),
+  1995→ ],
+  1996→ );
+  1997→ }
+  1998→}
+  1999→
+  2000→class _SummaryCardData {
+
+[showing lines 1-2000 of 2457; use offset=2001 with limit to continue reading]
