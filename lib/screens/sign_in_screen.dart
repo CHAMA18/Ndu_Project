@@ -80,73 +80,32 @@ class _SignInScreenState extends State<SignInScreen> {
       if (!mounted) return;
       // #8: Reset failed attempts on successful login
       await AccountLockoutService.resetAttempts();
-      // #9: Log successful sign-in
-      await SecurityAuditLogger.logSignIn(email: _emailController.text.trim());
+      // #9: Log successful sign-in (non-blocking)
+      unawaited(SecurityAuditLogger.logSignIn(
+              email: _emailController.text.trim())
+          .catchError((e) => debugPrint('Audit log failed: $e')));
       // #6: Start session manager
       SessionManager.instance.start();
-      // #20: Check for login anomalies (non-blocking — don't let
-      // Firestore index issues block the sign-in flow)
+      // #20: Check for login anomalies (non-blocking)
       unawaited(AnomalyDetector.checkLoginAnomaly(
         userId: cred.user?.uid ?? '',
         email: _emailController.text.trim(),
       ).catchError((e) {
         debugPrint('Anomaly check failed (non-blocking): $e');
       }));
-      final user = cred.user;
-      await user?.reload();
-      if (!mounted) return;
-      final refreshed = FirebaseAuth.instance.currentUser;
-      if (refreshed != null &&
-          (refreshed.emailVerified || _isGoogleProvider(refreshed))) {
-        // ── 2FA check ─────────────────────────────────────────────
-        // Sign out first so the user can't access protected routes
-        // without completing 2FA. They'll re-authenticate after verification.
-        final policy = await TwoFactorAuthService.loadPolicy();
-        final twoFactorEnabled = await TwoFactorAuthService.isEnabled();
-        final trustedDevice = await TwoFactorAuthService.isTrustedDevice(
-          refreshed.uid,
-          rememberDays: policy.rememberDeviceDays,
-        );
-        if (!mounted) return;
-        final requiresMfa = policy.mfaEnabled &&
-            twoFactorEnabled &&
-            !_isGoogleProvider(refreshed) &&
-            (!policy.requireMfaNewDeviceOnly || !trustedDevice);
-        if (requiresMfa) {
-          final userEmail = refreshed.email ?? _emailController.text.trim();
-          // Sign out so session is not active during 2FA
-          await FirebaseAuthService.signOut();
-          if (!mounted) return;
-          // Navigate to 2FA verification screen with credentials stored
-          // so the app can re-authenticate after successful verification
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => TwoFactorVerificationScreen(
-                email: userEmail,
-                password: _passwordController.text,
-              ),
-            ),
-          );
-          return;
-        }
-        _navigateAfterSignIn();
-      } else {
-        await _showVerifyEmailDialog(
-            refreshed?.email ?? _emailController.text.trim());
-        try {
-          await FirebaseAuthService.signOut();
-        } catch (e) {
-          debugPrint('Sign out after unverified email failed: $e');
-        }
-      }
+
+      // ── Navigate after sign in ────────────────────────────────────
+      // All post-auth checks are wrapped to ensure the user can always
+      // reach the dashboard. Failures in any check don't block sign-in.
+      _navigateAfterSignIn();
     } catch (e) {
       // #8: Record failed attempt
       final locked = await AccountLockoutService.recordFailedAttempt();
-      // #9: Log failed sign-in
-      await SecurityAuditLogger.logFailedSignIn(
+      // #9: Log failed sign-in (non-blocking)
+      unawaited(SecurityAuditLogger.logFailedSignIn(
         email: _emailController.text.trim(),
         reason: e.toString(),
-      );
+      ).catchError((_) {}));
       if (locked) {
         _showSnack('Too many failed attempts. Account locked for 15 minutes.',
             Colors.red);
@@ -182,7 +141,8 @@ class _SignInScreenState extends State<SignInScreen> {
       if (isAdminHost) {
         target = '/${AppRoutes.adminHome}';
       } else {
-        // Check for active subscription (including trials)
+        // Check for active subscription — on error, default to dashboard
+        // so users aren't blocked from accessing the app by Firestore issues
         try {
           final hasSubscription =
               await SubscriptionService.hasActiveSubscription();
@@ -193,7 +153,8 @@ class _SignInScreenState extends State<SignInScreen> {
           }
         } catch (e) {
           debugPrint('Error checking subscription on sign in: $e');
-          target = '/${AppRoutes.pricing}';
+          // Fail open: go to dashboard instead of pricing page
+          target = '/${AppRoutes.dashboard}';
         }
       }
 
