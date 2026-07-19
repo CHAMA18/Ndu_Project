@@ -185,30 +185,81 @@ List<String> _ownerOptions(BuildContext context) {
 }
 
 String _buildQualityAiContext(ProjectDataModel data) {
- final methodology =
- ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
- final location = [
- data.country.trim(),
- data.location.trim(),
- data.city.trim(),
- ].where((value) => value.isNotEmpty).join(', ');
+  final methodology =
+  ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
+  final location = [
+    data.country.trim(),
+    data.location.trim(),
+    data.city.trim(),
+  ].where((value) => value.isNotEmpty).join(', ');
 
- return [
- 'Generate a project quality management package tailored to the current project.',
- 'Project Name: ${data.projectName}',
- 'Solution Title: ${data.solutionTitle}',
- 'Solution Description: ${data.solutionDescription}',
- 'Project Objective: ${data.projectObjective}',
- 'Business Case: ${data.businessCase}',
- 'Industry / Context: ${data.projectCategory} ${data.projectIndustry}'.trim(),
- 'Delivery Framework: $methodology',
- 'Project Location: ${location.isEmpty ? 'Not specified' : location}',
- 'Requirements: ${data.frontEndPlanning.requirements}',
- 'Technology Context: ${data.frontEndPlanning.technology}',
- 'Security Context: ${data.frontEndPlanning.security}',
- 'Notes: ${data.notes}',
- 'Focus on quality objectives, acceptance criteria, inspection/testing needs, audits, metrics, standards, and likely quality risks.',
- ].join('\n');
+  // Collect risk context for quality risk identification
+  final riskContext = data.frontEndPlanning.riskItems.isNotEmpty
+      ? '\nTop Project Risks: ${data.frontEndPlanning.riskItems.take(5).map((r) => "'"'${r.title} (${r.impact}/${r.likelihood})'"'").join('; ')}'
+      : '';
+  
+  // Collect opportunity context for quality opportunities
+  final opportunityContext = data.frontEndPlanning.opportunityItems.isNotEmpty
+      ? '\nOpportunities: ${data.frontEndPlanning.opportunityItems.take(3).map((o) => o.title).join('; ')}'
+      : '';
+      
+  // IT Considerations from Initiation phase for tech-related quality
+  final itContext = data.itConsiderationsData != null 
+      ? [
+          if (data.itConsiderationsData!.softwareRequirements.isNotEmpty)
+            'Software Requirements: ${data.itConsiderationsData!.softwareRequirements}',
+          if (data.itConsiderationsData!.hardwareRequirements.isNotEmpty)
+            'Hardware Requirements: ${data.itConsiderationsData!.hardwareRequirements}',
+          if (data.itConsiderationsData!.networkRequirements.isNotEmpty)
+            'Network Requirements: ${data.itConsiderationsData!.networkRequirements}',
+        ].join('\n')
+      : '';
+
+  // Team size and structure for scaling quality activities
+  final teamSize = data.teamMembers.length;
+  final roleCount = data.projectRoles.length;
+
+  return [
+    'Generate a comprehensive project quality management package tailored to the current project.',
+    'Use this context to recommend appropriate quality standards, metrics, and activities based on project type, scale, and risks.',
+    '',
+    '=== PROJECT IDENTITY ===',
+    'Project Name: ${data.projectName}',
+    'Solution Title: ${data.solutionTitle}',
+    'Solution Description: ${data.solutionDescription}',
+    'Project Objective: ${data.projectObjective}',
+    'Business Case: ${data.businessCase}',
+    '',
+    '=== PROJECT CLASSIFICATION ===',
+    'Industry / Sector: ${data.projectCategory} ${data.projectIndustry}'.trim(),
+    'Delivery Framework: $methodology',
+    'Project Location: ${location.isEmpty ? 'Not specified' : location}',
+    'Team Size: $teamSize members, $roleCount defined roles',
+    '',
+    '=== TECHNICAL CONTEXT ===',
+    'Technology Notes: ${data.frontEndPlanning.technology}',
+    if (itContext.isNotEmpty) itContext,
+    'Security Context: ${data.frontEndPlanning.security}',
+    'Requirements Summary: ${data.frontEndPlanning.requirements}',
+    '',
+    '=== RISK & OPPORTUNITY CONTEXT ===',
+    if (riskContext.isNotEmpty) riskContext,
+    if (opportunityContext.isNotEmpty) opportunityContext,
+    '',
+    '=== ADDITIONAL NOTES ===',
+    'General Notes: ${data.notes}',
+    '',
+    '=== QUALITY GENERATION GUIDELINES ===',
+    'Based on the above context:',
+    '- Recommend industry-appropriate quality standards (ISO 9001, ISO 25010, ISO 27001, CMMI, etc.)',
+    '- Suggest relevant quality metrics based on project type and framework ($methodology)',
+    '- Identify potential quality risks based on project characteristics',
+    '- Propose inspection and test activities appropriate to the delivery approach',
+    '- Consider team size and location when recommending QA/QC resource needs',
+    '- For agile projects: include sprint-level quality gates, definition of done, continuous integration quality',
+    '- For waterfall projects: include phase-gate quality reviews, milestone inspections',
+    '- Include applicable regulatory/compliance requirements based on industry',
+  ].join('\n');
 }
 
 Map<String, List<LaunchEntry>> _buildExecutionQualitySections(

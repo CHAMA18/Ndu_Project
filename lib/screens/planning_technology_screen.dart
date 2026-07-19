@@ -21,7 +21,7 @@ import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 enum _TechnologyTab {
  inventory('Technology Inventory'),
- aiIntegrations('Tech Stack'),
+ techStack('Tech Stack'),
  externalIntegrations('External Integrations'),
  definitions('Technology Definitions'),
  aiRecommendations('AI Recommendations');
@@ -154,7 +154,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
  };
  }));
  break;
- case _TechnologyTab.aiIntegrations:
+ case _TechnologyTab.techStack:
  final text = await ai.generateFepSectionText(
  section: 'Tech Stack',
  context:
@@ -263,7 +263,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
  case _TechnologyTab.inventory:
  await _openInventoryDialog();
  break;
- case _TechnologyTab.aiIntegrations:
+ case _TechnologyTab.techStack:
  await _openIntegrationDialog(isExternal: false);
  break;
  case _TechnologyTab.externalIntegrations:
@@ -689,7 +689,7 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
  case _TechnologyTab.inventory:
  _inventory.removeAt(index);
  break;
- case _TechnologyTab.aiIntegrations:
+ case _TechnologyTab.techStack:
  _aiIntegrations.removeAt(index);
  break;
  case _TechnologyTab.externalIntegrations:
@@ -880,68 +880,122 @@ class _PlanningTechnologyScreenState extends State<PlanningTechnologyScreen> {
  return '\$$withCommas';
  }
 
- String _buildAiContextForCurrentTab(ProjectDataModel data) {
- String takeNames(List<Map<String, dynamic>> list, String key) {
- if (list.isEmpty) return 'none';
- return list
- .take(8)
- .map((item) => (item[key] ?? '').toString().trim())
- .where((e) => e.isNotEmpty)
- .join(', ');
- }
+String _buildAiContextForCurrentTab(ProjectDataModel data) {
+  String takeNames(List<Map<String, dynamic>> list, String key) {
+    if (list.isEmpty) return 'none';
+    return list
+        .take(8)
+        .map((item) => (item[key] ?? '').toString().trim())
+        .where((e) => e.isNotEmpty)
+        .join(', ');
+  }
 
- String collectSolutionTechSignals() {
- return <String>{
- data.solutionTitle.trim(),
- data.solutionDescription.trim(),
- data.frontEndPlanning.technology.trim(),
- data.frontEndPlanning.requirements.trim(),
- data.frontEndPlanning.security.trim(),
- data.notes.trim(),
- ..._inventory
- .map((item) => item['name']?.toString().trim() ?? '')
- .where((value) => value.isNotEmpty),
- ..._aiIntegrations
- .map((item) => item['name']?.toString().trim() ?? '')
- .where((value) => value.isNotEmpty),
- ..._externalIntegrations
- .map((item) => item['name']?.toString().trim() ?? '')
- .where((value) => value.isNotEmpty),
- }.join(', ');
- }
+  String collectSolutionTechSignals() {
+    return <String>{
+      data.solutionTitle.trim(),
+      data.solutionDescription.trim(),
+      data.frontEndPlanning.technology.trim(),
+      data.frontEndPlanning.requirements.trim(),
+      data.frontEndPlanning.security.trim(),
+      data.notes.trim(),
+      ..._inventory
+          .map((item) => item['name']?.toString().trim() ?? '')
+          .where((value) => value.isNotEmpty),
+      ..._aiIntegrations
+          .map((item) => item['name']?.toString().trim() ?? '')
+          .where((value) => value.isNotEmpty),
+      ..._externalIntegrations
+          .map((item) => item['name']?.toString().trim() ?? '')
+          .where((value) => value.isNotEmpty),
+    }.join(', ');
+  }
+  
+  // AUTO-FEED FROM INITIATION PHASE: IT Considerations
+  String collectInitiationTechData() {
+    final parts = <String>[];
+    
+    // Pull IT Considerations from Project Charter/Initiation
+    if (data.itConsiderationsData != null) {
+      final it = data.itConsiderationsData!;
+      if (it.notes.isNotEmpty) parts.add('IT Notes: \${it.notes}');
+      if (it.hardwareRequirements.isNotEmpty) parts.add('Hardware Requirements: \${it.hardwareRequirements}');
+      if (it.softwareRequirements.isNotEmpty) parts.add('Software Requirements: \${it.softwareRequirements}');
+      if (it.networkRequirements.isNotEmpty) parts.add('Network Requirements: \${it.networkRequirements}');
+      
+      // Pull individual solution IT data items
+      if (it.solutionITData.isNotEmpty) {
+        final solutionItems = it.solutionITData
+            .where((s) => s.coreTechnology.isNotEmpty)
+            .map((s) => '\${s.solutionTitle}: \${s.coreTechnology}')
+            .join('; ');
+        if (solutionItems.isNotEmpty) parts.add('Solution Technologies: $solutionItems');
+      }
+    }
+    
+    // Pull Infrastructure Considerations
+    if (data.infrastructureConsiderationsData != null) {
+      final infra = data.infrastructureConsiderationsData!;
+      if (infra.physicalSpaceRequirements.isNotEmpty) parts.add('Infrastructure Space: \${infra.physicalSpaceRequirements}');
+      if (infra.powerCoolingRequirements.isNotEmpty) parts.add('Power/Cooling: \${infra.powerCoolingRequirements}');
+      if (infra.connectivityRequirements.isNotEmpty) parts.add('Connectivity: \${infra.connectivityRequirements}');
+    }
+    
+    // Pull tech mentions from other planning areas
+    if (data.frontEndPlanning.technology.isNotEmpty) {
+      parts.add('FEP Technology Notes: \${data.frontEndPlanning.technology}');
+    }
+    
+    return parts.isEmpty ? 'No initiation tech data available' : parts.join('\\n');
+  }
 
- final methodology =
- ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
- final location = [
- data.country.trim(),
- data.location.trim(),
- data.city.trim(),
- ].where((value) => value.isNotEmpty).join(', ');
+  final methodology =
+  ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
+  final location = [
+    data.country.trim(),
+    data.location.trim(),
+    data.city.trim(),
+  ].where((value) => value.isNotEmpty).join(', ');
 
- return [
- 'You are preparing enterprise technology planning data.',
- 'Project Name: ${data.projectName}',
- 'Solution Title: ${data.solutionTitle}',
- 'Solution Description: ${data.solutionDescription}',
- 'Project Objective: ${data.projectObjective}',
- 'Business Case: ${data.businessCase}',
- 'Delivery Framework: $methodology',
- 'Project Location: ${location.isEmpty ? 'Not specified' : location}',
- 'Initiation Notes: ${data.notes}',
- 'FEP Technology Notes: ${data.frontEndPlanning.technology}',
- 'Broader Technology Signals: ${collectSolutionTechSignals()}',
- 'Existing Inventory: ${takeNames(_inventory, 'name')}',
- 'Existing Tech Stack: ${takeNames(_aiIntegrations, 'name')}',
- 'Existing External Integrations: ${takeNames(_externalIntegrations, 'name')}',
- 'Existing Definitions: ${takeNames(_definitions, 'term')}',
- if (_selectedTab == _TechnologyTab.aiIntegrations)
- 'Return a practical project tech stack covering applications, frameworks, cloud services, data stores, delivery tooling, integrations, and operations tooling.',
- if (_selectedTab == _TechnologyTab.aiIntegrations &&
- methodology == 'AGILE')
- 'For agile delivery, include backlog, CI/CD, testing, environments, release, observability, and collaboration tooling.',
- 'Generate concise, realistic entries specific to this project context.',
- ].join('\n');
- }
+  return [
+    'You are preparing enterprise technology planning data.',
+    'IMPORTANT: Incorporate all technology mentions from the Initiation phase into your recommendations.',
+    '',
+    '=== PROJECT IDENTITY ===',
+    'Project Name: \${data.projectName}',
+    'Solution Title: \${data.solutionTitle}',
+    'Solution Description: \${data.solutionDescription}',
+    'Project Objective: \${data.projectObjective}',
+    'Business Case: \${data.businessCase}',
+    '',
+    '=== PROJECT CLASSIFICATION ===',
+    'Industry / Sector: \${data.projectCategory} \${data.projectIndustry}'.trim(),
+    'Delivery Framework: $methodology',
+    'Project Location: \${location.isEmpty ? "Not specified" : location}',
+    '',
+    '=== INITIATION PHASE TECHNOLOGY DATA (Auto-fed from Charter) ===',
+    '\${collectInitiationTechData()}',
+    '',
+    '=== CURRENT PLANNING TECHNOLOGY SIGNALS ===',
+    'Initiation Notes: \${data.notes}',
+    'FEP Technology Notes: \${data.frontEndPlanning.technology}',
+    'Broader Technology Signals: \${collectSolutionTechSignals()}',
+    '',
+    '=== EXISTING TECHNOLOGY INVENTORY ===',
+    'Existing Inventory: \${takeNames(_inventory, "name")}',
+    'Existing Tech Stack: \${takeNames(_aiIntegrations, "name")}',
+    'Existing External Integrations: \${takeNames(_externalIntegrations, "name")}',
+    'Existing Definitions: \${takeNames(_definitions, "term")}',
+    '',
+    '=== GENERATION GUIDELINES ===',
+    if (_selectedTab == _TechnologyTab.techStack)
+      'Return a practical project tech stack covering applications, frameworks, cloud services, data stores, delivery tooling, integrations, and operations tooling.',
+    if (_selectedTab == _TechnologyTab.techStack &&
+        methodology == 'AGILE')
+      'For agile delivery, include backlog, CI/CD, testing, environments, release, observability, and collaboration tooling.',
+    'CRITICAL: Any technology mentioned in the Initiation phase above MUST be included in the Tech Stack.',
+    'Generate concise, realistic entries specific to this project context.',
+  ].join('\\n');
+}
 
  Future<void> _syncTechnologyCostsToEstimate() async {
  final costProvider = Provider.of<CostEstimateProvider>(context, listen: false);
@@ -1094,7 +1148,7 @@ onBack: () =>
  const SizedBox(height: 12),
  InnerPageNavigationHint(
  pageId: 'planning_technology',
- pageTitle: 'Technology Planning',
+ pageTitle: 'Tech Sections',
  sections: _TechnologyTab.values.map((tab) => InnerPageSection(
  id: tab.name,
  label: tab.label,
@@ -1291,7 +1345,7 @@ onBack: () =>
  const SizedBox(height: 16),
  switch (_selectedTab) {
  _TechnologyTab.inventory => _buildInventoryContent(),
- _TechnologyTab.aiIntegrations => _buildIntegrationsContent(false),
+ _TechnologyTab.techStack => _buildIntegrationsContent(false),
  _TechnologyTab.externalIntegrations =>
  _buildIntegrationsContent(true),
  _TechnologyTab.definitions => _buildDefinitionsContent(),

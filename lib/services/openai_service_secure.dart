@@ -1053,6 +1053,77 @@ ${_escape(trimmedText)}
     );
   }
 
+  /// Analyzes current quality data and provides AI-powered recommendations
+  Future<QualityAiAnalysis> analyzeQualityGaps({
+    required String context,
+    required QualityManagementData currentQuality,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty) {
+      return QualityAiAnalysis.empty();
+    }
+    if (!OpenAiConfig.isConfigured) {
+      return QualityAiAnalysis.fallback();
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final currentState = [
+      'CURRENT QUALITY STATE:',
+      '- Objectives: ${currentQuality.objectives.length} defined',
+      '- Standards: ${currentQuality.standards.length} listed',
+      '- Workflow Controls: ${currentQuality.workflowControls.length}',
+      '- Audit Entries: ${currentQuality.auditPlan.length} planned',
+      '- Corrective Actions: ${currentQuality.correctiveActions.length}',
+      '',
+      'ANALYSIS REQUESTED:',
+      '1. Identify missing quality requirements or gaps',
+      '2. Recommend quality activities based on project type',
+      '3. Suggest applicable standards and best practices',
+      '4. Detect gaps in acceptance criteria',
+      '5. Highlight quality risks and likely sources of rework',
+      '6. Recommend quality KPIs specific to this project',
+    ].join('\n');
+
+    final fullContext = '$context\n\n$currentState';
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': 0.4,
+      'max_completion_tokens': 1500,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content': 'You are an expert Quality Management consultant. Analyze quality data and provide actionable recommendations. Return ONLY valid JSON.'
+        },
+        {
+          'role': 'user',
+          'content': fullContext,
+        }
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 45));
+      if (response.statusCode == 401) throw Exception('Invalid API key');
+      if (response.statusCode == 429) throw Exception('API quota exceeded');
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception('OpenAI error ${response.statusCode}: ${response.body}');
+      }
+
+      final parsed = jsonDecode(response.body);
+      return QualityAiAnalysis.fromJson(parsed);
+    } catch (e) {
+      debugPrint('analyzeQualityGaps failed: $e');
+      return QualityAiAnalysis.fallback();
+    }
+  }
+
+
   // Generate structured Scope items (Within Scope, Out of Scope)
   Future<Map<String, List<String>>> generateProjectScope({
     required String context,

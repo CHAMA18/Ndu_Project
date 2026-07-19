@@ -8276,6 +8276,231 @@ class QualitySeedBundle {
   }
 }
 
+/// AI-powered quality gap analysis result
+class QualityAiAnalysis {
+  final List<String> missingRequirements;
+  final List<QualityActivityRecommendation> recommendedActivities;
+  final List<QualityStandardRecommendation> suggestedStandards;
+  final List<String> acceptanceCriteriaGaps;
+  final List<QualityRiskItem> qualityRisks;
+  final List<QualityKpiRecommendation> recommendedKpis;
+  final String summary;
+  final String overallAssessment; // 'healthy', 'needs_attention', 'at_risk'
+
+  QualityAiAnalysis({
+    required this.missingRequirements,
+    required this.recommendedActivities,
+    required this.suggestedStandards,
+    required this.acceptanceCriteriaGaps,
+    required this.qualityRisks,
+    required this.recommendedKpis,
+    required this.summary,
+    required this.overallAssessment,
+  });
+
+  factory QualityAiAnalysis.empty() => QualityAiAnalysis(
+    missingRequirements: [],
+    recommendedActivities: [],
+    suggestedStandards: [],
+    acceptanceCriteriaGaps: [],
+    qualityRisks: [],
+    recommendedKpis: [],
+    summary: 'No analysis available',
+    overallAssessment: 'needs_attention',
+  );
+
+  factory QualityAiAnalysis.fallback() => QualityAiAnalysis(
+    missingRequirements: ['Unable to analyze - check AI configuration'],
+    recommendedActivities: [
+      QualityActivityRecommendation(
+        activity: 'Review quality objectives',
+        priority: 'High',
+        rationale: 'Regular review ensures quality alignment',
+        effort: 'Low',
+      ),
+    ],
+    suggestedStandards: [],
+    acceptanceCriteriaGaps: [],
+    qualityRisks: [
+      QualityRiskItem(risk: 'AI analysis unavailable', likelihood: 'Low', impact: 'Medium', mitigation: 'Check API key configuration'),
+    ],
+    recommendedKpis: [],
+    summary: 'Fallback analysis - please configure AI service for full analysis.',
+    overallAssessment: 'needs_attention',
+  );
+
+  Map<String, dynamic> toJson() => {
+    'missingRequirements': missingRequirements,
+    'recommendedActivities': recommendedActivities.map((e) => e.toJson()).toList(),
+    'suggestedStandards': suggestedStandards.map((e) => e.toJson()).toList(),
+    'acceptanceCriteriaGaps': acceptanceCriteriaGaps,
+    'qualityRisks': qualityRisks.map((e) => e.toJson()).toList(),
+    'recommendedKpis': recommendedKpis.map((e) => e.toJson()).toList(),
+    'summary': summary,
+    'overallAssessment': overallAssessment,
+  };
+
+  factory QualityAiAnalysis.fromJson(Map<String, dynamic> json) {
+    return QualityAiAnalysis(
+      missingRequirements: (json['missingRequirements'] as List?)
+          ?.map((e) => e.toString())
+          .toList() ??
+          [],
+      recommendedActivities: (json['recommendedActivities'] as List?)
+          ?.map((e) => QualityActivityRecommendation.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList() ??
+          [],
+      suggestedStandards: (json['suggestedStandards'] as List?)
+          ?.map((e) => QualityStandardRecommendation.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList() ??
+          [],
+      acceptanceCriteriaGaps: (json['acceptanceCriteriaGaps'] as List?)
+          ?.map((e) => e.toString())
+          .toList() ??
+          [],
+      qualityRisks: (json['qualityRisks'] as List?)
+          ?.map((e) => QualityRiskItem.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList() ??
+          [],
+      recommendedKpis: (json['recommendedKpis'] as List?)
+          ?.map((e) => QualityKpiRecommendation.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList() ??
+          [],
+      summary: json['summary']?.toString() ?? '',
+      overallAssessment: json['overallAssessment']?.toString() ?? 'needs_attention',
+    );
+  }
+}
+
+class QualityActivityRecommendation {
+  final String activity;
+  final String priority;
+  final String rationale;
+  final String effort;
+  final String? framework; // agile, waterfall, both
+
+  QualityActivityRecommendation({
+    required this.activity,
+    required this.priority,
+    required this.rationale,
+    required this.effort,
+    this.framework,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'activity': activity,
+    'priority': priority,
+    'rationale': rationale,
+    'effort': effort,
+    if (framework != null) 'framework': framework,
+  };
+
+  factory QualityActivityRecommendation.fromJson(Map<String, dynamic> json) {
+    return QualityActivityRecommendation(
+      activity: json['activity']?.toString() ?? '',
+      priority: json['priority']?.toString() ?? 'Medium',
+      rationale: json['rationale']?.toString() ?? '',
+      effort: json['effort']?.toString() ?? 'Medium',
+      framework: json['framework']?.toString(),
+    );
+  }
+}
+
+class QualityStandardRecommendation {
+  final String name;
+  final String source;
+  final String category;
+  final String applicability;
+  final String description;
+
+  QualityStandardRecommendation({
+    required this.name,
+    required this.source,
+    required this.category,
+    required this.applicability,
+    required this.description,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'source': source,
+    'category': category,
+    'applicability': applicability,
+    'description': description,
+  };
+
+  factory QualityStandardRecommendation.fromJson(Map<String, dynamic> json) {
+    return QualityStandardRecommendation(
+      name: json['name']?.toString() ?? '',
+      source: json['source']?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
+      applicability: json['applicability']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+    );
+  }
+}
+
+class QualityRiskItem {
+  final String risk;
+  final String likelihood;
+  final String impact;
+  final String mitigation;
+
+  QualityRiskItem({
+    required this.risk,
+    required this.likelihood,
+    required this.impact,
+    required this.mitigation,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'risk': risk,
+    'likelihood': likelihood,
+    'impact': impact,
+    'mitigation': mitigation,
+  };
+
+  factory QualityRiskItem.fromJson(Map<String, dynamic> json) {
+    return QualityRiskItem(
+      risk: json['risk']?.toString() ?? '',
+      likelihood: json['likelihood']?.toString() ?? 'Medium',
+      impact: json['impact']?.toString() ?? 'Medium',
+      mitigation: json['mitigation']?.toString() ?? '',
+    );
+  }
+}
+
+class QualityKpiRecommendation {
+  final String name;
+  final String target;
+  final String unit;
+  final String rationale;
+
+  QualityKpiRecommendation({
+    required this.name,
+    required this.target,
+    required this.unit,
+    required this.rationale,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'target': target,
+    'unit': unit,
+    'rationale': rationale,
+  };
+
+  factory QualityKpiRecommendation.fromJson(Map<String, dynamic> json) {
+    return QualityKpiRecommendation(
+      name: json['name']?.toString() ?? '',
+      target: json['target']?.toString() ?? '',
+      unit: json['unit']?.toString() ?? '',
+      rationale: json['rationale']?.toString() ?? '',
+    );
+  }
+}
+
+
 class MetricValue {
   final String value;
   final String unit;
