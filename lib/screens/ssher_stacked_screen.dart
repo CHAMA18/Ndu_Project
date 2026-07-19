@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/ssher_add_safety_item_dialog.dart';
 import 'package:ndu_project/models/project_data_model.dart';
@@ -1233,6 +1235,64 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                   value: _autoSyncToCostEstimate,
                   onChanged: _setAutoSyncToCostEstimate,
                   activeColor: const Color(0xFF047857),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          // One-click Push All Integrations button
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: _Palette.primary.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: _Palette.primary.withValues(alpha: 0.2)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.bolt, size: 16, color: _Palette.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'One-Click Push All Integrations',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _Palette.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Pushes Cost Estimate + Risk Register + Schedule + Requirements in sequence with a progress dialog.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _Palette.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _pushAllIntegrations,
+                  icon: const Icon(Icons.bolt, size: 14),
+                  label: const Text('Run All',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _Palette.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(6)),
+                  ),
                 ),
               ],
             ),
@@ -2482,8 +2542,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                                   color: _Palette.onSurfaceVariant))),
                       SizedBox(width: 12),
                       SizedBox(
-                          width: 90,
-                          child: Text('Integrations',
+                          width: 120,
+                          child: const Text('Sync Status',
                               style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -2513,9 +2573,14 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
   }
 
   Widget _buildExpandableRow(SsherEntry entry, Color accent) {
+    // Compute sync status across all integration targets
+    final projectData = ProjectDataHelper.getData(context);
+    final costEstimateProvider = context.read<CostEstimateProvider>();
+    final syncStatus = _computeSyncStatus(entry, projectData, costEstimateProvider);
     return _ExpandableSsherRow(
       entry: entry,
       accent: accent,
+      syncStatus: syncStatus,
       onEdit: () => _editEntry(entry),
       onDelete: () => _deleteEntry(entry),
       onAddLog: () => _addLogToEntry(entry),
@@ -2530,6 +2595,42 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       onEditDocument: (doc) => _editDocumentInEntry(entry, doc),
       onDeleteDocument: (doc) => _deleteDocumentFromEntry(entry, doc),
     );
+  }
+
+  /// Computes the sync status of an SSHER entry across all integration targets.
+  /// Returns a map of integration name -> boolean (true if pushed).
+  Map<String, bool> _computeSyncStatus(
+    SsherEntry entry,
+    ProjectDataModel projectData,
+    CostEstimateProvider costEstimateProvider,
+  ) {
+    // Cost Estimate: check if any CostLine has basisReference containing 'SSHER:<id>'
+    final inCostEstimate = costEstimateProvider.estimate?.lines.any((l) =>
+            l.basisReference != null &&
+            l.basisReference!.contains('SSHER:${entry.id}')) ??
+        false;
+
+    // Risk Register: check if any RiskRegisterItem has riskName 'SSHER <category>: <concern>'
+    final expectedRiskName =
+        'SSHER ${entry.category}: ${entry.concern}'.trim().toLowerCase();
+    final inRiskRegister = projectData.frontEndPlanning.riskRegisterItems
+        .any((r) => r.riskName.trim().toLowerCase() == expectedRiskName);
+
+    // Schedule: check if any ScheduleActivity has title 'SSHER <category>: <concern>'
+    final expectedActivityTitle = expectedRiskName;
+    final inSchedule = projectData.scheduleActivities
+        .any((a) => a.title.trim().toLowerCase() == expectedActivityTitle);
+
+    // Requirements: check if any RequirementItem has description 'SSHER <category>: <concern>'
+    final inRequirements = projectData.frontEndPlanning.requirementItems
+        .any((r) => r.description.trim().toLowerCase() == expectedActivityTitle);
+
+    return {
+      'costEstimate': inCostEstimate,
+      'riskRegister': inRiskRegister,
+      'schedule': inSchedule,
+      'requirements': inRequirements,
+    };
   }
 
   // ── Logs / Checklists / Documents per-entry operations ──
@@ -3058,6 +3159,19 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _Palette.primary,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _pullFromCostEstimate,
+                icon: const Icon(Icons.cloud_download, size: 16),
+                label: const Text('Pull from Cost Estimate'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF047857),
+                  side: const BorderSide(color: Color(0xFFA7F3D0)),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -4001,6 +4115,456 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     );
   }
 
+  // ── Reverse-Sync: Pull from Cost Estimate ──
+  /// Scans the CostEstimateProvider for CostLines whose basisReference
+  /// contains 'SSHER:<id>' and updates the corresponding SSHER entry's
+  /// estimatedCost to match the CostLine's current total. Used when the user
+  /// has refined the cost in the Cost Estimate module and wants to pull
+  /// those changes back into the SSHER Hub.
+  Future<void> _pullFromCostEstimate() async {
+    final provider = context.read<CostEstimateProvider>();
+    final estimate = provider.estimate;
+    if (estimate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No Cost Estimate exists yet. Set up the Cost Estimate module first.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // Build a map of ssherEntryId -> latest CostLine total
+    final costLineBySsherId = <String, double>{};
+    for (final line in estimate.lines) {
+      final ref = line.basisReference ?? '';
+      if (!ref.contains('SSHER:')) continue;
+      // Extract the SSHER id (text after 'SSHER:' up to the next space or dash)
+      final match = RegExp(r'SSHER:([^\s—–-]+)').firstMatch(ref);
+      if (match == null) continue;
+      final ssherId = match.group(1)!.trim();
+      // Use the most recent (highest total) value if there are duplicates
+      costLineBySsherId[ssherId] = line.total;
+    }
+
+    if (costLineBySsherId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No Cost Estimate lines reference SSHER items. Push SSHER costs to the Cost Estimate first.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Pull Cost Updates from Cost Estimate'),
+        content: Text(
+            'This will scan the Cost Estimate for lines linked to SSHER items and update ${costLineBySsherId.length} SSHER entr${costLineBySsherId.length == 1 ? 'y' : 'ies'} with the current cost from the Cost Estimate. Any manual edits to the SSHER estimatedCost field will be overwritten.\n\nDo you want to proceed?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Pull Updates'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    int updated = 0;
+    int unchanged = 0;
+    final allEntries = _allEntries();
+    for (final entry in allEntries) {
+      final newCost = costLineBySsherId[entry.id];
+      if (newCost == null) continue;
+      final currentCost = double.tryParse(
+              entry.estimatedCost.replaceAll(',', '').replaceAll('\$', '')) ??
+          0.0;
+      if ((newCost - currentCost).abs() < 0.01) {
+        unchanged++;
+        continue;
+      }
+      entry.estimatedCost = newCost.toStringAsFixed(2);
+      updated++;
+    }
+
+    if (updated > 0) {
+      await _saveEntries();
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Pulled cost updates from Cost Estimate: $updated updated, $unchanged unchanged.'),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  // ── Push All Integrations (one-click orchestrator) ──
+  /// Runs Push to Cost Estimate + Push to Risk Register (all categories) +
+  /// Push to Schedule + Add All Requirements in sequence, with a progress
+  /// dialog showing each step. Skips steps that have nothing to push.
+  Future<void> _pushAllIntegrations() async {
+    final allEntries = _allEntries();
+    if (allEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No SSHER items to push. Add items in the SSHER tabs first.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // Confirm with the user before running
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Push All SSHER Integrations'),
+        content: const Text(
+            'This will run all four integrations in sequence:\n\n'
+            '1. Push to Cost Estimate — creates CostLine items for every SSHER item with a cost\n'
+            '2. Push to Risk Register — creates RiskRegisterItem entries from High/Medium-risk SSHER items (all 5 categories)\n'
+            '3. Push to Schedule — creates ScheduleActivity items for every SSHER item\n'
+            '4. Add All Requirements — adds regulatory/compliance requirements suggested by SSHER items\n\n'
+            'Each step de-duplicates against existing entries so nothing will be created twice. '
+            'A progress dialog will show the status of each step.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.bolt, size: 16),
+            label: const Text('Run All Integrations'),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Show a progress dialog
+    final progressController = StreamController<_PushAllProgress>.broadcast();
+
+    // Run the steps in a microtask so the dialog can render first
+    final resultFuture = _executePushAllSteps(progressController);
+
+    // Show the progress dialog
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _PushAllProgressDialog(
+        progressStream: progressController.stream,
+      ),
+    );
+
+    final result = await resultFuture;
+    await progressController.close();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Push All Integrations complete: ${result.costEstimatePushed} cost items, ${result.riskRegisterPushed} risks, ${result.schedulePushed} activities, ${result.requirementsPushed} requirements.'),
+        duration: const Duration(seconds: 6),
+        action: SnackBarAction(
+          label: 'Dismiss',
+          onPressed: () {},
+        ),
+      ),
+    );
+  }
+
+  Future<_PushAllResult> _executePushAllSteps(
+    StreamController<_PushAllProgress> controller) async {
+    int costPushed = 0;
+    int riskPushed = 0;
+    int schedulePushed = 0;
+    int reqsPushed = 0;
+
+    // Step 1: Push to Cost Estimate
+    controller.add(_PushAllProgress(
+      step: 1,
+      totalSteps: 4,
+      label: 'Pushing to Cost Estimate…',
+      inProgress: true,
+    ));
+    try {
+      final provider = context.read<CostEstimateProvider>();
+      if (provider.estimate == null) {
+        final projectName = ProjectDataHelper.getData(context).projectName;
+        provider.setup(
+          projectName: projectName.isNotEmpty ? projectName : 'SSHER Import',
+          className: EstimateClass.class3,
+          deliveryModel: DeliveryModel.waterfall,
+        );
+      }
+      for (final entry in _allEntries()) {
+        final cost = double.tryParse(
+                entry.estimatedCost.replaceAll(',', '').replaceAll('\$', '')) ??
+            0.0;
+        if (cost <= 0) continue;
+        final existing = provider.estimate?.lines.any((l) =>
+                l.basisReference != null &&
+                l.basisReference!.contains('SSHER:${entry.id}')) ??
+            false;
+        if (existing) continue;
+        provider.addLine(CostLine(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          category: CostCategory.ssher,
+          subCategory:
+              '${_categoryLabel(_SsherCategory.values.firstWhere((c) => c.name == entry.category, orElse: () => _SsherCategory.safety))} — ${entry.department}',
+          description: entry.concern.isNotEmpty
+              ? '${entry.concern} — ${entry.mitigation}'
+              : 'SSHER ${entry.category} item',
+          quantity: 1,
+          unit: entry.costUnit.isNotEmpty ? entry.costUnit : 'lump sum',
+          rate: cost,
+          total: cost,
+          inSchedule: false,
+          basisSource: CostSourceType.expertJudgment,
+          basisReference: 'SSHER:${entry.id} — Pushed via Push All Integrations',
+          aiGenerated: false,
+          confidence: Confidence.med,
+        ));
+        costPushed++;
+      }
+    } catch (e) {
+      debugPrint('PushAll: Cost Estimate step failed: $e');
+    }
+    controller.add(_PushAllProgress(
+      step: 1,
+      totalSteps: 4,
+      label: 'Cost Estimate: $costPushed item${costPushed == 1 ? '' : 's'} pushed',
+      inProgress: false,
+    ));
+
+    // Step 2: Push to Risk Register (all 5 categories)
+    controller.add(_PushAllProgress(
+      step: 2,
+      totalSteps: 4,
+      label: 'Pushing to Risk Register…',
+      inProgress: true,
+    ));
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final existingRiskNames = projectData.frontEndPlanning.riskRegisterItems
+          .map((r) => r.riskName.trim().toLowerCase())
+          .toSet();
+      final newRisks = <RiskRegisterItem>[];
+      for (final cat in [
+        _SsherCategory.safety,
+        _SsherCategory.security,
+        _SsherCategory.health,
+        _SsherCategory.environment,
+        _SsherCategory.regulatory,
+      ]) {
+        for (final e in _entriesForCategory(cat)) {
+          final level = e.riskLevel.trim().toLowerCase();
+          if (level != 'high' && level != 'medium') continue;
+          final riskName = 'SSHER ${e.category}: ${e.concern}';
+          if (existingRiskNames.contains(riskName.trim().toLowerCase())) {
+            continue;
+          }
+          newRisks.add(RiskRegisterItem(
+            riskName: riskName,
+            description: e.mitigation.isNotEmpty
+                ? 'SSHER ${e.category} concern: ${e.concern}. Mitigation: ${e.mitigation}'
+                : 'SSHER ${e.category} concern: ${e.concern}',
+            category: _categoryLabel(cat),
+            requirementType: 'SSHER',
+            impactLevel: e.riskLevel,
+            likelihood: 'Medium',
+            mitigationStrategy: e.mitigation.isNotEmpty
+                ? e.mitigation
+                : 'Mitigation plan in progress — see SSHER Hub for details.',
+            discipline: e.department,
+            projectRole: e.teamMember,
+            owner: e.teamMember,
+            status: 'Open',
+          ));
+          existingRiskNames.add(riskName.trim().toLowerCase());
+        }
+      }
+      if (newRisks.isNotEmpty) {
+        final provider = ProjectDataHelper.getProvider(context);
+        final combined = [
+          ...provider.projectData.frontEndPlanning.riskRegisterItems,
+          ...newRisks,
+        ];
+        await ProjectDataHelper.updateAndSave(
+          context: context,
+          checkpoint: 'ssher_push_all_risks',
+          showSnackbar: false,
+          dataUpdater: (d) => d.copyWith(
+            frontEndPlanning:
+                d.frontEndPlanning.copyWith(riskRegisterItems: combined),
+          ),
+        );
+        riskPushed = newRisks.length;
+      }
+    } catch (e) {
+      debugPrint('PushAll: Risk Register step failed: $e');
+    }
+    controller.add(_PushAllProgress(
+      step: 2,
+      totalSteps: 4,
+      label: 'Risk Register: $riskPushed risk${riskPushed == 1 ? '' : 's'} pushed',
+      inProgress: false,
+    ));
+
+    // Step 3: Push to Schedule
+    controller.add(_PushAllProgress(
+      step: 3,
+      totalSteps: 4,
+      label: 'Pushing to Schedule…',
+      inProgress: true,
+    ));
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final existingTitles = projectData.scheduleActivities
+          .map((a) => a.title.trim().toLowerCase())
+          .toSet();
+      final milestoneStart =
+          projectData.frontEndPlanning.milestoneStartDate.trim();
+      DateTime startDate;
+      if (milestoneStart.isNotEmpty) {
+        startDate = DateTime.tryParse(milestoneStart) ?? DateTime.now();
+      } else {
+        startDate = DateTime.now().add(const Duration(days: 30));
+      }
+      final dueDate = startDate.add(const Duration(days: 5));
+      String fmt(DateTime d) =>
+          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+      final newActivities = <ScheduleActivity>[];
+      for (final e in _allEntries()) {
+        final title = 'SSHER ${e.category}: ${e.concern}'.trim().toLowerCase();
+        if (existingTitles.contains(title)) continue;
+        newActivities.add(ScheduleActivity(
+          title: 'SSHER ${e.category}: ${e.concern}',
+          durationDays: 5,
+          isMilestone: false,
+          status: 'pending',
+          priority: e.riskLevel.toLowerCase() == 'high'
+              ? 'high'
+              : e.riskLevel.toLowerCase() == 'medium'
+                  ? 'medium'
+                  : 'low',
+          assignee: e.teamMember,
+          discipline: e.department,
+          progress: 0,
+          startDate: fmt(startDate),
+          dueDate: fmt(dueDate),
+          phase: 'execution',
+          estimatingBasis:
+              'Auto-created via Push All Integrations. Mitigation: ${e.mitigation}',
+        ));
+        existingTitles.add(title);
+      }
+      if (newActivities.isNotEmpty) {
+        final combined = [
+          ...projectData.scheduleActivities,
+          ...newActivities,
+        ];
+        await ProjectDataHelper.updateAndSave(
+          context: context,
+          checkpoint: 'ssher_push_all_schedule',
+          showSnackbar: false,
+          dataUpdater: (d) => d.copyWith(scheduleActivities: combined),
+        );
+        schedulePushed = newActivities.length;
+      }
+    } catch (e) {
+      debugPrint('PushAll: Schedule step failed: $e');
+    }
+    controller.add(_PushAllProgress(
+      step: 3,
+      totalSteps: 4,
+      label: 'Schedule: $schedulePushed activit${schedulePushed == 1 ? 'y' : 'ies'} pushed',
+      inProgress: false,
+    ));
+
+    // Step 4: Add All Requirements
+    controller.add(_PushAllProgress(
+      step: 4,
+      totalSteps: 4,
+      label: 'Adding Requirements…',
+      inProgress: true,
+    ));
+    try {
+      final gaps = _computeRequirementsGaps();
+      if (gaps.isNotEmpty) {
+        final projectData = ProjectDataHelper.getData(context);
+        final reqs = List<RequirementItem>.from(
+            projectData.frontEndPlanning.requirementItems);
+        final existingDescs = reqs
+            .map((r) => r.description.trim().toLowerCase())
+            .toSet();
+        for (final gap in gaps) {
+          final desc = (gap['proposedDescription'] as String).trim();
+          if (existingDescs.contains(desc.toLowerCase())) continue;
+          reqs.add(RequirementItem(
+            description: desc,
+            requirementType:
+                (gap['proposedType'] as String?) ?? 'Regulatory',
+            discipline: (gap['proposedDiscipline'] as String?) ?? '',
+            role: (gap['proposedRole'] as String?) ?? '',
+            requirementSource: 'SSHER Hub Push All Integrations',
+            comments: 'Auto-suggested from SSHER ${gap['category']} item.',
+          ));
+          existingDescs.add(desc.toLowerCase());
+          reqsPushed++;
+        }
+        if (reqsPushed > 0) {
+          await ProjectDataHelper.updateAndSave(
+            context: context,
+            checkpoint: 'ssher_push_all_reqs',
+            showSnackbar: false,
+            dataUpdater: (d) => d.copyWith(
+              frontEndPlanning:
+                  d.frontEndPlanning.copyWith(requirementItems: reqs),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('PushAll: Requirements step failed: $e');
+    }
+    controller.add(_PushAllProgress(
+      step: 4,
+      totalSteps: 4,
+      label: 'Requirements: $reqsPushed added',
+      inProgress: false,
+      done: true,
+    ));
+
+    return _PushAllResult(
+      costEstimatePushed: costPushed,
+      riskRegisterPushed: riskPushed,
+      schedulePushed: schedulePushed,
+      requirementsPushed: reqsPushed,
+    );
+  }
+
   // ── Cross-Discipline Integration: Export Cost Summary as CSV ──
   Future<void> _downloadCostSummaryCsv() async {
     final allEntries = _allEntries();
@@ -4709,6 +5273,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 class _ExpandableSsherRow extends StatefulWidget {
   final SsherEntry entry;
   final Color accent;
+  final Map<String, bool> syncStatus;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onAddLog;
@@ -4725,6 +5290,7 @@ class _ExpandableSsherRow extends StatefulWidget {
   const _ExpandableSsherRow({
     required this.entry,
     required this.accent,
+    required this.syncStatus,
     required this.onEdit,
     required this.onDelete,
     required this.onAddLog,
@@ -4919,31 +5485,8 @@ class _ExpandableSsherRowState extends State<_ExpandableSsherRow> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Integrations
-                SizedBox(
-                  width: 90,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.link,
-                          size: 12,
-                          color: integrationCount > 0
-                              ? accent
-                              : _Palette.outline),
-                      const SizedBox(width: 4),
-                      Text(
-                        '$integrationCount',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: integrationCount > 0
-                              ? accent
-                              : _Palette.outline,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                // Sync Status (Cost / Risk / Schedule / Requirements)
+                _buildSyncStatusChips(),
                 const SizedBox(width: 12),
                 // Actions (edit + delete)
                 SizedBox(
@@ -5465,6 +6008,57 @@ class _ExpandableSsherRowState extends State<_ExpandableSsherRow> {
       ),
     );
   }
+
+  /// Builds the sync-status chip cluster for the row. Shows 4 mini icons
+  /// (Cost / Risk / Schedule / Requirements), each filled in green when the
+  /// entry has been pushed to that target, outline gray when not.
+  Widget _buildSyncStatusChips() {
+    final status = widget.syncStatus;
+    final chips = <Widget>[];
+    final entries = [
+      ('costEstimate', Icons.attach_money, 'CE'),
+      ('riskRegister', Icons.warning_amber, 'RR'),
+      ('schedule', Icons.event, 'SC'),
+      ('requirements', Icons.fact_check_outlined, 'RQ'),
+    ];
+    for (final entry in entries) {
+      final key = entry.$1;
+      final icon = entry.$2;
+      final label = entry.$3;
+      final pushed = status[key] == true;
+      chips.add(_syncChip(icon, label, pushed));
+      chips.add(const SizedBox(width: 4));
+    }
+    if (chips.isNotEmpty) chips.removeLast();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: chips,
+    );
+  }
+
+  Widget _syncChip(IconData icon, String label, bool pushed) {
+    final color = pushed ? const Color(0xFF047857) : _Palette.outline;
+    final bg = pushed
+        ? const Color(0xFFECFDF5)
+        : _Palette.surfaceContainerLow;
+    final border = pushed
+        ? const Color(0xFFA7F3D0)
+        : _Palette.surfaceVariant;
+    return Tooltip(
+      message: pushed
+          ? 'Pushed to $label'
+          : 'Not yet pushed to $label',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(3),
+          border: Border.all(color: border),
+        ),
+        child: Icon(icon, size: 12, color: color),
+      ),
+    );
+  }
 }
 
 // ── Scale-on-tap widget for press effect ──
@@ -5521,3 +6115,203 @@ class _CostEstimateRoutePlaceholder extends StatelessWidget {
     return const CostEstimateModuleScreen();
   }
 }
+
+/// Progress update emitted by `_pushAllIntegrations` while running.
+class _PushAllProgress {
+  final int step;
+  final int totalSteps;
+  final String label;
+  final bool inProgress;
+  final bool done;
+
+  const _PushAllProgress({
+    required this.step,
+    required this.totalSteps,
+    required this.label,
+    required this.inProgress,
+    this.done = false,
+  });
+}
+
+/// Final result of `_pushAllIntegrations`.
+class _PushAllResult {
+  final int costEstimatePushed;
+  final int riskRegisterPushed;
+  final int schedulePushed;
+  final int requirementsPushed;
+
+  const _PushAllResult({
+    required this.costEstimatePushed,
+    required this.riskRegisterPushed,
+    required this.schedulePushed,
+    required this.requirementsPushed,
+  });
+}
+
+/// Modal dialog that streams `_PushAllProgress` updates and dismisses itself
+/// when the `done` flag is set on a progress event.
+class _PushAllProgressDialog extends StatefulWidget {
+  final Stream<_PushAllProgress> progressStream;
+
+  const _PushAllProgressDialog({required this.progressStream});
+
+  @override
+  State<_PushAllProgressDialog> createState() => _PushAllProgressDialogState();
+}
+
+class _PushAllProgressDialogState extends State<_PushAllProgressDialog> {
+  final List<_PushAllProgress> _steps = [];
+  final Set<int> _completedSteps = {};
+
+  @override
+  void initState() {
+    super.initState();
+    widget.progressStream.listen((p) {
+      if (!mounted) return;
+      setState(() {
+        // Replace any existing entry for this step, else append
+        final idx = _steps.indexWhere((s) => s.step == p.step);
+        if (idx >= 0) {
+          _steps[idx] = p;
+        } else {
+          _steps.add(p);
+        }
+        if (!p.inProgress) _completedSteps.add(p.step);
+      });
+      if (p.done) {
+        // Give the user a brief moment to see "Done" state, then close
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) Navigator.of(context).pop();
+        });
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.bolt, color: _Palette.primary, size: 22),
+          const SizedBox(width: 10),
+          const Text('Push All Integrations'),
+          const Spacer(),
+          if (_completedSteps.length == 4)
+            const Icon(Icons.check_circle,
+                color: Color(0xFF047857), size: 22),
+        ],
+      ),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (int i = 1; i <= 4; i++) _stepRow(i),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: _completedSteps.length / 4,
+              backgroundColor: _Palette.surfaceContainerLow,
+              valueColor: const AlwaysStoppedAnimation<Color>(_Palette.primary),
+              minHeight: 6,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _completedSteps.length == 4
+                  ? 'All integrations complete.'
+                  : 'Running step ${_completedSteps.length + 1} of 4…',
+              style: const TextStyle(
+                  fontSize: 12, color: _Palette.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _completedSteps.length == 4
+              ? () => Navigator.of(context).pop()
+              : null,
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _stepRow(int stepNumber) {
+    final labels = {
+      1: 'Push to Cost Estimate',
+      2: 'Push to Risk Register',
+      3: 'Push to Schedule',
+      4: 'Add All Requirements',
+    };
+    final progress = _steps.where((s) => s.step == stepNumber).toList();
+    final hasProgress = progress.isNotEmpty;
+    final latest = hasProgress ? progress.last : null;
+    final isCompleted = _completedSteps.contains(stepNumber);
+    final isInProgress = latest?.inProgress == true;
+
+    Widget icon;
+    Color iconColor;
+    if (isCompleted) {
+      icon = const Icon(Icons.check_circle, size: 18);
+      iconColor = const Color(0xFF047857);
+    } else if (isInProgress) {
+      icon = const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+      iconColor = _Palette.primary;
+    } else {
+      icon = const Icon(Icons.radio_button_unchecked, size: 18);
+      iconColor = _Palette.outline;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          icon,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  labels[stepNumber] ?? 'Step $stepNumber',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: isCompleted || isInProgress
+                        ? _Palette.onBackground
+                        : _Palette.outline,
+                  ),
+                ),
+                if (hasProgress && latest!.label.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    latest.label,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isCompleted
+                          ? const Color(0xFF047857)
+                          : _Palette.onSurfaceVariant,
+                      fontStyle: isCompleted
+                          ? FontStyle.normal
+                          : FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (isCompleted)
+            const Icon(Icons.check, size: 14, color: Color(0xFF047857)),
+        ],
+      ),
+    );
+  }
+}
+

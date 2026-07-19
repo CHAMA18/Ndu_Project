@@ -7,11 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/screens/initiation_phase_screen.dart';
 import 'package:ndu_project/screens/project_activities_log_screen.dart';
+import 'package:ndu_project/screens/ssher_stacked_screen.dart';
 import 'package:ndu_project/services/dashboard_metrics_service.dart';
 import 'package:ndu_project/services/firebase_auth_service.dart';
 import 'package:ndu_project/services/navigation_context_service.dart';
 import 'package:ndu_project/services/project_navigation_service.dart';
 import 'package:ndu_project/services/project_service.dart';
+import 'package:ndu_project/services/project_ssher_rollup_service.dart';
 import 'package:ndu_project/utils/navigation_route_resolver.dart';
 import 'package:ndu_project/widgets/app_logo.dart';
 import 'package:ndu_project/widgets/compact_action_button.dart';
@@ -48,6 +50,7 @@ class _ProjectWorkspaceDashboardScreenState
   DashboardMetrics? _metrics;
   bool _loading = true;
   String? _error;
+  SsherPortfolioRollup? _ssherRollup;
   final TextEditingController _updateController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -117,9 +120,28 @@ class _ProjectWorkspaceDashboardScreenState
     }
     try {
       final metrics = await DashboardMetricsService.load();
+      // Kick off SSHER rollup load in parallel (best-effort — failures don't
+      // break the dashboard, they just leave the SSHER card empty).
+      final user = FirebaseAuth.instance.currentUser;
+      SsherPortfolioRollup? ssherRollup;
+      try {
+        if (user != null) {
+          final projects = await ProjectService.streamProjects(
+            ownerId: user.uid,
+            filterByOwner: true,
+            limit: 200,
+          ).first.timeout(const Duration(seconds: 10));
+          final ids = projects.map((p) => p.id).toList();
+          ssherRollup = await ProjectSsherRollupService.loadForProjects(ids);
+        }
+      } catch (e) {
+        // Best-effort: log and move on with null rollup.
+        ssherRollup = null;
+      }
       if (mounted) {
         setState(() {
           _metrics = metrics;
+          _ssherRollup = ssherRollup;
           _loading = false;
         });
       }
@@ -296,6 +318,8 @@ class _ProjectWorkspaceDashboardScreenState
                       rollup: primaryRollup,
                       assigned: assigned,
                       pastDue: pastDue),
+                  const SizedBox(height: 20),
+                  _buildSsherPortfolioCard(projects),
                   const SizedBox(height: 20),
                   _buildFooter(),
                 ],
@@ -1321,6 +1345,313 @@ class _ProjectWorkspaceDashboardScreenState
                 color: accent,
                 letterSpacing: 0.3)),
       );
+
+  // ── SSHER Portfolio Cost Burden Card (multi-project rollup) ─────────────
+  Widget _buildSsherPortfolioCard(List<ProjectRecord> projects) {
+    final rollup = _ssherRollup;
+    final hasData = rollup != null && rollup.totalItems > 0;
+    final projectsWithSsher = rollup?.projectsWithSsher ?? 0;
+    final totalProjects = projects.length;
+
+    return _sectionCard(
+      title: 'SSHER Cost Burden — All Projects',
+      subtitle:
+          'Aggregated Safety, Security, Health, Environment & Regulatory obligations across your $totalProjects ${totalProjects == 1 ? 'project' : 'projects'}.',
+      headerTrailing: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: hasData ? _goldSoft : _surfaceHigh,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: hasData ? _gold : _outline),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.health_and_safety_rounded,
+                size: 14, color: hasData ? _gold : _muted),
+            const SizedBox(width: 6),
+            Text(
+              hasData ? '$projectsWithSsher/$totalProjects active' : 'No data',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: hasData ? _gold : _muted,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: !hasData
+          ? _buildEmptySsherPortfolio()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Grand total + summary row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Total SSHER Cost (All Projects)',
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _muted)),
+                          const SizedBox(height: 4),
+                          Text(
+                            _formatMoney(rollup!.grandTotal / 1000000),
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: _ink,
+                              letterSpacing: -0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _ssherPortfolioMiniRow(
+                              'Items with cost', '${rollup.totalItems}', _slate),
+                          const SizedBox(height: 6),
+                          _ssherPortfolioMiniRow(
+                              'High-risk items', '${rollup.totalHighRisk}', _crimson),
+                          const SizedBox(height: 6),
+                          _ssherPortfolioMiniRow('Projects with SSHER',
+                              '$projectsWithSsher / $totalProjects', _emerald),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                // Cost by category (aggregate across all projects)
+                const Text('Cost by Category (All Projects)',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _muted)),
+                const SizedBox(height: 8),
+                ...['safety', 'security', 'health', 'environment', 'regulatory']
+                    .map((cat) {
+                  final total = rollup.costByCategory[cat] ?? 0.0;
+                  final pct = rollup.grandTotal > 0
+                      ? (total / rollup.grandTotal * 100).clamp(0, 100)
+                      : 0.0;
+                  final color = _ssherPortfolioCategoryColor(cat);
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 90,
+                          child: Text(
+                            cat[0].toUpperCase() + cat.substring(1),
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: _muted),
+                          ),
+                        ),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: pct / 100,
+                              backgroundColor: _surfaceHigh,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(color),
+                              minHeight: 10,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            _formatMoney(total / 1000000),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: _ink),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
+                // Top projects by SSHER cost (top 5)
+                const Text('Top Projects by SSHER Cost',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _muted)),
+                const SizedBox(height: 8),
+                ...(rollup.projects
+                        .where((p) => p.hasSsherData)
+                        .toList()
+                      ..sort((a, b) => b.totalCost.compareTo(a.totalCost)))
+                    .take(5)
+                    .map((p) {
+                  final pct = rollup.grandTotal > 0
+                      ? (p.totalCost / rollup.grandTotal * 100).clamp(0, 100)
+                      : 0.0;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            p.projectName.isNotEmpty
+                                ? p.projectName
+                                : 'Untitled project',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: _inkSoft),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(
+                          width: 60,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: pct / 100,
+                              backgroundColor: _surfaceHigh,
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                  _accent),
+                              minHeight: 8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 80,
+                          child: Text(
+                            _formatMoney(p.totalCost / 1000000),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: _ink),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 12),
+                // CTA: open SSHER Hub for the primary project
+                if (projects.isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => _openProject(projects.first),
+                      icon: const Icon(Icons.open_in_new, size: 14),
+                      label: const Text('Open Primary Project SSHER Hub'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: _slate,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildEmptySsherPortfolio() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _outline),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _surfaceHigh,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.health_and_safety_outlined,
+                color: _muted, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('No SSHER items recorded yet',
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _ink)),
+                SizedBox(height: 4),
+                Text(
+                    'Open a project and visit the SSHER Hub to plan Safety, Security, Health, Environment, and Regulatory obligations. Cost data will roll up here automatically.',
+                    style: TextStyle(fontSize: 12, color: _muted, height: 1.4)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ssherPortfolioMiniRow(String label, String value, Color color) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Text(label,
+                style: const TextStyle(fontSize: 12, color: _muted)),
+          ],
+        ),
+        Text(value,
+            style: TextStyle(
+                fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+      ],
+    );
+  }
+
+  Color _ssherPortfolioCategoryColor(String category) {
+    switch (category) {
+      case 'safety':
+        return const Color(0xFF34A853);
+      case 'security':
+        return const Color(0xFFEF5350);
+      case 'health':
+        return const Color(0xFF1E88E5);
+      case 'environment':
+        return const Color(0xFF2E7D32);
+      case 'regulatory':
+        return const Color(0xFF8E24AA);
+      default:
+        return _muted;
+    }
+  }
 
   // ── Footer / banner / empty / snack ─────────────────────────────────────
   Widget _buildFooter() {
