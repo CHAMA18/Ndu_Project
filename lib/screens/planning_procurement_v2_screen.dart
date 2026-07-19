@@ -10,6 +10,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
 import 'package:ndu_project/services/contract_service.dart'
  as planning_contracts;
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/services/planning_contracting_service.dart';
 import 'package:ndu_project/services/procurement_seeding_service.dart';
@@ -949,28 +950,35 @@ class _PlanningProcurementV2ScreenState
  );
  }
 
- void _removeVendor(String vendorId) async {
- try {
- await VendorService.deleteVendor(
- projectId: _projectId, vendorId: vendorId);
- if (mounted) {
- setState(() {
- _vendors.removeWhere((vendor) => vendor.id == vendorId);
- _selectedVendorIds.remove(vendorId);
- _recomputeDerivedProcurementData();
- });
- }
- } catch (e) {
- if (mounted) {
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(
- content: Text('Unable to remove vendor: $e'),
- backgroundColor: Colors.red,
- ),
- );
- }
- }
- }
+  Future<void> _removeVendor(String vendorId) async {
+  final vendor = _vendors.where((v) => v.id == vendorId).firstOrNull;
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Remove Vendor',
+    itemLabel: vendor?.name,
+  );
+  if (!confirmed) return;
+  try {
+  await VendorService.deleteVendor(
+  projectId: _projectId, vendorId: vendorId);
+  if (mounted) {
+  setState(() {
+  _vendors.removeWhere((vendor) => vendor.id == vendorId);
+  _selectedVendorIds.remove(vendorId);
+  _recomputeDerivedProcurementData();
+  });
+  }
+  } catch (e) {
+  if (mounted) {
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: Text('Unable to remove vendor: $e'),
+  backgroundColor: Colors.red,
+  ),
+  );
+  }
+  }
+  }
 
  Widget _buildTimelineTab() {
  return _SectionCard(
@@ -1883,12 +1891,19 @@ class _PlanningProcurementV2ScreenState
  });
  }
 
- void _deleteWorkflowStepFromDraft(String stepId) {
- setState(() {
- _workflowDraftSteps =
- _workflowDraftSteps.where((step) => step.id != stepId).toList();
- });
- }
+  Future<void> _deleteWorkflowStepFromDraft(String stepId) async {
+  final step = _workflowDraftSteps.where((s) => s.id == stepId).firstOrNull;
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Workflow Step',
+    itemLabel: step?.name,
+  );
+  if (!confirmed) return;
+  setState(() {
+  _workflowDraftSteps =
+  _workflowDraftSteps.where((step) => step.id != stepId).toList();
+  });
+  }
 
  void _moveWorkflowStepInDraft(int index, int direction) {
  final target = index + direction;

@@ -6,6 +6,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 /// World-class Vendor Scorecard Table
 /// Professional design with rich data visualization, inline editing, and AI capabilities
@@ -945,6 +946,12 @@ class _ActionsCellState extends State<_ActionsCell> {
   }
 
   Future<void> _deleteVendor() async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Vendor',
+      itemLabel: widget.vendor.name,
+    );
+    if (!confirmed) return;
     final deleted = widget.vendor;
 
     try {

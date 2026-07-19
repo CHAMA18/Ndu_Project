@@ -23,6 +23,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class ContractsTrackingScreen extends StatefulWidget {
  const ContractsTrackingScreen({super.key});
 
@@ -949,21 +950,27 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
  }
 
- Future<void> _deleteContract(ContractModel contract) async {
- final projectId = _projectId;
- if (projectId == null) return;
+  Future<void> _deleteContract(ContractModel contract) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Contract',
+      itemLabel: contract.name,
+    );
+    if (!confirmed) return;
+    final projectId = _projectId;
+    if (projectId == null) return;
 
- try {
- await ContractService.deleteContract(
- projectId: projectId,
- contractId: contract.id,
- );
- // Sync to Progress Tracking budget (remove value)
- await _syncContractValueToBudget(contract, isDelete: true);
- } catch (e) {
- debugPrint('Error deleting contract: $e');
- }
- }
+    try {
+      await ContractService.deleteContract(
+        projectId: projectId,
+        contractId: contract.id,
+      );
+      // Sync to Progress Tracking budget (remove value)
+      await _syncContractValueToBudget(contract, isDelete: true);
+    } catch (e) {
+      debugPrint('Error deleting contract: $e');
+    }
+  }
 
  // ignore: unused_element
  Future<void> _restoreContract(ContractModel contract) async {

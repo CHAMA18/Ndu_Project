@@ -31,6 +31,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/services/integrated_work_package_service.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 const Color _kSurface = Colors.white;
 const Color _kBorder = Color(0xFFE5E7EB);
@@ -2160,10 +2161,16 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  availableSpecifications: specificationOptions,
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.requirements.removeAt(i));
- _queueSave();
- },
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Requirement Mapping',
+    itemLabel: _document.requirements[i].requirementText,
+  );
+  if (!confirmed) return;
+  setState(() => _document.requirements.removeAt(i));
+  _queueSave();
+  },
  ),
  if (i != _document.requirements.length - 1)
  const SizedBox(height: 12),
@@ -2301,12 +2308,18 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.modules[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.modules.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.modules.length - 1) const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Module',
+    itemLabel: _document.modules[i].name,
+  );
+  if (!confirmed) return;
+  setState(() => _document.modules.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.modules.length - 1) const SizedBox(height: 12),
  ],
  ],
  ),
@@ -2506,14 +2519,20 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  onUpload: () => _uploadSpecificationArtifact(
  _document.specifications[i].id,
  ),
- onRemove: () {
- final removedId = _document.specifications[i].id;
- setState(() {
- _document.specifications.removeAt(i);
- _specificationRowKeys.remove(removedId);
- });
- _queueSave();
- },
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Specification',
+    itemLabel: _document.specifications[i].title,
+  );
+  if (!confirmed) return;
+  final removedId = _document.specifications[i].id;
+  setState(() {
+  _document.specifications.removeAt(i);
+  _specificationRowKeys.remove(removedId);
+  });
+  _queueSave();
+  },
  ),
  ),
  if (i != _document.specifications.length - 1)
@@ -2545,14 +2564,20 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  onUpload: () => _uploadSpecificationDocument(
  _document.specificationDocuments[i].id,
  ),
- onRemove: () {
- setState(() =>
- _document.specificationDocuments.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.specificationDocuments.length - 1)
- const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Reference Document',
+    itemLabel: _document.specificationDocuments[i].title,
+  );
+  if (!confirmed) return;
+  setState(() =>
+  _document.specificationDocuments.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.specificationDocuments.length - 1)
+  const SizedBox(height: 12),
  ],
  if (_document.specificationDocuments.isEmpty)
  const _EmptyState(
@@ -2603,13 +2628,19 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.deviations[i],
  specificationOptions: specificationOptions,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.deviations.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.deviations.length - 1)
- const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Deviation',
+    itemLabel: _document.deviations[i].description,
+  );
+  if (!confirmed) return;
+  setState(() => _document.deviations.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.deviations.length - 1)
+  const SizedBox(height: 12),
  ],
  if (_document.deviations.isEmpty)
  const _EmptyState(
@@ -2674,12 +2705,18 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.journeys[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.journeys.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.journeys.length - 1) const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete User Journey',
+    itemLabel: _document.journeys[i].name,
+  );
+  if (!confirmed) return;
+  setState(() => _document.journeys.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.journeys.length - 1) const SizedBox(height: 12),
  ],
  const SizedBox(height: 14),
  _SubHeader(
@@ -2698,13 +2735,19 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.interfaces[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.interfaces.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.interfaces.length - 1)
- const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Interface',
+    itemLabel: _document.interfaces[i].name,
+  );
+  if (!confirmed) return;
+  setState(() => _document.interfaces.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.interfaces.length - 1)
+  const SizedBox(height: 12),
  ],
  ],
  ),
@@ -2774,13 +2817,19 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.integrations[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.integrations.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.integrations.length - 1)
- const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Integration',
+    itemLabel: _document.integrations[i].name,
+  );
+  if (!confirmed) return;
+  setState(() => _document.integrations.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.integrations.length - 1)
+  const SizedBox(height: 12),
  ],
  ],
  ),
@@ -2842,14 +2891,20 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  _queueSave();
  _syncDesignRiskToRegister(_document.risks[i]);
  },
- onRemove: () {
- final removed = _document.risks[i];
- setState(() => _document.risks.removeAt(i));
- _queueSave();
- _removeDesignRiskFromRegister(removed);
- },
- ),
- if (i != _document.risks.length - 1) const SizedBox(height: 12),
+  onRemove: () async {
+  final removed = _document.risks[i];
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Risk',
+    itemLabel: removed.risk,
+  );
+  if (!confirmed) return;
+  setState(() => _document.risks.removeAt(i));
+  _queueSave();
+  _removeDesignRiskFromRegister(removed);
+  },
+  ),
+  if (i != _document.risks.length - 1) const SizedBox(height: 12),
  ],
  if (_document.risks.isEmpty)
  const _EmptyState(
@@ -2930,13 +2985,19 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.dependencies[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.dependencies.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.dependencies.length - 1)
- const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Dependency',
+    itemLabel: _document.dependencies[i].name,
+  );
+  if (!confirmed) return;
+  setState(() => _document.dependencies.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.dependencies.length - 1)
+  const SizedBox(height: 12),
  ],
  ],
  ),
@@ -2968,12 +3029,18 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.decisions[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.decisions.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.decisions.length - 1) const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Decision',
+    itemLabel: _document.decisions[i].decision,
+  );
+  if (!confirmed) return;
+  setState(() => _document.decisions.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.decisions.length - 1) const SizedBox(height: 12),
  ],
  ],
  ),
@@ -3049,12 +3116,18 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  data: _document.approvals[i],
  owners: owners,
  onChanged: _queueSave,
- onRemove: () {
- setState(() => _document.approvals.removeAt(i));
- _queueSave();
- },
- ),
- if (i != _document.approvals.length - 1) const SizedBox(height: 12),
+  onRemove: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Approval',
+    itemLabel: _document.approvals[i].reviewer,
+  );
+  if (!confirmed) return;
+  setState(() => _document.approvals.removeAt(i));
+  _queueSave();
+  },
+  ),
+  if (i != _document.approvals.length - 1) const SizedBox(height: 12),
  ],
  ],
  ),

@@ -26,6 +26,7 @@ import 'package:ndu_project/widgets/schedule_gantt_enhanced.dart';
 import 'package:ndu_project/widgets/work_package_dialog.dart';
 import 'package:ndu_project/widgets/work_package_detail.dart';
 
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 
@@ -1176,7 +1177,15 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         .toList();
   }
 
-  void _deleteTask(String id) {
+  Future<void> _deleteTask(String id) async {
+    final row = _activityRows.where((r) => r.id == id).firstOrNull;
+    final label = row?.titleController.text.trim();
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Task',
+      itemLabel: (label != null && label.isNotEmpty) ? label : null,
+    );
+    if (!confirmed) return;
     setState(() {
       final index = _activityRows.indexWhere((row) => row.id == id);
       if (index != -1) {

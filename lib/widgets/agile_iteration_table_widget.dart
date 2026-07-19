@@ -7,6 +7,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 /// Custom Agile Iteration Table with inline editing, CRUD actions, and AI capabilities
 class AgileIterationTableWidget extends StatelessWidget {
@@ -418,7 +419,13 @@ class _AgileTaskRowWidgetState extends State<_AgileTaskRowWidget> {
     }
   }
 
-  void _deleteTask(AgileTask task) {
+  Future<void> _deleteTask(AgileTask task) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Task',
+      itemLabel: task.userStory,
+    );
+    if (!confirmed) return;
     final projectId =
         ProjectDataInherited.maybeOf(context)?.projectData.projectId;
     if (projectId == null) return;

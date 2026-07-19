@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:vector_math/vector_math_64.dart' as vm;
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 // ─── Data Models ────────────────────────────────────────────────────────────
 
@@ -235,9 +236,17 @@ class _ArchitectureCanvasState extends State<ArchitectureCanvas> {
     _openNodeEditor(node);
   }
 
-  void _deleteSelectedNode() {
+  Future<void> _deleteSelectedNode() async {
     final id = _selectedNodeId;
     if (id == null) return;
+    final node = widget.nodes.firstWhere((n) => n.id == id,
+        orElse: () => widget.nodes.first);
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Component',
+      itemLabel: node.label,
+    );
+    if (!confirmed) return;
     final newNodes = widget.nodes.where((e) => e.id != id).toList();
     final newEdges =
         widget.edges.where((e) => e.fromId != id && e.toId != id).toList();

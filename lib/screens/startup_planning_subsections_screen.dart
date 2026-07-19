@@ -21,6 +21,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 class StartUpPlanningOperationsScreen extends StatelessWidget {
  const StartUpPlanningOperationsScreen({super.key});
@@ -251,14 +252,20 @@ class _StartUpPlanningDetailScreenState
  }
  }
 
- Future<void> _removeAttachment(_AttachmentMeta attachment) async {
- setState(() {
- _state.attachments = [
- for (final item in _state.attachments)
- if (item.id != attachment.id) item,
- ];
- });
- _scheduleSave();
+Future<void> _removeAttachment(_AttachmentMeta attachment) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Delete Attachment',
+  itemLabel: attachment.name,
+  );
+  if (!confirmed) return;
+  setState(() {
+  _state.attachments = [
+  for (final item in _state.attachments)
+  if (item.id != attachment.id) item,
+  ];
+  });
+  _scheduleSave();
  if (attachment.storagePath.trim().isEmpty) return;
  try {
  await FirebaseStorage.instance.ref(attachment.storagePath).delete();

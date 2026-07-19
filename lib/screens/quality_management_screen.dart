@@ -24,6 +24,7 @@ import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 enum _QualityTab { plan, objectives, inspection, audit, metrics, coq }
@@ -1539,20 +1540,25 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  );
  }
 
- Future<void> _removeStandard(int index) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'Standard removed',
- updater: (current) {
- final updated = List<QualityStandard>.from(current.standards);
- if (index >= 0 && index < updated.length) {
- updated.removeAt(index);
- }
- return current.copyWith(standards: updated);
- },
- );
- }
+  Future<void> _removeStandard(int index) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove Standard',
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'Standard removed',
+  updater: (current) {
+  final updated = List<QualityStandard>.from(current.standards);
+  if (index >= 0 && index < updated.length) {
+  updated.removeAt(index);
+  }
+  return current.copyWith(standards: updated);
+  },
+  );
+  }
 
  Future<void> _addChangeLog() async {
  final result = await showDialog<QualityChangeEntry>(
@@ -1597,20 +1603,25 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  );
  }
 
- Future<void> _removeChangeLog(int index) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'Change log entry removed',
- updater: (current) {
- final updated = List<QualityChangeEntry>.from(current.qualityChangeLog);
- if (index >= 0 && index < updated.length) {
- updated.removeAt(index);
- }
- return current.copyWith(qualityChangeLog: updated);
- },
- );
- }
+  Future<void> _removeChangeLog(int index) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove Change Log Entry',
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'Change log entry removed',
+  updater: (current) {
+  final updated = List<QualityChangeEntry>.from(current.qualityChangeLog);
+  if (index >= 0 && index < updated.length) {
+  updated.removeAt(index);
+  }
+  return current.copyWith(qualityChangeLog: updated);
+  },
+  );
+  }
 
  @override
  Widget build(BuildContext context) {
@@ -1827,18 +1838,23 @@ class _ObjectivesViewState extends State<_ObjectivesView> {
  );
  }
 
- Future<void> _removeObjective(int index) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'Objective removed',
- updater: (current) {
- final updated = List<QualityObjective>.from(current.objectives);
- if (index >= 0 && index < updated.length) updated.removeAt(index);
- return current.copyWith(objectives: updated);
- },
- );
- }
+  Future<void> _removeObjective(int index) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove Objective',
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'Objective removed',
+  updater: (current) {
+  final updated = List<QualityObjective>.from(current.objectives);
+  if (index >= 0 && index < updated.length) updated.removeAt(index);
+  return current.copyWith(objectives: updated);
+  },
+  );
+  }
 
  @override
  Widget build(BuildContext context) {
@@ -1930,19 +1946,25 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
  );
  }
 
- Future<void> _removeWorkflowControl(QualityWorkflowControl control) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'QA control removed',
- updater: (current) {
- final updated =
- List<QualityWorkflowControl>.from(current.workflowControls)
- ..removeWhere((e) => e.id == control.id);
- return current.copyWith(workflowControls: updated);
- },
- );
- }
+  Future<void> _removeWorkflowControl(QualityWorkflowControl control) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove QA Control',
+  itemLabel: control.name,
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'QA control removed',
+  updater: (current) {
+  final updated =
+  List<QualityWorkflowControl>.from(current.workflowControls)
+  ..removeWhere((e) => e.id == control.id);
+  return current.copyWith(workflowControls: updated);
+  },
+  );
+  }
 
  Future<void> _addTask() async {
  final result = await showDialog<QualityTaskEntry>(
@@ -1988,18 +2010,24 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
  );
  }
 
- Future<void> _removeTask(QualityTaskEntry task) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'QA task removed',
- updater: (current) {
- final updated = List<QualityTaskEntry>.from(current.qaTaskLog)
- ..removeWhere((e) => e.id == task.id);
- return current.copyWith(qaTaskLog: updated);
- },
- );
- }
+  Future<void> _removeTask(QualityTaskEntry task) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove QA Task',
+  itemLabel: task.task,
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'QA task removed',
+  updater: (current) {
+  final updated = List<QualityTaskEntry>.from(current.qaTaskLog)
+  ..removeWhere((e) => e.id == task.id);
+  return current.copyWith(qaTaskLog: updated);
+  },
+  );
+  }
 
  @override
  Widget build(BuildContext context) {
@@ -2126,11 +2154,17 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
  );
  }
 
- Future<void> _removeWorkflowControl(QualityWorkflowControl control) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'QC control removed',
+  Future<void> _removeWorkflowControl(QualityWorkflowControl control) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove QC Control',
+  itemLabel: control.name,
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'QC control removed',
  updater: (current) {
  final updated =
  List<QualityWorkflowControl>.from(current.workflowControls)
@@ -2184,11 +2218,17 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
  );
  }
 
- Future<void> _removeTask(QualityTaskEntry task) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'QC task removed',
+  Future<void> _removeTask(QualityTaskEntry task) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove QC Task',
+  itemLabel: task.task,
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'QC task removed',
  updater: (current) {
  final updated = List<QualityTaskEntry>.from(current.qcTaskLog)
  ..removeWhere((e) => e.id == task.id);
@@ -2241,11 +2281,17 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
  );
  }
 
- Future<void> _removeAudit(QualityAuditEntry audit) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'Audit entry removed',
+  Future<void> _removeAudit(QualityAuditEntry audit) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove Audit Entry',
+  itemLabel: audit.title,
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'Audit entry removed',
  updater: (current) {
  final updated = List<QualityAuditEntry>.from(current.auditPlan)
  ..removeWhere((e) => e.id == audit.id);
@@ -2306,11 +2352,17 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
  );
  }
 
- Future<void> _removeCorrectiveAction(CorrectiveActionEntry entry) async {
- await _updateQualityData(
- context,
- checkpoint: 'quality_management',
- successMessage: 'Corrective action removed',
+  Future<void> _removeCorrectiveAction(CorrectiveActionEntry entry) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Remove Corrective Action',
+  itemLabel: entry.title,
+  );
+  if (!confirmed) return;
+  await _updateQualityData(
+  context,
+  checkpoint: 'quality_management',
+  successMessage: 'Corrective action removed',
  updater: (current) {
  final updated =
  List<CorrectiveActionEntry>.from(current.correctiveActions)

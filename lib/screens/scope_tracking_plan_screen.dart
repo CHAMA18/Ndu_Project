@@ -17,6 +17,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/services/execution_phase_service.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/scope_tracking_table_widget.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:provider/provider.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
@@ -242,10 +243,12 @@ class _ScopeTrackingPlanScreenState extends State<ScopeTrackingPlanScreen> {
  _scheduleSave();
  }
 
- void _deleteItem(ScopeTrackingItem item) {
- setState(() => _items.removeWhere((i) => i.id == item.id));
- _scheduleSave();
- }
+  void _deleteItem(ScopeTrackingItem item) async {
+  final ok = await launchConfirmDelete(context, itemName: 'scope item');
+  if (!ok) return;
+  setState(() => _items.removeWhere((i) => i.id == item.id));
+  _scheduleSave();
+  }
 
  void _setBaseline() async {
  final projectId = _projectId;

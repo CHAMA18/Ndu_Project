@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 class RiskTrackingWorkspaceScreen extends StatefulWidget {
@@ -2941,35 +2942,51 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  );
  }
 
- void _deleteRisk(String id) {
- final removed = _risks.where((r) => r.id == id).firstOrNull;
- setState(() => _risks.removeWhere((r) => r.id == id));
- _saveToFirestore();
- // Sync to central register
- if (removed != null && removed.title.trim().isNotEmpty) {
-   unawaited(ProjectDataHelper.removeRiskFromRegister(
-     context: context,
-     sourceSection: 'Risk Tracking Workspace',
-     riskName: removed.title,
-   ));
-   unawaited(ProjectDataHelper.logActivityToCentral(
-     context: context,
-     sourceSection: 'Risk Tracking Workspace',
-     title: 'Risk deleted: ${removed.title}',
-     phase: 'Execution',
-   ));
- }
- }
+  Future<void> _deleteRisk(String id) async {
+  final removed = _risks.where((r) => r.id == id).firstOrNull;
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Delete Risk',
+  itemLabel: removed?.title,
+  );
+  if (!confirmed) return;
+  setState(() => _risks.removeWhere((r) => r.id == id));
+  _saveToFirestore();
+  // Sync to central register
+  if (removed != null && removed.title.trim().isNotEmpty) {
+    unawaited(ProjectDataHelper.removeRiskFromRegister(
+      context: context,
+      sourceSection: 'Risk Tracking Workspace',
+      riskName: removed.title,
+    ));
+    unawaited(ProjectDataHelper.logActivityToCentral(
+      context: context,
+      sourceSection: 'Risk Tracking Workspace',
+      title: 'Risk deleted: ${removed.title}',
+      phase: 'Execution',
+    ));
+  }
+  }
 
- void _deleteSignal(String id) {
- setState(() => _signals.removeWhere((s) => s.id == id));
- _saveToFirestore();
- }
+  Future<void> _deleteSignal(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Delete Risk Signal',
+  );
+  if (!confirmed) return;
+  setState(() => _signals.removeWhere((s) => s.id == id));
+  _saveToFirestore();
+  }
 
- void _deleteMitigation(String id) {
- setState(() => _mitigations.removeWhere((m) => m.id == id));
- _saveToFirestore();
- }
+  Future<void> _deleteMitigation(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Delete Mitigation Plan',
+  );
+  if (!confirmed) return;
+  setState(() => _mitigations.removeWhere((m) => m.id == id));
+  _saveToFirestore();
+  }
 
  Future<void> _exportPdf() async {
  final projectData = ProjectDataHelper.getData(context);

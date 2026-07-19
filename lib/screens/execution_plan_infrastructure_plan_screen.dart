@@ -10,6 +10,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
@@ -326,16 +327,25 @@ class _PlanningInfrastructureCostSectionState
  await provider.saveToFirebase(checkpoint: 'execution_infrastructure_plan');
  }
 
- Future<void> _deleteItem(String id) async {
- final provider = ProjectDataInherited.of(context);
- final current = List<InfrastructurePlanningItem>.from(
- provider.projectData.planningInfrastructureItems,
- )..removeWhere((item) => item.id == id);
- provider.updateField(
- (data) => data.copyWith(planningInfrastructureItems: current),
- );
- await provider.saveToFirebase(checkpoint: 'execution_infrastructure_plan');
- }
+  Future<void> _deleteItem(String id) async {
+  final provider = ProjectDataInherited.of(context);
+  final item = provider.projectData.planningInfrastructureItems
+      .where((i) => i.id == id)
+      .firstOrNull;
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Infrastructure Item',
+    itemLabel: item?.name,
+  );
+  if (!confirmed) return;
+  final current = List<InfrastructurePlanningItem>.from(
+  provider.projectData.planningInfrastructureItems,
+  )..removeWhere((item) => item.id == id);
+  provider.updateField(
+  (data) => data.copyWith(planningInfrastructureItems: current),
+  );
+  await provider.saveToFirebase(checkpoint: 'execution_infrastructure_plan');
+  }
 
  @override
  Widget build(BuildContext context) {

@@ -22,6 +22,7 @@ import 'package:ndu_project/utils/web_utils_stub.dart'
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:provider/provider.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
 import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
 import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
@@ -599,42 +600,30 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
   }
 
   Future<void> _deleteEntry(SsherEntry entry) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Item'),
-        content: const Text('Are you sure you want to delete this item?'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red))),
-        ],
-      ),
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete SSHER Item',
+      itemLabel: entry.concern,
     );
-
-    if (confirmed == true) {
-      setState(() {
-        if (entry.category == 'safety') {
-          _safetyEntries.removeWhere((e) => e.id == entry.id);
-        }
-        if (entry.category == 'security') {
-          _securityEntries.removeWhere((e) => e.id == entry.id);
-        }
-        if (entry.category == 'health') {
-          _healthEntries.removeWhere((e) => e.id == entry.id);
-        }
-        if (entry.category == 'environment') {
-          _environmentEntries.removeWhere((e) => e.id == entry.id);
-        }
-        if (entry.category == 'regulatory') {
-          _regulatoryEntries.removeWhere((e) => e.id == entry.id);
-        }
-      });
-      await _saveEntries();
-    }
+    if (!confirmed) return;
+    setState(() {
+      if (entry.category == 'safety') {
+        _safetyEntries.removeWhere((e) => e.id == entry.id);
+      }
+      if (entry.category == 'security') {
+        _securityEntries.removeWhere((e) => e.id == entry.id);
+      }
+      if (entry.category == 'health') {
+        _healthEntries.removeWhere((e) => e.id == entry.id);
+      }
+      if (entry.category == 'environment') {
+        _environmentEntries.removeWhere((e) => e.id == entry.id);
+      }
+      if (entry.category == 'regulatory') {
+        _regulatoryEntries.removeWhere((e) => e.id == entry.id);
+      }
+    });
+    await _saveEntries();
   }
 
   Future<void> _editEntry(SsherEntry entry) async {
@@ -2773,6 +2762,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
   }
 
   Future<void> _deleteLogFromEntry(SsherEntry entry, SsherLogEntry log) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Log Entry',
+      itemLabel: log.title,
+    );
+    if (!confirmed) return;
     setState(() {
       entry.logs.removeWhere((l) => l.id == log.id);
     });
@@ -2792,6 +2787,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
   Future<void> _deleteChecklistFromEntry(
       SsherEntry entry, SsherChecklistItem item) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Checklist Item',
+      itemLabel: item.label,
+    );
+    if (!confirmed) return;
     setState(() {
       entry.checklists.removeWhere((c) => c.id == item.id);
     });
@@ -2810,6 +2811,12 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
   Future<void> _deleteDocumentFromEntry(
       SsherEntry entry, SsherDocument doc) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Document',
+      itemLabel: doc.title,
+    );
+    if (!confirmed) return;
     setState(() {
       entry.documents.removeWhere((d) => d.id == doc.id);
     });

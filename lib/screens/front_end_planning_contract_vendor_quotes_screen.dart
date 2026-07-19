@@ -27,6 +27,7 @@ import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
 import 'package:ndu_project/widgets/front_end_planning_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart'; // Added for AppBreakpoints
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 /// Front End Planning – Contracting screen (formerly Contract & Vendor Quotes).
 /// Updated to use the standard FEP layout with DraggableSidebar and FrontEndPlanningHeader.
@@ -496,12 +497,17 @@ static const List<String> _startStageOptions = [
  });
  }
 
- void _removeWorkflowStepFromDraft(String stepId) {
- setState(() {
- _workflowDraftSteps =
- _workflowDraftSteps.where((step) => step.id != stepId).toList();
- });
- }
+  Future<void> _removeWorkflowStepFromDraft(String stepId) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Workflow Step',
+    );
+    if (!confirmed) return;
+    setState(() {
+      _workflowDraftSteps =
+          _workflowDraftSteps.where((step) => step.id != stepId).toList();
+    });
+  }
 
  void _moveWorkflowStepInDraft(int index, int direction) {
  final target = index + direction;
@@ -2165,27 +2171,14 @@ static const List<String> _startStageOptions = [
  );
  }
 
- Future<void> _deleteContract(ContractModel contract) async {
- final projectId = _activeProjectIdOrNull();
- if (projectId == null) return;
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (context) => AlertDialog(
- title: const Text('Delete contract?'),
- content: const Text('Are you sure you want to delete this contract?'),
- actions: [
- TextButton(
- onPressed: () => Navigator.pop(context, false),
- child: const Text('Cancel'),
- ),
- TextButton(
- onPressed: () => Navigator.pop(context, true),
- child: const Text('Delete', style: TextStyle(color: Colors.red)),
- ),
- ],
- ),
- );
- if (confirmed != true) return;
+  Future<void> _deleteContract(ContractModel contract) async {
+    final projectId = _activeProjectIdOrNull();
+    if (projectId == null) return;
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Contract',
+    );
+    if (!confirmed) return;
 
  await ProcurementService.deleteContract(projectId, contract.id);
  if (!mounted) return;
@@ -2660,32 +2653,13 @@ static const List<String> _startStageOptions = [
  }
  }
 
- Future<void> _deleteItem(ProcurementItemModel item) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) => AlertDialog(
- title: const Text('Delete contracting scope item?'),
- content: Text(
- 'This will permanently remove "${item.name}" from this project.',
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- child: const Text(
- 'Delete',
- style: TextStyle(color: Colors.red),
- ),
- ),
- ],
- ),
- ) ??
- false;
-
- if (!confirmed) return;
+  Future<void> _deleteItem(ProcurementItemModel item) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Contracting Scope Item',
+      itemLabel: item.name,
+    );
+    if (!confirmed) return;
 
  try {
  await ProcurementService.deleteItem(item.projectId, item.id);
@@ -3886,16 +3860,21 @@ static const List<String> _startStageOptions = [
  );
  }
 
- Future<void> _removeReport(String reportId) async {
- final data = ProjectDataHelper.getData(context);
- final reports = _loadContractingReports(data);
- final next = reports.where((report) => report.id != reportId).toList();
- await _saveContractingReports(next);
- if (!mounted) return;
- ScaffoldMessenger.of(context).showSnackBar(
- const SnackBar(content: Text('Report removed.')),
- );
- }
+  Future<void> _removeReport(String reportId) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Report',
+    );
+    if (!confirmed) return;
+    final data = ProjectDataHelper.getData(context);
+    final reports = _loadContractingReports(data);
+    final next = reports.where((report) => report.id != reportId).toList();
+    await _saveContractingReports(next);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report removed.')),
+    );
+  }
 
  VendorModel? _vendorForName(
  List<VendorModel> contractors,

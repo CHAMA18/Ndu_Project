@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/models/rate_card.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 /// Dialog for managing personnel rate cards with tiered rates and role-based access.
 class RateCardManagementDialog extends StatefulWidget {
@@ -543,7 +544,14 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
     }
   }
 
-  void _removeRate(int cardIndex, int rateIndex) {
+  Future<void> _removeRate(int cardIndex, int rateIndex) async {
+    final rate = _cards[cardIndex].rates[rateIndex];
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Rate',
+      itemLabel: rate.roleTitle.isNotEmpty ? rate.roleTitle : null,
+    );
+    if (!confirmed) return;
     setState(() {
       final card = _cards[cardIndex];
       final updatedRates = List<RateTier>.from(card.rates)..removeAt(rateIndex);

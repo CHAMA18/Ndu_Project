@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as dl;
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
 class TeamRolesResponsibilitiesScreen extends StatefulWidget {
  const TeamRolesResponsibilitiesScreen({super.key});
 
@@ -3141,19 +3142,21 @@ class _TeamMemberDialogState extends State<_TeamMemberDialog> {
  });
  }
 
- void _removeWorkProgressEntry(int index) {
- if (index < 0 || index >= _workProgressEntries.length) {
- return;
- }
- setState(() {
- final removed = _workProgressEntries.removeAt(index);
- removed.dispose();
- if (_workProgressEntries.isEmpty) {
- _workProgressEntries
- .add(_WorkProgressDraft(initialStatus: _statusOptions.first));
- }
- });
- }
+  void _removeWorkProgressEntry(int index) async {
+  if (index < 0 || index >= _workProgressEntries.length) {
+    return;
+  }
+  final ok = await launchConfirmDelete(context, itemName: 'work progress entry');
+  if (!ok) return;
+  setState(() {
+    final removed = _workProgressEntries.removeAt(index);
+    removed.dispose();
+    if (_workProgressEntries.isEmpty) {
+      _workProgressEntries
+          .add(_WorkProgressDraft(initialStatus: _statusOptions.first));
+    }
+  });
+  }
 
  // --- AI Suggestion Helper (now in dialog state) ---
  Future<String> fetchOpenAiSuggestion(String field) async {

@@ -19,6 +19,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class ToolsIntegrationScreen extends StatefulWidget {
  const ToolsIntegrationScreen({super.key});
 
@@ -400,41 +401,77 @@ class _ToolsIntegrationScreenState extends State<ToolsIntegrationScreen> {
  );
  }
 
- void _deleteIntegration(String id) {
- setState(() => _integrations.removeWhere((e) => e.id == id));
- _scheduleSave();
- _logActivity('Deleted tool integration row', details: {'itemId': id});
- }
+ Future<void> _deleteIntegration(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Integration',
+    message: 'Delete this tool integration? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() => _integrations.removeWhere((e) => e.id == id));
+  _scheduleSave();
+  _logActivity('Deleted tool integration row', details: {'itemId': id});
+  }
 
- void _deleteRiskSignal(String id) {
- setState(() => _riskSignals.removeWhere((e) => e.id == id));
- _scheduleSave();
- _logActivity('Deleted risk signal row', details: {'itemId': id});
- }
+ Future<void> _deleteRiskSignal(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Risk Signal',
+    message: 'Delete this risk signal? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() => _riskSignals.removeWhere((e) => e.id == id));
+  _scheduleSave();
+  _logActivity('Deleted risk signal row', details: {'itemId': id});
+  }
 
- void _deleteActionRow(String id) {
- setState(() => _actionRows.removeWhere((e) => e.id == id));
- _scheduleSave();
- _logActivity('Deleted action item row', details: {'itemId': id});
- }
+ Future<void> _deleteActionRow(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Action Item',
+    message: 'Delete this action item? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() => _actionRows.removeWhere((e) => e.id == id));
+  _scheduleSave();
+  _logActivity('Deleted action item row', details: {'itemId': id});
+  }
 
- void _removeCustomKpi(String id) {
- setState(() => _customKpiRows.removeWhere((r) => r.id == id));
- _scheduleSave();
- _logActivity('Deleted custom KPI metric', details: {'itemId': id});
- }
+ Future<void> _removeCustomKpi(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Custom KPI',
+    message: 'Delete this custom KPI metric? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() => _customKpiRows.removeWhere((r) => r.id == id));
+  _scheduleSave();
+  _logActivity('Deleted custom KPI metric', details: {'itemId': id});
+  }
 
- void _deleteApprovalGate(String id) {
- setState(() => _approvalGates.removeWhere((e) => e.id == id));
- _scheduleSave();
- _logActivity('Deleted approval gate row', details: {'itemId': id});
- }
+ Future<void> _deleteApprovalGate(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Approval Gate',
+    message: 'Delete this approval gate? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() => _approvalGates.removeWhere((e) => e.id == id));
+  _scheduleSave();
+  _logActivity('Deleted approval gate row', details: {'itemId': id});
+  }
 
- void _deleteDataFlow(String id) {
- setState(() => _dataFlows.removeWhere((e) => e.id == id));
- _scheduleSave();
- _logActivity('Deleted data flow row', details: {'itemId': id});
- }
+ Future<void> _deleteDataFlow(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Data Flow',
+    message: 'Delete this data flow? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() => _dataFlows.removeWhere((e) => e.id == id));
+  _scheduleSave();
+  _logActivity('Deleted data flow row', details: {'itemId': id});
+  }
 
  // ---------------------------------------------------------------------------
  // Build

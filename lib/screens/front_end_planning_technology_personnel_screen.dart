@@ -9,6 +9,7 @@ import 'package:ndu_project/widgets/program_workspace_scaffold.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class FrontEndPlanningTechnologyPersonnelScreen extends StatefulWidget {
  const FrontEndPlanningTechnologyPersonnelScreen({super.key});
 
@@ -190,10 +191,15 @@ class _FrontEndPlanningTechnologyPersonnelScreenState
  }
  }
 
- void _deleteRow(String id) {
- setState(() => _rows.removeWhere((item) => item.id == id));
- _syncToProvider();
- }
+  Future<void> _deleteRow(String id) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Technology Personnel',
+    );
+    if (!confirmed) return;
+    setState(() => _rows.removeWhere((item) => item.id == id));
+    _syncToProvider();
+  }
 
  @override
  Widget build(BuildContext context) {

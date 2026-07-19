@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class BulletPointEditor extends StatefulWidget {
   final String title;
   final String? subtitle;
@@ -70,7 +71,16 @@ class _BulletPointEditorState extends State<BulletPointEditor> {
     });
   }
 
-  void _removeItem(int index) {
+  Future<void> _removeItem(int index) async {
+    final label = _controllers[index].text.trim();
+    if (label.isNotEmpty) {
+      final confirmed = await showDeleteConfirmationDialog(
+        context,
+        title: 'Remove Item',
+        itemLabel: label,
+      );
+      if (!confirmed) return;
+    }
     if (_controllers.length <= 1) {
       _controllers[0].clear();
       _updateParent();

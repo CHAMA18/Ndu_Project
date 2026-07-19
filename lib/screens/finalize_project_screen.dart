@@ -16,6 +16,7 @@ import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class FinalizeProjectScreen extends StatefulWidget {
  const FinalizeProjectScreen({super.key});
 
@@ -1515,10 +1516,16 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  _scheduleSave();
  }
 
- void _deleteSnapshotMetric(String id) {
- setState(() => _snapshotMetrics.removeWhere((e) => e.id == id));
- _scheduleSave();
- }
+  Future<void> _deleteSnapshotMetric(String id) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Metric',
+      itemLabel: _snapshotMetrics.firstWhere((e) => e.id == id).title,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _snapshotMetrics.removeWhere((e) => e.id == id));
+    _scheduleSave();
+  }
 
  void _addChecklistItem() {
  setState(() {
@@ -1543,10 +1550,16 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  _scheduleSave();
  }
 
- void _deleteChecklistItem(String id) {
- setState(() => _checklist.removeWhere((entry) => entry.id == id));
- _scheduleSave();
- }
+  Future<void> _deleteChecklistItem(String id) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Checklist Item',
+      itemLabel: _checklist.firstWhere((entry) => entry.id == id).title,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _checklist.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
 
  void _addSignOffItem() {
  setState(() {
@@ -1571,10 +1584,16 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  _scheduleSave();
  }
 
- void _deleteSignOffItem(String id) {
- setState(() => _signOffs.removeWhere((entry) => entry.id == id));
- _scheduleSave();
- }
+  Future<void> _deleteSignOffItem(String id) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Sign-Off',
+      itemLabel: _signOffs.firstWhere((entry) => entry.id == id).name,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _signOffs.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
 
  void _addInsight() {
  setState(() {
@@ -1590,10 +1609,16 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  _scheduleSave();
  }
 
- void _deleteInsight(String id) {
- setState(() => _insights.removeWhere((entry) => entry.id == id));
- _scheduleSave();
- }
+  Future<void> _deleteInsight(String id) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Insight',
+      itemLabel: _insights.firstWhere((entry) => entry.id == id).title,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _insights.removeWhere((entry) => entry.id == id));
+    _scheduleSave();
+  }
 }
 
 class _CurrentUserProfileChip extends StatelessWidget {

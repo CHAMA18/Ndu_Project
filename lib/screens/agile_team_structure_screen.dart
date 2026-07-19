@@ -15,6 +15,7 @@ import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 
 const Color _kBackground = Colors.white;
@@ -449,7 +450,13 @@ class _AgileTeamStructureScreenState extends State<AgileTeamStructureScreen> {
     _scheduleAutoSave();
   }
 
-  void _removeTeam(int index) {
+  Future<void> _removeTeam(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Team',
+      itemLabel: _teams[index].name.isNotEmpty ? _teams[index].name : null,
+    );
+    if (!confirmed) return;
     final removed = _teams[index];
     final controllers = _teamControllers.remove(removed.id);
     if (controllers != null) {

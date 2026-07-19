@@ -7,6 +7,8 @@ import 'package:ndu_project/utils/table_import_helper.dart';
 import 'dart:async';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
+
 class StaffTeamResourceGrid extends StatefulWidget {
   const StaffTeamResourceGrid({
     super.key,
@@ -512,7 +514,13 @@ class _StaffTeamResourceGridState extends State<StaffTeamResourceGrid> {
     widget.onRowsChanged(updated);
   }
 
-  void _removeRow(int index) {
+  Future<void> _removeRow(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Staffing Row',
+      itemLabel: _rows[index].role,
+    );
+    if (!confirmed) return;
     final updated = List<StaffingRow>.from(_rows);
     updated.removeAt(index);
     widget.onRowsChanged(updated);

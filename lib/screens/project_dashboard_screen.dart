@@ -26,6 +26,7 @@ import '../utils/navigation_route_resolver.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/dashboard_stat_card.dart';
 import '../widgets/kaz_ai_chat_bubble.dart';
+import '../widgets/delete_confirmation_dialog.dart';
 import 'initiation_phase_screen.dart';
 import 'portfolio_dashboard_screen.dart';
 import 'program_dashboard_screen.dart';
@@ -3138,67 +3139,15 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
  }
  }
 
- Future<void> _deleteProject(BuildContext context) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) {
- return AlertDialog(
- shape:
- RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
- title: Row(
- children: [
- Container(
- padding: const EdgeInsets.all(8),
- decoration: BoxDecoration(
- color: Colors.red.shade50,
- borderRadius: BorderRadius.circular(10),
- ),
- child: Icon(Icons.warning_amber_rounded,
- color: Colors.red.shade700, size: 24),
- ),
- const SizedBox(width: 12),
- const Text('Delete Project?'),
- ],
- ),
- content: Column(
- mainAxisSize: MainAxisSize.min,
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- Text(
- 'Are you sure you want to delete "${project.name}"?',
- style:
- const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
- ),
- const SizedBox(height: 12),
- Text(
- 'This action cannot be undone. All project data will be permanently removed.',
- style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
- ),
- ],
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- ElevatedButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- style: ElevatedButton.styleFrom(
- backgroundColor: Colors.red,
- foregroundColor: Colors.white,
- padding:
- const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12)),
- ),
- child: const Text('Delete'),
- ),
- ],
- );
- },
- );
-
- if (confirmed != true || !context.mounted) return;
+  Future<void> _deleteProject(BuildContext context) async {
+  final confirmed = await showDeleteConfirmationDialog(
+  context,
+  title: 'Delete Project',
+  itemLabel: project.name,
+  message: 'This action cannot be undone. All project data will be permanently removed.',
+  confirmLabel: 'Delete Project',
+  );
+  if (!confirmed || !context.mounted) return;
 
  // Show loading indicator
  showDialog(

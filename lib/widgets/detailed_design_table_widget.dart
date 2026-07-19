@@ -7,6 +7,7 @@ import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/widgets/inline_editable_text.dart';
 import 'package:ndu_project/widgets/responsive_table_widgets.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 /// World-class Design Specification table with inline editing, CRUD actions,
 /// and AI specification generation. Columns conform to IEEE 1016 and
@@ -397,6 +398,12 @@ class _DesignSpecRowWidgetState extends State<_DesignSpecRowWidget> {
   }
 
   Future<void> _deleteComponent() async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Design Component',
+      itemLabel: _component.componentName,
+    );
+    if (!confirmed) return;
     final deleted = _component;
     final projectId = _getProjectId();
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/theme.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class ChartBuilderWorkspace extends StatefulWidget {
   const ChartBuilderWorkspace({super.key});
 
@@ -24,8 +25,14 @@ class _ChartBuilderWorkspaceState extends State<ChartBuilderWorkspace> {
     });
   }
 
-  void _removePoint(int index) {
+  Future<void> _removePoint(int index) async {
     if (_points.length <= 1) return;
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Remove Data Point',
+      itemLabel: _points[index].label,
+    );
+    if (!confirmed) return;
     setState(() => _points.removeAt(index));
   }
 

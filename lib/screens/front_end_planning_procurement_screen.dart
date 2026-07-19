@@ -35,6 +35,7 @@ import 'package:ndu_project/widgets/procurement/procurement_vendor_management.da
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 enum ProcurementScreenMode { fep, planning }
 
 enum _MissingProcurementAction {
@@ -641,12 +642,17 @@ class _FrontEndPlanningProcurementScreenState
  });
  }
 
- void _deleteWorkflowStepFromDraft(String stepId) {
- setState(() {
- _workflowDraftSteps =
- _workflowDraftSteps.where((step) => step.id != stepId).toList();
- });
- }
+  Future<void> _deleteWorkflowStepFromDraft(String stepId) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Workflow Step',
+    );
+    if (!confirmed) return;
+  setState(() {
+    _workflowDraftSteps =
+        _workflowDraftSteps.where((step) => step.id != stepId).toList();
+  });
+  }
 
  void _moveWorkflowStepInDraft(int index, int direction) {
  final target = index + direction;
@@ -2324,8 +2330,13 @@ class _FrontEndPlanningProcurementScreenState
  }
  }
 
- void _removeVendor(String vendorId) async {
- try {
+  Future<void> _removeVendor(String vendorId) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Remove Vendor',
+    );
+    if (!confirmed) return;
+  try {
  final projectId = _resolveProjectId();
  if (projectId.isEmpty) {
  if (mounted) {
@@ -4248,31 +4259,13 @@ class _FrontEndPlanningProcurementScreenState
  }
  }
 
- Future<void> _deleteStrategy(ProcurementStrategyModel strategy) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) => AlertDialog(
- title: const Text('Delete strategy?'),
- content: Text(
- 'Are you sure you want to delete "${strategy.title}"?',
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- style: TextButton.styleFrom(
- foregroundColor: const Color(0xFFDC2626),
- ),
- child: const Text('Delete'),
- ),
- ],
- ),
- ) ??
- false;
- if (!confirmed) return;
+  Future<void> _deleteStrategy(ProcurementStrategyModel strategy) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Strategy',
+      itemLabel: strategy.title,
+    );
+    if (!confirmed) return;
 
  try {
  await ProcurementService.deleteStrategy(strategy.projectId, strategy.id);
@@ -4423,34 +4416,13 @@ class _FrontEndPlanningProcurementScreenState
  }
  }
 
- Future<void> _removeItem(ProcurementItemModel item) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) {
- return AlertDialog(
- title: const Text('Remove Procurement Item'),
- content: Text(
- 'Delete "${item.name}"? This action cannot be undone.',
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- ElevatedButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFDC2626),
- foregroundColor: Colors.white,
- ),
- child: const Text('Delete'),
- ),
- ],
- );
- },
- ) ??
- false;
- if (!confirmed) return;
+  Future<void> _removeItem(ProcurementItemModel item) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Remove Procurement Item',
+      itemLabel: item.name,
+    );
+    if (!confirmed) return;
 
  try {
  final projectId = _resolveProjectId();
@@ -4711,35 +4683,13 @@ class _FrontEndPlanningProcurementScreenState
  }
  }
 
- Future<void> _deleteRfq(RfqModel rfq) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) {
- return AlertDialog(
- title: const Text('Delete RFQ'),
- content: Text(
- 'Delete ${rfq.title.trim().isEmpty ? 'this RFQ' : '"${rfq.title}"'}? This action cannot be undone.',
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- ElevatedButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFDC2626),
- foregroundColor: Colors.white,
- ),
- child: const Text('Delete'),
- ),
- ],
- );
- },
- ) ??
- false;
-
- if (!confirmed) return;
+  Future<void> _deleteRfq(RfqModel rfq) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete RFQ',
+      itemLabel: rfq.title.trim().isEmpty ? null : rfq.title.trim(),
+    );
+    if (!confirmed) return;
 
  try {
  final projectId = _resolveProjectId();
@@ -4997,34 +4947,13 @@ class _FrontEndPlanningProcurementScreenState
  }
  }
 
- Future<void> _deletePo(PurchaseOrderModel order) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) {
- return AlertDialog(
- title: const Text('Remove Purchase Order'),
- content: Text(
- 'Delete ${order.poNumber.isNotEmpty ? order.poNumber : order.id}? This action cannot be undone.',
- ),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- ElevatedButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFDC2626),
- foregroundColor: Colors.white,
- ),
- child: const Text('Delete'),
- ),
- ],
- );
- },
- ) ??
- false;
- if (!confirmed) return;
+  Future<void> _deletePo(PurchaseOrderModel order) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Remove Purchase Order',
+      itemLabel: order.poNumber.isNotEmpty ? order.poNumber : order.id,
+    );
+    if (!confirmed) return;
 
  try {
  final projectId = _resolveProjectId();

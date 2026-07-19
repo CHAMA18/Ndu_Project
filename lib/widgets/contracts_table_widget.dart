@@ -14,6 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 /// Custom Contracts Table with inline editing, CRUD actions, and AI capabilities
 class ContractsTableWidget extends StatelessWidget {
   const ContractsTableWidget({
@@ -336,6 +337,12 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
   }
 
   Future<void> _deleteContract() async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Contract',
+      itemLabel: _contract.name,
+    );
+    if (!confirmed) return;
     final deleted = _contract;
 
     // Delete via ContractService

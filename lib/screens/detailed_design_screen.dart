@@ -19,6 +19,7 @@ import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 /// ────────────────────────────────────────────────────────────────
 /// Design Specifications Screen
 ///
@@ -709,11 +710,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  child: _ArchitecturePatternCard(
  pattern: pattern,
  onEdit: () => _showArchPatternEditor(entry: pattern, index: index),
- onDelete: () {
- setState(() {
- _archPatterns.removeAt(index);
- });
- },
+  onDelete: () async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Architecture Pattern',
+    itemLabel: pattern.name,
+  );
+  if (!confirmed) return;
+  setState(() {
+  _archPatterns.removeAt(index);
+  });
+  },
  ),
  );
  }).toList(),
@@ -972,11 +979,17 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
  });
  },
- onDeleted: (component) {
- setState(() {
- _components.removeWhere((c) => c.id == component.id);
- });
- },
+  onDeleted: (component) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Component',
+    itemLabel: component.componentName,
+  );
+  if (!confirmed) return;
+  setState(() {
+  _components.removeWhere((c) => c.id == component.id);
+  });
+  },
  ),
  );
  }

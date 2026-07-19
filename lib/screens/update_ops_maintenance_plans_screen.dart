@@ -13,6 +13,7 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/services/project_insights_service.dart';
 import 'package:ndu_project/utils/execution_phase_ai_seed.dart';
 import 'package:ndu_project/widgets/launch_editable_section.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/launch_modal.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
@@ -1461,10 +1462,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _scheduleSave();
  }
 
- void _deleteCoverage(String id) {
- setState(() => _coverage.removeWhere((item) => item.id == id));
- _scheduleSave();
- }
+  void _deleteCoverage(String id) async {
+  final ok = await launchConfirmDelete(context, itemName: 'coverage item');
+  if (!ok) return;
+  setState(() => _coverage.removeWhere((item) => item.id == id));
+  _scheduleSave();
+  }
 
  void _addSignal() {
  setState(() {
@@ -1480,10 +1483,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _scheduleSave();
  }
 
- void _deleteSignal(String id) {
- setState(() => _signals.removeWhere((item) => item.id == id));
- _scheduleSave();
- }
+  void _deleteSignal(String id) async {
+  final ok = await launchConfirmDelete(context, itemName: 'signal');
+  if (!ok) return;
+  setState(() => _signals.removeWhere((item) => item.id == id));
+  _scheduleSave();
+  }
 
  void _addMaintenanceWindow() {
  setState(() {
@@ -1502,10 +1507,12 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _scheduleSave();
  }
 
- void _deleteMaintenance(String id) {
- setState(() => _maintenanceWindows.removeWhere((item) => item.id == id));
- _scheduleSave();
- }
+  void _deleteMaintenance(String id) async {
+  final ok = await launchConfirmDelete(context, itemName: 'maintenance window');
+  if (!ok) return;
+  setState(() => _maintenanceWindows.removeWhere((item) => item.id == id));
+  _scheduleSave();
+  }
 }
 
 // ─── Shared Widgets ──────────────────────────────────────────────────────────

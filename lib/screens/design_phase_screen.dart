@@ -34,6 +34,7 @@ import 'package:ndu_project/widgets/design_phase_stable_shell.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class DesignPhaseScreen extends StatefulWidget {
  const DesignPhaseScreen(
  {super.key, this.activeItemLabel = 'Design Management'});
@@ -4255,13 +4256,19 @@ Future<void> _loadProgress(String projectId) async {
  _deleteArchitectureNode(id);
  }
 
- void _deleteArchitectureNode(String id) {
- setState(() {
- _nodes.removeWhere((node) => node.id == id);
- _edges.removeWhere((edge) => edge.fromId == id || edge.toId == id);
- });
- _scheduleSave();
- }
+ Future<void> _deleteArchitectureNode(String id) async {
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Architecture Node',
+    message: 'Delete this architecture node? This action cannot be undone.',
+  );
+  if (!confirmed) return;
+  setState(() {
+  _nodes.removeWhere((node) => node.id == id);
+  _edges.removeWhere((edge) => edge.fromId == id || edge.toId == id);
+  });
+  _scheduleSave();
+  }
 
  void _clearArchitectureCanvas() {
  setState(() {

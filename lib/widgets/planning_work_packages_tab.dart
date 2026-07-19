@@ -4,6 +4,7 @@ import 'package:ndu_project/services/integrated_work_package_service.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/work_package_dialog.dart';
 import 'package:ndu_project/widgets/work_package_detail.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/utils/design_planning_document.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/delete_success_snackbar.dart';
@@ -275,26 +276,13 @@ class _PlanningWorkPackagesTabState extends State<PlanningWorkPackagesTab> {
   }
 
   Future<void> _deleteWorkPackage(WorkPackage wp) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Work Package'),
-        content:
-            const Text('Are you sure you want to delete this work package?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
+    final confirm = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Work Package',
+      itemLabel: wp.title,
     );
 
-    if (confirm == true && mounted) {
+    if (confirm && mounted) {
       final data = _getData();
       final updated = data.workPackages.where((p) => p.id != wp.id).toList();
       await ProjectDataHelper.updateAndSave(

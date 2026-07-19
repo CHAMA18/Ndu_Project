@@ -22,6 +22,7 @@ import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 const Color _kBackground = Colors.white;
 const Color _kBorder = Color(0xFFE5E7EB);
@@ -220,10 +221,16 @@ class _AgileEpicsFeaturesScreenState
  EpicFeatureService.saveEpic(projectId: pid, epic: epic);
  }
 
- void _deleteEpic(int index) {
- final pid = _projectId;
- final epic = _epics[index];
- if (pid == null) return;
+  Future<void> _deleteEpic(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Epic',
+      itemLabel: _epics[index].title.isNotEmpty ? _epics[index].title : null,
+    );
+    if (!confirmed) return;
+    final pid = _projectId;
+    final epic = _epics[index];
+    if (pid == null) return;
  EpicFeatureService.deleteEpic(projectId: pid, epicId: epic.id);
  _epicControllers.remove(epic.id);
  _chipControllers.removeWhere((k, _) => k.startsWith('${epic.id}_'));
@@ -254,10 +261,16 @@ class _AgileEpicsFeaturesScreenState
  projectId: pid, epicId: _selectedEpicId!, feature: feature);
  }
 
- void _deleteFeature(int index) {
- final pid = _projectId;
- if (pid == null || _selectedEpicId == null) return;
- final feature = _features[index];
+  Future<void> _deleteFeature(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Feature',
+      itemLabel: _features[index].title.isNotEmpty ? _features[index].title : null,
+    );
+    if (!confirmed) return;
+    final pid = _projectId;
+    if (pid == null || _selectedEpicId == null) return;
+    final feature = _features[index];
  EpicFeatureService.deleteFeature(
  projectId: pid, epicId: _selectedEpicId!, featureId: feature.id);
  _featureControllers.remove(feature.id);

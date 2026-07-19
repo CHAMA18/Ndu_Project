@@ -21,6 +21,7 @@ import 'package:ndu_project/services/api_key_manager.dart';
 import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/scroll_indicator_overlay.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
@@ -580,9 +581,16 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
     _saveData();
   }
 
-  void _deleteGoal(int goalId) {
+  Future<void> _deleteGoal(int goalId) async {
+    final goal = _goals.firstWhere((g) => g.id == goalId);
+    final label = goal.nameController.text.trim();
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Goal',
+      itemLabel: label.isNotEmpty ? label : null,
+    );
+    if (!confirmed) return;
     setState(() {
-      final goal = _goals.firstWhere((g) => g.id == goalId);
       goal.nameController.removeListener(_onFieldChanged);
       goal.controller.removeListener(_onFieldChanged);
       goal.dispose();

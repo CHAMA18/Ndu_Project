@@ -17,6 +17,7 @@ import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/theme.dart';
 class SalvageDisposalTeamScreen extends StatefulWidget {
  const SalvageDisposalTeamScreen({super.key});
@@ -4176,46 +4177,21 @@ Execution snapshot:
  );
  }
 
- void _deleteComplianceRow(int index) {
- showDialog(
- context: context,
- barrierDismissible: true,
- builder: (ctx) => LaunchModalShell(
- icon: Icons.delete_outline_rounded,
- accent: const Color(0xFFEF4444),
- title: 'Delete Regulation',
- subtitle: 'This action cannot be undone.',
- body: Text(
- 'Are you sure you want to delete "${_complianceRows[index].regulation}"? '
- 'Once removed, the regulation record cannot be recovered.',
- style: const TextStyle(
- fontSize: 14,
- color: Color(0xFF4B5563),
- height: 1.5,
- ),
- ),
- actions: [
- LaunchModalCancelButton(
- label: 'Cancel',
- onPressed: () => Navigator.pop(ctx),
- ),
- LaunchModalDangerButton(
- label: 'Delete',
- onPressed: () {
- setState(() => _complianceRows.removeAt(index));
- _saveComplianceToFirestore();
- Navigator.pop(ctx);
- ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
- content: Text('Regulation deleted.'),
- backgroundColor: Color(0xFFEF4444),
- behavior: SnackBarBehavior.floating,
- ));
- },
- ),
- ],
- ),
- );
- }
+  Future<void> _deleteComplianceRow(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Regulation',
+      itemLabel: _complianceRows[index].regulation,
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _complianceRows.removeAt(index));
+    _saveComplianceToFirestore();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Regulation deleted.'),
+      backgroundColor: Color(0xFFEF4444),
+      behavior: SnackBarBehavior.floating,
+    ));
+  }
 
  Widget _buildTimelinePanel() {
  final projectId = _getProjectId();

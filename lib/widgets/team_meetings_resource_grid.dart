@@ -11,6 +11,7 @@ import 'package:ndu_project/utils/web_utils_stub.dart'
     if (dart.library.html) 'package:ndu_project/utils/web_utils_web.dart' as web_utils;
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 
 void _copyToClipboard(String text) {
   try {
@@ -151,7 +152,15 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
     widget.onMeetingsChanged(updated);
   }
 
-  void _removeMeeting(int index) {
+  Future<void> _removeMeeting(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Meeting',
+      itemLabel: _meetings[index].meetingType.isNotEmpty
+          ? _meetings[index].meetingType
+          : null,
+    );
+    if (!confirmed) return;
     final updated = List<MeetingRow>.from(_meetings);
     updated.removeAt(index);
     widget.onMeetingsChanged(updated);

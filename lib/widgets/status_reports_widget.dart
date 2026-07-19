@@ -6,6 +6,7 @@ import 'package:ndu_project/widgets/progress_quick_actions.dart';
 import 'package:intl/intl.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 /// Status Reports & Asks Tracking sub-page
 class StatusReportsWidget extends StatefulWidget {
   const StatusReportsWidget({
@@ -43,7 +44,13 @@ class _StatusReportsWidgetState extends State<StatusReportsWidget> {
     widget.onStatusReportsChanged(updatedList);
   }
 
-  void _delete(int index) {
+  Future<void> _delete(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Status Report',
+      itemLabel: _reports[index].reportType,
+    );
+    if (!confirmed) return;
     final deleted = _reports[index];
     final updated = List<StatusReportRow>.from(_reports);
     updated.removeAt(index);

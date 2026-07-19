@@ -11,6 +11,7 @@ import 'package:ndu_project/widgets/text_formatting_toolbar.dart';
 import 'package:intl/intl.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 /// Deliverables Tracking sub-page with Timeline view and full CRUD
 class DeliverablesTrackingWidget extends StatefulWidget {
   const DeliverablesTrackingWidget({
@@ -40,7 +41,13 @@ class _DeliverablesTrackingWidgetState
     widget.onDeliverablesChanged(updatedList);
   }
 
-  void _deleteDeliverable(int index) {
+  Future<void> _deleteDeliverable(int index) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Deliverable',
+      itemLabel: _deliverables[index].title,
+    );
+    if (!confirmed) return;
     final deleted = _deliverables[index];
     final updated = List<DeliverableRow>.from(_deliverables);
     updated.removeAt(index);

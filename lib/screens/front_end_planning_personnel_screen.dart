@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 import 'package:ndu_project/widgets/rate_card_management_dialog.dart';
 import 'package:ndu_project/models/rate_card.dart';
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 class FrontEndPlanningPersonnelScreen extends StatefulWidget {
  const FrontEndPlanningPersonnelScreen({super.key});
 
@@ -443,26 +444,13 @@ class _FrontEndPlanningPersonnelScreenState
  }
  }
 
- Future<void> _deleteRow(StaffingRow row) async {
- final confirmed = await showDialog<bool>(
- context: context,
- builder: (dialogContext) => AlertDialog(
- title: const Text('Delete Role'),
- content: Text('Remove ${row.role.trim()} from project personnel?'),
- actions: [
- TextButton(
- onPressed: () => Navigator.of(dialogContext).pop(false),
- child: const Text('Cancel'),
- ),
- ElevatedButton(
- onPressed: () => Navigator.of(dialogContext).pop(true),
- child: const Text('Delete'),
- ),
- ],
- ),
- ) ??
- false;
- if (!confirmed) return;
+  Future<void> _deleteRow(StaffingRow row) async {
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Role',
+      itemLabel: row.role.trim(),
+    );
+    if (!confirmed) return;
 
  setState(() {
  _rows.removeWhere((item) => item.id == row.id);

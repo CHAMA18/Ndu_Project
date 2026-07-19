@@ -8,6 +8,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/launch_phase_navigation.dart';
 import 'package:ndu_project/widgets/responsive.dart';
+import 'package:ndu_project/widgets/launch_data_table.dart';
 import 'package:ndu_project/widgets/planning_ai_notes_card.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -274,8 +275,10 @@ class _StakeholderManagementScreenState
  });
  }
 
- void _deleteStakeholder(String id) async {
- await ProjectDataHelper.updateAndSave(
+  void _deleteStakeholder(String id) async {
+  final ok = await launchConfirmDelete(context, itemName: 'stakeholder');
+  if (!ok) return;
+  await ProjectDataHelper.updateAndSave(
  context: context,
  checkpoint: 'stakeholder_management',
  dataUpdater: (d) => d.copyWith(
@@ -317,8 +320,10 @@ class _StakeholderManagementScreenState
  });
  }
 
- void _deleteEngagementPlan(String id) async {
- await ProjectDataHelper.updateAndSave(
+  void _deleteEngagementPlan(String id) async {
+  final ok = await launchConfirmDelete(context, itemName: 'engagement plan');
+  if (!ok) return;
+  await ProjectDataHelper.updateAndSave(
  context: context,
  checkpoint: 'stakeholder_management',
  dataUpdater: (d) => d.copyWith(

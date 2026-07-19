@@ -20,6 +20,7 @@ import 'package:ndu_project/widgets/proceed_confirmation_gate.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
@@ -860,8 +861,15 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
     _commitAutoSave(showSnack: false);
   }
 
-  void _deleteRow(int index) {
+  Future<void> _deleteRow(int index) async {
     if (index < 0 || index >= _rows.length) return;
+    final label = _rows[index].descriptionController.text.trim();
+    final confirmed = await showDeleteConfirmationDialog(
+      context,
+      title: 'Delete Requirement',
+      itemLabel: label.isNotEmpty ? label : null,
+    );
+    if (!confirmed) return;
     setState(() {
       _rows[index].dispose();
       _rows.removeAt(index);

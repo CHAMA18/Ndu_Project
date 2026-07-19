@@ -10,6 +10,7 @@ import 'package:ndu_project/widgets/kaz_ai_chat_bubble.dart';
 import 'package:ndu_project/widgets/csv_table_import_button.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
 
+import 'package:ndu_project/widgets/delete_confirmation_dialog.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
@@ -272,25 +273,31 @@ class _StakeholderIdentificationSectionState
  );
  }
 
- Future<void> _deleteRow(int index) async {
- final removed = _rows[index];
- setState(() => _rows.removeAt(index));
- await _persistRows();
+  Future<void> _deleteRow(int index) async {
+  final removed = _rows[index];
+  final confirmed = await showDeleteConfirmationDialog(
+    context,
+    title: 'Delete Stakeholder Row',
+    itemLabel: removed.name,
+  );
+  if (!confirmed) return;
+  setState(() => _rows.removeAt(index));
+  await _persistRows();
 
- if (!mounted) return;
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(
- content: const Text('Stakeholder row deleted'),
- action: SnackBarAction(
- label: 'Undo',
- onPressed: () async {
- setState(() => _rows.insert(index, removed));
- await _persistRows();
- },
- ),
- ),
- );
- }
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: const Text('Stakeholder row deleted'),
+  action: SnackBarAction(
+  label: 'Undo',
+  onPressed: () async {
+  setState(() => _rows.insert(index, removed));
+  await _persistRows();
+  },
+  ),
+  ),
+  );
+  }
 
  @override
  Widget build(BuildContext context) {
