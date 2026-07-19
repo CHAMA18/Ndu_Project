@@ -950,11 +950,9 @@ String _buildAiContextForCurrentTab(ProjectDataModel data) {
 
   final methodology =
   ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
-  final location = [
-    data.country.trim(),
-    data.location.trim(),
-    data.city.trim(),
-  ].where((value) => value.isNotEmpty).join(', ');
+  final location = <String>[
+    (data.frontEndPlanning.summary),
+  ].where((value) => value.trim().isNotEmpty).join(', ');
 
   return [
     'You are preparing enterprise technology planning data.',
@@ -968,7 +966,7 @@ String _buildAiContextForCurrentTab(ProjectDataModel data) {
     'Business Case: \${data.businessCase}',
     '',
     '=== PROJECT CLASSIFICATION ===',
-    'Industry / Sector: \${data.projectCategory} \${data.projectIndustry}'.trim(),
+    'Industry / Sector: (not specified)',
     'Delivery Framework: $methodology',
     'Project Location: \${location.isEmpty ? "Not specified" : location}',
     '',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ndu_project/models/design_phase_models.dart';
 import 'package:ndu_project/providers/project_data_provider.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/project_activity.dart';
 import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/services/project_intelligence_service.dart';
 import 'package:ndu_project/services/sidebar_navigation_service.dart';
@@ -1005,7 +1006,200 @@ class ProjectDataHelper {
     return success;
   }
 
-  /// Convert legacy goal format to new format
+  // ── Bidirectional Risk Register Sync ──
+  //
+  // Section-specific risks (e.g. Interface Management, SSHER, Design) are
+  // mirrored into the central `frontEndPlanning.riskRegisterItems` list with
+  // a `sourceSection` tag. Updates to either side propagate to the other.
+
+  /// Upserts a risk into the central Risk Register, tagged with its source
+  /// section. If a risk with the same `riskName` already exists in that
+  /// section, it's updated; otherwise a new one is appended.
+  static Future<void> upsertRiskToRegister({
+    required BuildContext context,
+    required String sourceSection,
+    required String riskName,
+    String description = '',
+    String category = '',
+    String impactLevel = 'Medium',
+    String likelihood = 'Medium',
+    String mitigationStrategy = '',
+    String discipline = '',
+    String owner = '',
+    String status = 'Open',
+    String checkpoint = 'risk_register_sync',
+  }) async {
+    await updateAndSave(
+      context: context,
+      checkpoint: checkpoint,
+      showSnackbar: false,
+      dataUpdater: (d) {
+        final items = List<RiskRegisterItem>.from(
+            d.frontEndPlanning.riskRegisterItems);
+        final idx = items.indexWhere((r) =>
+            r.riskName.trim().toLowerCase() == riskName.trim().toLowerCase() &&
+            r.category.trim().toLowerCase() == sourceSection.trim().toLowerCase());
+        if (idx >= 0) {
+          items[idx] = RiskRegisterItem(
+            riskName: riskName,
+            description: description.isNotEmpty ? description : items[idx].description,
+            category: sourceSection,
+            requirement: items[idx].requirement,
+            requirementType: items[idx].requirementType,
+            impactLevel: impactLevel,
+            likelihood: likelihood,
+            mitigationStrategy: mitigationStrategy.isNotEmpty
+                ? mitigationStrategy
+                : items[idx].mitigationStrategy,
+            discipline: discipline.isNotEmpty ? discipline : items[idx].discipline,
+            projectRole: items[idx].projectRole,
+            owner: owner.isNotEmpty ? owner : items[idx].owner,
+            status: status,
+            probabilityNumeric: items[idx].probabilityNumeric,
+            costImpactMin: items[idx].costImpactMin,
+            costImpactMostLikely: items[idx].costImpactMostLikely,
+            costImpactMax: items[idx].costImpactMax,
+            scheduleImpactMin: items[idx].scheduleImpactMin,
+            scheduleImpactMostLikely: items[idx].scheduleImpactMostLikely,
+            scheduleImpactMax: items[idx].scheduleImpactMax,
+            controlAccountId: items[idx].controlAccountId,
+            cbsId: items[idx].cbsId,
+            riskType: items[idx].riskType,
+            responseStrategy: items[idx].responseStrategy,
+            residualProbability: items[idx].residualProbability,
+            residualCostImpact: items[idx].residualCostImpact,
+          );
+        } else {
+          items.add(RiskRegisterItem(
+            riskName: riskName,
+            description: description,
+            category: sourceSection,
+            requirementType: sourceSection,
+            impactLevel: impactLevel,
+            likelihood: likelihood,
+            mitigationStrategy: mitigationStrategy,
+            discipline: discipline,
+            owner: owner,
+            status: status,
+          ));
+        }
+        return d.copyWith(
+          frontEndPlanning:
+              d.frontEndPlanning.copyWith(riskRegisterItems: items),
+        );
+      },
+    );
+  }
+
+  /// Removes a risk from the central register by name + source section.
+  /// Used when a section-specific risk is deleted.
+  static Future<void> removeRiskFromRegister({
+    required BuildContext context,
+    required String sourceSection,
+    required String riskName,
+    String checkpoint = 'risk_register_sync',
+  }) async {
+    await updateAndSave(
+      context: context,
+      checkpoint: checkpoint,
+      showSnackbar: false,
+      dataUpdater: (d) {
+        final items = List<RiskRegisterItem>.from(
+            d.frontEndPlanning.riskRegisterItems);
+        items.removeWhere((r) =>
+            r.riskName.trim().toLowerCase() == riskName.trim().toLowerCase() &&
+            r.category.trim().toLowerCase() == sourceSection.trim().toLowerCase());
+        return d.copyWith(
+          frontEndPlanning:
+              d.frontEndPlanning.copyWith(riskRegisterItems: items),
+        );
+      },
+    );
+  }
+
+  /// Returns all risks from the central register that originate from a
+  /// specific source section. Used by section screens to read their
+  /// mirrored risks back.
+  static List<RiskRegisterItem> getRisksForSection(
+      ProjectDataModel data, String sourceSection) {
+    return data.frontEndPlanning.riskRegisterItems
+        .where((r) =>
+            r.category.trim().toLowerCase() ==
+                sourceSection.trim().toLowerCase() ||
+            r.requirementType.trim().toLowerCase() ==
+                sourceSection.trim().toLowerCase())
+        .toList();
+  }
+
+  // ── Bidirectional Activities Log Sync ──
+  //
+  // Section-specific register/log actions (e.g. interface created, SSHER
+  // item pushed, quality check added) are mirrored into the central
+  // `ProjectData.activities` list with a `sourceSection` tag.
+
+  /// Logs an activity to the central Project Activities Log with a
+  /// sourceSection tag for traceability. De-duplicates by title +
+  /// sourceSection within the same day.
+  static Future<void> logActivityToCentral({
+    required BuildContext context,
+    required String sourceSection,
+    required String title,
+    String description = '',
+    String phase = 'Planning',
+    String discipline = '',
+    String role = '',
+    String assignedTo = '',
+    String dueDate = '',
+    String status = 'pending',
+    String checkpoint = 'activities_log_sync',
+  }) async {
+    await updateAndSave(
+      context: context,
+      checkpoint: checkpoint,
+      showSnackbar: false,
+      dataUpdater: (d) {
+        final activities = List<ProjectActivity>.from(d.projectActivities);
+        // De-dup: skip if an activity with the same title + sourceSection
+        // was already logged today
+        final today = DateTime.now();
+        final alreadyLogged = activities.any((a) =>
+            a.title == title &&
+            a.sourceSection == sourceSection &&
+            a.createdAt.year == today.year &&
+            a.createdAt.month == today.month &&
+            a.createdAt.day == today.day);
+        if (alreadyLogged) return d;
+        final now = DateTime.now();
+        activities.add(ProjectActivity(
+          id: now.microsecondsSinceEpoch.toString(),
+          title: title,
+          description: description,
+          sourceSection: sourceSection,
+          phase: phase,
+          discipline: discipline,
+          role: role,
+          assignedTo: assignedTo.isEmpty ? null : assignedTo,
+          dueDate: dueDate,
+          createdAt: now,
+          updatedAt: now,
+        ));
+        return d.copyWith(projectActivities: activities);
+      },
+    );
+  }
+
+  /// Returns all activities from the central log that originated from a
+  /// specific source section.
+  static List<ProjectActivity> getActivitiesForSection(
+      ProjectDataModel data, String sourceSection) {
+    return data.projectActivities
+        .where((a) =>
+            a.sourceSection.trim().toLowerCase() ==
+                sourceSection.trim().toLowerCase())
+        .toList();
+  }
+
+
   static List<ProjectGoal> convertLegacyGoals(
       List<Map<String, String>>? legacyGoals) {
     if (legacyGoals == null || legacyGoals.isEmpty) return [];

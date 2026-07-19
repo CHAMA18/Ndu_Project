@@ -187,20 +187,19 @@ List<String> _ownerOptions(BuildContext context) {
 String _buildQualityAiContext(ProjectDataModel data) {
   final methodology =
   ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
-  final location = [
-    data.country.trim(),
-    data.location.trim(),
-    data.city.trim(),
-  ].where((value) => value.isNotEmpty).join(', ');
+  final location = <String>[
+    (data.frontEndPlanning.summary),
+  ].where((value) => value.trim().isNotEmpty).join(', ');
 
   // Collect risk context for quality risk identification
-  final riskContext = data.frontEndPlanning.riskItems.isNotEmpty
-      ? '\nTop Project Risks: ${data.frontEndPlanning.riskItems.take(5).map((r) => "'"'${r.title} (${r.impact}/${r.likelihood})'"'").join('; ')}'
+  final riskItems = data.frontEndPlanning.riskRegisterItems;
+  final riskContext = riskItems.isNotEmpty
+      ? '\nTop Project Risks: ${riskItems.take(5).map((r) => "'"'${r.riskName} (${r.impactLevel}/${r.likelihood})'"'").join('; ')}'
       : '';
   
   // Collect opportunity context for quality opportunities
   final opportunityContext = data.frontEndPlanning.opportunityItems.isNotEmpty
-      ? '\nOpportunities: ${data.frontEndPlanning.opportunityItems.take(3).map((o) => o.title).join('; ')}'
+      ? '\nOpportunities: ${data.frontEndPlanning.opportunityItems.take(3).map((o) => o.opportunity.isNotEmpty ? o.opportunity : 'Opportunity').join('; ')}'
       : '';
       
   // IT Considerations from Initiation phase for tech-related quality
@@ -231,7 +230,7 @@ String _buildQualityAiContext(ProjectDataModel data) {
     'Business Case: ${data.businessCase}',
     '',
     '=== PROJECT CLASSIFICATION ===',
-    'Industry / Sector: ${data.projectCategory} ${data.projectIndustry}'.trim(),
+    'Industry / Sector: (not specified)',
     'Delivery Framework: $methodology',
     'Project Location: ${location.isEmpty ? 'Not specified' : location}',
     'Team Size: $teamSize members, $roleCount defined roles',

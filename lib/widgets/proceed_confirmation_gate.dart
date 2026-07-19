@@ -25,7 +25,7 @@ Future<bool> showProceedWithoutReviewDialog(
   bool confirmChecked = false;
   bool skipFuture = false;
 
-  final result = await showDialog<bool>(
+  final result = await showDialog<_ProceedAction>(
     context: context,
     barrierDismissible: false,
     builder: (context) {
@@ -91,8 +91,28 @@ Future<bool> showProceedWithoutReviewDialog(
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
+                onPressed: () => Navigator.of(context).pop(_ProceedAction.cancel),
                 child: const Text('Cancel'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  if (skipFuture) {
+                    await UserPreferencesService.setSkipStepConfirmation(true);
+                  }
+                  if (context.mounted) {
+                    Navigator.of(context).pop(_ProceedAction.skip);
+                  }
+                },
+                icon: const Icon(Icons.skip_next, size: 16),
+                label: const Text('Skip — Not Applicable',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF6B7280),
+                  side: const BorderSide(color: Color(0xFFD1D5DB)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
               ElevatedButton(
                 onPressed: confirmChecked
@@ -102,7 +122,7 @@ Future<bool> showProceedWithoutReviewDialog(
                               true);
                         }
                         if (context.mounted) {
-                          Navigator.of(context).pop(true);
+                          Navigator.of(context).pop(_ProceedAction.proceed);
                         }
                       }
                     : null,
@@ -124,8 +144,11 @@ Future<bool> showProceedWithoutReviewDialog(
     },
   );
 
-  return result ?? false;
+  if (result == null) return false;
+  return result == _ProceedAction.proceed || result == _ProceedAction.skip;
 }
+
+enum _ProceedAction { cancel, proceed, skip }
 
 class ProceedConfirmationGate extends StatefulWidget {
   const ProceedConfirmationGate({

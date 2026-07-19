@@ -7006,6 +7006,183 @@ $escaped
     return _fallbackSsherEntries(trimmedContext, itemsPerCategory);
   }
 
+  /// Generates a concise, project-specific Interface Management Plan that
+  /// incorporates the user's additional-interfaces input (from the popup),
+  /// the project context, and the stakeholder management plan. Summarizes how
+  /// interfaces will be stewarded via the register, risk process, and meetings.
+  Future<String> generateInterfaceManagementPlan({
+    required String context,
+    required String additionalInterfaces,
+    required String stakeholderPlanSummary,
+    int maxTokens = 700,
+    double temperature = 0.5,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty) return '';
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackInterfaceManagementPlan(
+          trimmedContext, additionalInterfaces, stakeholderPlanSummary);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a senior project interface manager. Write a concise (180-260 words) Interface Management Plan that is SPECIFIC to the project context provided. Reference actual project names, stakeholders, vendors, and scope elements where possible. Summarize how interfaces will be stewarded using the Interface Register, the Risk Management process, coordination meetings, and governance cadence. Always return ONLY valid JSON.'
+        },
+        {
+          'role': 'user',
+          'content': _interfaceManagementPlanPrompt(
+              trimmedContext, additionalInterfaces, stakeholderPlanSummary),
+        },
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
+        final parsed = _decodeJsonSafely(content);
+        final plan = parsed != null
+            ? (parsed['plan'] ?? parsed['summary'] ?? parsed['text'] ?? '')
+                .toString()
+                .trim()
+            : '';
+        if (plan.isNotEmpty) return plan;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('generateInterfaceManagementPlan failed: $e');
+    }
+
+    return _fallbackInterfaceManagementPlan(
+        trimmedContext, additionalInterfaces, stakeholderPlanSummary);
+  }
+
+  /// Generates interface register entries by analyzing the project context,
+  /// stakeholder plan, vendor/contractor data, and program/portfolio context.
+  /// Returns a list of maps with keys: boundary, interfaceType, partyA,
+  /// partyB, criticality, priority, status, owner, notes.
+  Future<List<Map<String, dynamic>>> generateInterfaceEntries({
+    required String context,
+    required String additionalInterfaces,
+    required String programPortfolioContext,
+    int maxItems = 12,
+    int maxTokens = 1400,
+    double temperature = 0.45,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty) return [];
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackInterfaceEntries(
+          trimmedContext, additionalInterfaces, maxItems);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a senior interface management analyst. Identify cross-scope interfaces where project activities might cross with vendors, contractors, other companies, organizations, or businesses. Focus on REAL interfaces (data flow, physical handoff, contractual dependency, organizational coordination). Return up to $maxItems entries. Always return ONLY valid JSON.'
+        },
+        {
+          'role': 'user',
+          'content': _interfaceEntriesPrompt(
+              trimmedContext, additionalInterfaces, programPortfolioContext, maxItems),
+        },
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
+        final parsed = _decodeJsonSafely(content);
+        if (parsed != null) {
+          final list = parsed['entries'] ?? parsed['interfaces'] ?? [];
+          if (list is List) {
+            return list
+                .map((e) {
+                  if (e is Map) {
+                    return {
+                      'boundary': (e['boundary'] ?? e['name'] ?? e['title'] ?? '')
+                          .toString()
+                          .trim(),
+                      'interfaceType': (e['interfaceType'] ?? e['type'] ??
+                              'Organizational')
+                          .toString()
+                          .trim(),
+                      'partyA': (e['partyA'] ?? e['party_a'] ?? e['provider'] ??
+                              'Project Team')
+                          .toString()
+                          .trim(),
+                      'partyB': (e['partyB'] ?? e['party_b'] ??
+                              e['receiver'] ?? e['counterparty'] ?? '')
+                          .toString()
+                          .trim(),
+                      'criticality': (e['criticality'] ?? 'Major')
+                          .toString()
+                          .trim(),
+                      'priority': (e['priority'] ?? 'Medium')
+                          .toString()
+                          .trim(),
+                      'status': (e['status'] ?? 'Pending')
+                          .toString()
+                          .trim(),
+                      'owner': (e['owner'] ?? e['responsible'] ?? '')
+                          .toString()
+                          .trim(),
+                      'notes': (e['notes'] ?? e['description'] ?? '')
+                          .toString()
+                          .trim(),
+                    };
+                  }
+                  return <String, dynamic>{};
+                })
+                .where((m) => m['boundary']!.isNotEmpty)
+                .take(maxItems)
+                .toList();
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('generateInterfaceEntries failed: $e');
+    }
+
+    return _fallbackInterfaceEntries(
+        trimmedContext, additionalInterfaces, maxItems);
+  }
+
   /// Generates a per-category SSHER plan (Safety Plan, Security Plan, Health Plan,
   /// Environment Plan, Regulatory Plan). The plan is concise (90-150 words) and
   /// customized for the project's type, location, and rules.
@@ -8079,6 +8256,179 @@ $escaped
  $escaped
  """
  ''';
+  }
+
+  String _interfaceManagementPlanPrompt(
+      String context, String additionalInterfaces, String stakeholderPlan) {
+    final escapedContext = _escape(context);
+    final escapedAdditional = _escape(additionalInterfaces);
+    final escapedStakeholder = _escape(stakeholderPlan);
+    return '''
+Using the project context below, write a concise Interface Management Plan (180-260 words) that is SPECIFIC to this project. The plan MUST:
+1. Reference actual project name, stakeholders, vendors, contractors, and scope elements from the context
+2. Describe how interfaces will be identified, coordinated, and managed across stakeholders, organizations, systems, disciplines, and deliverables
+3. Explain how the Interface Register will be used as the single source of truth
+4. Reference the Risk Management process for interface-related risks
+5. Define coordination meeting cadence (weekly/monthly) and governance escalation path
+6. Incorporate the user's additional interfaces input below
+
+Return ONLY valid JSON with this exact structure:
+{
+  "plan": "Concise Interface Management Plan text goes here."
+}
+
+User's additional interfaces input:
+"""
+$escapedAdditional
+"""
+
+Stakeholder Management Plan summary:
+"""
+$escapedStakeholder
+"""
+
+Project context:
+"""
+$escapedContext
+"""
+''';
+  }
+
+  String _fallbackInterfaceManagementPlan(
+      String context, String additionalInterfaces, String stakeholderPlan) {
+    final projectName = _extractProjectName(context);
+    final assetName = projectName.isEmpty ? 'this project' : projectName;
+    final addl = additionalInterfaces.trim().isEmpty
+        ? 'No additional interfaces were identified beyond those already captured in the project scope.'
+        : 'Additional interfaces identified by the project team: $additionalInterfaces';
+    return 'Interface Management Plan for $assetName: The project team will maintain an Interface Register as the single source of truth for all internal and external interfaces, including vendors, contractors, and other organizational boundaries. Each interface will have a named owner, a defined criticality (Critical/Major/Minor), a coordination cadence, and a status that is reviewed weekly during the project coordination meeting. Interface-related risks will be captured in the project Risk Register with a reference back to the Interface Register entry, and mitigation actions will be tracked through the standard risk management process. Monthly interface governance reviews will be held with the project sponsor and key stakeholders to escalate unresolved interface issues, confirm handoff readiness, and approve new interfaces. Decision rights for each interface are defined in the RACI matrix. The change control process governs any additions, modifications, or closures of interfaces, with all changes logged in the Interface Change Log for audit traceability. $addl The stakeholder engagement approach is aligned with the Stakeholder Management Plan to ensure consistent communication across all interface parties.';
+  }
+
+  String _interfaceEntriesPrompt(String context, String additionalInterfaces,
+      String programPortfolioContext, int maxItems) {
+    final escapedContext = _escape(context);
+    final escapedAdditional = _escape(additionalInterfaces);
+    final escapedProgram = _escape(programPortfolioContext);
+    return '''
+Analyze the project context below and identify up to $maxItems cross-scope interfaces where project activities might cross with vendors, contractors, other companies, organizations, or businesses. Focus on REAL interfaces — places where data flows, physical handoffs occur, contractual dependencies exist, or organizational coordination is required.
+
+For each interface, provide:
+- boundary: short name (e.g. "Vendor X — Equipment Delivery", "Client IT — System Integration")
+- interfaceType: one of Technical / Contractual / Organizational / Physical / Procedural
+- partyA: the providing party (usually "Project Team" or a specific discipline)
+- partyB: the receiving party (vendor, contractor, client department, external organization)
+- criticality: Critical / Major / Minor
+- priority: High / Medium / Low
+- status: Pending / Active / Closed (default Pending)
+- owner: role or name responsible for coordinating this interface
+- notes: brief description of what crosses the boundary and why it matters
+
+Also incorporate the user's additional interfaces input and any program/portfolio context provided.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "entries": [
+    {
+      "boundary": "...",
+      "interfaceType": "...",
+      "partyA": "...",
+      "partyB": "...",
+      "criticality": "...",
+      "priority": "...",
+      "status": "...",
+      "owner": "...",
+      "notes": "..."
+    }
+  ]
+}
+
+User's additional interfaces input:
+"""
+$escapedAdditional
+"""
+
+Program/Portfolio context (other projects that might share interfaces):
+"""
+$escapedProgram
+"""
+
+Project context:
+"""
+$escapedContext
+"""
+''';
+  }
+
+  List<Map<String, dynamic>> _fallbackInterfaceEntries(
+      String context, String additionalInterfaces, int maxItems) {
+    final projectName = _extractProjectName(context);
+    final assetName = projectName.isEmpty ? 'the project' : projectName;
+    final entries = <Map<String, dynamic>>[
+      {
+        'boundary': 'Client — Project Sponsor',
+        'interfaceType': 'Organizational',
+        'partyA': 'Project Team',
+        'partyB': 'Client Sponsor',
+        'criticality': 'Critical',
+        'priority': 'High',
+        'status': 'Pending',
+        'owner': 'Project Manager',
+        'notes':
+            'Governance interface for $assetName — steering committee decisions, change approvals, and milestone sign-off.',
+      },
+      {
+        'boundary': 'Vendor — Equipment/Service Delivery',
+        'interfaceType': 'Contractual',
+        'partyA': 'Project Team',
+        'partyB': 'Primary Vendor',
+        'criticality': 'Major',
+        'priority': 'High',
+        'status': 'Pending',
+        'owner': 'Procurement Lead',
+        'notes':
+            'Contractual interface for vendor deliverables, acceptance criteria, and SLA tracking.',
+      },
+      {
+        'boundary': 'IT — System Integration',
+        'interfaceType': 'Technical',
+        'partyA': 'Project Team',
+        'partyB': 'Client IT / Infrastructure',
+        'criticality': 'Major',
+        'priority': 'Medium',
+        'status': 'Pending',
+        'owner': 'Technical Lead',
+        'notes':
+            'Technical interface for system integration, data migration, and environment provisioning.',
+      },
+      {
+        'boundary': 'Regulatory — Permits & Compliance',
+        'interfaceType': 'Procedural',
+        'partyA': 'Project Team',
+        'partyB': 'Regulatory Authority',
+        'criticality': 'Critical',
+        'priority': 'High',
+        'status': 'Pending',
+        'owner': 'Compliance Officer',
+        'notes':
+            'Regulatory interface for permits, inspections, and statutory reporting.',
+      },
+    ];
+    // If the user provided additional interfaces, add a generic entry referencing them
+    if (additionalInterfaces.trim().isNotEmpty &&
+        additionalInterfaces.trim().toLowerCase() != 'not applicable') {
+      entries.add({
+        'boundary': 'Additional Interface (user-identified)',
+        'interfaceType': 'Organizational',
+        'partyA': 'Project Team',
+        'partyB': 'See notes',
+        'criticality': 'Major',
+        'priority': 'Medium',
+        'status': 'Pending',
+        'owner': 'Project Manager',
+        'notes': additionalInterfaces.trim(),
+      });
+    }
+    return entries.take(maxItems).toList();
   }
 
   String _fallbackSsherSummary(String context) {

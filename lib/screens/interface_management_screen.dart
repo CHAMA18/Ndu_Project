@@ -21,6 +21,7 @@ import 'package:ndu_project/widgets/interface_identification_dialog.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/services/activity_log_service.dart';
+import 'package:ndu_project/services/openai_service_secure.dart';
 // ─── Tab definitions ────────────────────────────────────────────────────────
 
 enum _ImTab {
@@ -199,6 +200,144 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
       action: 'Interface Auto-Populated',
       details: {'count': entries.length},
     ));
+
+    // After basic auto-populate, kick off AI generation for additional
+    // cross-scope interfaces (vendors, contractors, other orgs, program/portfolio)
+    if (mounted) {
+      unawaited(_aiPopulateInterfaces(context, data));
+    }
+  }
+
+  /// AI-enhanced interface population. Calls generateInterfaceEntries to
+  /// identify cross-scope interfaces with vendors, contractors, other
+  /// companies/organizations, and program/portfolio projects. De-duplicates
+  /// against existing entries by boundary name.
+  Future<void> _aiPopulateInterfaces(
+      BuildContext context, ProjectDataModel data) async {
+    if (data.planningNotes['interface_ai_populated'] == 'true') return;
+
+    final additionalInterfaces =
+        data.planningNotes['additional_interfaces'] ?? 'Not Applicable';
+
+    // Build a compact program/portfolio context from the user's other projects
+    final programPortfolioContext = <String>[];
+    try {
+      // The stakeholder plan summary is read from planning notes
+      final stakeholderPlan =
+          data.planningNotes['stakeholder_management_plan'] ??
+          data.planningNotes['stakeholder_engagement_plan'] ??
+          '';
+      if (stakeholderPlan.isNotEmpty) {
+        programPortfolioContext
+            .add('Stakeholder Management Plan: $stakeholderPlan');
+      }
+    } catch (_) {}
+
+    final projectContext =
+        ProjectDataHelper.buildFepContext(data, sectionLabel: 'Interface Management');
+    if (projectContext.trim().isEmpty) return;
+
+    List<Map<String, dynamic>> aiEntries = [];
+    try {
+      aiEntries = await OpenAiServiceSecure().generateInterfaceEntries(
+        context: projectContext,
+        additionalInterfaces: additionalInterfaces,
+        programPortfolioContext: programPortfolioContext.join('\n\n'),
+        maxItems: 10,
+      );
+    } catch (e) {
+      debugPrint('AI interface generation failed: $e');
+      return;
+    }
+
+    if (!mounted || aiEntries.isEmpty) {
+      // Mark as attempted so we don't retry on every rebuild
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'interface_management',
+        showSnackbar: false,
+        dataUpdater: (d) => d.copyWith(
+          planningNotes: {
+            ...d.planningNotes,
+            'interface_ai_populated': 'true',
+          },
+        ),
+      );
+      return;
+    }
+
+    // De-duplicate against existing entries by boundary name (case-insensitive)
+    final existingBoundaries = data.interfaceEntries
+        .map((e) => e.boundary.trim().toLowerCase())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final newEntries = <InterfaceEntry>[];
+    final logEntries = <InterfaceChangeLogEntry>[];
+    final now = DateTime.now().toIso8601String();
+
+    for (final m in aiEntries) {
+      final boundary = (m['boundary'] ?? '').toString().trim();
+      if (boundary.isEmpty) continue;
+      if (existingBoundaries.contains(boundary.toLowerCase())) continue;
+      newEntries.add(InterfaceEntry(
+        boundary: boundary,
+        interfaceType: (m['interfaceType'] ?? 'Organizational').toString(),
+        partyA: (m['partyA'] ?? 'Project Team').toString(),
+        partyB: (m['partyB'] ?? '').toString(),
+        criticality: (m['criticality'] ?? 'Major').toString(),
+        priority: (m['priority'] ?? 'Medium').toString(),
+        status: (m['status'] ?? 'Pending').toString(),
+        owner: (m['owner'] ?? '').toString(),
+        notes: (m['notes'] ?? '').toString(),
+      ));
+      existingBoundaries.add(boundary.toLowerCase());
+      logEntries.add(InterfaceChangeLogEntry(
+        interfaceId: '',
+        interfaceName: boundary,
+        action: 'AI-Generated',
+        newValue: boundary,
+        changedAt: now,
+      ));
+    }
+
+    if (newEntries.isEmpty) {
+      await ProjectDataHelper.updateAndSave(
+        context: context,
+        checkpoint: 'interface_management',
+        showSnackbar: false,
+        dataUpdater: (d) => d.copyWith(
+          planningNotes: {
+            ...d.planningNotes,
+            'interface_ai_populated': 'true',
+          },
+        ),
+      );
+      return;
+    }
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'interface_management',
+      showSnackbar: false,
+      dataUpdater: (d) => d.copyWith(
+        planningNotes: {
+          ...d.planningNotes,
+          'interface_ai_populated': 'true',
+        },
+        interfaceEntries: [...d.interfaceEntries, ...newEntries],
+        interfaceChangeLog: [...d.interfaceChangeLog, ...logEntries],
+      ),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'KAZ AI identified ${newEntries.length} additional cross-scope interface(s).'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override
@@ -480,12 +619,72 @@ class _InterfacePlanCardState extends State<InterfacePlanCard> {
  Timer? _saveDebounce;
  DateTime? _lastSavedAt;
  late String _initialText;
+ bool _isAiGenerating = false;
 
  @override
  void initState() {
  super.initState();
  _initialText =
  ProjectDataHelper.getData(context).planningNotes[_noteKey] ?? '';
+ // Auto-generate the AI plan if empty and the popup has been completed
+ WidgetsBinding.instance.addPostFrameCallback((_) {
+   if (!mounted) return;
+   final data = ProjectDataHelper.getData(context);
+   final planText = (data.planningNotes[_noteKey] ?? '').trim();
+   final popupDone = data.planningNotes['interface_identification_shown'] == 'true';
+   final aiPlanDone = data.planningNotes['interface_plan_ai_generated'] == 'true';
+   if (planText.isEmpty && popupDone && !aiPlanDone) {
+     _generateAiPlan();
+   }
+ });
+ }
+
+ Future<void> _generateAiPlan() async {
+   if (_isAiGenerating) return;
+   setState(() => _isAiGenerating = true);
+   try {
+     final data = ProjectDataHelper.getData(context);
+     final additionalInterfaces =
+         data.planningNotes['additional_interfaces'] ?? 'Not Applicable';
+     final stakeholderPlan =
+         data.planningNotes['stakeholder_management_plan'] ??
+         data.planningNotes['stakeholder_engagement_plan'] ??
+         '';
+     final projectContext = ProjectDataHelper.buildFepContext(
+         data, sectionLabel: 'Interface Management');
+     if (projectContext.trim().isEmpty) {
+       setState(() => _isAiGenerating = false);
+       return;
+     }
+     final plan = await OpenAiServiceSecure().generateInterfaceManagementPlan(
+       context: projectContext,
+       additionalInterfaces: additionalInterfaces,
+       stakeholderPlanSummary: stakeholderPlan,
+     );
+     if (!mounted) return;
+     if (plan.trim().isNotEmpty) {
+       setState(() => _initialText = plan.trim());
+       await ProjectDataHelper.updateAndSave(
+         context: context,
+         checkpoint: 'interface_management',
+         showSnackbar: false,
+         dataUpdater: (d) => d.copyWith(
+           planningNotes: {
+             ...d.planningNotes,
+             _noteKey: plan.trim(),
+             'interface_plan_ai_generated': 'true',
+           },
+         ),
+       );
+       if (mounted) {
+         setState(() => _lastSavedAt = DateTime.now());
+       }
+     }
+   } catch (e) {
+     debugPrint('AI Interface Management Plan generation failed: $e');
+   } finally {
+     if (mounted) setState(() => _isAiGenerating = false);
+   }
  }
 
  @override
@@ -525,6 +724,32 @@ class _InterfacePlanCardState extends State<InterfacePlanCard> {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
+          if (_isAiGenerating)
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'KAZ AI is generating a project-specific Interface Management Plan incorporating your additional interfaces input and stakeholder plan...',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF1E40AF)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           AiSuggestingTextField(
             fieldLabel: 'Interface Management Plan',
             hintText:
@@ -536,14 +761,31 @@ class _InterfacePlanCardState extends State<InterfacePlanCard> {
  initialText: _initialText,
  onChanged: _handleChanged,
  ),
- if (_lastSavedAt != null)
- Padding(
- padding: const EdgeInsets.only(top: 8),
- child: Text(
- 'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}',
- style:
- const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
- ),
+ Row(
+   children: [
+     if (_lastSavedAt != null)
+       Padding(
+         padding: const EdgeInsets.only(top: 8),
+         child: Text(
+           'Saved ${TimeOfDay.fromDateTime(_lastSavedAt!).format(context)}',
+           style:
+               const TextStyle(fontSize: 11, color: Color(0xFF6B7280)),
+         ),
+       ),
+     const Spacer(),
+     TextButton.icon(
+       onPressed: _isAiGenerating ? null : _generateAiPlan,
+       icon: const Icon(Icons.auto_awesome, size: 14),
+       label: const Text('Regenerate AI Plan',
+           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+       style: TextButton.styleFrom(
+         foregroundColor: const Color(0xFF1D4ED8),
+         minimumSize: Size.zero,
+         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+       ),
+     ),
+   ],
  ),
  ],
  ),
@@ -1162,6 +1404,46 @@ void _syncInterfaceRiskToGlobal({
       showSnackbar: false,
     );
   }
+
+  // Also sync to the central FEP Risk Register (bidirectional)
+  if (hasNewRisk) {
+    unawaited(ProjectDataHelper.upsertRiskToRegister(
+      context: context,
+      sourceSection: 'Interface Management',
+      riskName: 'Interface: ${entry.boundary}',
+      description: entry.notes.isNotEmpty
+          ? entry.notes
+          : 'Risk associated with interface ${entry.boundary} (${entry.partyA} ↔ ${entry.partyB})',
+      category: 'Interface Management',
+      impactLevel: entry.criticality.toLowerCase() == 'critical'
+          ? 'High'
+          : entry.criticality.toLowerCase() == 'major'
+              ? 'Medium'
+              : 'Low',
+      likelihood: 'Medium',
+      mitigationStrategy: entry.risk,
+      discipline: entry.interfaceType,
+      owner: entry.owner,
+      status: entry.status,
+    ));
+  } else {
+    unawaited(ProjectDataHelper.removeRiskFromRegister(
+      context: context,
+      sourceSection: 'Interface Management',
+      riskName: 'Interface: ${entry.boundary}',
+    ));
+  }
+
+  // Log to central activities log
+  unawaited(ProjectDataHelper.logActivityToCentral(
+    context: context,
+    sourceSection: 'Interface Management',
+    title: 'Interface ${entry.boundary} — ${hasNewRisk ? "Risk identified" : "Risk cleared"}',
+    description: 'Interface between ${entry.partyA} and ${entry.partyB}. Risk: ${entry.risk}',
+    phase: 'Planning',
+    discipline: entry.interfaceType,
+    role: entry.owner,
+  ));
 }
 
 void _removeInterfaceRiskFromGlobal({
@@ -1170,6 +1452,11 @@ void _removeInterfaceRiskFromGlobal({
 }) {
   final data = ProjectDataHelper.getData(context);
   final riskItems = List<ExecutionRiskItem>.from(data.executionRiskItems);
+  // Find the interface entry to get its boundary name for central register cleanup
+  final entry = data.interfaceEntries.firstWhere(
+    (e) => e.id == interfaceId,
+    orElse: () => InterfaceEntry(boundary: ''),
+  );
   riskItems.removeWhere((r) => r.id == 'iface_$interfaceId');
   ProjectDataHelper.updateAndSave(
     context: context,
@@ -1177,6 +1464,14 @@ void _removeInterfaceRiskFromGlobal({
     dataUpdater: (d) => d.copyWith(executionRiskItems: riskItems),
     showSnackbar: false,
   );
+  // Also remove from central FEP Risk Register
+  if (entry.boundary.isNotEmpty) {
+    unawaited(ProjectDataHelper.removeRiskFromRegister(
+      context: context,
+      sourceSection: 'Interface Management',
+      riskName: 'Interface: ${entry.boundary}',
+    ));
+  }
 }
 
 // ─── Entry Dialog (enhanced with new fields) ─────────────────────────────────
