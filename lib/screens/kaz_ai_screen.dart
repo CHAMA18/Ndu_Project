@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
+import 'package:ndu_project/screens/create_account_screen.dart';
 
 /// KAZ AI — standalone subpage accessible from the 'Why Ndu Project?'
 /// dropdown on the landing page. Shows the KAZ AI Project Delivery
@@ -731,7 +732,7 @@ class KazAiScreen extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SignInScreen()),
+                    MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
                   );
                 },
                 icon: const Icon(Icons.rocket_launch, size: 18),

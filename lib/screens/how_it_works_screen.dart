@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/widgets/landing_subpage_action_bar.dart';
+import 'package:ndu_project/screens/create_account_screen.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
 /// HOW IT WORKS — World-Class Standalone Page
@@ -961,7 +962,11 @@ class HowItWorksScreen extends StatelessWidget {
           Row(
             children: [
               ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
+                  );
+                },
                 icon: const Icon(Icons.rocket_launch, size: 18),
                 label: const Text('Start Your Project',
                     style: TextStyle(fontWeight: FontWeight.w700)),

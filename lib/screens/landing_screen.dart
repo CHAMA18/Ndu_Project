@@ -10,6 +10,7 @@ import 'package:ndu_project/screens/kaz_ai_screen.dart';
 import 'package:ndu_project/screens/differentiator_screen.dart';
 import 'package:ndu_project/screens/trusted_by_screen.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
+import 'package:ndu_project/screens/create_account_screen.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/widgets/admin_edit_toggle.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -131,7 +132,7 @@ class _LandingScreenState extends State<LandingScreen>
  void _handleStartProject() {
  Navigator.push(
  context,
- MaterialPageRoute(builder: (_) => const SignInScreen()),
+ MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
  );
  }
 

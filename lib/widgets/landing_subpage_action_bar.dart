@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/sign_in_screen.dart';
+import 'package:ndu_project/screens/create_account_screen.dart';
 
 /// Compact "Sign In" + "Start Your Project" buttons for the top-right
 /// corner of landing page subpages. Rendered as a small Row — NOT a
@@ -38,7 +39,7 @@ class LandingSubpageActions extends StatelessWidget {
         ElevatedButton(
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SignInScreen()),
+              MaterialPageRoute(builder: (_) => const CreateAccountScreen()),
             );
           },
           style: ElevatedButton.styleFrom(
