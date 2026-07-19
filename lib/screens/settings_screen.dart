@@ -215,6 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     return ResponsiveScaffold(
       activeItemLabel: 'Settings',
+      showSidebar: false,
       backgroundColor: Colors.white,
       appBarTitle: 'Settings',
       floatingActionButton: const KazAiChatBubble(positioned: false),
