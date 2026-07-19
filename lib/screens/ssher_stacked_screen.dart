@@ -199,6 +199,9 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       // Restore visited tabs from persistent storage
       for (final cat in _SsherCategory.values) {
         if (cat == _SsherCategory.cost) continue;
+        if (ssherData.categoryApplicability[cat.name] == false) {
+          _visitedTabs.add(cat);
+        }
         if (ssherData.tabsVisited[cat.name] == true) {
           _visitedTabs.add(cat);
         }
@@ -234,6 +237,40 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
         ssherData: data.ssherData.copyWith(tabsVisited: visitedMap),
       ),
     );
+  }
+
+  bool _isCategoryApplicable(_SsherCategory category) {
+    final data = ProjectDataHelper.getData(context).ssherData;
+    return data.categoryApplicability[category.name] != false;
+  }
+
+  Future<void> _setCategoryApplicable(
+    _SsherCategory category,
+    bool applicable,
+  ) async {
+    final current = ProjectDataHelper.getData(context).ssherData;
+    final updatedMap = Map<String, bool>.from(current.categoryApplicability)
+      ..[category.name] = applicable;
+    final updatedVisited = Map<String, bool>.from(current.tabsVisited);
+    if (!applicable) {
+      updatedVisited[category.name] = true;
+      _visitedTabs.add(category);
+    }
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher',
+      showSnackbar: false,
+      dataUpdater: (data) => data.copyWith(
+        ssherData: data.ssherData.copyWith(
+          categoryApplicability: updatedMap,
+          tabsVisited: updatedVisited,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {});
   }
 
   Future<void> _saveStakeholderConfirmation(bool value) async {
@@ -877,7 +914,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       _SsherCategory.health,
       _SsherCategory.environment,
       _SsherCategory.regulatory,
-    };
+    }.where(_isCategoryApplicable).toSet();
     final unvisited = requiredTabs.difference(_visitedTabs).toList();
     if (unvisited.isNotEmpty) {
       final labels = unvisited.map(_categoryLabel).join(', ');
@@ -923,6 +960,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
           // ── Notes Input ──
           _buildNotesSection(isMobile),
+
+          _buildApplicabilitySection(isMobile),
 
           // ── Phase Navigation (Scrollable Pill Tabs) ──
           _buildPhaseTabs(isMobile),
@@ -1034,6 +1073,59 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
           // Bottom padding for mobile
           if (isMobile) const SizedBox(height: 80),
         ],
+      ),
+    );
+  }
+
+  Widget _buildApplicabilitySection(bool isMobile) {
+    final categories = _SsherCategory.values
+        .where((category) => category != _SsherCategory.cost)
+        .toList();
+
+    return Padding(
+      padding:
+          EdgeInsets.fromLTRB(isMobile ? 16 : 0, 16, isMobile ? 16 : 0, 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Applicable SSHER Sections',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Turn off sections that do not apply to this project. Skipped sections will not block completion.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 12),
+            ...categories.map((category) {
+              final applicable = _isCategoryApplicable(category);
+              return SwitchListTile.adaptive(
+                value: applicable,
+                contentPadding: EdgeInsets.zero,
+                title: Text(_categoryLabel(category)),
+                subtitle: Text(
+                  applicable
+                      ? 'Included in SSHER review and completion checks.'
+                      : 'Marked not applicable and skipped from review requirements.',
+                ),
+                onChanged: (value) => _setCategoryApplicable(category, value),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -6314,4 +6406,3 @@ class _PushAllProgressDialogState extends State<_PushAllProgressDialog> {
     );
   }
 }
-

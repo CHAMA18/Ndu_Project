@@ -143,8 +143,8 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'ssher', label: 'SSHER'),
     SidebarItem(checkpoint: 'quality_management', label: 'Quality Management'),
     // Design & Technology — now before Execution Plan
-    SidebarItem(checkpoint: 'design', label: 'Design Planning'),
     SidebarItem(checkpoint: 'technology', label: 'Technology Planning'),
+    SidebarItem(checkpoint: 'design', label: 'Design Planning'),
     SidebarItem(
         checkpoint: 'interface_management', label: 'Interface Management'),
     // Agile Delivery Model Section — before Execution Plan
@@ -172,6 +172,9 @@ class SidebarNavigationService {
         checkpoint: 'agile_metrics_planning', label: 'Agile Metrics Planning'),
     // Execution Plan sub-items (full flow matching sidebar order)
     SidebarItem(checkpoint: 'execution_plan', label: 'Execution Plan Overview'),
+    SidebarItem(
+        checkpoint: 'execution_quality_tracking',
+        label: 'Execution Quality Tracking'),
     SidebarItem(
         checkpoint: 'execution_work_packages',
         label: 'Execution Work Packages'),

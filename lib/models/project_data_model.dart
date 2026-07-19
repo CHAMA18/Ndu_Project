@@ -3403,6 +3403,9 @@ class SSHERData {
   Map<String, String> categoryPlans;
   // Per-category tab-visited tracking (for the Next button gate)
   Map<String, bool> tabsVisited;
+  // Per-category applicability flags so teams can skip SSHER sections that do
+  // not apply to the current project.
+  Map<String, bool> categoryApplicability;
   // Stakeholder confirmation checkbox
   bool stakeholderConfirmed;
   String stakeholderConfirmedAt;
@@ -3423,6 +3426,7 @@ class SSHERData {
     this.screen4Data = '',
     Map<String, String>? categoryPlans,
     Map<String, bool>? tabsVisited,
+    Map<String, bool>? categoryApplicability,
     this.stakeholderConfirmed = false,
     this.stakeholderConfirmedAt = '',
     List<String>? applicableSdgs,
@@ -3432,6 +3436,7 @@ class SSHERData {
         entries = entries ?? [],
         categoryPlans = categoryPlans ?? {},
         tabsVisited = tabsVisited ?? {},
+        categoryApplicability = categoryApplicability ?? {},
         applicableSdgs = applicableSdgs ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -3443,6 +3448,7 @@ class SSHERData {
         'screen4Data': screen4Data,
         'categoryPlans': categoryPlans,
         'tabsVisited': tabsVisited,
+        'categoryApplicability': categoryApplicability,
         'stakeholderConfirmed': stakeholderConfirmed,
         'stakeholderConfirmedAt': stakeholderConfirmedAt,
         'applicableSdgs': applicableSdgs,
@@ -3470,6 +3476,10 @@ class SSHERData {
       tabsVisited: (json['tabsVisited'] as Map<String, dynamic>?)
               ?.map((k, v) => MapEntry(k, v as bool)) ??
           {},
+      categoryApplicability:
+          (json['categoryApplicability'] as Map<String, dynamic>?)
+                  ?.map((k, v) => MapEntry(k, v == true)) ??
+              {},
       stakeholderConfirmed: json['stakeholderConfirmed'] as bool? ?? false,
       stakeholderConfirmedAt: json['stakeholderConfirmedAt']?.toString() ?? '',
       applicableSdgs: (json['applicableSdgs'] as List?)
@@ -3490,6 +3500,7 @@ class SSHERData {
     String? screen4Data,
     Map<String, String>? categoryPlans,
     Map<String, bool>? tabsVisited,
+    Map<String, bool>? categoryApplicability,
     bool? stakeholderConfirmed,
     String? stakeholderConfirmedAt,
     List<String>? applicableSdgs,
@@ -3505,6 +3516,8 @@ class SSHERData {
       screen4Data: screen4Data ?? this.screen4Data,
       categoryPlans: categoryPlans ?? this.categoryPlans,
       tabsVisited: tabsVisited ?? this.tabsVisited,
+      categoryApplicability:
+          categoryApplicability ?? this.categoryApplicability,
       stakeholderConfirmed: stakeholderConfirmed ?? this.stakeholderConfirmed,
       stakeholderConfirmedAt: stakeholderConfirmedAt ?? this.stakeholderConfirmedAt,
       applicableSdgs: applicableSdgs ?? this.applicableSdgs,

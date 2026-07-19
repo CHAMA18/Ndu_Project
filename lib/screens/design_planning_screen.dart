@@ -53,7 +53,9 @@ const String _kSectionProgressNotesKey = 'planning_design_section_progress';
 enum _SectionProgressState { pending, complete, notApplicable }
 
 class DesignPlanningScreen extends StatefulWidget {
- const DesignPlanningScreen({super.key});
+ const DesignPlanningScreen({super.key, this.initialSectionId});
+
+ final String? initialSectionId;
 
  static void open(BuildContext context) {
  Navigator.of(context).push(
@@ -330,12 +332,16 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  }
 
  _sectionProgress = progress;
- _activeSectionId = _sectionOrder
- .firstWhere(
- (section) => !_isSectionResolved(section.id),
- orElse: () => _sectionOrder.first,
- )
- .id;
+ final requestedSectionId = widget.initialSectionId;
+ _activeSectionId =
+     _sectionOrder.any((section) => section.id == requestedSectionId)
+         ? requestedSectionId!
+         : _sectionOrder
+             .firstWhere(
+               (section) => !_isSectionResolved(section.id),
+               orElse: () => _sectionOrder.first,
+             )
+             .id;
  _sectionExpanded = {
  for (final section in _sectionOrder)
  section.id: section.id == _activeSectionId,
@@ -369,13 +375,7 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  _sectionProgress[sectionId] != _SectionProgressState.pending;
 
  bool _canOpenSection(String sectionId) {
- final targetIndex =
- _sectionOrder.indexWhere((section) => section.id == sectionId);
- if (targetIndex <= 0) return true;
- for (var i = 0; i < targetIndex; i++) {
- if (!_isSectionResolved(_sectionOrder[i].id)) return false;
- }
- return true;
+ return _sectionOrder.any((section) => section.id == sectionId);
  }
 
  String? _firstBlockingSectionLabel(String sectionId) {
@@ -1957,7 +1957,7 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  InnerPageNavigationHint(
  pageId: 'design_planning',
  pageTitle: 'Design Planning Process',
- description: 'This page has 14 guided sections.',
+ description: 'This page has 15 guided sections.',
  accentColor: _kPrimary,
  currentSectionId: _activeSectionId,
  sections: _sectionOrder.asMap().entries.map((entry) {

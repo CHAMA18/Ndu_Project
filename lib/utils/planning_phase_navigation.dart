@@ -26,6 +26,7 @@ import 'package:ndu_project/screens/execution_plan_interface_management_screen.d
 import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_overview_screen.dart';
+import 'package:ndu_project/screens/execution_quality_tracking_screen.dart';
 import 'package:ndu_project/screens/design_planning_screen.dart';
 import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/interface_management_screen.dart';
@@ -128,14 +129,14 @@ class PlanningPhaseNavigation {
       builder: (_) => const QualityManagementScreen(),
     ),
     PlanningPage(
-      id: 'design',
-      title: 'Design Planning',
-      builder: (_) => const DesignPlanningScreen(),
-    ),
-    PlanningPage(
       id: 'technology',
       title: 'Technology Planning',
       builder: (_) => const PlanningTechnologyScreen(),
+    ),
+    PlanningPage(
+      id: 'design',
+      title: 'Design Planning',
+      builder: (_) => const DesignPlanningScreen(),
     ),
     PlanningPage(
       id: 'interface_management',
@@ -213,6 +214,11 @@ class PlanningPhaseNavigation {
       id: 'execution_plan',
       title: 'Execution Plan Overview',
       builder: (_) => const ExecutionPlanScreen(),
+    ),
+    PlanningPage(
+      id: 'execution_quality_tracking',
+      title: 'Execution Quality Tracking',
+      builder: (_) => const ExecutionQualityTrackingScreen(),
     ),
     PlanningPage(
       id: 'execution_plan_strategy',

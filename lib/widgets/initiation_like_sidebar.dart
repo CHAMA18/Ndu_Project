@@ -42,6 +42,7 @@ import 'package:ndu_project/screens/execution_plan_stakeholder_identification_sc
 import 'package:ndu_project/screens/execution_plan_interface_management_screen.dart';
 import 'package:ndu_project/screens/execution_plan_communication_plan_screen.dart';
 import 'package:ndu_project/screens/execution_plan_interface_management_plan_screen.dart';
+import 'package:ndu_project/screens/execution_quality_tracking_screen.dart';
 import 'package:ndu_project/screens/planning_technology_screen.dart';
 import 'package:ndu_project/screens/team_management_screen.dart';
 import 'package:ndu_project/screens/planning_contracting_screen.dart';
@@ -207,6 +208,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   static const Set<String> _executionPlanLabels = {
     'Execution Plan Overview',
+    'Execution Quality Tracking',
     'Execution Work Packages',
     'Executive Plan Strategy',
     'Execution Plan Details',
@@ -226,6 +228,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
 
   static const Set<String> _technologyPlanningLabels = {
     'Technology Planning Overview',
+    'Technology Planning',
   };
 
   static const Set<String> _costEstimateLabels = {
@@ -1021,6 +1024,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     _navigateWithCheckpoint('design', const DesignPlanningScreen());
   }
 
+  void _openDesignSection(String sectionId) {
+    _navigateWithCheckpoint(
+      'design',
+      DesignPlanningScreen(initialSectionId: sectionId),
+    );
+  }
+
   void _openDesignManagement() {
     _navigateWithCheckpoint('design_management',
         const DesignPhaseScreen(activeItemLabel: 'Design Management'));
@@ -1034,6 +1044,13 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   void _openExecutionWorkPackages() {
     _navigateWithCheckpoint(
         'execution_work_packages', const ExecutionWorkPackagesScreen());
+  }
+
+  void _openExecutionQualityTracking() {
+    _navigateWithCheckpoint(
+      'execution_quality_tracking',
+      const ExecutionQualityTrackingScreen(),
+    );
   }
 
   // ignore: unused_element
@@ -2397,9 +2414,6 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
         _buildSubMenuItem('Quality Management',
             onTap: _openQualityManagement,
             isActive: widget.activeItemLabel == 'Quality Management'),
-        _buildSubMenuItem('Design Planning',
-            onTap: _openDesign,
-            isActive: widget.activeItemLabel == 'Design Planning'),
         _buildSubExpandableHeader(
           'Technology Planning',
           expanded: _technologyPlanningExpanded,
@@ -2416,6 +2430,54 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             isActive: widget.activeItemLabel == 'Technology Planning',
           ),
         ],
+        _buildSubMenuItem('Design Planning',
+            onTap: _openDesign,
+            isActive: widget.activeItemLabel == 'Design Planning'),
+        _buildSubSubMenuItem('Project Overview',
+            onTap: () => _openDesignSection('overview'),
+            isActive: false),
+        _buildSubSubMenuItem('Design Overview',
+            onTap: () => _openDesignSection('design_overview'),
+            isActive: false),
+        _buildSubSubMenuItem('Design Specifications',
+            onTap: () => _openDesignSection('design_specifications_workspace'),
+            isActive: false),
+        _buildSubSubMenuItem('Deviations',
+            onTap: () => _openDesignSection('deviations'),
+            isActive: false),
+        _buildSubSubMenuItem('Requirements Mapping',
+            onTap: () => _openDesignSection('requirements'),
+            isActive: false),
+        _buildSubSubMenuItem('Architecture Basis',
+            onTap: () => _openDesignSection('architecture'),
+            isActive: false),
+        _buildSubSubMenuItem('UI/UX Basis',
+            onTap: () => _openDesignSection('uiux'),
+            isActive: false),
+        _buildSubSubMenuItem('Technical Basis',
+            onTap: () => _openDesignSection('technical'),
+            isActive: false),
+        _buildSubSubMenuItem('Constraints & Assumptions',
+            onTap: () => _openDesignSection('constraints'),
+            isActive: false),
+        _buildSubSubMenuItem('Risks & Mitigation',
+            onTap: () => _openDesignSection('risks'),
+            isActive: false),
+        _buildSubSubMenuItem('Dependencies',
+            onTap: () => _openDesignSection('dependencies'),
+            isActive: false),
+        _buildSubSubMenuItem('Decision Log',
+            onTap: () => _openDesignSection('decisions'),
+            isActive: false),
+        _buildSubSubMenuItem('Validation',
+            onTap: () => _openDesignSection('validation'),
+            isActive: false),
+        _buildSubSubMenuItem('Approvals',
+            onTap: () => _openDesignSection('approvals'),
+            isActive: false),
+        _buildSubSubMenuItem('Work Packages',
+            onTap: () => _openDesignSection('work_packages'),
+            isActive: false),
         _buildSubMenuItem(
           'Interface Management',
           onTap: lockInterfaceManagement ? null : _openInterfaceManagement,
@@ -2487,6 +2549,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
             'Overview',
             onTap: _openExecutionPlan,
             isActive: widget.activeItemLabel == 'Execution Plan Overview',
+          ),
+          _buildSubSubMenuItem(
+            'Quality Tracking',
+            onTap: _openExecutionQualityTracking,
+            isActive: widget.activeItemLabel == 'Execution Quality Tracking',
           ),
           _buildSubSubMenuItem(
             'Execution Work Packages',

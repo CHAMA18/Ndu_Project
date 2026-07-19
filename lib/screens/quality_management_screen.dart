@@ -6,6 +6,7 @@ import 'package:ndu_project/models/project_data_model.dart';
 import 'package:ndu_project/models/cost_of_quality.dart';
 
 import 'package:ndu_project/services/api_key_manager.dart';
+import 'package:ndu_project/services/execution_phase_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/utils/quality_metrics_calculator.dart';
@@ -21,10 +22,11 @@ import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/widgets/planning_phase_header.dart';
+import 'package:ndu_project/widgets/launch_editable_section.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
-enum _QualityTab { plan, targets, qaTracking, qcTracking, metrics, coq }
+enum _QualityTab { plan, objectives, inspection, audit, metrics, coq }
 
 const _dateHint = 'Select date';
 
@@ -180,6 +182,233 @@ List<String> _ownerOptions(BuildContext context) {
 
  final sorted = options.toList()..sort((a, b) => a.compareTo(b));
  return sorted;
+}
+
+String _buildQualityAiContext(ProjectDataModel data) {
+ final methodology =
+ ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
+ final location = [
+ data.country.trim(),
+ data.location.trim(),
+ data.city.trim(),
+ ].where((value) => value.isNotEmpty).join(', ');
+
+ return [
+ 'Generate a project quality management package tailored to the current project.',
+ 'Project Name: ${data.projectName}',
+ 'Solution Title: ${data.solutionTitle}',
+ 'Solution Description: ${data.solutionDescription}',
+ 'Project Objective: ${data.projectObjective}',
+ 'Business Case: ${data.businessCase}',
+ 'Industry / Context: ${data.projectCategory} ${data.projectIndustry}'.trim(),
+ 'Delivery Framework: $methodology',
+ 'Project Location: ${location.isEmpty ? 'Not specified' : location}',
+ 'Requirements: ${data.frontEndPlanning.requirements}',
+ 'Technology Context: ${data.frontEndPlanning.technology}',
+ 'Security Context: ${data.frontEndPlanning.security}',
+ 'Notes: ${data.notes}',
+ 'Focus on quality objectives, acceptance criteria, inspection/testing needs, audits, metrics, standards, and likely quality risks.',
+ ].join('\n');
+}
+
+Map<String, List<LaunchEntry>> _buildExecutionQualitySections(
+ QualityManagementData quality,
+) {
+ return {
+ 'quality_management_plan': [
+ LaunchEntry(
+ title: 'Project Quality Management Plan',
+ details: [
+ quality.qualityPlan,
+ if (quality.reviewCadence.isNotEmpty)
+ 'Review Cadence: ${quality.reviewCadence}',
+ if (quality.escalationPath.isNotEmpty)
+ 'Escalation Path: ${quality.escalationPath}',
+ if (quality.changeControlProcess.isNotEmpty)
+ 'Change Control: ${quality.changeControlProcess}',
+ ].where((value) => value.trim().isNotEmpty).join('\n\n'),
+ status: 'Active',
+ ),
+ ],
+ 'quality_objectives': quality.objectives
+ .map(
+ (objective) => LaunchEntry(
+ title: objective.title,
+ details: [
+ 'Acceptance Criteria: ${objective.acceptanceCriteria}',
+ 'Metric: ${objective.successMetric}',
+ 'Target: ${objective.targetValue}',
+ 'Current: ${objective.currentValue}',
+ 'Owner: ${objective.owner}',
+ 'Requirement: ${objective.linkedRequirement}',
+ 'WBS: ${objective.linkedWbs}',
+ ].join('\n'),
+ status: objective.status,
+ ),
+ )
+ .toList(),
+ 'inspection_test_plan': [
+ ...quality.workflowControls
+ .where((control) => control.type == QualityWorkflowType.qa)
+ .map(
+ (control) => LaunchEntry(
+ title: control.name,
+ details: [
+ 'Method: ${control.method}',
+ 'Tools: ${control.tools}',
+ 'Checklist: ${control.checklist}',
+ 'Frequency: ${control.frequency}',
+ 'Owner: ${control.owner}',
+ 'Standards: ${control.standardsReference}',
+ ].join('\n'),
+ status: 'Inspection Control',
+ ),
+ ),
+ ...quality.qaTaskLog.map(
+ (task) => LaunchEntry(
+ title: task.task,
+ details: [
+ 'Responsible: ${task.responsible}',
+ 'Start: ${task.startDate}',
+ 'End: ${task.endDate}',
+ 'Comments: ${task.comments}',
+ ].join('\n'),
+ status: task.status.name,
+ ),
+ ),
+ ],
+ 'quality_metrics_dashboard': [
+ LaunchEntry(
+ title: 'Quality KPI Dashboard',
+ details: [
+ 'Defect Density: ${quality.metrics.defectDensity.value} ${quality.metrics.defectDensity.unit}'.trim(),
+ 'Customer Satisfaction: ${quality.metrics.customerSatisfaction.value} ${quality.metrics.customerSatisfaction.unit}'.trim(),
+ 'On-Time Delivery: ${quality.metrics.onTimeDelivery.value} ${quality.metrics.onTimeDelivery.unit}'.trim(),
+ 'Target Resolution Days: ${quality.dashboardConfig.targetTimeToResolutionDays}',
+ 'Manual Override: ${quality.dashboardConfig.allowManualMetricsOverride ? 'Enabled' : 'Disabled'}',
+ ].join('\n'),
+ status: 'Tracking',
+ ),
+ ],
+ 'quality_audit_plan': [
+ ...quality.workflowControls
+ .where((control) => control.type == QualityWorkflowType.qc)
+ .map(
+ (control) => LaunchEntry(
+ title: control.name,
+ details: [
+ 'Method: ${control.method}',
+ 'Frequency: ${control.frequency}',
+ 'Owner: ${control.owner}',
+ 'Checklist: ${control.checklist}',
+ ].join('\n'),
+ status: 'Audit Control',
+ ),
+ ),
+ ...quality.auditPlan.map(
+ (audit) => LaunchEntry(
+ title: audit.title,
+ details: [
+ 'Scope: ${audit.scope}',
+ 'Planned Date: ${audit.plannedDate}',
+ 'Completed Date: ${audit.completedDate}',
+ 'Owner: ${audit.owner}',
+ 'Findings: ${audit.findings}',
+ 'Notes: ${audit.notes}',
+ ].join('\n'),
+ status: audit.result.name,
+ ),
+ ),
+ ],
+ 'nonconformance_corrective_actions': quality.correctiveActions
+ .map(
+ (action) => LaunchEntry(
+ title: action.title,
+ details: [
+ 'Root Cause: ${action.rootCause}',
+ 'Action: ${action.action}',
+ 'Owner: ${action.owner}',
+ 'Due Date: ${action.dueDate}',
+ 'Verification: ${action.verificationNotes}',
+ ].join('\n'),
+ status: action.status.name,
+ ),
+ )
+ .toList(),
+ };
+}
+
+List<ScheduleActivity> _syncQualityActivitiesToCalendar(
+ ProjectDataModel data,
+ QualityManagementData quality,
+) {
+ final updated = List<ScheduleActivity>.from(data.scheduleActivities);
+
+ void upsertActivity({
+ required String key,
+ required String title,
+ required String date,
+ required String assignee,
+ }) {
+ final normalizedDate = _normalizedDateText(date);
+ if (normalizedDate.isEmpty) return;
+ final entry = ScheduleActivity(
+ id: key,
+ title: title,
+ assignee: assignee,
+ startDate: normalizedDate,
+ dueDate: normalizedDate,
+ status: 'planned',
+ phase: 'execution',
+ workPackageType: 'execution',
+ discipline: 'Quality',
+ milestone: 'Quality',
+ durationDays: 1,
+ );
+ final index = updated.indexWhere(
+ (activity) => activity.id == key || activity.title == title,
+ );
+ if (index == -1) {
+ updated.add(entry);
+ } else {
+ updated[index] = entry;
+ }
+ }
+
+ for (final control in quality.workflowControls) {
+ upsertActivity(
+ key: 'quality-control-${control.id}',
+ title: 'Quality ${control.type.name.toUpperCase()} Review: ${control.name}',
+ date: control.frequency,
+ assignee: control.owner,
+ );
+ }
+ for (final audit in quality.auditPlan) {
+ upsertActivity(
+ key: 'quality-audit-${audit.id}',
+ title: 'Quality Audit: ${audit.title}',
+ date: audit.plannedDate,
+ assignee: audit.owner,
+ );
+ }
+ for (final task in [...quality.qaTaskLog, ...quality.qcTaskLog]) {
+ upsertActivity(
+ key: 'quality-task-${task.id}',
+ title: 'Quality Task: ${task.task}',
+ date: task.endDate.isNotEmpty ? task.endDate : task.startDate,
+ assignee: task.responsible,
+ );
+ }
+ for (final action in quality.correctiveActions) {
+ upsertActivity(
+ key: 'quality-corrective-${action.id}',
+ title: 'Corrective Action: ${action.title}',
+ date: action.dueDate,
+ assignee: action.owner,
+ );
+ }
+
+ return updated;
 }
 
 List<QualityStandard> _standardsPresets(ProjectDataModel data) {
@@ -344,29 +573,29 @@ class _QualityManagementScreenState extends State<QualityManagementScreen> {
  : InnerPageSectionStatus.available,
  ),
  InnerPageSection(
- id: _QualityTab.targets.name,
- label: 'Targets',
+ id: _QualityTab.objectives.name,
+ label: 'Objectives',
  icon: Icons.flag_outlined,
  stepNumber: 2,
- status: _selectedTab == _QualityTab.targets
+ status: _selectedTab == _QualityTab.objectives
  ? InnerPageSectionStatus.current
  : InnerPageSectionStatus.available,
  ),
  InnerPageSection(
- id: _QualityTab.qaTracking.name,
- label: 'QA Tracking',
+ id: _QualityTab.inspection.name,
+ label: 'Inspection & Test',
  icon: Icons.verified_outlined,
  stepNumber: 3,
- status: _selectedTab == _QualityTab.qaTracking
+ status: _selectedTab == _QualityTab.inspection
  ? InnerPageSectionStatus.current
  : InnerPageSectionStatus.available,
  ),
  InnerPageSection(
- id: _QualityTab.qcTracking.name,
- label: 'QC Tracking',
+ id: _QualityTab.audit.name,
+ label: 'Audit & Register',
  icon: Icons.fact_check_outlined,
  stepNumber: 4,
- status: _selectedTab == _QualityTab.qcTracking
+ status: _selectedTab == _QualityTab.audit
  ? InnerPageSectionStatus.current
  : InnerPageSectionStatus.available,
  ),
@@ -681,19 +910,19 @@ class _TabStrip extends StatelessWidget {
  tab: _QualityTab.plan,
  ),
  _TabData(
- label: 'Targets',
+ label: 'Objectives',
  icon: Icons.flag_outlined,
- tab: _QualityTab.targets,
+ tab: _QualityTab.objectives,
  ),
  _TabData(
- label: 'QA Tracking',
+ label: 'Inspection & Test',
  icon: Icons.verified_outlined,
- tab: _QualityTab.qaTracking,
+ tab: _QualityTab.inspection,
  ),
  _TabData(
- label: 'QC Tracking',
+ label: 'Audit & Register',
  icon: Icons.fact_check_outlined,
- tab: _QualityTab.qcTracking,
+ tab: _QualityTab.audit,
  ),
   _TabData(
   label: 'Metrics',
@@ -808,11 +1037,11 @@ class _TabContent extends StatelessWidget {
  switch (selectedTab) {
  case _QualityTab.plan:
  return const _QualityPlanView();
- case _QualityTab.targets:
+ case _QualityTab.objectives:
  return const _ObjectivesView();
- case _QualityTab.qaTracking:
+ case _QualityTab.inspection:
  return const _QaTrackingView();
- case _QualityTab.qcTracking:
+ case _QualityTab.audit:
  return const _QcTrackingView();
   case _QualityTab.metrics:
   return const _MetricsView();
@@ -1082,10 +1311,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
 
  try {
  final project = ProjectDataHelper.getData(context);
- final contextText = ProjectDataHelper.buildFepContext(
- project,
- sectionLabel: 'Quality Management',
- );
+ final contextText = _buildQualityAiContext(project);
 
  final ai = OpenAiServiceSecure();
  final seed = await ai.generateQualitySeedBundle(
@@ -1181,6 +1407,44 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  }
  return current.copyWith(standards: byName.values.toList());
  },
+ );
+ }
+
+ Future<void> _syncToExecutionTracking() async {
+ final project = ProjectDataHelper.getData(context);
+ final projectId = project.projectId;
+ if (projectId == null || projectId.isEmpty) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('Project must be saved before syncing execution tracking.'),
+ ),
+ );
+ return;
+ }
+
+ final quality = _qualityData(context);
+ await ExecutionPhaseService.savePageData(
+ projectId: projectId,
+ pageKey: 'execution_quality_tracking',
+ sections: _buildExecutionQualitySections(quality),
+ );
+
+ await ProjectDataHelper.updateAndSave(
+ context: context,
+ checkpoint: 'quality_management',
+ showSnackbar: false,
+ dataUpdater: (data) => data.copyWith(
+ scheduleActivities: _syncQualityActivitiesToCalendar(data, quality),
+ ),
+ );
+
+ if (!mounted) return;
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text(
+ 'Execution quality tracking synced and calendar reminders created.',
+ ),
+ ),
  );
  }
 
@@ -1310,7 +1574,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  iconColor: const Color(0xFF2563EB),
  title: 'Quality Plan',
  subtitle:
- 'Define standards, governance cadence, and change/escalation controls for planning quality management',
+ 'Project Quality Management Plan with AI-generated standards, controls, and governance based on project context.',
  actions: [
  ElevatedButton.icon(
  onPressed: _isGenerating ? null : _generateFromContext,
@@ -1335,6 +1599,11 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  onPressed: _applyPresetStandards,
  icon: const Icon(Icons.tune),
  label: const Text('Apply Presets'),
+ ),
+ OutlinedButton.icon(
+ onPressed: _syncToExecutionTracking,
+ icon: const Icon(Icons.sync_outlined),
+ label: const Text('Sync to Execution'),
  ),
  ElevatedButton.icon(
  onPressed: _savePlan,
@@ -1531,7 +1800,7 @@ class _ObjectivesViewState extends State<_ObjectivesView> {
  icon: Icons.flag_outlined,
  iconBackground: const Color(0xFFF3F4FF),
  iconColor: const Color(0xFF7C3AED),
- title: 'Objectives & Targets',
+ title: 'Quality Objectives & Acceptance Criteria',
  subtitle:
  'Define measurable objectives, acceptance criteria, and linked requirements/WBS references.',
  actions: [
@@ -1695,7 +1964,7 @@ class _QaTrackingViewState extends State<_QaTrackingView> {
  icon: Icons.verified_outlined,
  iconBackground: const Color(0xFFF3F4FF),
  iconColor: const Color(0xFF7C3AED),
- title: 'QA Tracking',
+ title: 'Inspection & Test Plan',
  subtitle:
  'Track quality assurance controls and task execution with owners, cadence, and completion metrics.',
  actions: [
@@ -2014,7 +2283,7 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
  icon: Icons.fact_check_outlined,
  iconBackground: const Color(0xFFF3F4FF),
  iconColor: const Color(0xFF7C3AED),
- title: 'QC Tracking',
+ title: 'Quality Audit Plan & Register',
  subtitle:
  'Track inspections, audit outcomes, and corrective actions with full ownership and due dates.',
  actions: [
@@ -2084,7 +2353,7 @@ class _QcTrackingViewState extends State<_QcTrackingView> {
  ),
  const SizedBox(height: 24),
  _SectionHeader(
- title: 'Corrective Actions',
+ title: 'Nonconformance & Corrective Action Log',
  subtitle:
  'Manage remediation ownership, due dates, and verification closure.',
  ),
@@ -2345,7 +2614,7 @@ class _MetricsViewState extends State<_MetricsView> {
  icon: Icons.analytics_outlined,
  iconBackground: const Color(0xFFF0F9F9),
  iconColor: const Color(0xFF0F766E),
- title: 'Metrics',
+ title: 'Quality Metrics Dashboard',
  subtitle:
  'Auto-computed KPI dashboard from QA/QC logs, audits, and corrective actions.',
  actions: [
