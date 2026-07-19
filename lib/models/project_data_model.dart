@@ -3409,6 +3409,10 @@ class SSHERData {
   // UN SDG applicable goals for the project (Environment tab)
   List<String> applicableSdgs;
   String sdgNotes;
+  // Auto-sync toggle: when true, new SSHER cost items are pushed to Cost
+  // Estimate automatically on save (vs. the manual "Push to Cost Estimate"
+  // button on the Cost Summary tab).
+  bool autoSyncToCostEstimate;
 
   SSHERData({
     List<SafetyItem>? safetyItems,
@@ -3423,6 +3427,7 @@ class SSHERData {
     this.stakeholderConfirmedAt = '',
     List<String>? applicableSdgs,
     this.sdgNotes = '',
+    this.autoSyncToCostEstimate = false,
   })  : safetyItems = safetyItems ?? [],
         entries = entries ?? [],
         categoryPlans = categoryPlans ?? {},
@@ -3442,6 +3447,7 @@ class SSHERData {
         'stakeholderConfirmedAt': stakeholderConfirmedAt,
         'applicableSdgs': applicableSdgs,
         'sdgNotes': sdgNotes,
+        'autoSyncToCostEstimate': autoSyncToCostEstimate,
       };
 
   factory SSHERData.fromJson(Map<String, dynamic> json) {
@@ -3471,6 +3477,7 @@ class SSHERData {
               .toList() ??
           [],
       sdgNotes: json['sdgNotes']?.toString() ?? '',
+      autoSyncToCostEstimate: json['autoSyncToCostEstimate'] as bool? ?? false,
     );
   }
 
@@ -3487,6 +3494,7 @@ class SSHERData {
     String? stakeholderConfirmedAt,
     List<String>? applicableSdgs,
     String? sdgNotes,
+    bool? autoSyncToCostEstimate,
   }) {
     return SSHERData(
       safetyItems: safetyItems ?? this.safetyItems,
@@ -3501,6 +3509,8 @@ class SSHERData {
       stakeholderConfirmedAt: stakeholderConfirmedAt ?? this.stakeholderConfirmedAt,
       applicableSdgs: applicableSdgs ?? this.applicableSdgs,
       sdgNotes: sdgNotes ?? this.sdgNotes,
+      autoSyncToCostEstimate:
+          autoSyncToCostEstimate ?? this.autoSyncToCostEstimate,
     );
   }
 }

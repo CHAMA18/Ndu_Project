@@ -138,6 +138,11 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
   bool _entriesGenerated = false;
   bool _isGeneratingEntries = false;
   bool _initiationSecurityPulled = false;
+  // Auto-sync toggle: when true, SSHER cost items push to Cost Estimate on save
+  bool _autoSyncToCostEstimate = false;
+  // Tracks the SSHER entry IDs that have already been pushed via auto-sync,
+  // so we don't duplicate them on subsequent saves.
+  final Set<String> _autoSyncedEntryIds = {};
 
   @override
   void initState() {
@@ -188,6 +193,7 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     final ssherData = ProjectDataHelper.getData(context).ssherData;
     setState(() {
       _stakeholderConfirmed = ssherData.stakeholderConfirmed;
+      _autoSyncToCostEstimate = ssherData.autoSyncToCostEstimate;
       // Restore visited tabs from persistent storage
       for (final cat in _SsherCategory.values) {
         if (cat == _SsherCategory.cost) continue;
@@ -203,6 +209,13 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
         }
       }
     });
+    // If auto-sync is enabled, mark all existing entries as already-synced
+    // so we don't retroactively push them on the first save.
+    if (_autoSyncToCostEstimate) {
+      for (final e in ssherData.entries) {
+        _autoSyncedEntryIds.add(e.id);
+      }
+    }
   }
 
   Future<void> _saveTabsVisited() async {
@@ -542,6 +555,8 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       ),
       showSnackbar: false,
     );
+    // Auto-sync any new SSHER cost items to Cost Estimate (if enabled)
+    await _autoSyncNewCostItems();
   }
 
   Future<void> _deleteEntry(SsherEntry entry) async {
@@ -1157,6 +1172,71 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
               letterSpacing: 0.01,
             ),
           ),
+          const SizedBox(height: 12),
+          // Auto-sync toggle
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: _autoSyncToCostEstimate
+                  ? const Color(0xFFECFDF5)
+                  : _Palette.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: _autoSyncToCostEstimate
+                    ? const Color(0xFFA7F3D0)
+                    : _Palette.surfaceVariant,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _autoSyncToCostEstimate
+                      ? Icons.sync
+                      : Icons.sync_disabled,
+                  size: 16,
+                  color: _autoSyncToCostEstimate
+                      ? const Color(0xFF047857)
+                      : _Palette.outline,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SSHER → Cost Estimate Auto-Sync',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _autoSyncToCostEstimate
+                              ? const Color(0xFF047857)
+                              : _Palette.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _autoSyncToCostEstimate
+                            ? 'ON — new SSHER cost items are pushed to Cost Estimate automatically on save.'
+                            : 'OFF — use the "Push to Cost Estimate" button on the Cost Summary tab to push manually.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: _autoSyncToCostEstimate
+                              ? const Color(0xFF047857)
+                              : _Palette.onSurfaceVariant,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _autoSyncToCostEstimate,
+                  onChanged: _setAutoSyncToCostEstimate,
+                  activeColor: const Color(0xFF047857),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1406,6 +1486,11 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
           // Staffing Gap Analysis (shows on all SSHER tabs — analyzes full project)
           _buildStaffingGapAnalysis(accent, isMobile),
+
+          const SizedBox(height: 24),
+
+          // Requirements Gap Analysis (regulatory/compliance language detection)
+          _buildRequirementsGapAnalysis(accent, isMobile),
         ],
       ),
     );
@@ -1624,6 +1709,173 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                         onPressed: () => _addRoleToStaffingPlan(role),
                         icon: const Icon(Icons.add, size: 12),
                         label: const Text('Add to Staffing Plan',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: accent,
+                          side: BorderSide(
+                              color: accent.withValues(alpha: 0.5)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ── Requirements Gap Analysis Section ──
+  Widget _buildRequirementsGapAnalysis(Color accent, bool isMobile) {
+    final gaps = _computeRequirementsGaps();
+    final projectData = ProjectDataHelper.getData(context);
+    final reqCount = projectData.frontEndPlanning.requirementItems.length;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Palette.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _Palette.surfaceVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.fact_check_outlined, size: 16, color: accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Requirements Gap Analysis (Regulatory / Compliance)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+              ),
+              if (gaps.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _addAllRequirementsGaps,
+                  icon: const Icon(Icons.add_circle, size: 14),
+                  label: const Text('Add All to Requirements',
+                      style: TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: accent,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'SSHER items often imply regulatory/compliance requirements. This section scans your SSHER items for regulatory language (permit, regulation, compliance, OSHA, ISO, audit, certification, license, etc.) and suggests any that are not yet captured in your Requirements list ($reqCount current ${reqCount == 1 ? 'requirement' : 'requirements'}).',
+            style: const TextStyle(
+              fontSize: 12,
+              color: _Palette.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (gaps.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle,
+                      size: 14, color: Color(0xFF047857)),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'No regulatory/compliance gaps detected. All SSHER items with regulatory language are already captured in your Requirements list.',
+                      style: TextStyle(
+                          fontSize: 12, color: Color(0xFF047857)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: gaps.map((gap) {
+                final entry = gap['entry'] as SsherEntry;
+                final desc = gap['proposedDescription'] as String;
+                return Container(
+                  constraints: const BoxConstraints(maxWidth: 380),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: accent.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              entry.category.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          const Text('Regulatory',
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: _Palette.outline)),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        desc,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _Palette.onBackground,
+                          height: 1.4,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _addRequirementToProject(gap),
+                        icon: const Icon(Icons.add, size: 12),
+                        label: const Text('Add to Requirements',
                             style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600)),
@@ -2806,6 +3058,20 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _Palette.primary,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _pushToSchedule,
+                icon: const Icon(Icons.schedule, size: 16),
+                label: const Text('Push to Schedule'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _Palette.primaryContainer,
+                  side: BorderSide(
+                      color: _Palette.primaryContainer.withValues(alpha: 0.5)),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -4039,6 +4305,385 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
       SnackBar(
         content: Text(
             'Added $added role${added == 1 ? '' : 's'} to the Staffing Plan.'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  // ── Auto-Sync to Cost Estimate ──
+  Future<void> _setAutoSyncToCostEstimate(bool value) async {
+    setState(() => _autoSyncToCostEstimate = value);
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_autosync_toggle',
+      showSnackbar: false,
+      dataUpdater: (data) => data.copyWith(
+        ssherData:
+            data.ssherData.copyWith(autoSyncToCostEstimate: value),
+      ),
+    );
+    // If turning on, mark all current entries as already-synced so we don't
+    // retroactively push them. New/edited entries from now on will auto-sync.
+    if (value) {
+      _autoSyncedEntryIds.clear();
+      for (final e in _allEntries()) {
+        _autoSyncedEntryIds.add(e.id);
+      }
+    } else {
+      _autoSyncedEntryIds.clear();
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(value
+            ? 'Auto-sync enabled. New SSHER cost items will be pushed to Cost Estimate automatically on save.'
+            : 'Auto-sync disabled. Use the "Push to Cost Estimate" button on the Cost Summary tab to push manually.'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  /// Called from `_saveEntries` after entries are persisted. If auto-sync is
+  /// on, any entry with a non-zero cost that hasn't been synced yet is pushed
+  /// to the CostEstimateProvider as a CostLine.
+  Future<void> _autoSyncNewCostItems() async {
+    if (!_autoSyncToCostEstimate) return;
+    final provider = context.read<CostEstimateProvider>();
+    // Auto-setup a default Cost Estimate if none exists yet
+    if (provider.estimate == null) {
+      final projectName = ProjectDataHelper.getData(context).projectName;
+      provider.setup(
+        projectName: projectName.isNotEmpty ? projectName : 'SSHER Import',
+        className: EstimateClass.class3,
+        deliveryModel: DeliveryModel.waterfall,
+      );
+    }
+    int pushed = 0;
+    for (final entry in _allEntries()) {
+      if (_autoSyncedEntryIds.contains(entry.id)) continue;
+      final cost = double.tryParse(
+              entry.estimatedCost.replaceAll(',', '').replaceAll('\$', '')) ??
+          0.0;
+      if (cost <= 0) {
+        _autoSyncedEntryIds.add(entry.id);
+        continue;
+      }
+      // De-dup: skip if a line with the same basisReference already exists
+      final existing = provider.estimate?.lines.any((l) =>
+              l.basisReference != null &&
+              l.basisReference!.contains('SSHER:${entry.id}')) ??
+          false;
+      if (existing) {
+        _autoSyncedEntryIds.add(entry.id);
+        continue;
+      }
+      final line = CostLine(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        category: CostCategory.ssher,
+        subCategory:
+            '${_categoryLabel(_SsherCategory.values.firstWhere((c) => c.name == entry.category, orElse: () => _SsherCategory.safety))} — ${entry.department}',
+        description: entry.concern.isNotEmpty
+            ? '${entry.concern} — ${entry.mitigation}'
+            : 'SSHER ${entry.category} item',
+        quantity: 1,
+        unit: entry.costUnit.isNotEmpty ? entry.costUnit : 'lump sum',
+        rate: cost,
+        total: cost,
+        inSchedule: false,
+        basisSource: CostSourceType.expertJudgment,
+        basisReference: 'SSHER:${entry.id} — Auto-synced from SSHER Hub',
+        aiGenerated: false,
+        confidence: Confidence.med,
+      );
+      provider.addLine(line);
+      _autoSyncedEntryIds.add(entry.id);
+      pushed++;
+    }
+    if (pushed > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Auto-synced $pushed new SSHER cost item${pushed == 1 ? '' : 's'} to Cost Estimate.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  // ── Push to Schedule ──
+  Future<void> _pushToSchedule() async {
+    final allEntries = _allEntries();
+    if (allEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No SSHER items to push to the Schedule.'),
+            duration: Duration(seconds: 3)),
+      );
+      return;
+    }
+
+    final projectData = ProjectDataHelper.getData(context);
+    final existingActivityTitles = projectData.scheduleActivities
+        .map((a) => a.title.trim().toLowerCase())
+        .toSet();
+
+    // Build a candidate schedule activity for each SSHER entry that doesn't
+    // already exist. Default duration is 5 days, default start = +30 days
+    // from project milestone start (or today if missing).
+    final candidates = allEntries.where((e) {
+      final title = 'SSHER ${e.category}: ${e.concern}'.trim().toLowerCase();
+      return !existingActivityTitles.contains(title);
+    }).toList();
+
+    if (candidates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'All ${allEntries.length} SSHER item${allEntries.length == 1 ? '' : 's'} already have corresponding schedule activities.'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Push SSHER Items to Schedule'),
+        content: Text(
+            '${candidates.length} new schedule activit${candidates.length == 1 ? 'y' : 'ies'} will be created from your SSHER items. Each activity will be:\n\n• Title: "SSHER <category>: <concern>"\n• Duration: 5 days\n• Start: ${projectData.frontEndPlanning.milestoneStartDate.isNotEmpty ? projectData.frontEndPlanning.milestoneStartDate : "today + 30 days"}\n• Discipline: <SSHER department>\n• Assignee: <SSHER team member>\n• Status: pending\n• Linked to this SSHER entry via notes\n\nExisting schedule activities will not be modified.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Push to Schedule'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final milestoneStart =
+        projectData.frontEndPlanning.milestoneStartDate.trim();
+    DateTime startDate;
+    if (milestoneStart.isNotEmpty) {
+      startDate = DateTime.tryParse(milestoneStart) ?? DateTime.now();
+    } else {
+      startDate = DateTime.now().add(const Duration(days: 30));
+    }
+    final dueDate = startDate.add(const Duration(days: 5));
+
+    String fmt(DateTime d) =>
+        '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+    final newActivities = candidates
+        .map((e) => ScheduleActivity(
+              title: 'SSHER ${e.category}: ${e.concern}',
+              durationDays: 5,
+              isMilestone: false,
+              status: 'pending',
+              priority: e.riskLevel.toLowerCase() == 'high'
+                  ? 'high'
+                  : e.riskLevel.toLowerCase() == 'medium'
+                      ? 'medium'
+                      : 'low',
+              assignee: e.teamMember,
+              discipline: e.department,
+              progress: 0,
+              startDate: fmt(startDate),
+              dueDate: fmt(dueDate),
+              phase: 'execution',
+              estimatingBasis:
+                  'Auto-created from SSHER Hub. Mitigation: ${e.mitigation}',
+            ))
+        .toList();
+
+    final existingActivities =
+        List<ScheduleActivity>.from(projectData.scheduleActivities);
+    final combined = [...existingActivities, ...newActivities];
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_to_schedule',
+      dataUpdater: (d) => d.copyWith(scheduleActivities: combined),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Pushed ${newActivities.length} SSHER activit${newActivities.length == 1 ? 'y' : 'ies'} to the Schedule.'),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  // ── Requirements Gap Analysis ──
+  /// Returns a list of SSHER items whose concern or mitigation text contains
+  /// regulatory/compliance language (e.g. "permit", "regulation", "compliance",
+  /// "OSHA", "EPA", "ISO", "law", "statute", "mandatory") AND whose concern is
+  /// not already captured in the project's requirementItems list.
+  List<Map<String, dynamic>> _computeRequirementsGaps() {
+    final projectData = ProjectDataHelper.getData(context);
+    final existingReqs = projectData.frontEndPlanning.requirementItems;
+    final existingReqTexts = existingReqs
+        .map((r) => r.description.trim().toLowerCase())
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    // Keywords that suggest a regulatory/compliance requirement
+    const keywords = [
+      'permit', 'regulation', 'regulatory', 'compliance', 'compliant',
+      'osha', 'epa', 'iso', 'ieee', 'astm', 'asme', 'nfpa', 'nec',
+      'law', 'statute', 'mandatory', 'required by', 'must comply',
+      'audit', 'certification', 'license', 'registered', 'approved',
+      'standard', 'code ', 'inspection', 'reporting requirement',
+    ];
+
+    final allEntries = _allEntries();
+    final gaps = <Map<String, dynamic>>[];
+
+    for (final e in allEntries) {
+      final text = '${e.concern} ${e.mitigation}'.toLowerCase();
+      final isRegulatory = keywords.any((k) => text.contains(k));
+      if (!isRegulatory) continue;
+
+      final proposedDesc = 'SSHER ${e.category}: ${e.concern}';
+      if (existingReqTexts.contains(proposedDesc.trim().toLowerCase())) {
+        continue;
+      }
+
+      gaps.add({
+        'entry': e,
+        'proposedDescription': proposedDesc,
+        'proposedType': 'Regulatory',
+        'proposedDiscipline': e.department,
+        'proposedRole': e.teamMember,
+        'category': e.category,
+      });
+    }
+
+    return gaps;
+  }
+
+  Future<void> _addRequirementToProject(Map<String, dynamic> gap) async {
+    final projectData = ProjectDataHelper.getData(context);
+    final reqs = List<RequirementItem>.from(
+        projectData.frontEndPlanning.requirementItems);
+
+    // De-dup
+    final desc = (gap['proposedDescription'] as String).trim();
+    final exists = reqs.any((r) =>
+        r.description.trim().toLowerCase() == desc.toLowerCase());
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"$desc" is already in the Requirements list.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    reqs.add(RequirementItem(
+      description: desc,
+      requirementType: (gap['proposedType'] as String?) ?? 'Regulatory',
+      discipline: (gap['proposedDiscipline'] as String?) ?? '',
+      role: (gap['proposedRole'] as String?) ?? '',
+      requirementSource: 'SSHER Hub gap analysis',
+      comments: 'Auto-suggested from SSHER ${gap['category']} item.',
+    ));
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_req_gap_add',
+      dataUpdater: (d) => d.copyWith(
+        frontEndPlanning:
+            d.frontEndPlanning.copyWith(requirementItems: reqs),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added requirement: "$desc".'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _addAllRequirementsGaps() async {
+    final gaps = _computeRequirementsGaps();
+    if (gaps.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add All SSHER-Suggested Requirements'),
+        content: Text(
+            'This will add ${gaps.length} new regulatory/compliance requirement${gaps.length == 1 ? '' : 's'} to the Requirements list:\n\n${gaps.map((g) => '• ${g['proposedDescription']}').take(8).join('\n')}${gaps.length > 8 ? '\n…and ${gaps.length - 8} more.' : ''}\n\nEach will be added with type=Regulatory and source=SSHER Hub gap analysis.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Add All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final projectData = ProjectDataHelper.getData(context);
+    final reqs = List<RequirementItem>.from(
+        projectData.frontEndPlanning.requirementItems);
+    final existingDescs = reqs
+        .map((r) => r.description.trim().toLowerCase())
+        .toSet();
+
+    int added = 0;
+    for (final gap in gaps) {
+      final desc = (gap['proposedDescription'] as String).trim();
+      if (existingDescs.contains(desc.toLowerCase())) continue;
+      reqs.add(RequirementItem(
+        description: desc,
+        requirementType: (gap['proposedType'] as String?) ?? 'Regulatory',
+        discipline: (gap['proposedDiscipline'] as String?) ?? '',
+        role: (gap['proposedRole'] as String?) ?? '',
+        requirementSource: 'SSHER Hub gap analysis',
+        comments: 'Auto-suggested from SSHER ${gap['category']} item.',
+      ));
+      existingDescs.add(desc.toLowerCase());
+      added++;
+    }
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_req_gap_add_all',
+      dataUpdater: (d) => d.copyWith(
+        frontEndPlanning:
+            d.frontEndPlanning.copyWith(requirementItems: reqs),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Added $added requirement${added == 1 ? '' : 's'} to the Requirements list.'),
         duration: const Duration(seconds: 4),
       ),
     );
