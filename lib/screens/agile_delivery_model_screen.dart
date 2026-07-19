@@ -6,6 +6,7 @@ import 'package:ndu_project/services/agile_wireframe_service.dart';
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/planning_phase_navigation.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
+import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/widgets/draggable_sidebar.dart';
 import 'package:ndu_project/widgets/field_regenerate_undo_buttons.dart';
 import 'package:ndu_project/widgets/initiation_like_sidebar.dart';
@@ -78,41 +79,22 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isGenerating = false;
+  bool _isWaterfall = false;
   Timer? _autoSaveDebounce;
 
   static const int _savingIndicatorDuration = 1;
 
   static const List<_FieldConfig> _fields = [
     _FieldConfig(
-      key: 'cadence',
-      label: 'Sprint cadence & calendar',
-      hint: 'Sprint length, ceremonies, and planning calendar.',
-    ),
-    _FieldConfig(
       key: 'release',
-      label: 'Release strategy',
-      hint: 'Release waves, branching, and approval gates.',
-    ),
-    _FieldConfig(
-      key: 'backlog',
-      label: 'Backlog governance',
-      hint: 'Definition of Ready/Done, prioritization, and grooming cadence.',
+      label: 'Release Strategy',
+      hint: 'Define how product increments will be planned, validated, and released to deliver value throughout the project lifecycle. Include: Release Goals (business objectives and value), Release Cadence (frequency — every sprint, every few sprints, or on demand), Release Scope (features/epics targeted per release), Release Criteria (Definition of Done, quality gates, testing, and approval requirements), Deployment Strategy (phased, feature flags, blue-green, canary, or full deployment), Dependencies & Risks (key dependencies, assumptions, and release risks), Rollback & Recovery (approach for handling failed releases), Communication & Training (stakeholder notifications, user readiness, and support plans), Post-Release Support (monitoring, feedback collection, issue resolution, and continuous improvement).',
       fullWidth: true,
     ),
     _FieldConfig(
-      key: 'team',
-      label: 'Team structure & roles',
-      hint: 'Squad ownership, product roles, and cross-functional coverage.',
-    ),
-    _FieldConfig(
       key: 'metrics',
-      label: 'Metrics & reporting',
+      label: 'Metrics & Reporting',
       hint: 'Velocity, throughput, predictability, and quality measures.',
-    ),
-    _FieldConfig(
-      key: 'risks',
-      label: 'Impediment & risk handling',
-      hint: 'Escalation process, dependency tracking, and blockers removal.',
       fullWidth: true,
     ),
   ];
@@ -147,6 +129,15 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
     final pid = _projectId;
     if (pid == null) return;
     setState(() => _isLoading = true);
+
+    // Check if this is a Waterfall project — if so, Agile screens are
+    // view-only (greyed out, no AI generation)
+    try {
+      final projectData = ProjectDataHelper.getData(context);
+      final methodology = ProjectDataHelper.resolvedProjectMethodology(projectData);
+      _isWaterfall = methodology == ProjectMethodology.waterfall;
+    } catch (_) {}
+
     try {
       final data = await AgileWireframeService.loadDeliveryModel(pid);
       if (!mounted) return;
@@ -171,6 +162,15 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
           ..clear()
           ..addAll(savedCompliance.map((e) => e.toString()));
       });
+
+      // Auto-generate AI content for Agile projects if fields are empty
+      if (!_isWaterfall && mounted) {
+        final allEmpty = _fields.every((f) =>
+            (_controllers[f.key]?.text ?? '').trim().isEmpty);
+        if (allEmpty && !_isGenerating) {
+          _generateWithAI();
+        }
+      }
     } catch (e) {
       debugPrint('Error: $e');
     }
@@ -260,12 +260,8 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
         '- "governanceModel": "Centralized", "Decentralized", or "Federated"\n'
         '- "approvalRequirements": comma-separated list from: Sprint Planning, Sprint Review, Release, Retro Actions\n'
         '- "complianceSettings": comma-separated list from: Regulatory, Security, Audit, Industry Standard\n'
-        '- "cadence": Sprint cadence & calendar (2-3 sentences)\n'
-        '- "release": Release strategy (2-3 sentences)\n'
-        '- "backlog": Backlog governance (2-3 sentences)\n'
-        '- "team": Team structure & roles (2-3 sentences)\n'
-        '- "metrics": Metrics & reporting (2-3 sentences)\n'
-        '- "risks": Impediment & risk handling (2-3 sentences)',
+        '- "release": Release Strategy (4-6 sentences covering release goals, cadence, scope, criteria, deployment strategy, dependencies & risks, rollback & recovery, communication & training, and post-release support)\n'
+        '- "metrics": Metrics & reporting (2-3 sentences)',
         maxTokens: 1200,
         temperature: 0.5,
       );
@@ -462,6 +458,34 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
                           onExportPdf: _exportPdf,
                         ),
                         const SizedBox(height: 32),
+                        if (_isWaterfall) ...[
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFEF3C7),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFFDE68A)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline,
+                                    color: Color(0xFF92400E), size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'This project uses a Waterfall delivery framework. Agile Delivery is not applicable. Switch the project framework to Agile or Hybrid in the Project Details or Design Planning screen to enable Agile features.',
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Color(0xFF92400E),
+                                        height: 1.4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         Row(
                           children: [
                             Expanded(
@@ -471,7 +495,7 @@ class _AgileDeliveryModelScreenState extends State<AgileDeliveryModelScreen> {
                                     fontSize: 15, color: _kMuted),
                               ),
                             ),
-                            if (!_isLoading) ...[
+                            if (!_isLoading && !_isWaterfall) ...[
                               const SizedBox(width: 12),
                               OutlinedButton.icon(
                                 onPressed: _isGenerating

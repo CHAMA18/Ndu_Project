@@ -138,10 +138,10 @@ class PlanningPhaseNavigation {
       title: 'Design Planning',
       builder: (_) => const DesignPlanningScreen(),
     ),
-    // Agile Delivery Model Section — before Execution Plan
+    // Agile Delivery Section — before Execution Plan
     PlanningPage(
       id: 'agile_delivery_model',
-      title: 'Agile Delivery Model',
+      title: 'Agile Delivery',
       builder: (_) => const AgileDeliveryModelScreen(),
     ),
     PlanningPage(
@@ -158,11 +158,6 @@ class PlanningPhaseNavigation {
       id: 'agile_backlog_governance',
       title: 'Backlog Governance',
       builder: (_) => const AgileBacklogGovernanceScreen(),
-    ),
-    PlanningPage(
-      id: 'agile_team_structure',
-      title: 'Agile Team Structure',
-      builder: (_) => const AgileTeamStructureScreen(),
     ),
     PlanningPage(
       id: 'agile_kanban_config',
@@ -183,11 +178,6 @@ class PlanningPhaseNavigation {
       id: 'agile_acceptance_criteria',
       title: 'Acceptance Criteria Planning',
       builder: (_) => const AgileAcceptanceCriteriaScreen(),
-    ),
-    PlanningPage(
-      id: 'agile_sprint_calendar',
-      title: 'Sprint Cadence & Calendar',
-      builder: (_) => const AgileSprintCalendarScreen(),
     ),
     PlanningPage(
       id: 'agile_map_out',

@@ -145,25 +145,20 @@ class SidebarNavigationService {
     // Design & Technology — now before Execution Plan
     SidebarItem(checkpoint: 'technology', label: 'Technology Planning'),
     SidebarItem(checkpoint: 'design', label: 'Design Planning'),
-    // Agile Delivery Model Section — before Execution Plan
+    // Agile Delivery Section — before Execution Plan
     SidebarItem(
-        checkpoint: 'agile_delivery_model', label: 'Agile Delivery Model'),
+        checkpoint: 'agile_delivery_model', label: 'Agile Delivery'),
     SidebarItem(checkpoint: 'agile_scrum_config', label: 'Scrum Configuration'),
     SidebarItem(
         checkpoint: 'agile_capacity_planning', label: 'Capacity Planning'),
     SidebarItem(
         checkpoint: 'agile_backlog_governance', label: 'Backlog Governance'),
     SidebarItem(
-        checkpoint: 'agile_team_structure', label: 'Agile Team Structure'),
-    SidebarItem(
         checkpoint: 'agile_kanban_config', label: 'Kanban Configuration'),
     SidebarItem(checkpoint: 'agile_epics_features', label: 'Epics & Features'),
     SidebarItem(
         checkpoint: 'agile_acceptance_criteria',
         label: 'Acceptance Criteria Planning'),
-    SidebarItem(
-        checkpoint: 'agile_sprint_calendar',
-        label: 'Sprint Cadence & Calendar'),
     SidebarItem(checkpoint: 'agile_map_out', label: 'Agile Map Out'),
     SidebarItem(checkpoint: 'agile_release_plan', label: 'Release Plan'),
     SidebarItem(
