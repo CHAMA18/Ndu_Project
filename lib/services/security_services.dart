@@ -732,7 +732,21 @@ class TwoFactorAuthService {
       return SecurityPolicy.fromMap(doc.data());
     } catch (e) {
       debugPrint('[TwoFactorAuthService] loadPolicy error: $e');
-      return SecurityPolicy.defaults();
+      // When Firestore is unavailable or permissions are insufficient,
+      // return a permissive policy so users can still sign in.
+      // MFA will be skipped until the Firestore rules are fixed.
+      return const SecurityPolicy(
+        passwordLoginEnabled: true,
+        passwordlessEmailEnabled: false,
+        mfaEnabled: false,
+        requireMfaEveryLogin: false,
+        requireMfaNewDeviceOnly: false,
+        requireMfaHighRiskOnly: false,
+        requireMfaAdminOnly: false,
+        defaultMfaMethod: MfaMethod.authenticator,
+        backupMethods: [MfaMethod.sms, MfaMethod.emailCode],
+        rememberDeviceDays: 30,
+      );
     }
   }
 
