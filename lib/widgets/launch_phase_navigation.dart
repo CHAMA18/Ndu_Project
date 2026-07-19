@@ -22,7 +22,12 @@ class LaunchPhaseNavigation extends StatelessWidget {
 
   void _handleNextTap(BuildContext context) {
     if (!nextEnabled) return;
-    onNext();
+    showProceedWithoutReviewDialog(
+      context,
+      title: 'Proceed to ${nextLabel.replaceFirst('Next: ', '')}?',
+    ).then((confirmed) {
+      if (confirmed == true) onNext();
+    });
   }
 
   @override

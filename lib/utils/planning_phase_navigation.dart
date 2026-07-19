@@ -138,11 +138,6 @@ class PlanningPhaseNavigation {
       title: 'Design Planning',
       builder: (_) => const DesignPlanningScreen(),
     ),
-    PlanningPage(
-      id: 'interface_management',
-      title: 'Interface Management',
-      builder: (_) => const InterfaceManagementScreen(),
-    ),
     // Agile Delivery Model Section — before Execution Plan
     PlanningPage(
       id: 'agile_delivery_model',
@@ -332,6 +327,11 @@ class PlanningPhaseNavigation {
       id: 'procurement',
       title: 'Procurement',
       builder: (_) => const PlanningProcurementScreen(),
+    ),
+    PlanningPage(
+      id: 'interface_management',
+      title: 'Interface Management',
+      builder: (_) => const InterfaceManagementScreen(),
     ),
     PlanningPage(
       id: 'schedule',

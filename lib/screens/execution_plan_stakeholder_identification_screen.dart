@@ -56,10 +56,7 @@ class ExecutionPlanStakeholderIdentificationScreen extends StatelessWidget {
  ExecutionPlanHeader(
  onBack: () => PlanningPhaseNavigation.goToPrevious(context, 'execution_plan_stakeholder_identification'),
  onNext: () => PlanningPhaseNavigation.goToNext(context, 'execution_plan_stakeholder_identification'), onExportPdf: () => _exportPdf(context)),
- const SizedBox(height: 32),
- const SectionIntro(
- title: 'Execution Stakeholder Identification'),
- const SizedBox(height: 16),
+  const SizedBox(height: 24),
  const CrossReferenceNote(standalonePage: 'Stakeholder Management'),
  const SizedBox(height: 24),
  const ExecutionPlanForm(

@@ -739,6 +739,36 @@ class ProjectDataHelper {
     wList('Interface Register',
         _formatInterfaceEntriesForContext(data.interfaceEntries));
 
+    // Section-specific context for Interface Management Plan
+    if ((sectionLabel ?? '').trim().toLowerCase().contains('interface management plan')) {
+      w('Stakeholder Management Notes',
+          data.planningNotes['stakeholder_management_plan']);
+      w('Additional Interfaces Identified',
+          data.planningNotes['additional_interfaces']);
+
+      if (data.vendors.isNotEmpty) {
+        final items = data.vendors.map((v) {
+          final name = v.name.trim();
+          final svc = v.equipmentOrService.trim();
+          return svc.isEmpty ? name : '$name ($svc)';
+        }).where((e) => e.isNotEmpty);
+        wList('Vendors & Contractors', items);
+      }
+
+      if (data.contractors.isNotEmpty) {
+        final items = data.contractors.map((c) {
+          final name = c.name.trim();
+          final svc = c.service.trim();
+          return svc.isEmpty ? name : '$name: $svc';
+        }).where((e) => e.isNotEmpty);
+        wList('Contractors', items);
+      }
+
+      final fep = data.frontEndPlanning;
+      w('FEP Contracting', fep.contractVendorQuotes);
+      w('FEP Procurement', fep.procurement);
+    }
+
     if (data.teamMembers.isNotEmpty) {
       final items = data.teamMembers.map((m) {
         final name = m.name.trim();
