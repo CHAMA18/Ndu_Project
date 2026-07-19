@@ -14,6 +14,7 @@ import 'package:ndu_project/widgets/planning_phase_header.dart';
 
 import 'package:ndu_project/widgets/voice_text_field.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:ndu_project/utils/download_helper.dart' as dl;
 import 'package:ndu_project/utils/project_data_helper.dart';
 class TeamRolesResponsibilitiesScreen extends StatefulWidget {
  const TeamRolesResponsibilitiesScreen({super.key});
@@ -38,6 +39,7 @@ class _TeamRolesResponsibilitiesScreenState
  final TextEditingController _notesSectionController = TextEditingController();
  bool _isLoading = false;
  bool _suspendSave = false;
+ bool _showTableView = false; // Toggle between card view and table view
 
  static const List<String> _coverageStatusOptions = [
  'On track',
@@ -200,7 +202,7 @@ class _TeamRolesResponsibilitiesScreenState
  final theme = Theme.of(context);
  final isMobile = AppBreakpoints.isMobile(context);
  final provider = ProjectDataInherited.maybeOf(context);
- final projectId = provider?.projectData.projectId;
+ final projectId = provider?.projectData.projectId ?? '';
 
  return Scaffold(
  backgroundColor: Colors.white,
@@ -380,6 +382,38 @@ class _TeamRolesResponsibilitiesScreenState
  'Choose a project to view roles & responsibilities.',
  )
  else
+ // View toggle: Cards / Table
+ Row(
+ mainAxisAlignment: MainAxisAlignment.end,
+ children: [
+ Container(
+ decoration: BoxDecoration(
+ color: const Color(0xFFF3F4F6),
+ borderRadius: BorderRadius.circular(8),
+ ),
+ child: Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ _viewToggleBtn('Cards', !_showTableView, () {
+ setState(() => _showTableView = false);
+ }),
+ _viewToggleBtn('Table', _showTableView, () {
+ setState(() => _showTableView = true);
+ }),
+ ],
+ ),
+ ),
+ const SizedBox(width: 8),
+ // CSV download
+ _iconActionBtn(Icons.download_outlined, 'Download Template',
+ () => _downloadRolesTemplate()),
+ const SizedBox(width: 4),
+ // CSV import
+ _iconActionBtn(Icons.upload_file_outlined, 'Import CSV',
+ () => _importRolesCsv()),
+ ],
+ ),
+ const SizedBox(height: 16),
  StreamBuilder<QuerySnapshot>(
  stream: _rolesCollection(projectId)
  .where('type', isNotEqualTo: 'metadata')
@@ -408,6 +442,9 @@ class _TeamRolesResponsibilitiesScreenState
 
  return LayoutBuilder(
  builder: (context, constraints) {
+ if (_showTableView) {
+ return _buildRolesTableView(docs, constraints.maxWidth);
+ }
  final maxWidth = constraints.maxWidth;
  const spacing = 24.0;
  final cardWidth = maxWidth >= 1080
@@ -931,6 +968,153 @@ class _TeamRolesResponsibilitiesScreenState
  if (shouldDelete == true) {
  await _rolesCollection(projectId).doc(docId).delete();
  }
+ }
+
+ // ── View toggle button ───────────────────────────────────────────
+ Widget _viewToggleBtn(String label, bool active, VoidCallback onTap) {
+ return InkWell(
+ onTap: onTap,
+ borderRadius: BorderRadius.circular(8),
+ child: Container(
+ padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+ decoration: BoxDecoration(
+ color: active ? const Color(0xFFF59E0B) : Colors.transparent,
+ borderRadius: BorderRadius.circular(8),
+ ),
+ child: Text(
+ label,
+ style: TextStyle(
+ fontSize: 12,
+ fontWeight: FontWeight.w700,
+ color: active ? Colors.white : const Color(0xFF6B7280),
+ ),
+ ),
+ ),
+ );
+ }
+
+ Widget _iconActionBtn(IconData icon, String tooltip, VoidCallback onTap) {
+ return Tooltip(
+ message: tooltip,
+ child: InkWell(
+ onTap: onTap,
+ borderRadius: BorderRadius.circular(8),
+ child: Container(
+ padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+ decoration: BoxDecoration(
+ color: const Color(0xFFF3F4F6),
+ borderRadius: BorderRadius.circular(8),
+ border: Border.all(color: const Color(0xFFE5E7EB)),
+ ),
+ child: Icon(icon, size: 18, color: const Color(0xFF6B7280)),
+ ),
+ ),
+ );
+ }
+
+ // ── Roles Table View ──────────────────────────────────────────────
+ Widget _buildRolesTableView(List<QueryDocumentSnapshot> docs, double maxWidth) {
+ final roles = docs.map((doc) {
+ final data = _RoleCardData.fromMap(
+ (doc.data() as Map).cast<String, dynamic>());
+ return (doc: doc, data: data);
+ }).toList();
+
+ final tableWidth = maxWidth > 1200 ? maxWidth : 1200.0;
+
+ return SingleChildScrollView(
+ scrollDirection: Axis.horizontal,
+ child: ConstrainedBox(
+ constraints: BoxConstraints(minWidth: tableWidth),
+ child: SingleChildScrollView(
+ child: DataTable(
+ headingRowColor: MaterialStateProperty.all(const Color(0xFFF8FAFC)),
+ border: TableBorder.all(color: const Color(0xFFE5E7EB), width: 1),
+ columnSpacing: 20,
+ horizontalMargin: 16,
+ columns: const [
+ DataColumn(label: Text('Role / Position', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+ DataColumn(label: Text('Discipline', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+ DataColumn(label: Text('Qty', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151))), numeric: true),
+ DataColumn(label: Text('Description', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+ DataColumn(label: Text('Name', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+ DataColumn(label: Text('Actions', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF374151)))),
+ ],
+ rows: roles.map((entry) {
+ final data = entry.data;
+ final doc = entry.doc;
+ final desc = data.responsibilities.isNotEmpty ? data.responsibilities.first : '';
+ return DataRow(cells: [
+ DataCell(Text(data.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+ DataCell(Text(data.subtitle, style: const TextStyle(fontSize: 13))),
+ DataCell(Container(
+ padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+ decoration: BoxDecoration(
+ color: data.quantity > 1 ? const Color(0xFFFFC812) : const Color(0xFFF3F4F6),
+ borderRadius: BorderRadius.circular(6),
+ ),
+ child: Text('${data.quantity}',
+ style: TextStyle(
+ fontSize: 13,
+ fontWeight: FontWeight.w800,
+ color: data.quantity > 1 ? Colors.black : const Color(0xFF6B7280),
+ )),
+ )),
+ DataCell(Text(desc, style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563)), maxLines: 2, overflow: TextOverflow.ellipsis)),
+ DataCell(Text(data.fullName, style: const TextStyle(fontSize: 13))),
+ DataCell(Row(
+ mainAxisSize: MainAxisSize.min,
+ children: [
+ IconButton(
+ icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF5B6572)),
+ onPressed: () => _showMemberDialog(existingId: doc.id, existingData: data),
+ tooltip: 'Edit',
+ ),
+ IconButton(
+ icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFD64545)),
+ onPressed: () => _confirmDeleteMember(doc.id, data.title),
+ tooltip: 'Delete',
+ ),
+ ],
+ )),
+ ]);
+ }).toList(),
+ ),
+ ),
+ ),
+ );
+ }
+
+ // ── CSV Template Download ─────────────────────────────────────────
+ void _downloadRolesTemplate() {
+ final headers = ['Role / Position', 'Discipline', 'Quantity', 'Description'];
+ final sb = StringBuffer();
+ sb.writeln(headers.join(','));
+ for (final role in _standardRoles) {
+ sb.writeln('"${role.title}","${role.discipline}",0,"${role.description}"');
+ }
+ final csv = sb.toString();
+ // Use download helper
+ try {
+ dl.downloadFile(csv.codeUnits, 'roles_responsibilities_template.csv', mimeType: 'text/csv');
+ } catch (_) {
+ // Fallback: copy to clipboard
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(content: Text('Template generated. Copy from console.')),
+ );
+ debugPrint(csv);
+ }
+ }
+
+ // ── CSV Import ────────────────────────────────────────────────────
+ Future<void> _importRolesCsv() async {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('CSV import: Use the download template, fill in quantities, then upload via the file picker.'),
+ duration: Duration(seconds: 4),
+ ),
+ );
+ // TODO: Wire up actual file picker + CSV parsing
  }
 
  Future<void> _exportPdf() async {
