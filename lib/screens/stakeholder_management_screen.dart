@@ -32,7 +32,7 @@ class StakeholderManagementScreen extends StatefulWidget {
 
 class _StakeholderManagementScreenState
  extends State<StakeholderManagementScreen> {
- int _activeTabIndex = 1; // 0 = Stakeholders, 1 = Engagement Plans
+ int _activeTabIndex = 0; // 0 = Stakeholders, 1 = Engagement Plans, 2 = Mapping, 3 = Announcements
 
  final _stakeholderSaveDebounce = _Debouncer();
  final _planSaveDebounce = _Debouncer();
@@ -42,7 +42,14 @@ class _StakeholderManagementScreenState
  @override
  void initState() {
  super.initState();
- // Data is managed by ProjectDataHelper and Provider
+ // Auto-populate stakeholders from initiation phase on first load
+ // if the stakeholders list is empty.
+ WidgetsBinding.instance.addPostFrameCallback((_) {
+ final data = ProjectDataHelper.getData(context);
+ if (data.stakeholderEntries.isEmpty) {
+ _autoPopulateFromInitiation();
+ }
+ });
  }
 
  @override
@@ -78,9 +85,9 @@ class _StakeholderManagementScreenState
  final sidebarWidth = AppBreakpoints.sidebarWidth(context);
 
  final header = PlanningPhaseHeader(
- title: 'Stakeholder Management',
+ title: 'Stakeholder Management Plan',
  breadcrumbPhase: 'Planning Phase',
- breadcrumbTitle: 'Stakeholder Management',
+ breadcrumbTitle: 'Stakeholder Management Plan',
  onBack: () => PlanningPhaseNavigation.goToPrevious(
  context, 'stakeholder_management'),
  onForward: () =>
@@ -134,6 +141,12 @@ class _StakeholderManagementScreenState
  isLoading: false,
  onChanged: _updateEngagementPlan,
  onDelete: _deleteEngagementPlan,
+ ),
+ mappingTable: _StakeholderMappingTab(
+ stakeholders: projectData.stakeholderEntries,
+ ),
+ announcementsWidget: _AnnouncementsTab(
+ stakeholders: projectData.stakeholderEntries,
  ),
  onAdd:
  _activeTabIndex == 0 ? _addStakeholder : _addEngagementPlan,
@@ -505,7 +518,7 @@ class _StakeholderManagementScreenState
  final projectData = ProjectDataHelper.getDataListening(context);
  await PdfExportHelper.exportScreenPdf(
  context: context,
- screenTitle: 'Stakeholder Management',
+ screenTitle: 'Stakeholder Management Plan',
  sections: [
  PdfSection.keyValue('Project Info', [
  {'Project Name': projectData.projectName ?? 'N/A'},
@@ -544,7 +557,7 @@ class _TitleSection extends StatelessWidget {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: const [
  Text(
- 'Stakeholder Management',
+ 'Stakeholder Management Plan',
  style: TextStyle(
  fontSize: 32,
  fontWeight: FontWeight.w700,
@@ -552,7 +565,7 @@ class _TitleSection extends StatelessWidget {
  ),
  SizedBox(height: 10),
  Text(
- 'Manage stakeholders, communication plans, and engagement strategies',
+ 'Define how each influence/interest stakeholder group will be engaged, communicated with, and managed throughout the project. AI should help develop a landing plan that states how each of the sections would be communicated with (email, meetings, announcements, etc.)',
  style: TextStyle(
  fontSize: 15, color: Color(0xFF6B7280), height: 1.5),
  ),
@@ -1109,6 +1122,8 @@ class _EngagementSection extends StatelessWidget {
  required this.onTabChanged,
  required this.stakeholderTable,
  required this.planTable,
+ required this.mappingTable,
+ required this.announcementsWidget,
  required this.onAdd,
  required this.onSearch,
  });
@@ -1117,6 +1132,8 @@ class _EngagementSection extends StatelessWidget {
  final ValueChanged<int> onTabChanged;
  final Widget stakeholderTable;
  final Widget planTable;
+ final Widget mappingTable;
+ final Widget announcementsWidget;
  final VoidCallback onAdd;
  final ValueChanged<String> onSearch;
 
@@ -1140,6 +1157,8 @@ class _EngagementSection extends StatelessWidget {
  children: [
  _tabButton(title: 'Stakeholders', index: 0),
  _tabButton(title: 'Engagement Plans', index: 1),
+ _tabButton(title: 'Stakeholder Mapping', index: 2),
+ _tabButton(title: 'Announcements', index: 3),
  ],
  ),
  ),
@@ -1148,12 +1167,13 @@ class _EngagementSection extends StatelessWidget {
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
+ if (activeTabIndex < 2) ...[
  Row(
  children: [
  Expanded(
  child: _SearchField(
  enabled: true,
- value: '', // Managed externally now
+ value: '',
  onChanged: onSearch,
  ),
  ),
@@ -1176,11 +1196,14 @@ class _EngagementSection extends StatelessWidget {
  ],
  ),
  const SizedBox(height: 24),
+ ],
  IndexedStack(
  index: activeTabIndex,
  children: [
  stakeholderTable,
  planTable,
+ mappingTable,
+ announcementsWidget,
  ],
  ),
  ],
@@ -1856,4 +1879,289 @@ class _Debouncer {
  void dispose() {
  _timer?.cancel();
  }
+}
+
+// ── Stakeholder Mapping Tab ──────────────────────────────────────────────
+/// Groups stakeholders by influence/interest quadrant with color-coded
+/// cells and sorting by quadrant. AI auto-suggests ratings.
+class _StakeholderMappingTab extends StatelessWidget {
+  const _StakeholderMappingTab({required this.stakeholders});
+
+  final List<StakeholderEntry> stakeholders;
+
+  String _quadrantFor(StakeholderEntry s) {
+    final influence = s.influence.toLowerCase();
+    final interest = s.interest.toLowerCase();
+    final highInfluence = influence.contains('high') || influence.contains('significant');
+    final highInterest = interest.contains('high') || interest.contains('significant');
+    if (highInfluence && highInterest) return 'Manage Closely';
+    if (highInfluence && !highInterest) return 'Keep Satisfied';
+    if (!highInfluence && highInterest) return 'Keep Informed';
+    return 'Monitor';
+  }
+
+  Color _colorFor(String quadrant) {
+    switch (quadrant) {
+      case 'Manage Closely':
+        return const Color(0xFFDC2626); // Red — high priority
+      case 'Keep Satisfied':
+        return const Color(0xFFD97706); // Amber
+      case 'Keep Informed':
+        return const Color(0xFF2563EB); // Blue
+      default:
+        return const Color(0xFF6B7280); // Gray — Monitor
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Group by quadrant
+    final groups = <String, List<StakeholderEntry>>{
+      'Manage Closely': [],
+      'Keep Satisfied': [],
+      'Keep Informed': [],
+      'Monitor': [],
+    };
+    for (final s in stakeholders) {
+      final q = _quadrantFor(s);
+      groups[q]!.add(s);
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Stakeholder Mapping — Influence / Interest Matrix',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Stakeholders are grouped by their influence and interest level. '
+            'AI auto-suggests ratings based on project data. Edit stakeholder '
+            'influence/interest in the Stakeholders tab to update mappings.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 20),
+          for (final entry in groups.entries) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: _colorFor(entry.key).withOpacity(0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _colorFor(entry.key).withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _colorFor(entry.key),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          entry.key,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: Colors.white),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '(${entry.value.length} stakeholder${entry.value.length == 1 ? "" : "s"})',
+                        style: TextStyle(fontSize: 12, color: _colorFor(entry.key), fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  if (entry.value.isEmpty)
+                    Text('No stakeholders in this quadrant.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade400, fontStyle: FontStyle.italic))
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: entry.value.map((s) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: _colorFor(entry.key).withOpacity(0.2)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(s.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            if (s.role.isNotEmpty)
+                              Text(s.role, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280))),
+                            if (s.organization.isNotEmpty)
+                              Text(s.organization, style: const TextStyle(fontSize: 10, color: Color(0xFF9CA3AF))),
+                          ],
+                        ),
+                      )).toList(),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── Announcements Tab ────────────────────────────────────────────────────
+/// Announcement templates for each engagement level (Manage Closely,
+/// Keep Satisfied, Keep Informed, Monitor) and the project team.
+class _AnnouncementsTab extends StatelessWidget {
+  const _AnnouncementsTab({required this.stakeholders});
+
+  final List<StakeholderEntry> stakeholders;
+
+  static const _templates = [
+    _AnnouncementTemplate(
+      group: 'Manage Closely',
+      subject: 'Project Update - Action Required',
+      body: 'Dear [Name],\n\nThis is a critical project update for [Project Name]. Your input is required on [specific item]. Please review the attached documentation and provide feedback by [date].\n\nKey highlights:\n- [Milestone 1]\n- [Milestone 2]\n- [Risk/Issue]\n\nBest regards,\n[Project Manager]',
+      channel: 'Email + Direct Meeting',
+      frequency: 'Weekly',
+    ),
+    _AnnouncementTemplate(
+      group: 'Keep Satisfied',
+      subject: 'Project Status Report',
+      body: 'Dear [Name],\n\nHere is the latest status update for [Project Name]. The project is currently [on track / at risk / ahead of schedule]. Key developments include:\n- [Update 1]\n- [Update 2]\n\nPlease reach out if you have any questions.\n\nBest regards,\n[Project Manager]',
+      channel: 'Email',
+      frequency: 'Bi-weekly',
+    ),
+    _AnnouncementTemplate(
+      group: 'Keep Informed',
+      subject: 'Project Newsletter',
+      body: 'Hello [Name],\n\nHere is what is happening with [Project Name]:\n- [Milestone update]\n- [Team highlight]\n- [Upcoming event]\n\nStay tuned for more updates!\n\n[Project Team]',
+      channel: 'Email / Dashboard Announcement',
+      frequency: 'Monthly',
+    ),
+    _AnnouncementTemplate(
+      group: 'Monitor',
+      subject: 'Quarterly Project Summary',
+      body: 'Hello [Name],\n\nQuarterly summary for [Project Name]:\n- Overall status: [status]\n- Budget: [budget status]\n- Schedule: [schedule status]\n\nFull report available on the project portal.\n\n[Project Team]',
+      channel: 'Email',
+      frequency: 'Quarterly',
+    ),
+    _AnnouncementTemplate(
+      group: 'Project Team',
+      subject: 'Weekly Team Update',
+      body: 'Team,\n\nWeekly update for [Project Name]:\n\nThis weeks priorities:\n1. [Priority 1]\n2. [Priority 2]\n3. [Priority 3]\n\nRisks/Blockers:\n- [Risk 1]\n\nNext standup: [Day/Time]\n\n[Project Manager]',
+      channel: 'Email + Team Meeting',
+      frequency: 'Weekly',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Announcement Templates',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Pre-built templates for each stakeholder engagement level. '
+            'Customize and send to keep stakeholders informed.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          ),
+          const SizedBox(height: 20),
+          ..._templates.map((t) => Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(t.group, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white)),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(t.channel, style: const TextStyle(fontSize: 10, color: Color(0xFF1E40AF))),
+                    ),
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(t.frequency, style: const TextStyle(fontSize: 10, color: Color(0xFF166534))),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.copy_outlined, size: 18, color: Color(0xFF6B7280)),
+                      tooltip: 'Copy template',
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(t.subject, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Text(
+                    t.body,
+                    style: const TextStyle(fontSize: 12, color: Color(0xFF4B5563), height: 1.5),
+                  ),
+                ),
+              ],
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnnouncementTemplate {
+  final String group;
+  final String subject;
+  final String body;
+  final String channel;
+  final String frequency;
+
+  const _AnnouncementTemplate({
+    required this.group,
+    required this.subject,
+    required this.body,
+    required this.channel,
+    required this.frequency,
+  });
 }
