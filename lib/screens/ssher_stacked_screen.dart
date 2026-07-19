@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ndu_project/screens/ssher_add_safety_item_dialog.dart';
 import 'package:ndu_project/models/project_data_model.dart';
+import 'package:ndu_project/models/staffing_row.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/responsive.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -18,6 +19,10 @@ import 'package:ndu_project/utils/web_utils_stub.dart'
     if (dart.library.html) 'package:ndu_project/utils/web_utils_web.dart';
 import 'package:ndu_project/widgets/inner_page_navigation_hint.dart';
 import 'package:ndu_project/utils/pdf_export_helper.dart';
+import 'package:provider/provider.dart';
+import 'package:ndu_project/cost_estimate/providers/cost_estimate_provider.dart';
+import 'package:ndu_project/cost_estimate/models/cost_estimate_models.dart';
+import 'package:ndu_project/cost_estimate/screens/cost_estimate_module_screen.dart';
 
 /// Six categories: Safety, Security, Health, Environment, Regulatory, Cost (Cost tab is a roll-up)
 enum _SsherCategory { safety, security, health, environment, regulatory, cost }
@@ -1360,6 +1365,11 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
           // Section Header
           _buildSectionHeader(catLabel, entries.length, accent),
 
+          const SizedBox(height: 12),
+
+          // Per-category integration actions: Push to Risk Register
+          _buildIntegrationActionsRow(accent, catLabel),
+
           const SizedBox(height: 16),
 
           // Per-category AI Plan (Safety Plan, Security Plan, etc.)
@@ -1391,6 +1401,247 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
           // Logs / Checklists / Documents subsections (per entry-level: aggregated summary)
           _buildSubsectionSummary(accent, isMobile),
+
+          const SizedBox(height: 24),
+
+          // Staffing Gap Analysis (shows on all SSHER tabs — analyzes full project)
+          _buildStaffingGapAnalysis(accent, isMobile),
+        ],
+      ),
+    );
+  }
+
+  // ── Integration Actions Row (per-tab) ──
+  Widget _buildIntegrationActionsRow(Color accent, String catLabel) {
+    final entries = _entriesForCategory(_selectedCategory);
+    final highMedRiskCount = entries.where((e) {
+      final level = e.riskLevel.trim().toLowerCase();
+      return level == 'high' || level == 'medium';
+    }).length;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: accent.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.link, size: 14, color: accent),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              'Cross-Discipline Integration',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: accent,
+              ),
+            ),
+          ),
+          if (highMedRiskCount > 0)
+            TextButton.icon(
+              onPressed: () => _pushToRiskRegister(_selectedCategory),
+              icon: const Icon(Icons.warning_amber, size: 14),
+              label: Text(
+                  'Push $highMedRiskCount High/Med Risk${highMedRiskCount == 1 ? '' : 's'} to Risk Register',
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w600)),
+              style: TextButton.styleFrom(
+                foregroundColor: accent,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+            )
+          else
+            Text('No High/Medium risks to push',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: _Palette.outline)),
+        ],
+      ),
+    );
+  }
+
+  // ── Staffing Gap Analysis Section ──
+  Widget _buildStaffingGapAnalysis(Color accent, bool isMobile) {
+    final gaps = _computeStaffingGaps();
+    final projectData = ProjectDataHelper.getData(context);
+    final staffingCount = projectData.frontEndPlanning.staffingRows.length;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _Palette.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _Palette.surfaceVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.person_search, size: 16, color: accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Staffing Plan Gap Analysis',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+              ),
+              if (gaps.isNotEmpty)
+                TextButton.icon(
+                  onPressed: _addAllStaffingGaps,
+                  icon: const Icon(Icons.add_circle, size: 14),
+                  label: const Text('Add All to Staffing Plan',
+                      style: TextStyle(
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: accent,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'SSHER items reference ${gaps.length} role${gaps.length == 1 ? '' : 's'} not yet present in your Staffing Plan ($staffingCount current ${staffingCount == 1 ? 'role' : 'roles'}). Closing these gaps ensures every SSHER responsibility has a named owner on the project team.',
+            style: const TextStyle(
+              fontSize: 12,
+              color: _Palette.onSurfaceVariant,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (gaps.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle,
+                      size: 14, color: Color(0xFF047857)),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'No staffing gaps detected. All SSHER-referenced roles are present in your Staffing Plan.',
+                      style: TextStyle(
+                          fontSize: 12, color: Color(0xFF047857)),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: gaps.map((gap) {
+                final role = gap['role'] as String;
+                final count = gap['count'] as int;
+                final examples = gap['examples'] as List<SsherEntry>;
+                final exampleText = examples
+                    .map((e) => e.concern.isNotEmpty
+                        ? (e.concern.length > 40
+                            ? '${e.concern.substring(0, 40)}...'
+                            : e.concern)
+                        : 'Item')
+                    .take(2)
+                    .join('; ');
+                return Container(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: accent.withValues(alpha: 0.25)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              role,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: _Palette.onBackground,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${count}x',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (exampleText.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Referenced in: $exampleText',
+                          style: const TextStyle(
+                              fontSize: 11,
+                              color: _Palette.onSurfaceVariant,
+                              fontStyle: FontStyle.italic),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => _addRoleToStaffingPlan(role),
+                        icon: const Icon(Icons.add, size: 12),
+                        label: const Text('Add to Staffing Plan',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: accent,
+                          side: BorderSide(
+                              color: accent.withValues(alpha: 0.5)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );
@@ -2543,6 +2794,54 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
           ),
           const SizedBox(height: 16),
 
+          // Integration actions row
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ElevatedButton.icon(
+                onPressed: _pushToCostEstimate,
+                icon: const Icon(Icons.cloud_upload, size: 16),
+                label: const Text('Push to Cost Estimate'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _Palette.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _downloadCostSummaryCsv,
+                icon: const Icon(Icons.download, size: 16),
+                label: const Text('Export CSV'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _costAccent,
+                  side: BorderSide(color: _costAccent.withValues(alpha: 0.5)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _downloadCostSummaryPdf,
+                icon: const Icon(Icons.picture_as_pdf, size: 16),
+                label: const Text('Export PDF'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _Palette.onSurfaceVariant,
+                  side: const BorderSide(color: _Palette.outlineVariant),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
           // Category totals cards
           Wrap(
             spacing: 12,
@@ -3318,6 +3617,431 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     );
     if (result == null) return;
     await _addEntry(_selectedCategory, result);
+  }
+
+  // ── Cross-Discipline Integration: Push to Cost Estimate ──
+  Future<void> _pushToCostEstimate() async {
+    final allEntries = _allEntries();
+    final costableEntries = allEntries.where((e) {
+      final cost = double.tryParse(
+          e.estimatedCost.replaceAll(',', '').replaceAll('\$', ''));
+      return cost != null && cost > 0;
+    }).toList();
+
+    if (costableEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No SSHER items with a non-zero estimated cost to push. Add cost amounts to your SSHER items first.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Push SSHER Costs to Cost Estimate'),
+        content: Text(
+            'This will create ${costableEntries.length} new cost line items in the Cost Estimate module (one per SSHER item with a cost). Each item will be categorized as SSHER and reference the originating SSHER entry. Existing cost lines will not be modified.\n\nDo you want to proceed?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Push to Cost Estimate'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final provider = context.read<CostEstimateProvider>();
+
+    // Auto-setup a default Cost Estimate if none exists yet
+    if (provider.estimate == null) {
+      final projectName =
+          ProjectDataHelper.getData(context).projectName;
+      provider.setup(
+        projectName: projectName.isNotEmpty ? projectName : 'SSHER Import',
+        className: EstimateClass.class3,
+        deliveryModel: DeliveryModel.waterfall,
+      );
+    }
+
+    int pushed = 0;
+    int skipped = 0;
+    for (final entry in costableEntries) {
+      final cost = double.tryParse(
+              entry.estimatedCost.replaceAll(',', '').replaceAll('\$', '')) ??
+          0.0;
+      if (cost <= 0) {
+        skipped++;
+        continue;
+      }
+      // De-dup: skip if a line with the same basisReference already exists
+      final existing = provider.estimate?.lines.any((l) =>
+              l.basisReference != null &&
+              l.basisReference!.contains('SSHER:${entry.id}')) ??
+          false;
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      final line = CostLine(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        category: CostCategory.ssher,
+        subCategory:
+            '${_categoryLabel(_SsherCategory.values.firstWhere((c) => c.name == entry.category, orElse: () => _SsherCategory.safety))} — ${entry.department}',
+        description: entry.concern.isNotEmpty
+            ? '${entry.concern} — ${entry.mitigation}'
+            : 'SSHER ${entry.category} item',
+        quantity: 1,
+        unit: entry.costUnit.isNotEmpty ? entry.costUnit : 'lump sum',
+        rate: cost,
+        total: cost,
+        inSchedule: false,
+        basisSource: CostSourceType.expertJudgment,
+        basisReference: 'SSHER:${entry.id} — Imported from SSHER Hub',
+        aiGenerated: false,
+        confidence: Confidence.med,
+      );
+      provider.addLine(line);
+      pushed++;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Pushed $pushed SSHER cost item${pushed == 1 ? '' : 's'} to Cost Estimate${skipped > 0 ? ' ($skipped skipped — already present or zero cost)' : ''}.'),
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: 'View Cost Estimate',
+          onPressed: () {
+            // Navigate to cost estimate screen
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const _CostEstimateRoutePlaceholder(),
+            ));
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Cross-Discipline Integration: Export Cost Summary as CSV ──
+  Future<void> _downloadCostSummaryCsv() async {
+    final allEntries = _allEntries();
+    if (allEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No SSHER items to export.'),
+            duration: Duration(seconds: 3)),
+      );
+      return;
+    }
+    final csv = SsherExportHelper.costSummaryToCsv(allEntries);
+    await SsherExportHelper.downloadCsv(csv, 'ssher_cost_summary.csv');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Exported ${allEntries.length} SSHER cost items to ssher_cost_summary.csv. Import this file in the Cost Estimate module.'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  // ── Cross-Discipline Integration: Export Cost Summary as PDF ──
+  Future<void> _downloadCostSummaryPdf() async {
+    final allEntries = _allEntries();
+    if (allEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No SSHER items to export.'),
+            duration: Duration(seconds: 3)),
+      );
+      return;
+    }
+    await SsherExportHelper.exportCostSummaryToPdf(allEntries);
+  }
+
+  // ── Cross-Discipline Integration: Push to Risk Register ──
+  Future<void> _pushToRiskRegister(_SsherCategory cat) async {
+    final entries = _entriesForCategory(cat);
+    // Only push high and medium risk items
+    final riskableEntries = entries.where((e) {
+      final level = e.riskLevel.trim().toLowerCase();
+      return level == 'high' || level == 'medium';
+    }).toList();
+
+    if (riskableEntries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'No High or Medium risk ${_categoryLabel(cat)} items to push. Only High/Medium risk SSHER items are pushed to the Risk Register.'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // Check for duplicates against existing risk register items
+    final projectData = ProjectDataHelper.getData(context);
+    final existingRiskNames = projectData.frontEndPlanning.riskRegisterItems
+        .map((r) => r.riskName.trim().toLowerCase())
+        .toSet();
+
+    final toPush = riskableEntries
+        .where((e) =>
+            !existingRiskNames.contains(
+                'SSHER ${e.category}: ${e.concern}'.trim().toLowerCase()))
+        .toList();
+
+    if (toPush.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'All ${riskableEntries.length} ${_categoryLabel(cat)} risk item${riskableEntries.length == 1 ? '' : 's'} already exist in the Risk Register.'),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Push SSHER Risks to Risk Register'),
+        content: Text(
+            '${toPush.length} new risk item${toPush.length == 1 ? '' : 's'} will be created in the Risk Register from your ${_categoryLabel(cat)} tab. Each will be flagged with category="${_categoryLabel(cat)}" and owner=the SSHER team member. Existing risks will not be modified.\n\nDo you want to proceed?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Push to Risk Register'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final newRisks = toPush
+        .map((e) => RiskRegisterItem(
+              riskName: 'SSHER ${e.category}: ${e.concern}',
+              description: e.mitigation.isNotEmpty
+                  ? 'SSHER ${e.category} concern: ${e.concern}. Mitigation: ${e.mitigation}'
+                  : 'SSHER ${e.category} concern: ${e.concern}',
+              category: _categoryLabel(cat),
+              requirement: '',
+              requirementType: 'SSHER',
+              impactLevel: e.riskLevel,
+              likelihood: 'Medium',
+              mitigationStrategy: e.mitigation.isNotEmpty
+                  ? e.mitigation
+                  : 'Mitigation plan in progress — see SSHER Hub for details.',
+              discipline: e.department,
+              projectRole: e.teamMember,
+              owner: e.teamMember,
+              status: 'Open',
+            ))
+        .toList();
+
+    final provider = ProjectDataHelper.getProvider(context);
+    final existing = List<RiskRegisterItem>.from(
+        provider.projectData.frontEndPlanning.riskRegisterItems);
+    final combined = [...existing, ...newRisks];
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_to_risk_register',
+      dataUpdater: (d) => d.copyWith(
+        frontEndPlanning: d.frontEndPlanning.copyWith(
+          riskRegisterItems: combined,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Pushed ${newRisks.length} ${_categoryLabel(cat)} risk item${newRisks.length == 1 ? '' : 's'} to the Risk Register.'),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+  }
+
+  // ── Staffing Gap Analysis ──
+  /// Returns a list of SSHER-required roles (teamMember field) that are not
+  /// present in the Staffing Plan. Each entry is a tuple of (role name, count).
+  List<Map<String, dynamic>> _computeStaffingGaps() {
+    final projectData = ProjectDataHelper.getData(context);
+    final staffingRows = projectData.frontEndPlanning.staffingRows;
+    final staffingRoles = staffingRows
+        .map((r) => r.role.trim().toLowerCase())
+        .where((r) => r.isNotEmpty)
+        .toSet();
+
+    final allEntries = _allEntries();
+    final roleCounts = <String, int>{};
+    final roleExamples = <String, List<SsherEntry>>{};
+
+    for (final e in allEntries) {
+      final role = e.teamMember.trim();
+      if (role.isEmpty) continue;
+      // Skip generic placeholder roles
+      if (role.toLowerCase() == 'owner' ||
+          role.toLowerCase() == 'unassigned' ||
+          role.toLowerCase().startsWith('owner ')) {
+        continue;
+      }
+      final roleKey = role.toLowerCase();
+      if (!staffingRoles.contains(roleKey)) {
+        roleCounts[role] = (roleCounts[role] ?? 0) + 1;
+        roleExamples.putIfAbsent(role, () => []);
+        if (roleExamples[role]!.length < 3) {
+          roleExamples[role]!.add(e);
+        }
+      }
+    }
+
+    return roleCounts.entries
+        .map((e) => {
+              'role': e.key,
+              'count': e.value,
+              'examples': roleExamples[e.key]!,
+            })
+        .toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+  }
+
+  Future<void> _addRoleToStaffingPlan(String role) async {
+    final projectData = ProjectDataHelper.getData(context);
+    final staffingRows =
+        List<StaffingRow>.from(projectData.frontEndPlanning.staffingRows);
+
+    // De-dup check
+    final exists = staffingRows.any((r) =>
+        r.role.trim().toLowerCase() == role.trim().toLowerCase());
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('"$role" is already in the Staffing Plan.'),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    staffingRows.add(StaffingRow(
+      role: role,
+      quantity: 1,
+      isInternal: true,
+      status: 'Not Started',
+      notes: 'Added from SSHER Hub gap analysis',
+    ));
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_staffing_gap_add',
+      dataUpdater: (d) => d.copyWith(
+        frontEndPlanning: d.frontEndPlanning.copyWith(
+          staffingRows: staffingRows,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {}); // Refresh the gap view
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Added "$role" to the Staffing Plan.'),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _addAllStaffingGaps() async {
+    final gaps = _computeStaffingGaps();
+    if (gaps.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add All SSHER Roles to Staffing Plan'),
+        content: Text(
+            'This will add ${gaps.length} new role${gaps.length == 1 ? '' : 's'} to the Staffing Plan:\n\n${gaps.map((g) => '• ${g['role']}').join('\n')}\n\nEach role will be added with quantity=1 and status=Not Started. Existing roles will not be modified.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: _Palette.primary,
+                foregroundColor: Colors.white),
+            child: const Text('Add All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final projectData = ProjectDataHelper.getData(context);
+    final staffingRows =
+        List<StaffingRow>.from(projectData.frontEndPlanning.staffingRows);
+    final existingRoles = staffingRows
+        .map((r) => r.role.trim().toLowerCase())
+        .toSet();
+
+    int added = 0;
+    for (final gap in gaps) {
+      final role = gap['role'] as String;
+      if (existingRoles.contains(role.toLowerCase())) continue;
+      staffingRows.add(StaffingRow(
+        role: role,
+        quantity: 1,
+        isInternal: true,
+        status: 'Not Started',
+        notes: 'Added from SSHER Hub gap analysis',
+      ));
+      existingRoles.add(role.toLowerCase());
+      added++;
+    }
+
+    await ProjectDataHelper.updateAndSave(
+      context: context,
+      checkpoint: 'ssher_staffing_gap_add_all',
+      dataUpdater: (d) => d.copyWith(
+        frontEndPlanning: d.frontEndPlanning.copyWith(
+          staffingRows: staffingRows,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() {});
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Added $added role${added == 1 ? '' : 's'} to the Staffing Plan.'),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   Future<void> _exportPdf() async {
@@ -4139,5 +4863,16 @@ class _ScaleOnTapState extends State<_ScaleOnTap>
       onTap: widget.onTap,
       child: ScaleTransition(scale: _scale, child: widget.child),
     );
+  }
+}
+
+/// Lightweight placeholder route that opens the Cost Estimate module screen
+/// when the user taps "View Cost Estimate" in the SSHER push snackbar.
+class _CostEstimateRoutePlaceholder extends StatelessWidget {
+  const _CostEstimateRoutePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const CostEstimateModuleScreen();
   }
 }
