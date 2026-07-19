@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart' as fp;
 import 'package:excel/excel.dart' hide Border;
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/download_helper.dart';
 import 'package:ndu_project/theme.dart';
 
 /// World-class CSV / XLSX Import Dialog
@@ -357,6 +358,30 @@ class _CsvImportDialogState extends State<_CsvImportDialog>
                 ),
               ),
               const Spacer(),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final csv = CsvImportHelper.generateTemplate(widget.columns);
+                  final filename =
+                      CsvImportHelper.templateFilename(widget.tableTitle);
+                  downloadFile(
+                    utf8.encode(csv),
+                    filename,
+                    mimeType: 'text/csv',
+                  );
+                },
+                icon: const Icon(Icons.download, size: 14),
+                label: const Text('Download Template',
+                    style:
+                        TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFD97706),
+                  side: const BorderSide(color: Color(0xFFF59E0B)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),

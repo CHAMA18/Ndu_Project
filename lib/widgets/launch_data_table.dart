@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:ndu_project/services/openai_service_secure.dart';
 import 'package:ndu_project/utils/csv_import_helper.dart';
+import 'package:ndu_project/utils/download_helper.dart';
 import 'package:ndu_project/widgets/csv_import_dialog.dart';
 import 'package:ndu_project/widgets/launch_modal.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
@@ -315,6 +317,20 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
               ),
             ),
             const SizedBox(width: 8),
+            OutlinedButton.icon(
+              onPressed: () => _downloadCsvTemplate(),
+              icon: const Icon(Icons.download, size: 16),
+              label: const Text('Download Template'),
+              style: OutlinedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                foregroundColor: const Color(0xFF4B5563),
+                side: const BorderSide(color: Color(0xFFD1D5DB)),
+              ),
+            ),
+            const SizedBox(width: 8),
           ],
           if (widget.onImport != null && widget.importLabel != null) ...[
             OutlinedButton.icon(
@@ -346,6 +362,17 @@ class _LaunchDataTableState extends State<LaunchDataTable> {
     if (result != null && result.isNotEmpty) {
       await widget.onCsvImport!(result);
     }
+  }
+
+  void _downloadCsvTemplate() {
+    if (widget.csvColumns == null) return;
+    final csv = CsvImportHelper.generateTemplate(widget.csvColumns!);
+    final filename = CsvImportHelper.templateFilename(widget.title);
+    downloadFile(
+      utf8.encode(csv),
+      filename,
+      mimeType: 'text/csv',
+    );
   }
 
   Future<void> _showAddDialog(BuildContext context) async {
