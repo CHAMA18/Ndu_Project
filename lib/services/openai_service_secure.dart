@@ -6935,6 +6935,143 @@ $escaped
     return _fallbackSsherEntries(trimmedContext, itemsPerCategory);
   }
 
+  /// Generates a per-category SSHER plan (Safety Plan, Security Plan, Health Plan,
+  /// Environment Plan, Regulatory Plan). The plan is concise (90-150 words) and
+  /// customized for the project's type, location, and rules.
+  Future<String> generateSsherCategoryPlan({
+    required String context,
+    required String category, // 'safety' | 'security' | 'health' | 'environment' | 'regulatory'
+    int maxTokens = 350,
+    double temperature = 0.5,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty) return '';
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackSsherCategoryPlan(trimmedContext, category);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are an SSHER strategist. Craft a concise $category plan (90-150 words) tailored to the project\'s type, location, and regulatory environment. Always return ONLY valid JSON matching the requested schema.'
+        },
+        {
+          'role': 'user',
+          'content': _ssherCategoryPlanPrompt(trimmedContext, category),
+        },
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
+        final parsed = _decodeJsonSafely(content);
+        final plan = parsed != null
+            ? (parsed['plan'] ?? parsed['summary'] ?? parsed['text'] ?? '')
+                .toString()
+                .trim()
+            : '';
+        if (plan.isNotEmpty) return plan;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('generateSsherCategoryPlan failed: $e');
+    }
+
+    return _fallbackSsherCategoryPlan(trimmedContext, category);
+  }
+
+  /// Generates a list of applicable UN Sustainable Development Goals for the
+  /// project, with rationale tied to the project context.
+  Future<List<Map<String, String>>> generateSdgRecommendations({
+    required String context,
+    int maxTokens = 600,
+    double temperature = 0.4,
+  }) async {
+    final trimmedContext = context.trim();
+    if (trimmedContext.isEmpty) return [];
+    if (!OpenAiConfig.isConfigured) {
+      return _fallbackSdgRecommendations(trimmedContext);
+    }
+
+    final uri = OpenAiConfig.chatUri();
+    final headers = OpenAiConfig.headers();
+
+    final body = jsonEncode(OpenAiConfig.wrapBody({
+      'model': OpenAiConfig.model,
+      'temperature': temperature,
+      'max_completion_tokens': maxTokens,
+      'response_format': {'type': 'json_object'},
+      'messages': [
+        {
+          'role': 'system',
+          'content':
+              'You are a sustainability analyst. Identify the UN Sustainable Development Goals (SDGs 1-17) most applicable to this project based on its scope, location, and impact areas. Return ONLY valid JSON.'
+        },
+        {
+          'role': 'user',
+          'content': _ssherSdgPrompt(trimmedContext),
+        },
+      ],
+    }));
+
+    try {
+      final response = await _client
+          .post(uri, headers: headers, body: body)
+          .timeout(const Duration(seconds: 30));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+            'OpenAI error ${response.statusCode}: ${response.body}');
+      }
+      final data =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final content = OpenAiConfig.extractContent(data);
+      if (content.isNotEmpty) {
+        final parsed = _decodeJsonSafely(content);
+        if (parsed != null) {
+          final list = parsed['sdgs'] ?? parsed['goals'] ?? [];
+          if (list is List) {
+            return list
+                .map((e) {
+                  if (e is Map) {
+                    return {
+                      'goal': (e['goal'] ?? e['id'] ?? e['number'] ?? '')
+                          .toString(),
+                      'title': (e['title'] ?? e['name'] ?? '').toString(),
+                      'rationale': (e['rationale'] ?? e['reason'] ?? '').toString(),
+                    };
+                  }
+                  return <String, String>{};
+                })
+                .where((m) => m['goal']!.isNotEmpty)
+                .toList();
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('generateSdgRecommendations failed: $e');
+    }
+
+    return _fallbackSdgRecommendations(trimmedContext);
+  }
+
   Future<Map<String, List<Map<String, dynamic>>>> generateLaunchPhaseEntries({
     required String context,
     required Map<String, String> sections,
@@ -7943,7 +8080,13 @@ $escaped
     final escaped = _escape(context);
     return '''
 Using the project inputs below, generate $itemsPerCategory entries for each category (safety, security, health, environment, regulatory).
-Each entry must be realistic and grounded in the project context.
+Each entry must be realistic, grounded in the project context, and customized for the project's type, location, and rules.
+
+For each entry, include:
+- A realistic estimated cost (estimated_cost as a number, e.g. 5000 or 12500.50)
+- The currency (USD unless the project is in Zambia where ZMW applies)
+- The cost frequency (One-time, Recurring, Monthly, Quarterly, or Annual)
+- The cost unit (lump sum, per item, per month, per quarter, etc.)
 
 Return ONLY valid JSON with this exact structure:
 {
@@ -7954,7 +8097,11 @@ Return ONLY valid JSON with this exact structure:
       "teamMember": "Role or owner",
       "concern": "Short, specific concern",
       "riskLevel": "Low|Medium|High",
-      "mitigation": "Short, specific mitigation action"
+      "mitigation": "Short, specific mitigation action",
+      "estimatedCost": "5000",
+      "costCurrency": "USD",
+      "costFrequency": "One-time",
+      "costUnit": "lump sum"
     }
   ]
 }
@@ -8042,6 +8189,23 @@ $escaped
               .toString()
               .trim();
       if (department.isEmpty || concern.isEmpty) return;
+      final estimatedCost = (item['estimatedCost'] ??
+              item['estimated_cost'] ??
+              item['cost'] ??
+              '')
+          .toString()
+          .trim();
+      final costCurrency =
+          (item['costCurrency'] ?? item['cost_currency'] ?? 'USD')
+              .toString()
+              .trim();
+      final costFrequency =
+          (item['costFrequency'] ?? item['cost_frequency'] ?? 'One-time')
+              .toString()
+              .trim();
+      final costUnit = (item['costUnit'] ?? item['cost_unit'] ?? 'lump sum')
+          .toString()
+          .trim();
       entries.add(SsherEntry(
         category: category,
         department: department,
@@ -8050,6 +8214,10 @@ $escaped
         riskLevel: riskLevel,
         mitigation:
             mitigation.isEmpty ? 'Mitigation plan in progress.' : mitigation,
+        estimatedCost: estimatedCost,
+        costCurrency: costCurrency.isEmpty ? 'USD' : costCurrency,
+        costFrequency: costFrequency.isEmpty ? 'One-time' : costFrequency,
+        costUnit: costUnit.isEmpty ? 'lump sum' : costUnit,
       ));
       counts[category] = count + 1;
     }
@@ -8911,6 +9079,10 @@ $escaped
           'riskLevel': 'High',
           'mitigation':
               'Enforce PPE checklists and daily toolbox talks across shifts.',
+          'estimatedCost': '3500',
+          'costCurrency': 'USD',
+          'costFrequency': 'One-time',
+          'costUnit': 'lump sum',
         },
         {
           'department': 'Facilities',
@@ -8920,6 +9092,10 @@ $escaped
           'riskLevel': 'Medium',
           'mitigation':
               'Install signage and conduct evacuation drills before go-live.',
+          'estimatedCost': '1800',
+          'costCurrency': 'USD',
+          'costFrequency': 'One-time',
+          'costUnit': 'lump sum',
         },
       ],
       'security': [
@@ -8931,6 +9107,10 @@ $escaped
           'riskLevel': 'High',
           'mitigation':
               'Complete quarterly access audits and enforce least-privilege roles.',
+          'estimatedCost': '6000',
+          'costCurrency': 'USD',
+          'costFrequency': 'Annual',
+          'costUnit': 'per year',
         },
         {
           'department': 'Facilities',
@@ -8939,6 +9119,10 @@ $escaped
           'riskLevel': 'Medium',
           'mitigation':
               'Align badge provisioning with approved rosters and auto-expire access.',
+          'estimatedCost': '2200',
+          'costCurrency': 'USD',
+          'costFrequency': 'One-time',
+          'costUnit': 'lump sum',
         },
       ],
       'health': [
@@ -8949,6 +9133,10 @@ $escaped
               'Shift fatigue risk during the ${assetName.toLowerCase()} launch window.',
           'riskLevel': 'Medium',
           'mitigation': 'Introduce rotation plans and mandatory rest breaks.',
+          'estimatedCost': '1200',
+          'costCurrency': 'USD',
+          'costFrequency': 'Monthly',
+          'costUnit': 'per month',
         },
         {
           'department': 'Operations',
@@ -8957,6 +9145,10 @@ $escaped
           'riskLevel': 'Low',
           'mitigation':
               'Provide adjustable workstations and ergonomics training.',
+          'estimatedCost': '2800',
+          'costCurrency': 'USD',
+          'costFrequency': 'One-time',
+          'costUnit': 'lump sum',
         },
       ],
       'environment': [
@@ -8968,6 +9160,10 @@ $escaped
           'riskLevel': 'Medium',
           'mitigation':
               'Deploy labeled bins and weekly compliance inspections.',
+          'estimatedCost': '1500',
+          'costCurrency': 'USD',
+          'costFrequency': 'One-time',
+          'costUnit': 'lump sum',
         },
         {
           'department': 'Operations',
@@ -8976,6 +9172,10 @@ $escaped
           'riskLevel': 'Low',
           'mitigation':
               'Schedule equipment use off-peak and track energy KPIs.',
+          'estimatedCost': '900',
+          'costCurrency': 'USD',
+          'costFrequency': 'Monthly',
+          'costUnit': 'per month',
         },
       ],
       'regulatory': [
@@ -8987,6 +9187,10 @@ $escaped
           'riskLevel': 'High',
           'mitigation':
               'Complete audit trail and align reporting calendar with regulators.',
+          'estimatedCost': '4500',
+          'costCurrency': 'USD',
+          'costFrequency': 'Quarterly',
+          'costUnit': 'per quarter',
         },
         {
           'department': 'Legal',
@@ -8996,6 +9200,10 @@ $escaped
           'riskLevel': 'Medium',
           'mitigation':
               'Validate policy updates and secure sign-off before launch.',
+          'estimatedCost': '3000',
+          'costCurrency': 'USD',
+          'costFrequency': 'One-time',
+          'costUnit': 'lump sum',
         },
       ],
     };
@@ -9011,6 +9219,10 @@ $escaped
           concern: item['concern'] ?? '',
           riskLevel: _normalizeRiskLevel(item['riskLevel'] ?? ''),
           mitigation: item['mitigation'] ?? '',
+          estimatedCost: item['estimatedCost'] ?? '5000',
+          costCurrency: item['costCurrency'] ?? 'USD',
+          costFrequency: item['costFrequency'] ?? 'One-time',
+          costUnit: item['costUnit'] ?? 'lump sum',
         ));
       }
     }
@@ -9032,6 +9244,113 @@ $escaped
     if (normalized.startsWith('high')) return 'High';
     if (normalized.startsWith('low')) return 'Low';
     return 'Medium';
+  }
+
+  String _ssherCategoryPlanPrompt(String context, String category) {
+    final escaped = _escape(context);
+    final categoryDescriptions = {
+      'safety':
+          'physical safety hazards on the project site, PPE, emergency response, incident reporting, safe work practices, equipment safety',
+      'security':
+          'physical and information security threats, access control, asset protection, personnel security, cybersecurity, vendor security',
+      'health':
+          'occupational health, mental wellbeing, ergonomics, fatigue management, occupational illness prevention, health surveillance',
+      'environment':
+          'environmental impact, waste management, emissions, energy efficiency, water use, biodiversity, UN Sustainable Development Goals alignment',
+      'regulatory':
+          'applicable laws, permits, licenses, regulatory reporting, compliance obligations, audits, statutory deadlines',
+    };
+    final focus = categoryDescriptions[category] ?? category;
+    final titleCase = category[0].toUpperCase() + category.substring(1);
+    return '''
+Using the project inputs below, write a concise $titleCase Plan (90-150 words) that addresses $focus for this project. The plan MUST be customized to the project's type, location, and applicable regulatory environment. Reference specific project details (project name, location, scope elements) where possible. Be concise, no fluff, no preamble.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "plan": "Concise $titleCase Plan text goes here."
+}
+
+Project context:
+"""
+$escaped
+"""
+''';
+  }
+
+  String _fallbackSsherCategoryPlan(String context, String category) {
+    final projectName = _extractProjectName(context);
+    final assetName = projectName.isEmpty ? 'this project' : projectName;
+    final titleCase = category[0].toUpperCase() + category.substring(1);
+
+    final templates = {
+      'safety':
+          '$titleCase Plan for $assetName: All site personnel must complete pre-mobilization safety inductions before access. A site-specific HSE plan will govern PPE requirements, permit-to-work procedures, and emergency response. Daily toolbox talks will reinforce hazards of the day. Incident reporting follows a 24-hour notification protocol with root-cause analysis for any lost-time event. High-risk activities (working at heights, hot work, confined space) require dedicated JSAs and standby rescuers. Safety performance is reviewed weekly by the project manager and tracked against an TRIR target of zero.',
+      'security':
+          '$titleCase Plan for $assetName: Physical site access is restricted to badged personnel and pre-approved visitors; all entry points are logged. Cyber assets follow least-privilege access with quarterly reviews and MFA enforcement. Vendor credentials are time-boxed and revoked on demobilization. Asset protection includes CCTV coverage at critical zones and secure storage for high-value equipment. Personnel security includes background screening for sensitive roles. Security incidents are escalated within 1 hour to the project manager and corporate security team. A weekly security posture review keeps access rosters aligned with active personnel.',
+      'health':
+          '$titleCase Plan for $assetName: Occupational health surveillance covers pre-deployment medicals, periodic screenings, and ergonomic assessments for at-risk roles. Mental wellbeing support includes EAP access and fatigue management protocols that cap consecutive working hours. Heat/cold stress controls adapt to local climate. Health KPIs (lost-time illness, medical treatment cases) are reported monthly. Site hygiene standards govern sanitation, potable water, and rest facilities. A designated Health Officer coordinates with local medical providers and ensures emergency medical response capability on site during active work.',
+      'environment':
+          '$titleCase Plan for $assetName: An Environmental Management Plan aligned with ISO 14001 governs waste segregation, hazardous material handling, and spill response. Energy and water use are tracked monthly against reduction targets. Applicable UN Sustainable Development Goals (SDGs 6, 7, 9, 11, 12, 13) are integrated into procurement and operations decisions. Biodiversity impacts are assessed for any greenfield work. Emissions are tracked and reported per local regulatory requirements. Environmental incidents trigger immediate containment and a 48-hour written report. A quarterly sustainability review tracks progress against SDG-aligned KPIs.',
+      'regulatory':
+          '$titleCase Plan for $assetName: A regulatory compliance matrix lists every applicable law, permit, and license for the project jurisdiction, with owners and renewal dates. Permits are obtained before any regulated activity begins. Statutory reporting (monthly safety, environmental, employment) is submitted on calendar cadence. Internal audits are conducted quarterly and external audits annually. Any regulatory change is reviewed within 10 business days and reflected in the compliance matrix. Non-conformances trigger corrective action plans with target closure dates. The Compliance Officer reports monthly status to the project sponsor.',
+    };
+
+    return templates[category] ??
+        '$titleCase Plan for $assetName: tailored to project scope, location, and applicable regulatory requirements.';
+  }
+
+  String _ssherSdgPrompt(String context) {
+    final escaped = _escape(context);
+    return '''
+Analyze the project context below and identify the UN Sustainable Development Goals (SDGs 1-17) that are most applicable to this project. For each applicable SDG, provide a brief rationale tied to specific aspects of the project scope, location, or impact areas.
+
+Return ONLY valid JSON with this exact structure:
+{
+  "sdgs": [
+    {
+      "goal": "SDG 6",
+      "title": "Clean Water and Sanitation",
+      "rationale": "Brief, specific rationale tied to the project context."
+    }
+  ]
+}
+
+Project context:
+"""
+$escaped
+"""
+''';
+  }
+
+  List<Map<String, String>> _fallbackSdgRecommendations(String context) {
+    final projectName = _extractProjectName(context);
+    final assetName = projectName.isEmpty ? 'This project' : projectName;
+    return [
+      {
+        'goal': 'SDG 8',
+        'title': 'Decent Work and Economic Growth',
+        'rationale':
+            '$assetName supports decent work through safe working conditions, fair labor practices, and local economic participation.',
+      },
+      {
+        'goal': 'SDG 9',
+        'title': 'Industry, Innovation and Infrastructure',
+        'rationale':
+            '$assetName advances resilient infrastructure and sustainable industrialization through modern delivery practices.',
+      },
+      {
+        'goal': 'SDG 12',
+        'title': 'Responsible Consumption and Production',
+        'rationale':
+            'Waste segregation, energy tracking, and sustainable procurement for $assetName align with responsible production goals.',
+      },
+      {
+        'goal': 'SDG 13',
+        'title': 'Climate Action',
+        'rationale':
+            '$assetName tracks emissions and integrates climate considerations into environmental planning.',
+      },
+    ];
   }
 
   Map<String, dynamic>? _decodeJsonSafely(String content) {

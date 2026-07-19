@@ -3399,6 +3399,16 @@ class SSHERData {
   String screen2Data;
   String screen3Data;
   String screen4Data;
+  // Per-category AI-generated plans (Safety Plan, Security Plan, etc.)
+  Map<String, String> categoryPlans;
+  // Per-category tab-visited tracking (for the Next button gate)
+  Map<String, bool> tabsVisited;
+  // Stakeholder confirmation checkbox
+  bool stakeholderConfirmed;
+  String stakeholderConfirmedAt;
+  // UN SDG applicable goals for the project (Environment tab)
+  List<String> applicableSdgs;
+  String sdgNotes;
 
   SSHERData({
     List<SafetyItem>? safetyItems,
@@ -3407,8 +3417,17 @@ class SSHERData {
     this.screen2Data = '',
     this.screen3Data = '',
     this.screen4Data = '',
+    Map<String, String>? categoryPlans,
+    Map<String, bool>? tabsVisited,
+    this.stakeholderConfirmed = false,
+    this.stakeholderConfirmedAt = '',
+    List<String>? applicableSdgs,
+    this.sdgNotes = '',
   })  : safetyItems = safetyItems ?? [],
-        entries = entries ?? [];
+        entries = entries ?? [],
+        categoryPlans = categoryPlans ?? {},
+        tabsVisited = tabsVisited ?? {},
+        applicableSdgs = applicableSdgs ?? [];
 
   Map<String, dynamic> toJson() => {
         'safetyItems': safetyItems.map((s) => s.toJson()).toList(),
@@ -3417,6 +3436,12 @@ class SSHERData {
         'screen2Data': screen2Data,
         'screen3Data': screen3Data,
         'screen4Data': screen4Data,
+        'categoryPlans': categoryPlans,
+        'tabsVisited': tabsVisited,
+        'stakeholderConfirmed': stakeholderConfirmed,
+        'stakeholderConfirmedAt': stakeholderConfirmedAt,
+        'applicableSdgs': applicableSdgs,
+        'sdgNotes': sdgNotes,
       };
 
   factory SSHERData.fromJson(Map<String, dynamic> json) {
@@ -3433,6 +3458,19 @@ class SSHERData {
       screen2Data: json['screen2Data'] ?? '',
       screen3Data: json['screen3Data'] ?? '',
       screen4Data: json['screen4Data'] ?? '',
+      categoryPlans: (json['categoryPlans'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v.toString())) ??
+          {},
+      tabsVisited: (json['tabsVisited'] as Map<String, dynamic>?)
+              ?.map((k, v) => MapEntry(k, v as bool)) ??
+          {},
+      stakeholderConfirmed: json['stakeholderConfirmed'] as bool? ?? false,
+      stakeholderConfirmedAt: json['stakeholderConfirmedAt']?.toString() ?? '',
+      applicableSdgs: (json['applicableSdgs'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      sdgNotes: json['sdgNotes']?.toString() ?? '',
     );
   }
 
@@ -3443,6 +3481,12 @@ class SSHERData {
     String? screen2Data,
     String? screen3Data,
     String? screen4Data,
+    Map<String, String>? categoryPlans,
+    Map<String, bool>? tabsVisited,
+    bool? stakeholderConfirmed,
+    String? stakeholderConfirmedAt,
+    List<String>? applicableSdgs,
+    String? sdgNotes,
   }) {
     return SSHERData(
       safetyItems: safetyItems ?? this.safetyItems,
@@ -3451,6 +3495,12 @@ class SSHERData {
       screen2Data: screen2Data ?? this.screen2Data,
       screen3Data: screen3Data ?? this.screen3Data,
       screen4Data: screen4Data ?? this.screen4Data,
+      categoryPlans: categoryPlans ?? this.categoryPlans,
+      tabsVisited: tabsVisited ?? this.tabsVisited,
+      stakeholderConfirmed: stakeholderConfirmed ?? this.stakeholderConfirmed,
+      stakeholderConfirmedAt: stakeholderConfirmedAt ?? this.stakeholderConfirmedAt,
+      applicableSdgs: applicableSdgs ?? this.applicableSdgs,
+      sdgNotes: sdgNotes ?? this.sdgNotes,
     );
   }
 }
@@ -3463,13 +3513,29 @@ class SsherEntry {
   String concern;
   String riskLevel;
   String mitigation;
-  
+
   // Traceability links to other project areas
   List<String> costItemIds; // Links to cost estimate line items/WBS elements
   List<String> scheduleActivityIds; // Links to schedule activities/milestones
   List<String> techScopeComponentIds; // Links to technology scope components
   String relatedWbsId; // Primary WBS element reference
   String notes; // Additional traceability notes
+
+  // Cost tracking for the SSHER element
+  String estimatedCost; // Estimated cost amount (numeric string)
+  String costCurrency; // Currency code (USD, ZMW, etc.)
+  String costFrequency; // One-time | Recurring | Monthly | Quarterly | Annual
+  String costUnit; // Unit of measure (e.g., 'per item', 'per month', 'lump sum')
+
+  // Cross-discipline integration links
+  List<String> linkedRiskIds; // Links to Risk Register items
+  List<String> linkedStaffingRoleIds; // Links to Staffing Plan roles
+  List<String> linkedRequirementIds; // Links to Requirements list items
+
+  // Logs, checklists, and documents for the entry
+  List<SsherLogEntry> logs; // Operational logs
+  List<SsherChecklistItem> checklists; // Verification checklists
+  List<SsherDocument> documents; // Required documents
 
   SsherEntry({
     String? id,
@@ -3484,10 +3550,26 @@ class SsherEntry {
     List<String>? techScopeComponentIds,
     this.relatedWbsId = '',
     this.notes = '',
+    this.estimatedCost = '',
+    this.costCurrency = 'USD',
+    this.costFrequency = 'One-time',
+    this.costUnit = 'lump sum',
+    List<String>? linkedRiskIds,
+    List<String>? linkedStaffingRoleIds,
+    List<String>? linkedRequirementIds,
+    List<SsherLogEntry>? logs,
+    List<SsherChecklistItem>? checklists,
+    List<SsherDocument>? documents,
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString(),
        costItemIds = costItemIds ?? [],
        scheduleActivityIds = scheduleActivityIds ?? [],
-       techScopeComponentIds = techScopeComponentIds ?? [];
+       techScopeComponentIds = techScopeComponentIds ?? [],
+       linkedRiskIds = linkedRiskIds ?? [],
+       linkedStaffingRoleIds = linkedStaffingRoleIds ?? [],
+       linkedRequirementIds = linkedRequirementIds ?? [],
+       logs = logs ?? [],
+       checklists = checklists ?? [],
+       documents = documents ?? [];
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -3502,6 +3584,16 @@ class SsherEntry {
         'techScopeComponentIds': techScopeComponentIds,
         'relatedWbsId': relatedWbsId,
         'notes': notes,
+        'estimatedCost': estimatedCost,
+        'costCurrency': costCurrency,
+        'costFrequency': costFrequency,
+        'costUnit': costUnit,
+        'linkedRiskIds': linkedRiskIds,
+        'linkedStaffingRoleIds': linkedStaffingRoleIds,
+        'linkedRequirementIds': linkedRequirementIds,
+        'logs': logs.map((l) => l.toJson()).toList(),
+        'checklists': checklists.map((c) => c.toJson()).toList(),
+        'documents': documents.map((d) => d.toJson()).toList(),
       };
 
   factory SsherEntry.fromJson(Map<String, dynamic> json) {
@@ -3518,6 +3610,129 @@ class SsherEntry {
       techScopeComponentIds: (json['techScopeComponentIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
       relatedWbsId: json['relatedWbsId'] as String? ?? '',
       notes: json['notes'] as String? ?? '',
+      estimatedCost: json['estimatedCost']?.toString() ?? '',
+      costCurrency: json['costCurrency']?.toString() ?? 'USD',
+      costFrequency: json['costFrequency']?.toString() ?? 'One-time',
+      costUnit: json['costUnit']?.toString() ?? 'lump sum',
+      linkedRiskIds: (json['linkedRiskIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      linkedStaffingRoleIds: (json['linkedStaffingRoleIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      linkedRequirementIds: (json['linkedRequirementIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      logs: (json['logs'] as List?)?.map((l) => SsherLogEntry.fromJson(l as Map<String, dynamic>)).toList() ?? [],
+      checklists: (json['checklists'] as List?)?.map((c) => SsherChecklistItem.fromJson(c as Map<String, dynamic>)).toList() ?? [],
+      documents: (json['documents'] as List?)?.map((d) => SsherDocument.fromJson(d as Map<String, dynamic>)).toList() ?? [],
+    );
+  }
+}
+
+/// A log entry for an SSHER item (inspections, incidents, audits, reviews).
+class SsherLogEntry {
+  String id;
+  String date; // ISO date (yyyy-MM-dd)
+  String type; // 'Inspection' | 'Incident' | 'Audit' | 'Review' | 'Drill' | 'Other'
+  String title;
+  String details;
+  String loggedBy;
+
+  SsherLogEntry({
+    String? id,
+    this.date = '',
+    this.type = 'Inspection',
+    this.title = '',
+    this.details = '',
+    this.loggedBy = '',
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'date': date,
+        'type': type,
+        'title': title,
+        'details': details,
+        'loggedBy': loggedBy,
+      };
+
+  factory SsherLogEntry.fromJson(Map<String, dynamic> json) {
+    return SsherLogEntry(
+      id: json['id']?.toString(),
+      date: json['date']?.toString() ?? '',
+      type: json['type']?.toString() ?? 'Inspection',
+      title: json['title']?.toString() ?? '',
+      details: json['details']?.toString() ?? '',
+      loggedBy: json['loggedBy']?.toString() ?? '',
+    );
+  }
+}
+
+/// A checklist item for an SSHER entry.
+class SsherChecklistItem {
+  String id;
+  String label;
+  bool checked;
+  String notes;
+  String dueDate;
+
+  SsherChecklistItem({
+    String? id,
+    this.label = '',
+    this.checked = false,
+    this.notes = '',
+    this.dueDate = '',
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'label': label,
+        'checked': checked,
+        'notes': notes,
+        'dueDate': dueDate,
+      };
+
+  factory SsherChecklistItem.fromJson(Map<String, dynamic> json) {
+    return SsherChecklistItem(
+      id: json['id']?.toString(),
+      label: json['label']?.toString() ?? '',
+      checked: json['checked'] as bool? ?? false,
+      notes: json['notes']?.toString() ?? '',
+      dueDate: json['dueDate']?.toString() ?? '',
+    );
+  }
+}
+
+/// A document reference for an SSHER entry.
+class SsherDocument {
+  String id;
+  String title;
+  String type; // 'Policy' | 'Plan' | 'Permit' | 'Certificate' | 'Report' | 'Other'
+  String status; // 'Required' | 'In Progress' | 'Submitted' | 'Approved' | 'Expired'
+  String owner;
+  String dueDate;
+
+  SsherDocument({
+    String? id,
+    this.title = '',
+    this.type = 'Plan',
+    this.status = 'Required',
+    this.owner = '',
+    this.dueDate = '',
+  }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'type': type,
+        'status': status,
+        'owner': owner,
+        'dueDate': dueDate,
+      };
+
+  factory SsherDocument.fromJson(Map<String, dynamic> json) {
+    return SsherDocument(
+      id: json['id']?.toString(),
+      title: json['title']?.toString() ?? '',
+      type: json['type']?.toString() ?? 'Plan',
+      status: json['status']?.toString() ?? 'Required',
+      owner: json['owner']?.toString() ?? '',
+      dueDate: json['dueDate']?.toString() ?? '',
     );
   }
 }
