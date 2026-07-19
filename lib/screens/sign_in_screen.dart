@@ -15,6 +15,9 @@ import 'package:ndu_project/routing/app_router.dart';
 import 'package:ndu_project/services/subscription_service.dart';
 
 import 'package:ndu_project/services/security_services.dart';
+import 'package:ndu_project/screens/project_dashboard_screen.dart';
+import 'package:ndu_project/screens/pricing_screen.dart';
+import 'package:ndu_project/screens/admin/admin_home_screen.dart';
 import 'package:ndu_project/widgets/voice_text_field.dart';
 
 class SignInScreen extends StatefulWidget {
@@ -130,7 +133,6 @@ class _SignInScreenState extends State<SignInScreen> {
 
   void _navigateAfterSignIn() {
     if (!mounted) return;
-    if (_shouldDeferToAuthWrapper()) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
@@ -159,8 +161,36 @@ class _SignInScreenState extends State<SignInScreen> {
       }
 
       if (!mounted) return;
-      context.go(target);
+      try {
+        context.go(target);
+      } catch (e) {
+        // If GoRouter context isn't available (e.g. sign-in was pushed
+        // via MaterialPageRoute), fall back to Navigator.pushReplacement
+        debugPrint('GoRouter navigation failed, using Navigator fallback: $e');
+        if (!mounted) return;
+        try {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => _buildFallbackScreen(target)),
+          );
+        } catch (e2) {
+          debugPrint('Navigator fallback also failed: $e2');
+        }
+      }
     });
+  }
+
+  Widget _buildFallbackScreen(String target) {
+    // Map route paths to screens for fallback navigation
+    switch (target) {
+      case '/dashboard':
+        return const ProjectDashboardScreen();
+      case '/pricing':
+        return const PricingScreen();
+      case '/admin-home':
+        return const AdminHomeScreen();
+      default:
+        return const ProjectDashboardScreen();
+    }
   }
 
   bool _shouldDeferToAuthWrapper() {
