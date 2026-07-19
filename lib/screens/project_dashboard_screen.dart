@@ -82,8 +82,11 @@ class _ProjectDashboardScreenState extends State<ProjectDashboardScreen> {
  if (user == null) return;
  final completed = await ProfileOnboardingService.hasCompleted();
  if (!completed && mounted) {
- // Show as a modal dialog overlay instead of navigating away.
- ProfileOnboardingScreen.show(context);
+ // Show as a modal dialog overlay. After the dialog closes,
+ // navigate to the pricing page so the user can choose a plan.
+ await ProfileOnboardingScreen.show(context);
+ if (!mounted) return;
+ context.go('/${AppRoutes.pricing}');
  }
  } catch (e) {
  // Don't block the dashboard on a Firestore read failure — just log.
