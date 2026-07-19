@@ -2358,6 +2358,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  lastModified: _formatDate(DateTime.now()),
  );
 
+ final wasNew = !_risks.any((r) => r.id == newRisk.id);
  setState(() {
  final index = _risks.indexWhere((r) => r.id == newRisk.id);
  if (index == -1) {
@@ -2367,6 +2368,30 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
  });
  _saveToFirestore();
+ // Sync to central Risk Register (bidirectional)
+ if (newRisk.title.trim().isNotEmpty) {
+   unawaited(ProjectDataHelper.upsertRiskToRegister(
+     context: context,
+     sourceSection: 'Risk Tracking Workspace',
+     riskName: newRisk.title,
+     description: newRisk.description,
+     category: newRisk.category.isNotEmpty ? newRisk.category : 'Execution',
+     impactLevel: newRisk.impact,
+     likelihood: newRisk.probability,
+     mitigationStrategy: newRisk.mitigationStrategy,
+     owner: newRisk.owner,
+     status: newRisk.status,
+   ));
+   unawaited(ProjectDataHelper.logActivityToCentral(
+     context: context,
+     sourceSection: 'Risk Tracking Workspace',
+     title: 'Risk ${wasNew ? "created" : "updated"}: ${newRisk.title}',
+     description: newRisk.description,
+     phase: 'Execution',
+     discipline: newRisk.category,
+     role: newRisk.owner,
+   ));
+ }
  }
 
  Future<void> _showSignalEditor({_SignalData? existing}) async {
@@ -2917,8 +2942,23 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  }
 
  void _deleteRisk(String id) {
+ final removed = _risks.where((r) => r.id == id).firstOrNull;
  setState(() => _risks.removeWhere((r) => r.id == id));
  _saveToFirestore();
+ // Sync to central register
+ if (removed != null && removed.title.trim().isNotEmpty) {
+   unawaited(ProjectDataHelper.removeRiskFromRegister(
+     context: context,
+     sourceSection: 'Risk Tracking Workspace',
+     riskName: removed.title,
+   ));
+   unawaited(ProjectDataHelper.logActivityToCentral(
+     context: context,
+     sourceSection: 'Risk Tracking Workspace',
+     title: 'Risk deleted: ${removed.title}',
+     phase: 'Execution',
+   ));
+ }
  }
 
  void _deleteSignal(String id) {

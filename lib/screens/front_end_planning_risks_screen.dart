@@ -984,7 +984,9 @@ bool get _hasAnyDefinedRisk => _rows.any((row) => row.risk.trim().isNotEmpty);
  description: r.description.trim(),
  category: r.category.trim(),
  requirement: r.requirement.trim(),
- requirementType: r.requirementType.trim(),
+ requirementType: r.requirementType.trim().isNotEmpty
+     ? r.requirementType.trim()
+     : 'Front End Planning',
  impactLevel: (r.impact.trim().isNotEmpty
  ? r.impact.trim()
  : r.riskLevel.trim())

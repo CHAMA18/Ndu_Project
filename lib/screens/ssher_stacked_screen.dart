@@ -4459,9 +4459,9 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
     try {
       final projectData = ProjectDataHelper.getData(context);
       final existingRiskNames = projectData.frontEndPlanning.riskRegisterItems
+          .where((r) => r.requirementType.trim().toLowerCase() == 'ssher')
           .map((r) => r.riskName.trim().toLowerCase())
           .toSet();
-      final newRisks = <RiskRegisterItem>[];
       for (final cat in [
         _SsherCategory.safety,
         _SsherCategory.security,
@@ -4476,42 +4476,35 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
           if (existingRiskNames.contains(riskName.trim().toLowerCase())) {
             continue;
           }
-          newRisks.add(RiskRegisterItem(
+          await ProjectDataHelper.upsertRiskToRegister(
+            context: context,
+            sourceSection: 'SSHER',
             riskName: riskName,
             description: e.mitigation.isNotEmpty
                 ? 'SSHER ${e.category} concern: ${e.concern}. Mitigation: ${e.mitigation}'
                 : 'SSHER ${e.category} concern: ${e.concern}',
             category: _categoryLabel(cat),
-            requirementType: 'SSHER',
             impactLevel: e.riskLevel,
             likelihood: 'Medium',
             mitigationStrategy: e.mitigation.isNotEmpty
                 ? e.mitigation
                 : 'Mitigation plan in progress — see SSHER Hub for details.',
             discipline: e.department,
-            projectRole: e.teamMember,
             owner: e.teamMember,
             status: 'Open',
+          );
+          unawaited(ProjectDataHelper.logActivityToCentral(
+            context: context,
+            sourceSection: 'SSHER',
+            title: 'SSHER risk pushed: $riskName',
+            description: 'Category: ${_categoryLabel(cat)}. Impact: ${e.riskLevel}',
+            phase: 'Planning',
+            discipline: e.department,
+            role: e.teamMember,
           ));
           existingRiskNames.add(riskName.trim().toLowerCase());
+          riskPushed++;
         }
-      }
-      if (newRisks.isNotEmpty) {
-        final provider = ProjectDataHelper.getProvider(context);
-        final combined = [
-          ...provider.projectData.frontEndPlanning.riskRegisterItems,
-          ...newRisks,
-        ];
-        await ProjectDataHelper.updateAndSave(
-          context: context,
-          checkpoint: 'ssher_push_all_risks',
-          showSnackbar: false,
-          dataUpdater: (d) => d.copyWith(
-            frontEndPlanning:
-                d.frontEndPlanning.copyWith(riskRegisterItems: combined),
-          ),
-        );
-        riskPushed = newRisks.length;
       }
     } catch (e) {
       debugPrint('PushAll: Risk Register step failed: $e');
@@ -4760,47 +4753,46 @@ class _SsherStackedScreenState extends State<SsherStackedScreen>
 
     if (confirmed != true) return;
 
-    final newRisks = toPush
-        .map((e) => RiskRegisterItem(
-              riskName: 'SSHER ${e.category}: ${e.concern}',
-              description: e.mitigation.isNotEmpty
-                  ? 'SSHER ${e.category} concern: ${e.concern}. Mitigation: ${e.mitigation}'
-                  : 'SSHER ${e.category} concern: ${e.concern}',
-              category: _categoryLabel(cat),
-              requirement: '',
-              requirementType: 'SSHER',
-              impactLevel: e.riskLevel,
-              likelihood: 'Medium',
-              mitigationStrategy: e.mitigation.isNotEmpty
-                  ? e.mitigation
-                  : 'Mitigation plan in progress — see SSHER Hub for details.',
-              discipline: e.department,
-              projectRole: e.teamMember,
-              owner: e.teamMember,
-              status: 'Open',
-            ))
-        .toList();
-
-    final provider = ProjectDataHelper.getProvider(context);
-    final existing = List<RiskRegisterItem>.from(
-        provider.projectData.frontEndPlanning.riskRegisterItems);
-    final combined = [...existing, ...newRisks];
-
-    await ProjectDataHelper.updateAndSave(
-      context: context,
-      checkpoint: 'ssher_to_risk_register',
-      dataUpdater: (d) => d.copyWith(
-        frontEndPlanning: d.frontEndPlanning.copyWith(
-          riskRegisterItems: combined,
-        ),
-      ),
-    );
+    // Use the bidirectional sync helper — upserts each risk with
+    // sourceSection='SSHER' (stored in requirementType) and preserves the
+    // per-discipline category label. Also logs to central activities log.
+    int pushed = 0;
+    for (final e in toPush) {
+      final riskName = 'SSHER ${e.category}: ${e.concern}';
+      await ProjectDataHelper.upsertRiskToRegister(
+        context: context,
+        sourceSection: 'SSHER',
+        riskName: riskName,
+        description: e.mitigation.isNotEmpty
+            ? 'SSHER ${e.category} concern: ${e.concern}. Mitigation: ${e.mitigation}'
+            : 'SSHER ${e.category} concern: ${e.concern}',
+        category: _categoryLabel(cat),
+        impactLevel: e.riskLevel,
+        likelihood: 'Medium',
+        mitigationStrategy: e.mitigation.isNotEmpty
+            ? e.mitigation
+            : 'Mitigation plan in progress — see SSHER Hub for details.',
+        discipline: e.department,
+        owner: e.teamMember,
+        status: 'Open',
+      );
+      unawaited(ProjectDataHelper.logActivityToCentral(
+        context: context,
+        sourceSection: 'SSHER',
+        title: 'SSHER risk pushed: $riskName',
+        description: 'Category: ${_categoryLabel(cat)}. Impact: ${e.riskLevel}. Owner: ${e.teamMember}',
+        phase: 'Planning',
+        discipline: e.department,
+        role: e.teamMember,
+      ));
+      pushed++;
+    }
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Pushed ${newRisks.length} ${_categoryLabel(cat)} risk item${newRisks.length == 1 ? '' : 's'} to the Risk Register.'),
+            'Pushed $pushed ${_categoryLabel(cat)} risk item${pushed == 1 ? '' : 's'} to the Risk Register.'),
         duration: const Duration(seconds: 5),
       ),
     );

@@ -2838,10 +2838,15 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  _RiskCard(
  data: _document.risks[i],
  owners: owners,
- onChanged: _queueSave,
+ onChanged: () {
+ _queueSave();
+ _syncDesignRiskToRegister(_document.risks[i]);
+ },
  onRemove: () {
+ final removed = _document.risks[i];
  setState(() => _document.risks.removeAt(i));
  _queueSave();
+ _removeDesignRiskFromRegister(removed);
  },
  ),
  if (i != _document.risks.length - 1) const SizedBox(height: 12),
@@ -2853,6 +2858,50 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  ],
  ),
  );
+ }
+
+ /// Syncs a design-planning risk to the central Risk Register with
+ /// sourceSection='Design Planning'. Debounced via _queueSave caller.
+ void _syncDesignRiskToRegister(DesignRiskEntry risk) {
+ final name = risk.risk.trim();
+ if (name.isEmpty) return;
+ unawaited(ProjectDataHelper.upsertRiskToRegister(
+ context: context,
+ sourceSection: 'Design Planning',
+ riskName: name,
+ description: risk.mitigation,
+ category: 'Design',
+ impactLevel: risk.impact.toLowerCase() == 'high'
+ ? 'High'
+ : risk.impact.toLowerCase() == 'low'
+ ? 'Low'
+ : 'Medium',
+ likelihood: risk.likelihood.toLowerCase() == 'high'
+ ? 'High'
+ : risk.likelihood.toLowerCase() == 'low'
+ ? 'Low'
+ : 'Medium',
+ mitigationStrategy: risk.mitigation,
+ owner: risk.owner,
+ status: risk.status.isEmpty ? 'Open' : risk.status,
+ ));
+ }
+
+ /// Removes a design-planning risk from the central register.
+ void _removeDesignRiskFromRegister(DesignRiskEntry risk) {
+ final name = risk.risk.trim();
+ if (name.isEmpty) return;
+ unawaited(ProjectDataHelper.removeRiskFromRegister(
+ context: context,
+ sourceSection: 'Design Planning',
+ riskName: name,
+ ));
+ unawaited(ProjectDataHelper.logActivityToCentral(
+ context: context,
+ sourceSection: 'Design Planning',
+ title: 'Design risk removed: $name',
+ phase: 'Planning',
+ ));
  }
 
  Widget _buildDependenciesSection(List<String> owners) {

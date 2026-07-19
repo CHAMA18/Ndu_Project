@@ -1013,8 +1013,9 @@ class ProjectDataHelper {
   // a `sourceSection` tag. Updates to either side propagate to the other.
 
   /// Upserts a risk into the central Risk Register, tagged with its source
-  /// section. If a risk with the same `riskName` already exists in that
-  /// section, it's updated; otherwise a new one is appended.
+  /// section via `requirementType`. The `category` field is preserved for
+  /// user/discipline classification (e.g. 'Safety', 'Contractual').
+  /// De-duplication matches on `riskName + requirementType` (the sourceSection).
   static Future<void> upsertRiskToRegister({
     required BuildContext context,
     required String sourceSection,
@@ -1038,14 +1039,16 @@ class ProjectDataHelper {
             d.frontEndPlanning.riskRegisterItems);
         final idx = items.indexWhere((r) =>
             r.riskName.trim().toLowerCase() == riskName.trim().toLowerCase() &&
-            r.category.trim().toLowerCase() == sourceSection.trim().toLowerCase());
+            r.requirementType.trim().toLowerCase() ==
+                sourceSection.trim().toLowerCase());
         if (idx >= 0) {
+          // Update existing — preserve category if caller didn't provide one
           items[idx] = RiskRegisterItem(
             riskName: riskName,
             description: description.isNotEmpty ? description : items[idx].description,
-            category: sourceSection,
+            category: category.isNotEmpty ? category : items[idx].category,
             requirement: items[idx].requirement,
-            requirementType: items[idx].requirementType,
+            requirementType: sourceSection,
             impactLevel: impactLevel,
             likelihood: likelihood,
             mitigationStrategy: mitigationStrategy.isNotEmpty
@@ -1073,7 +1076,7 @@ class ProjectDataHelper {
           items.add(RiskRegisterItem(
             riskName: riskName,
             description: description,
-            category: sourceSection,
+            category: category.isNotEmpty ? category : sourceSection,
             requirementType: sourceSection,
             impactLevel: impactLevel,
             likelihood: likelihood,
@@ -1108,7 +1111,8 @@ class ProjectDataHelper {
             d.frontEndPlanning.riskRegisterItems);
         items.removeWhere((r) =>
             r.riskName.trim().toLowerCase() == riskName.trim().toLowerCase() &&
-            r.category.trim().toLowerCase() == sourceSection.trim().toLowerCase());
+            r.requirementType.trim().toLowerCase() ==
+                sourceSection.trim().toLowerCase());
         return d.copyWith(
           frontEndPlanning:
               d.frontEndPlanning.copyWith(riskRegisterItems: items),
@@ -1118,17 +1122,80 @@ class ProjectDataHelper {
   }
 
   /// Returns all risks from the central register that originate from a
-  /// specific source section. Used by section screens to read their
-  /// mirrored risks back.
+  /// specific source section (matched on `requirementType`).
   static List<RiskRegisterItem> getRisksForSection(
       ProjectDataModel data, String sourceSection) {
     return data.frontEndPlanning.riskRegisterItems
         .where((r) =>
-            r.category.trim().toLowerCase() ==
-                sourceSection.trim().toLowerCase() ||
             r.requirementType.trim().toLowerCase() ==
                 sourceSection.trim().toLowerCase())
         .toList();
+  }
+
+  /// One-time migration: backfills `requirementType` on existing risks that
+  /// have no source-section tag. Uses category heuristics to infer the
+  /// originating section. Called on project load.
+  static ProjectDataModel migrateRiskSourceSections(ProjectDataModel data) {
+    final items = data.frontEndPlanning.riskRegisterItems;
+    if (items.isEmpty) return data;
+    bool changed = false;
+    final migrated = items.map((r) {
+      final rt = r.requirementType.trim();
+      if (rt.isNotEmpty) return r;
+      // Infer from category
+      final cat = r.category.trim().toLowerCase();
+      String inferred;
+      if (cat == 'safety' ||
+          cat == 'security' ||
+          cat == 'health' ||
+          cat == 'environment' ||
+          cat == 'regulatory') {
+        inferred = 'SSHER';
+      } else if (cat.contains('interface')) {
+        inferred = 'Interface Management';
+      } else if (cat.contains('design')) {
+        inferred = 'Design Planning';
+      } else if (cat.contains('quality')) {
+        inferred = 'Quality';
+      } else if (cat.contains('execution') || cat.contains('tracking')) {
+        inferred = 'Risk Tracking Workspace';
+      } else {
+        inferred = 'Front End Planning';
+      }
+      changed = true;
+      return RiskRegisterItem(
+        riskName: r.riskName,
+        description: r.description,
+        category: r.category,
+        requirement: r.requirement,
+        requirementType: inferred,
+        impactLevel: r.impactLevel,
+        likelihood: r.likelihood,
+        mitigationStrategy: r.mitigationStrategy,
+        discipline: r.discipline,
+        projectRole: r.projectRole,
+        owner: r.owner,
+        status: r.status,
+        probabilityNumeric: r.probabilityNumeric,
+        costImpactMin: r.costImpactMin,
+        costImpactMostLikely: r.costImpactMostLikely,
+        costImpactMax: r.costImpactMax,
+        scheduleImpactMin: r.scheduleImpactMin,
+        scheduleImpactMostLikely: r.scheduleImpactMostLikely,
+        scheduleImpactMax: r.scheduleImpactMax,
+        controlAccountId: r.controlAccountId,
+        cbsId: r.cbsId,
+        riskType: r.riskType,
+        responseStrategy: r.responseStrategy,
+        residualProbability: r.residualProbability,
+        residualCostImpact: r.residualCostImpact,
+      );
+    }).toList();
+    if (!changed) return data;
+    return data.copyWith(
+      frontEndPlanning:
+          data.frontEndPlanning.copyWith(riskRegisterItems: migrated),
+    );
   }
 
   // ── Bidirectional Activities Log Sync ──
