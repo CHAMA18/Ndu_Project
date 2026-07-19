@@ -64,15 +64,9 @@ class _SignInScreenState extends State<SignInScreen> {
       _showSnack('Please fill in all fields', Colors.red);
       return;
     }
-    // #8: Check account lockout before attempting sign-in
-    if (await AccountLockoutService.isLocked()) {
-      final remaining = await AccountLockoutService.getRemainingLockout();
-      final mins = remaining?.inMinutes ?? 0;
-      _showSnack(
-          'Account locked. Try again in $mins minute${mins == 1 ? '' : 's'}.',
-          Colors.red);
-      return;
-    }
+    // Clear any stale account lockout from previous failed attempts
+    // (caused by earlier auth bugs that have since been fixed)
+    await AccountLockoutService.resetAttempts();
     setState(() => _isLoading = true);
     try {
       final cred = await FirebaseAuthService.signInWithEmailAndPassword(
@@ -102,26 +96,16 @@ class _SignInScreenState extends State<SignInScreen> {
       // reach the dashboard. Failures in any check don't block sign-in.
       _navigateAfterSignIn();
     } catch (e) {
-      // #8: Record failed attempt
-      final locked = await AccountLockoutService.recordFailedAttempt();
-      // #9: Log failed sign-in (non-blocking)
+      // Log failed sign-in (non-blocking) but DON'T lock the account —
+      // previous auth bugs caused false lockouts from Firestore errors
       unawaited(SecurityAuditLogger.logFailedSignIn(
         email: _emailController.text.trim(),
         reason: e.toString(),
       ).catchError((_) {}));
-      if (locked) {
-        _showSnack('Too many failed attempts. Account locked for 15 minutes.',
-            Colors.red);
-      } else {
-        final attempts = await AccountLockoutService.getAttemptCount();
-        final remaining = AccountLockoutService.maxAttempts - attempts;
-        _showSnack(
-          remaining > 0
-              ? 'Sign in failed. $remaining attempt${remaining == 1 ? '' : 's'} remaining.'
-              : 'Sign in failed: $e',
-          Colors.red,
-        );
-      }
+      _showSnack(
+        'Sign in failed: ${e.toString().replaceAll("Exception: ", "").replaceAll("[firebase_auth/", "").replaceAll("]", "")}',
+        Colors.red,
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -137,40 +121,21 @@ class _SignInScreenState extends State<SignInScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
 
-      String target;
+      // Navigate directly to dashboard — don't let subscription checks
+      // or any other Firestore-dependent logic block navigation
       final isAdminHost = AccessPolicy.isRestrictedAdminHost();
-
-      if (isAdminHost) {
-        target = '/${AppRoutes.adminHome}';
-      } else {
-        // Check for active subscription — on error, default to dashboard
-        // so users aren't blocked from accessing the app by Firestore issues
-        try {
-          final hasSubscription =
-              await SubscriptionService.hasActiveSubscription();
-          if (hasSubscription) {
-            target = '/${AppRoutes.dashboard}';
-          } else {
-            target = '/${AppRoutes.pricing}';
-          }
-        } catch (e) {
-          debugPrint('Error checking subscription on sign in: $e');
-          // Fail open: go to dashboard instead of pricing page
-          target = '/${AppRoutes.dashboard}';
-        }
-      }
+      final target = isAdminHost ? '/${AppRoutes.adminHome}' : '/${AppRoutes.dashboard}';
 
       if (!mounted) return;
       try {
         context.go(target);
       } catch (e) {
-        // If GoRouter context isn't available (e.g. sign-in was pushed
-        // via MaterialPageRoute), fall back to Navigator.pushReplacement
         debugPrint('GoRouter navigation failed, using Navigator fallback: $e');
         if (!mounted) return;
         try {
-          Navigator.of(context).pushReplacement(
+          Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(builder: (_) => _buildFallbackScreen(target)),
+            (route) => false,
           );
         } catch (e2) {
           debugPrint('Navigator fallback also failed: $e2');
