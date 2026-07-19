@@ -1443,8 +1443,8 @@ class _ProjectWorkspaceDashboardScreenState
                 ...['safety', 'security', 'health', 'environment', 'regulatory']
                     .map((cat) {
                   final total = rollup.costByCategory[cat] ?? 0.0;
-                  final pct = rollup.grandTotal > 0
-                      ? (total / rollup.grandTotal * 100).clamp(0, 100)
+                  final double pct = rollup.grandTotal > 0
+                      ? (total / rollup.grandTotal * 100).clamp(0.0, 100.0).toDouble()
                       : 0.0;
                   final color = _ssherPortfolioCategoryColor(cat);
                   return Padding(
@@ -1503,8 +1503,8 @@ class _ProjectWorkspaceDashboardScreenState
                       ..sort((a, b) => b.totalCost.compareTo(a.totalCost)))
                     .take(5)
                     .map((p) {
-                  final pct = rollup.grandTotal > 0
-                      ? (p.totalCost / rollup.grandTotal * 100).clamp(0, 100)
+                  final double pct = rollup.grandTotal > 0
+                      ? (p.totalCost / rollup.grandTotal * 100).clamp(0.0, 100.0).toDouble()
                       : 0.0;
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 6),
