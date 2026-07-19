@@ -463,7 +463,7 @@ class _InterfaceManagementScreenState extends State<InterfaceManagementScreen> {
  _MetricCard(
  label: 'Total Interfaces',
  value: '$activeInterfaces',
- accent: const Color(0xFF2563EB)),
+ accent: const Color(0xFFD97706)),
  _MetricCard(
  label: 'Critical',
  value: '$criticalCount',
@@ -729,7 +729,7 @@ class _InterfacePlanCardState extends State<InterfacePlanCard> {
               padding: const EdgeInsets.all(12),
               margin: const EdgeInsets.only(bottom: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: const Color(0xFFFFF7E6),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFBFDBFE)),
               ),
@@ -779,7 +779,7 @@ class _InterfacePlanCardState extends State<InterfacePlanCard> {
        label: const Text('Regenerate AI Plan',
            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
        style: TextButton.styleFrom(
-         foregroundColor: const Color(0xFF1D4ED8),
+         foregroundColor: const Color(0xFFD97706),
          minimumSize: Size.zero,
          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1848,7 +1848,7 @@ class _InterfaceTypesSection extends StatelessWidget {
         const SizedBox(height: 24),
         Row(
           children: [
-            Expanded(child: _MetricCard(label: 'Internal Interfaces', value: '$internalCount', accent: const Color(0xFF2563EB))),
+            Expanded(child: _MetricCard(label: 'Internal Interfaces', value: '$internalCount', accent: const Color(0xFFD97706))),
             const SizedBox(width: 12),
             Expanded(child: _MetricCard(label: 'External Interfaces', value: '$externalCount', accent: const Color(0xFFD97706))),
           ],
@@ -1879,7 +1879,7 @@ class _InterfaceTypesSection extends StatelessWidget {
           child: Column(
             children: [
               if (technical.isNotEmpty) ...[
-                const Text('Technical', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF2563EB))),
+                const Text('Technical', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
                 ...technical.map((e) => Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text('  • ${e.boundary} (${e.protocol})', style: const TextStyle(fontSize: 11, color: Color(0xFF374151))),
@@ -1975,7 +1975,7 @@ class _ResponsibilitiesSection extends StatelessWidget {
                 children: [
                   Expanded(flex: 3, child: Text(name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
                   const SizedBox(width: 8),
-                  SizedBox(width: 130, child: _buildChip(entry.owner.trim(), const Color(0xFFDBEAFE))),
+                  SizedBox(width: 130, child: _buildChip(entry.owner.trim(), const Color(0xFFFFF7E6))),
                   const SizedBox(width: 8),
                   SizedBox(width: 130, child: _buildChip(entry.partyA.trim(), const Color(0xFFD1FAE5))),
                   const SizedBox(width: 8),
@@ -2031,7 +2031,7 @@ class _CoordinationSection extends StatelessWidget {
                   children: withCadence.map((e) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: Row(children: [
-                      const Icon(Icons.calendar_today, size: 14, color: Color(0xFF2563EB)),
+                      const Icon(Icons.calendar_today, size: 14, color: Color(0xFFD97706)),
                       const SizedBox(width: 8),
                       Expanded(child: Text('${e.boundary} — ${e.cadence}', style: const TextStyle(fontSize: 12))),
                     ]),
@@ -2086,7 +2086,7 @@ class _DependencyMgmtSection extends StatelessWidget {
         const SizedBox(height: 20),
         Row(
           children: [
-            Expanded(child: _MetricCard(label: 'Total Dependencies', value: '${entries.length}', accent: const Color(0xFF2563EB))),
+            Expanded(child: _MetricCard(label: 'Total Dependencies', value: '${entries.length}', accent: const Color(0xFFD97706))),
             const SizedBox(width: 12),
             Expanded(child: _MetricCard(label: 'Critical Interfaces', value: '${critical.length}', accent: const Color(0xFFEF4444))),
             const SizedBox(width: 12),
@@ -2270,7 +2270,7 @@ class _DeliverableCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Row(children: [
-        Icon(icon, size: 24, color: const Color(0xFF2563EB)),
+        Icon(icon, size: 24, color: const Color(0xFFD97706)),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
@@ -2536,7 +2536,7 @@ class _RaciGovernanceSection extends StatelessWidget {
  child: Container(
  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
  decoration: BoxDecoration(
- color: const Color(0xFFDBEAFE),
+ color: const Color(0xFFFFF7E6),
  borderRadius: BorderRadius.circular(4),
  ),
  child: Text(
@@ -2826,14 +2826,14 @@ class _MaturitySectionState extends State<_MaturitySection> {
  Color _maturityColor(int score) {
  if (score <= 30) return const Color(0xFFEF4444);
  if (score <= 60) return const Color(0xFFF59E0B);
- if (score <= 80) return const Color(0xFF2563EB);
+ if (score <= 80) return const Color(0xFFD97706);
  return const Color(0xFF10B981);
  }
 
  Color _maturityBgColor(int score) {
  if (score <= 30) return const Color(0xFFFEE2E2);
  if (score <= 60) return const Color(0xFFFEF3C7);
- if (score <= 80) return const Color(0xFFDBEAFE);
+ if (score <= 80) return const Color(0xFFFFF7E6);
  return const Color(0xFFD1FAE5);
  }
 
@@ -2933,7 +2933,7 @@ class _MaturitySectionState extends State<_MaturitySection> {
  label: 'Developing', count: developing, color: const Color(0xFFF59E0B)),
  const SizedBox(width: 12),
  _MaturityBreakdownCard(
- label: 'Mature', count: mature, color: const Color(0xFF2563EB)),
+ label: 'Mature', count: mature, color: const Color(0xFFD97706)),
  const SizedBox(width: 12),
  _MaturityBreakdownCard(
  label: 'Optimized', count: optimized, color: const Color(0xFF10B981)),
@@ -3099,7 +3099,7 @@ class _AuditTrailSection extends StatelessWidget {
  case 'Created':
  return const Color(0xFF10B981);
  case 'Updated':
- return const Color(0xFF2563EB);
+ return const Color(0xFFD97706);
  case 'Deleted':
  return const Color(0xFFEF4444);
  case 'Status Changed':
@@ -3595,7 +3595,7 @@ class _StatusBadge extends StatelessWidget {
  final color = normalized.contains('active')
  ? const Color(0xFF166534)
  : normalized.contains('approved') || normalized.contains('resolved')
- ? const Color(0xFF1D4ED8)
+ ? const Color(0xFFD97706)
  : normalized.contains('closed') || normalized.contains('complete')
  ? const Color(0xFF6B7280)
  : normalized.contains('review')
@@ -3631,7 +3631,7 @@ class _TypeBadge extends StatelessWidget {
  if (type.trim().isEmpty) return const SizedBox.shrink();
 
  final color = type.toLowerCase().contains('tech')
- ? const Color(0xFF2563EB)
+ ? const Color(0xFFD97706)
  : type.toLowerCase().contains('contract')
  ? const Color(0xFFD97706)
  : type.toLowerCase().contains('org')

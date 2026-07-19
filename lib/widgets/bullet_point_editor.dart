@@ -140,7 +140,7 @@ class _BulletPointEditorState extends State<BulletPointEditor> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF3B82F6)),
+                        borderSide: const BorderSide(color: Color(0xFFFBBF24)),
                       ),
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
@@ -169,7 +169,7 @@ class _BulletPointEditorState extends State<BulletPointEditor> {
               icon: const Icon(Icons.add, size: 16),
               label: const Text('Add item'),
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2563EB),
+                foregroundColor: const Color(0xFFD97706),
                 textStyle: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),

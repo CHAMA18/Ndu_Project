@@ -372,7 +372,7 @@ class _PlanningProcurementV2ScreenState
  padding: const EdgeInsets.all(20),
  decoration: BoxDecoration(
  gradient: const LinearGradient(
- colors: [Color(0xFF1E3A5F), Color(0xFF2D5A8E)],
+ colors: [Color(0xFF78350F), Color(0xFF2D5A8E)],
  begin: Alignment.topLeft,
  end: Alignment.bottomRight,
  ),
@@ -1496,7 +1496,7 @@ class _PlanningProcurementV2ScreenState
  }
 
  final palette = <Color>[
- const Color(0xFF2563EB),
+ const Color(0xFFD97706),
  const Color(0xFF10B981),
  const Color(0xFFF59E0B),
  const Color(0xFF6D28D9),
@@ -2395,9 +2395,9 @@ class _ApprovalStatusBadge extends StatelessWidget {
  break;
  case 'pending':
  default:
- background = const Color(0xFFDBEAFE);
- border = const Color(0xFF93C5FD);
- foreground = const Color(0xFF1D4ED8);
+ background = const Color(0xFFFFF7E6);
+ border = const Color(0xFFFDE68A);
+ foreground = const Color(0xFFD97706);
  break;
  }
 

@@ -511,8 +511,8 @@ class _FrontEndPlanningPersonnelScreenState
  icon: const Icon(Icons.upload_file_outlined, size: 18),
  label: const Text('Import CSV'),
  style: OutlinedButton.styleFrom(
- foregroundColor: const Color(0xFF2563EB),
- side: const BorderSide(color: const Color(0xFF2563EB)),
+ foregroundColor: const Color(0xFFD97706),
+ side: const BorderSide(color: const Color(0xFFD97706)),
  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
  ),
@@ -922,13 +922,13 @@ class _BottomOverlays extends StatelessWidget {
  ),
  child: Row(
  children: const [
- Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
+ Icon(Icons.auto_awesome, color: Color(0xFFD97706)),
  SizedBox(width: 8),
  Text(
  'AI',
  style: TextStyle(
  fontWeight: FontWeight.w800,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
  ),
  SizedBox(width: 10),

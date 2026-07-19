@@ -324,19 +324,19 @@ class _AgileTeamStructureScreenState extends State<AgileTeamStructureScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE0F2FE),
+                  color: const Color(0xFFFFF7E6),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome, size: 9, color: Color(0xFF0284C7)),
+                    Icon(Icons.auto_awesome, size: 9, color: Color(0xFFD97706)),
                     SizedBox(width: 2),
                     Text('AI',
                         style: TextStyle(
                             fontSize: 8,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0284C7))),
+                            color: Color(0xFFD97706))),
                   ],
                 ),
               ),

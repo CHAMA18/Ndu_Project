@@ -660,7 +660,7 @@ class _ContractRowWidgetState extends State<_ContractRowWidget> {
       'active' => const Color(0xFF10B981),
       'draft' => const Color(0xFFF59E0B),
       'expired' => const Color(0xFFEF4444),
-      'signed' => const Color(0xFF2563EB),
+      'signed' => const Color(0xFFD97706),
       _ => const Color(0xFF9CA3AF),
     };
   }

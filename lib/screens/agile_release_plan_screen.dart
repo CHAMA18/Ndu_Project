@@ -362,7 +362,7 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
         borderRadius: BorderRadius.circular(4),
       ),
       child:
-          Text(text, style: TextStyle(fontSize: 11, color: Colors.blue[700])),
+          Text(text, style: TextStyle(fontSize: 11, color: const Color(0xFFB45309))),
     );
   }
 
@@ -382,7 +382,7 @@ class _AgileReleasePlanScreenState extends State<AgileReleasePlanScreen> {
       case 'Approved':
         return Colors.green[700]!;
       case 'Ready':
-        return Colors.blue[700]!;
+        return const Color(0xFFB45309)!;
       default:
         return Colors.grey[700]!;
     }

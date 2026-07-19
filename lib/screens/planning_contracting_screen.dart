@@ -2500,7 +2500,7 @@ Color _rfqStatusColor(String s) {
  return const Color(0xFF22C55E);
  }
  if (l.contains('publish') || l.contains('active')) {
- return const Color(0xFF2563EB);
+ return const Color(0xFFD97706);
  }
  if (l.contains('evaluat')) return const Color(0xFFF59E0B);
  return const Color(0xFF64748B);

@@ -474,7 +474,7 @@ class _DesignSpecRowWidgetState extends State<_DesignSpecRowWidget> {
       'in review' => const Color(0xFF0EA5E9),
       'reviewed' => const Color(0xFF6366F1),
       'approved' => const Color(0xFF10B981),
-      'baseline' => const Color(0xFF2563EB),
+      'baseline' => const Color(0xFFD97706),
       'superseded' => const Color(0xFFEF4444),
       _ => const Color(0xFF9CA3AF),
     };
@@ -484,7 +484,7 @@ class _DesignSpecRowWidgetState extends State<_DesignSpecRowWidget> {
   Color _getPriorityColor(String priority) {
     return switch (priority.toLowerCase()) {
       'must have' => const Color(0xFFDC2626),
-      'should have' => const Color(0xFF2563EB),
+      'should have' => const Color(0xFFD97706),
       'could have' => const Color(0xFFD97706),
       "won't have" => const Color(0xFF6B7280),
       _ => const Color(0xFF6B7280),
@@ -495,7 +495,7 @@ class _DesignSpecRowWidgetState extends State<_DesignSpecRowWidget> {
   Color _getSpecTypeColor(String type) {
     return switch (type.toLowerCase()) {
       'architecture' => const Color(0xFF7C3AED),
-      'interface' => const Color(0xFF2563EB),
+      'interface' => const Color(0xFFD97706),
       'data' => const Color(0xFF0891B2),
       'component' => const Color(0xFF059669),
       'security' => const Color(0xFFDC2626),
@@ -705,7 +705,7 @@ class _DesignSpecRowWidgetState extends State<_DesignSpecRowWidget> {
             style: const TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
-                color: Color(0xFF2563EB)),
+                color: Color(0xFFD97706)),
             textAlign: TextAlign.center,
           ),
         );

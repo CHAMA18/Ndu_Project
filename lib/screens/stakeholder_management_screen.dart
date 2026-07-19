@@ -643,7 +643,7 @@ class _StatsRow extends StatelessWidget {
  title: 'Total Stakeholders',
  value: totalStakeholders.toString(),
  icon: Icons.people_alt_outlined,
- accentColor: const Color(0xFF60A5FA),
+ accentColor: const Color(0xFFFBBF24),
  ),
  _MetricCard(
  title: 'External Partners',
@@ -901,8 +901,8 @@ class _InfluenceInterestMatrix extends StatelessWidget {
  Expanded(
  child: _matrixQuadrant(
  label: 'Keep Satisfied',
- color: const Color(0xFFEFF6FF), // Blue
- accentColor: const Color(0xFF3B82F6),
+ color: const Color(0xFFFFF7E6), // Blue
+ accentColor: const Color(0xFFFBBF24),
  stakeholders: hHighILow,
  ),
  ),
@@ -1907,7 +1907,7 @@ class _StakeholderMappingTab extends StatelessWidget {
       case 'Keep Satisfied':
         return const Color(0xFFD97706); // Amber
       case 'Keep Informed':
-        return const Color(0xFF2563EB); // Blue
+        return const Color(0xFFD97706); // Blue
       default:
         return const Color(0xFF6B7280); // Gray — Monitor
     }
@@ -2103,7 +2103,7 @@ class _AnnouncementsTab extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: const Color(0xFFFFF7E6),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(t.channel, style: const TextStyle(fontSize: 10, color: Color(0xFF1E40AF))),

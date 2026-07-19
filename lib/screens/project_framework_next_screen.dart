@@ -28,7 +28,7 @@ const Color _kSecondaryText = Color(0xFF64748B);
 const Color _kBorderColor = Color(0xFFE2E8F0);
 const Color _kCardShadow = Color(0x14000000);
 const Color _kLightYellow = Color(0xFFFFF8E1);
-const Color _kLightBlue = Color(0xFFE0F2FE);
+const Color _kLightBlue = Color(0xFFFFF7E6);
 const Color _kGreenBrand = Color(0xFF22C55E);
 const Color _kLightGray = Color(0xFFF1F5F9);
 const List<String> _kPriorityOptions = [
@@ -760,7 +760,7 @@ class _ProjectFrameworkNextScreenState
                 label: 'Goal 2',
                 value: 'Goal 2',
                 isActive: _currentFilter == 'Goal 2',
-                activeColor: const Color(0xFF2563EB),
+                activeColor: const Color(0xFFD97706),
                 activeBgColor: _kLightBlue,
               ),
               const SizedBox(width: 8),

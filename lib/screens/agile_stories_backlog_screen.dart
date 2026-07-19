@@ -455,7 +455,7 @@ class _AgileStoriesBacklogScreenState extends State<AgileStoriesBacklogScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text('WBS linked',
-                      style: TextStyle(fontSize: 11, color: Colors.blue[700])),
+                      style: TextStyle(fontSize: 11, color: const Color(0xFFB45309))),
                 ),
               IconButton(
                 icon: const Icon(Icons.delete_outline,

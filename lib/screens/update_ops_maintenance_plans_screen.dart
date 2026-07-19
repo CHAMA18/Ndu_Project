@@ -218,7 +218,7 @@ class _UpdateOpsMaintenancePlansScreenState
 
  List<_CoverageItem> _mapCoverage(List<LaunchEntry> entries) {
  final colors = [
- const Color(0xFF2563EB),
+ const Color(0xFFD97706),
  const Color(0xFF10B981),
  const Color(0xFFF59E0B),
  ];
@@ -968,7 +968,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  return _PremiumPanel(
  icon: Icons.calendar_month_outlined,
  iconColor: const Color(0xFF0EA5E9),
- iconBg: const Color(0xFFE0F2FE),
+ iconBg: const Color(0xFFFFF7E6),
  title: 'Maintenance Windows',
  subtitle: 'Upcoming maintenance schedule',
  child: Column(
@@ -1015,7 +1015,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  Container(
  padding: const EdgeInsets.all(8),
  decoration: BoxDecoration(
- color: const Color(0xFFE0F2FE),
+ color: const Color(0xFFFFF7E6),
  borderRadius: BorderRadius.circular(10),
  ),
  child: const Icon(Icons.schedule_outlined,
@@ -1627,7 +1627,7 @@ class _PlanRow extends StatelessWidget {
  case 'Ready':
  return const Color(0xFF059669);
  case 'In review':
- return const Color(0xFF2563EB);
+ return const Color(0xFFD97706);
  case 'Pending':
  return const Color(0xFFD97706);
  default:
@@ -1640,7 +1640,7 @@ class _PlanRow extends StatelessWidget {
  case 'Ready':
  return const Color(0xFFECFDF5);
  case 'In review':
- return const Color(0xFFEFF6FF);
+ return const Color(0xFFFFF7E6);
  case 'Pending':
  return const Color(0xFFFEF3C7);
  default:

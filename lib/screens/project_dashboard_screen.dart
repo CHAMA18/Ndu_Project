@@ -912,7 +912,7 @@ class _ProjectHeaderState extends State<_ProjectHeader> {
  ElevatedButton(
  onPressed: widget.onAddProject,
  style: ElevatedButton.styleFrom(
- backgroundColor: Colors.blue.shade600,
+ backgroundColor: const Color(0xFFB45309),
  foregroundColor: Colors.white,
  elevation: 2,
  shadowColor: Colors.black.withOpacity(0.1),
@@ -1104,7 +1104,7 @@ class _StatusStrip extends StatelessWidget {
  value: '—',
  subLabel: 'Sign in to view',
  icon: Icons.folder_open_rounded,
- color: Colors.blue.shade600,
+ color: const Color(0xFFB45309),
  onTap: openProjectDashboard,
  ),
  DashboardStatCard(
@@ -1166,7 +1166,7 @@ class _StatusStrip extends StatelessWidget {
  value: '$projectCount',
  subLabel: 'Active workspaces',
  icon: Icons.folder_open_rounded,
- color: Colors.blue.shade600,
+ color: const Color(0xFFB45309),
  onTap: openProjectDashboard,
  ),
  DashboardStatCard(
@@ -2657,8 +2657,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
  if (normalized.contains('planning')) return const Color(0xFFFFF1CC);
  if (normalized.contains('front end')) return const Color(0xFFFFF8E1);
  if (normalized.contains('design')) return const Color(0xFFE8E6FF);
- if (normalized.contains('launch')) return const Color(0xFFE0F2FE);
- if (normalized.contains('close')) return const Color(0xFFEFF6FF);
+ if (normalized.contains('launch')) return const Color(0xFFFFF7E6);
+ if (normalized.contains('close')) return const Color(0xFFFFF7E6);
  if (normalized.contains('completed')) return const Color(0xFFE8F0FF);
  if (normalized.contains('initiation') || normalized.contains('idea')) {
  return const Color(0xFFF3F4F8);
@@ -2673,8 +2673,8 @@ class _ProjectTableRowFromFirebase extends StatelessWidget {
  if (normalized.contains('front end')) return const Color(0xFF9A6700);
  if (normalized.contains('design')) return const Color(0xFF5941C6);
  if (normalized.contains('launch')) return const Color(0xFF075985);
- if (normalized.contains('close')) return const Color(0xFF1D4ED8);
- if (normalized.contains('completed')) return const Color(0xFF1D4ED8);
+ if (normalized.contains('close')) return const Color(0xFFD97706);
+ if (normalized.contains('completed')) return const Color(0xFFD97706);
  if (normalized.contains('initiation') || normalized.contains('idea')) {
  return const Color(0xFF4A4D57);
  }
@@ -4030,7 +4030,7 @@ class _DesktopPremiumGreeting extends StatelessWidget {
  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
  decoration: BoxDecoration(
  color: isBasicPlan
- ? const Color(0xFFEFF6FF)
+ ? const Color(0xFFFFF7E6)
  : const Color(0xFFFFF8E1),
  borderRadius: BorderRadius.circular(8),
  border: Border.all(
@@ -4047,7 +4047,7 @@ class _DesktopPremiumGreeting extends StatelessWidget {
  isBasicPlan ? Icons.star_outline : Icons.workspace_premium_outlined,
  size: 14,
  color: isBasicPlan
- ? const Color(0xFF2563EB)
+ ? const Color(0xFFD97706)
  : const Color(0xFFF59E0B),
  ),
  const SizedBox(width: 4),
@@ -4058,7 +4058,7 @@ class _DesktopPremiumGreeting extends StatelessWidget {
  fontWeight: FontWeight.w700,
  letterSpacing: 0.04,
  color: isBasicPlan
- ? const Color(0xFF2563EB)
+ ? const Color(0xFFD97706)
  : const Color(0xFFB45309),
  ),
  ),

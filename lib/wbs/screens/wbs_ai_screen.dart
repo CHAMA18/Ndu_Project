@@ -44,7 +44,7 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
       'Expand a node',
       Icons.search,
       'Level 2 children for a selected Level 1 node',
-      const Color(0xFF3B82F6)
+      const Color(0xFFFBBF24)
     ),
     (
       'validate',
@@ -317,12 +317,12 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                  color: const Color(0xFFFBBF24).withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Text('KAZ AI',
                     style: TextStyle(
-                        color: Color(0xFF3B82F6),
+                        color: Color(0xFFFBBF24),
                         fontSize: 11,
                         fontWeight: FontWeight.bold)),
               ),
@@ -678,13 +678,13 @@ class _WBSAIScreenState extends State<WBSAIScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 1),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF3B82F6)
+                              color: const Color(0xFFFBBF24)
                                   .withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(aiSource.toUpperCase(),
                                 style: const TextStyle(
-                                    color: Color(0xFF3B82F6),
+                                    color: Color(0xFFFBBF24),
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold)),
                           ),

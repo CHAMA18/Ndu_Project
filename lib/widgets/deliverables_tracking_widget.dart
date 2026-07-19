@@ -676,7 +676,7 @@ class _DeliverableRowWidgetState extends State<_DeliverableRowWidget> {
   Color _getStatusColor(String status) {
     return switch (status) {
       'Completed' => const Color(0xFF10B981),
-      'In Progress' => const Color(0xFF2563EB),
+      'In Progress' => const Color(0xFFD97706),
       'At Risk' => const Color(0xFFF59E0B),
       'Blocked' => const Color(0xFFEF4444),
       _ => const Color(0xFF9CA3AF),

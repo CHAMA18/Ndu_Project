@@ -156,7 +156,7 @@ class HowItWorksScreen extends StatelessWidget {
             runSpacing: 12,
             children: [
               _heroBadge(Icons.flash_on, 'Agile', const Color(0xFF10B981)),
-              _heroBadge(Icons.water_drop, 'Waterfall', const Color(0xFF3B82F6)),
+              _heroBadge(Icons.water_drop, 'Waterfall', const Color(0xFFFBBF24)),
               _heroBadge(Icons.merge, 'Hybrid', const Color(0xFF8B5CF6)),
               _heroBadge(Icons.assignment, 'Projects', const Color(0xFFF59E0B)),
               _heroBadge(Icons.view_module, 'Programs', const Color(0xFF0EA5E9)),
@@ -220,7 +220,7 @@ class HowItWorksScreen extends StatelessWidget {
         number: '01',
         title: 'Initiation',
         icon: Icons.flag_rounded,
-        color: const Color(0xFF3B82F6),
+        color: const Color(0xFFFBBF24),
         duration: 'Weeks 1–4',
       ),
       _PhaseTimelineItem(
@@ -376,7 +376,7 @@ class HowItWorksScreen extends StatelessWidget {
           number: '01',
           title: 'Initiation',
           icon: Icons.flag_rounded,
-          color: const Color(0xFF3B82F6),
+          color: const Color(0xFFFBBF24),
           description:
               'Charter approval, stakeholder alignment, cost-benefit analysis, and preferred solution selection — all gated before planning begins.',
           activities: [
@@ -713,7 +713,7 @@ class HowItWorksScreen extends StatelessWidget {
                     child: _buildMethodologyCard(
                         'Waterfall',
                         Icons.water_drop,
-                        const Color(0xFF3B82F6),
+                        const Color(0xFFFBBF24),
                         'Sequential phase-gated delivery with WBS, Gantt schedules, and milestone tracking for engineering and construction.')),
                 const SizedBox(width: 16),
                 Expanded(
@@ -736,7 +736,7 @@ class HowItWorksScreen extends StatelessWidget {
                 _buildMethodologyCard(
                     'Waterfall',
                     Icons.water_drop,
-                    const Color(0xFF3B82F6),
+                    const Color(0xFFFBBF24),
                     'Sequential phase-gated delivery with WBS, Gantt schedules, and milestone tracking for engineering and construction.'),
                 const SizedBox(height: 16),
                 _buildMethodologyCard(
@@ -796,7 +796,7 @@ class HowItWorksScreen extends StatelessWidget {
         title: 'Phase-Gated Quality',
         description:
             'Every phase has readiness gates that ensure completeness before progressing — no skipped steps, no surprises.',
-        color: const Color(0xFF3B82F6),
+        color: const Color(0xFFFBBF24),
       ),
       _WhyItWorksItem(
         icon: Icons.insights_outlined,
@@ -999,7 +999,7 @@ class HowItWorksScreen extends StatelessWidget {
   LayoutBuilder(builder: (context, c) {
   final horizontal = c.maxWidth >= 700;
   final cards = [
-  _ScaleCard(num: '01', title: 'Projects', desc: 'Waterfall, Agile and Hybrid Project Delivery', icon: Icons.flag_rounded, color: const Color(0xFF3B82F6)),
+  _ScaleCard(num: '01', title: 'Projects', desc: 'Waterfall, Agile and Hybrid Project Delivery', icon: Icons.flag_rounded, color: const Color(0xFFFBBF24)),
   _ScaleCard(num: '02', title: 'Programs', desc: 'Multiple project implementation', icon: Icons.groups_rounded, color: const Color(0xFF8B5CF6)),
   _ScaleCard(num: '03', title: 'Portfolios', desc: 'Project and program stewardship in one glance', icon: Icons.rocket_launch_rounded, color: const Color(0xFF10B981)),
   ];
@@ -1026,7 +1026,7 @@ class HowItWorksScreen extends StatelessWidget {
   final cols = c.maxWidth >= 900 ? 3 : (c.maxWidth >= 600 ? 2 : 1);
   final w = cols == 1 ? c.maxWidth : (c.maxWidth - 40) / cols;
   final steps = [
-  _DeliveryStep(num: '0', title: 'AI Assisted Due Diligence', color: const Color(0xFF3B82F6), items: ['Editable AI suggestions at every step that prompts the thought process', 'Continuity through all phases which eliminates fragmentation gap', 'Search access for similar applicable go-bys', 'Dynamic dashboards at project, program and portfolio levels', 'Core project delivery process integration with hints']),
+  _DeliveryStep(num: '0', title: 'AI Assisted Due Diligence', color: const Color(0xFFFBBF24), items: ['Editable AI suggestions at every step that prompts the thought process', 'Continuity through all phases which eliminates fragmentation gap', 'Search access for similar applicable go-bys', 'Dynamic dashboards at project, program and portfolio levels', 'Core project delivery process integration with hints']),
   _DeliveryStep(num: '1', title: 'Start Right', color: const Color(0xFFF59E0B), items: ['Guided vital process to identify and analyze potential solutions, initial risks, internal and external stakeholders, IT and infrastructure, Project boundaries including in and out of scope, opportunities', 'Project requirements contracts, procurement and technical framework']),
   _DeliveryStep(num: '2', title: 'Meticulous Planning', color: const Color(0xFF10B981), items: ['Project framework, Team identification, Work Breakdown Structure', 'Safety, Security, Health, Environmental and Regulatory readiness', 'Quality requirements and early design planning', 'Execution planning, interface management, and set delivery plans', 'Cost, Schedule, Scope tracking, and change management alignment']),
   _DeliveryStep(num: '3', title: 'Build', color: const Color(0xFFF59E0B), items: ['Technical specifications, codes, and requirements mapping', 'Tool selection, onboarding, Design and engineering', 'Design and engineering execution (framework dependent)', 'Design work package development and execution mapping', 'Design implementation for success']),

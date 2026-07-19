@@ -158,7 +158,7 @@ class _OrganizationRolesResponsibilitiesScreenState
 
     final List<_MetricData> metrics = [
       _MetricData(
-          'Total Roles', roles.length.toString(), const Color(0xFF3B82F6)),
+          'Total Roles', roles.length.toString(), const Color(0xFFFBBF24)),
       _MetricData(
           'Deciplines',
           roles.map<String>((r) => r.workstream).toSet().length.toString(),
@@ -1035,7 +1035,7 @@ class _OrganizationRaciMatrixScreenState
                             _MetricCard(
                               label: 'Total Roles',
                               value: rows.length.toString(),
-                              accent: const Color(0xFF3B82F6),
+                              accent: const Color(0xFFFBBF24),
                             ),
                             _MetricCard(
                               label: 'Agile Roles',
@@ -2457,7 +2457,7 @@ class _RaciMatrixTableRow extends StatelessWidget {
               icon: const Icon(
                 Icons.visibility_outlined,
                 size: 18,
-                color: Color(0xFF2563EB),
+                color: Color(0xFFD97706),
               ),
               tooltip: 'View row',
               padding: EdgeInsets.zero,
@@ -2519,8 +2519,8 @@ class _RaciFrameworkCell extends StatelessWidget {
         fgColor = const Color(0xFF6D28D9);
         break;
       case 'waterfall':
-        bgColor = const Color(0xFFDBEAFE);
-        fgColor = const Color(0xFF1D4ED8);
+        bgColor = const Color(0xFFFFF7E6);
+        fgColor = const Color(0xFFD97706);
         break;
       default:
         bgColor = const Color(0xFFFEF3C7);
@@ -2556,7 +2556,7 @@ class _RaciValuePill extends StatelessWidget {
   Widget build(BuildContext context) {
     final normalized = value.trim().toUpperCase();
     final Map<String, ({Color bg, Color fg})> styles = {
-      'R': (bg: const Color(0xFFDBEAFE), fg: const Color(0xFF1D4ED8)),
+      'R': (bg: const Color(0xFFFFF7E6), fg: const Color(0xFFD97706)),
       'A': (bg: const Color(0xFFFEE2E2), fg: const Color(0xFFB91C1C)),
       'C': (bg: const Color(0xFFDCFCE7), fg: const Color(0xFF15803D)),
       'I': (bg: const Color(0xFFF3E8FF), fg: const Color(0xFF7E22CE)),

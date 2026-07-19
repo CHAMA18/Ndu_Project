@@ -128,10 +128,10 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: const Color(0xFFFFF7E6),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.attach_money, color: Color(0xFF2563EB), size: 22),
+            child: const Icon(Icons.attach_money, color: Color(0xFFD97706), size: 22),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -203,7 +203,7 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
             onPressed: () => setState(() => _showAddForm = true),
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Create First Rate Card'),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF2563EB)),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFD97706)),
           ),
         ],
       ),
@@ -218,9 +218,9 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isExpanded ? const Color(0xFF2563EB) : colorScheme.outline.withOpacity(0.2)),
+        border: Border.all(color: isExpanded ? const Color(0xFFD97706) : colorScheme.outline.withOpacity(0.2)),
         boxShadow: isExpanded ? [BoxShadow(
-          color: const Color(0xFF2563EB).withOpacity(0.08),
+          color: const Color(0xFFD97706).withOpacity(0.08),
           blurRadius: 8,
           offset: const Offset(0, 2),
         )] : null,
@@ -363,7 +363,7 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: const Color(0xFFFFF7E6),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
@@ -372,7 +372,7 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
         children: [
           Row(
             children: [
-              Icon(Icons.add_circle_outline, color: const Color(0xFF2563EB), size: 20),
+              Icon(Icons.add_circle_outline, color: const Color(0xFFD97706), size: 20),
               const SizedBox(width: 8),
               const Text('New Rate Card', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
               const Spacer(),
@@ -432,7 +432,7 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
                   onPressed: () => _saveNewCard(),
                   icon: const Icon(Icons.save, size: 18),
                   label: const Text('Save Card'),
-                  style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFF2563EB)),
+                  style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFD97706)),
                 ),
               ),
             ],
@@ -483,7 +483,7 @@ class _RateCardManagementDialogState extends State<RateCardManagementDialog> {
   Color _getTierColor(String tier) {
     switch (tier) {
       case 'Global': return const Color(0xFF7C3AED);
-      case 'Regional': return const Color(0xFF2563EB);
+      case 'Regional': return const Color(0xFFD97706);
       case 'National': return const Color(0xFF059669);
       case 'Local': return const Color(0xFFD97706);
       default: return Colors.grey;

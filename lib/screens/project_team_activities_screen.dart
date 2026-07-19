@@ -851,10 +851,10 @@ class _ProjectTeamActivitiesScreenState extends State<ProjectTeamActivitiesScree
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
+          colors: [Color(0xFFFFF7E6), Color(0xFFFFF7E6)],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF93C5FD)),
+        border: Border.all(color: const Color(0xFFFDE68A)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -864,11 +864,11 @@ class _ProjectTeamActivitiesScreenState extends State<ProjectTeamActivitiesScree
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                  color: const Color(0xFFD97706).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.auto_awesome,
-                    color: Color(0xFF1D4ED8), size: 22),
+                    color: Color(0xFFD97706), size: 22),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -899,7 +899,7 @@ class _ProjectTeamActivitiesScreenState extends State<ProjectTeamActivitiesScree
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Icon(Icons.check_circle,
-                        size: 16, color: Color(0xFF2563EB)),
+                        size: 16, color: Color(0xFFD97706)),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

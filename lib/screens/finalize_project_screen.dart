@@ -249,7 +249,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  title: 'Stakeholder Sign-off',
  subtitle: 'Pending approvals',
  value: '',
- accent: const Color(0xFF2563EB),
+ accent: const Color(0xFFD97706),
  ),
  _SnapshotMetric(
  id: _newId(),
@@ -367,7 +367,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  title: 'Snapshot Metrics',
  value: '${_snapshotMetrics.length}',
  icon: Icons.dashboard_outlined,
- color: const Color(0xFF2563EB),
+ color: const Color(0xFFD97706),
  ),
  ),
  const SizedBox(width: 16),
@@ -491,7 +491,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  title: r['title'] ?? '',
  subtitle: r['subtitle'] ?? '',
  value: r['value'] ?? '',
- accent: const Color(0xFF2563EB),
+ accent: const Color(0xFFD97706),
  ));
  }
  });
@@ -500,7 +500,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
- style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+ style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFFD97706), side: const BorderSide(color: Color(0xFFFDE68A))),
  ),
  const SizedBox(width: 8),
  FilledButton.icon(
@@ -907,7 +907,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
- style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), foregroundColor: const Color(0xFF2563EB), side: const BorderSide(color: Color(0xFF93C5FD))),
+ style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)), foregroundColor: const Color(0xFFD97706), side: const BorderSide(color: Color(0xFFFDE68A))),
  ),
  const SizedBox(width: 8),
  FilledButton.icon(
@@ -1105,7 +1105,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  mainAxisAlignment: MainAxisAlignment.center,
  children: [
  IconButton(
- icon: const Icon(Icons.edit_outlined, color: Color(0xFF2563EB)),
+ icon: const Icon(Icons.edit_outlined, color: Color(0xFFD97706)),
  tooltip: 'Edit',
  onPressed: () {
  ScaffoldMessenger.of(context).showSnackBar(
@@ -1502,7 +1502,7 @@ class _FinalizeProjectScreenState extends State<FinalizeProjectScreen> {
  title: '',
  subtitle: '',
  value: '',
- accent: const Color(0xFF2563EB),
+ accent: const Color(0xFFD97706),
  ));
  });
  _scheduleSave();

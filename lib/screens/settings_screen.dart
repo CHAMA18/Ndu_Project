@@ -1600,7 +1600,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         'Low': Colors.orange.withOpacity(0.4)
       },
       'People': {
-        'High': Colors.blue,
+        'High': const Color(0xFFD97706),
         'Medium': Colors.blueAccent.withOpacity(0.6),
         'Low': Colors.blueAccent.withOpacity(0.3)
       },
@@ -1991,7 +1991,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline, color: Colors.blue, size: 22),
+                      Icon(Icons.info_outline, color: const Color(0xFFD97706), size: 22),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
@@ -2001,7 +2001,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                               'Admin Only',
                               style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.blue),
+                                  color: const Color(0xFFD97706)),
                             ),
                             const SizedBox(height: 6),
                             const Text(
@@ -2130,7 +2130,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 color: const Color(0xFFEEF2FF),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.bolt, color: Colors.blue),
+              child: const Icon(Icons.bolt, color: const Color(0xFFD97706)),
             ),
             const SizedBox(width: 16),
             Expanded(

@@ -340,7 +340,7 @@ class _CategoryCell extends StatelessWidget {
     'Consulting': Color(0xFF8B5CF6),
     'Raw Materials': Color(0xFFF59E0B),
     'Utilities': Color(0xFF10B981),
-    'Technology': Color(0xFF3B82F6),
+    'Technology': Color(0xFFFBBF24),
     'Operations': Color(0xFF64748B),
     'Facilities': Color(0xFFEC4899),
     'Services': Color(0xFF14B8A6),

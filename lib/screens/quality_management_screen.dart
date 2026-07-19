@@ -1315,20 +1315,20 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  padding:
  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
  decoration: BoxDecoration(
- color: const Color(0xFFE0F2FE),
+ color: const Color(0xFFFFF7E6),
  borderRadius: BorderRadius.circular(6),
  ),
  child: const Row(
  mainAxisSize: MainAxisSize.min,
  children: [
  Icon(Icons.auto_awesome,
- size: 10, color: Color(0xFF0284C7)),
+ size: 10, color: Color(0xFFD97706)),
  SizedBox(width: 3),
  Text('AI',
  style: TextStyle(
  fontSize: 9,
  fontWeight: FontWeight.w700,
- color: Color(0xFF0284C7))),
+ color: Color(0xFFD97706))),
  ],
  ),
  ),
@@ -1620,8 +1620,8 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
 
  return _PrimaryCard(
  icon: Icons.description_outlined,
- iconBackground: const Color(0xFFEFF6FF),
- iconColor: const Color(0xFF2563EB),
+ iconBackground: const Color(0xFFFFF7E6),
+ iconColor: const Color(0xFFD97706),
  title: 'Quality Plan',
  subtitle:
  'Project Quality Management Plan with AI-generated standards, controls, and governance based on project context.',
@@ -1734,7 +1734,7 @@ class _QualityPlanViewState extends State<_QualityPlanView> {
  },
  icon: const Icon(Icons.upload_file_outlined, size: 16),
  label: const Text('Import CSV'),
-  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFFFFC812), side: const BorderSide(color: Color(0xFF93C5FD))),
+  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), foregroundColor: const Color(0xFFFFC812), side: const BorderSide(color: Color(0xFFFDE68A))),
  ),
  const SizedBox(width: 8),
  ElevatedButton.icon(
@@ -3673,7 +3673,7 @@ class _RoadmapTimeline extends StatelessWidget {
  Color _sourceColor(String source) {
  switch (source) {
  case 'QA Task':
- return const Color(0xFF2563EB);
+ return const Color(0xFFD97706);
  case 'QC Task':
  return const Color(0xFF7C3AED);
  case 'Audit':
@@ -6028,7 +6028,7 @@ class _CoqView extends StatelessWidget {
                   amount: NumberFormat.simpleCurrency(decimalDigits: 0)
                       .format(coq.totalAppraisal),
                   icon: Icons.search_outlined,
-                  color: const Color(0xFF0284C7),
+                  color: const Color(0xFFD97706),
                 ),
               ),
               SizedBox(
@@ -6058,7 +6058,7 @@ class _CoqView extends StatelessWidget {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF1E3A5F), Color(0xFF2D5F8A)],
+                colors: [Color(0xFF78350F), Color(0xFF2D5F8A)],
               ),
               borderRadius: BorderRadius.circular(16),
             ),

@@ -377,7 +377,7 @@ List<DataRow> nduZebraRows(
       color: row.color ??
           WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return isDark ? const Color(0xFF1F2937) : const Color(0xFFEFF6FF);
+              return isDark ? const Color(0xFF1F2937) : const Color(0xFFFFF7E6);
             }
             return index.isOdd ? resolvedOdd : resolvedEven;
           }),

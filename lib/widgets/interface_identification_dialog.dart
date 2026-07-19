@@ -23,7 +23,7 @@ Future<void> showInterfaceIdentificationDialog(BuildContext context) async {
             ),
             title: Row(
               children: [
-                const Icon(Icons.link, color: Color(0xFF1D4ED8)),
+                const Icon(Icons.link, color: Color(0xFFD97706)),
                 const SizedBox(width: 10),
                 const Expanded(
                   child: Text(

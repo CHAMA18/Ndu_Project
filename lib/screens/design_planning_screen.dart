@@ -36,7 +36,7 @@ const Color _kSurface = Colors.white;
 const Color _kBorder = Color(0xFFE5E7EB);
 const Color _kText = Color(0xFF111827);
 const Color _kMuted = Color(0xFF6B7280);
-const Color _kPrimary = Color(0xFF2563EB);
+const Color _kPrimary = Color(0xFFD97706);
 const Color _kSuccess = Color(0xFF0F9D58);
 const Color _kWarning = Color(0xFFF59E0B);
 // Brand colors from HTML design
@@ -46,8 +46,8 @@ const Color _kGray400 = Color(0xFF9CA3AF);
 const Color _kGray500 = Color(0xFF6B7280);
 const Color _kGray700 = Color(0xFF374151);
 const Color _kGray900 = Color(0xFF111827);
-const Color _kBlue50 = Color(0xFFEFF6FF);
-const Color _kBlue600 = Color(0xFF2563EB);
+const Color _kBlue50 = Color(0xFFFFF7E6);
+const Color _kBlue600 = Color(0xFFD97706);
 const String _kSectionProgressNotesKey = 'planning_design_section_progress';
 
 enum _SectionProgressState { pending, complete, notApplicable }
@@ -2185,7 +2185,7 @@ class _DesignPlanningScreenState extends State<DesignPlanningScreen> {
  title: 'Design Overview',
  subtitle:
  'Document design basis details covering who owns design outcomes, how design will be executed, and what vendor/contract/interface constraints shape the solution.',
- accent: const Color(0xFF1D4ED8),
+ accent: const Color(0xFFD97706),
  child: Column(
  children: [
  _AssistActions(
@@ -3322,7 +3322,7 @@ class _SectionMeta {
 
 const List<_SectionMeta> _sectionOrder = [
  _SectionMeta('overview', 'Project Overview', _kPrimary),
- _SectionMeta('design_overview', 'Design Overview', Color(0xFF1D4ED8)),
+ _SectionMeta('design_overview', 'Design Overview', Color(0xFFD97706)),
  _SectionMeta('design_specifications_workspace', 'Design Specifications',
  Color(0xFF0F766E)),
  _SectionMeta('deviations', 'Deviations', Color(0xFF0EA5E9)),

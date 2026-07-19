@@ -430,7 +430,7 @@ class _TeamRoleCard extends StatelessWidget {
  color: const Color(0xFFEAF2FF),
  borderRadius: BorderRadius.circular(10),
  ),
- child: const Icon(Icons.work_outline, color: Color(0xFF2563EB), size: 20),
+ child: const Icon(Icons.work_outline, color: Color(0xFFD97706), size: 20),
  ),
  const SizedBox(width: 12),
  Expanded(

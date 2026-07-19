@@ -7649,7 +7649,7 @@ class _MilestoneEntry {
  return _MilestoneEntry(
  label: (json['label'] ?? '').toString(),
  date: (json['date'] ?? '').toString(),
- statusColor: Color((json['statusColor'] ?? 0xFF2563EB) as int),
+ statusColor: Color((json['statusColor'] ?? 0xFFD97706) as int),
  );
  }
 
@@ -7956,7 +7956,7 @@ class _ContractMilestoneData {
  return _ContractMilestoneData(
  title: (json['title'] ?? '').toString(),
  value: (json['value'] ?? '').toString(),
- accentColor: Color((json['accentColor'] ?? 0xFF2563EB) as int),
+ accentColor: Color((json['accentColor'] ?? 0xFFD97706) as int),
  emphasize: json['emphasize'] == true,
  );
  }
@@ -8734,7 +8734,7 @@ class _ContractDocumentData {
  return _ContractDocumentData(
  title: (json['title'] ?? '').toString(),
  details: (json['details'] ?? '').toString(),
- accentColor: Color((json['accentColor'] ?? 0xFF2563EB) as int),
+ accentColor: Color((json['accentColor'] ?? 0xFFD97706) as int),
  icon: _iconLookup[codePoint] ?? Icons.description_outlined,
  );
  }

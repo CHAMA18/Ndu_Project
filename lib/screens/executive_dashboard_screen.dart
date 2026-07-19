@@ -131,7 +131,7 @@ class _ExecutiveDashboardScreenState extends State<ExecutiveDashboardScreen> {
  children: [
  kpiCard('Baseline Budget',
  '\$${_fmt(baselineBudget)}',
- const Color(0xFF2563EB), Icons.account_balance),
+ const Color(0xFFD97706), Icons.account_balance),
  kpiCard('Forecast',
  '\$${_fmt(forecastBudget)}',
  const Color(0xFF7C3AED), Icons.trending_up),
@@ -215,7 +215,7 @@ class _ExecutiveDashboardScreenState extends State<ExecutiveDashboardScreen> {
  const Color(0xFF059669)),
  const SizedBox(height: 8),
  statusRow('Authorized', authorizedCount,
- const Color(0xFF2563EB)),
+ const Color(0xFFD97706)),
  const SizedBox(height: 8),
  statusRow('Closed', closedCount,
  const Color(0xFF6B7280)),
@@ -282,7 +282,7 @@ class _ExecutiveDashboardScreenState extends State<ExecutiveDashboardScreen> {
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
  _ssherMiniRow('Items with cost', '$ssherItemCount',
- const Color(0xFF2563EB)),
+ const Color(0xFFD97706)),
  const SizedBox(height: 6),
  _ssherMiniRow('High-risk items',
  '$ssherHighRiskCount',
@@ -368,7 +368,7 @@ class _ExecutiveDashboardScreenState extends State<ExecutiveDashboardScreen> {
  icon: const Icon(Icons.open_in_new, size: 14),
  label: const Text('Open SSHER Hub'),
  style: TextButton.styleFrom(
- foregroundColor: const Color(0xFF2563EB),
+ foregroundColor: const Color(0xFFD97706),
  ),
  ),
  ),

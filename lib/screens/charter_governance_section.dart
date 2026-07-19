@@ -256,12 +256,12 @@ class CharterStakeholdersShort extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: const Color(0xFFFFF7E6),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     i['role']!,
-                    style: TextStyle(fontSize: 10, color: Colors.blue.shade800),
+                    style: TextStyle(fontSize: 10, color: const Color(0xFF78350F)),
                   ),
                 ),
               ],
@@ -687,7 +687,7 @@ class _CharterApprovalsState extends State<CharterApprovals> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
+                color: const Color(0xFFFFF7E6),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFBFDBFE)),
               ),
@@ -699,7 +699,7 @@ class _CharterApprovalsState extends State<CharterApprovals> {
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1D4ED8),
+                      color: Color(0xFFD97706),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1109,7 +1109,7 @@ class _CharterApprovalsState extends State<CharterApprovals> {
                         ),
                         decoration: BoxDecoration(
                           color: approvalRequestSent
-                              ? Colors.blue.shade600
+                              ? const Color(0xFFB45309)
                               : Colors.grey.shade400,
                           borderRadius: BorderRadius.circular(4),
                         ),
@@ -1164,7 +1164,7 @@ class _CharterApprovalsState extends State<CharterApprovals> {
             children: [
               const Icon(
                 Icons.gavel_outlined,
-                color: Color(0xFF2563EB),
+                color: Color(0xFFD97706),
                 size: 22,
               ),
               const SizedBox(width: 10),

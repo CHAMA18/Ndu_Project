@@ -9,8 +9,8 @@ import 'package:ndu_project/providers/project_data_provider.dart';
 // ─── Brand Color Tokens ───
 class BrandColors {
   static const background = Color(0xFFF7F9FB);
-  static const primary = Color(0xFF005BB3);
-  static const primaryContainer = Color(0xFF0073DF);
+  static const primary = Color(0xFFB45309);
+  static const primaryContainer = Color(0xFFD97706);
   static const onPrimary = Color(0xFFFFFFFF);
   static const onPrimaryContainer = Color(0xFFFEFCFF);
   static const surface = Color(0xFFF7F9FB);
@@ -250,7 +250,7 @@ class CharterDashboardStats extends StatelessWidget {
           _buildStatItem(
             'DURATION',
             duration,
-            const Color(0xFF60A5FA),
+            const Color(0xFFFBBF24),
             isMobile,
             mobileWidth: mobileItemWidth,
           ),
@@ -2828,7 +2828,7 @@ class _AssignManagerWalkthroughState extends State<AssignManagerWalkthrough>
             width: 22,
             height: 22,
             decoration: const BoxDecoration(
-              color: Color(0xFF005BB3),
+              color: Color(0xFFB45309),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,

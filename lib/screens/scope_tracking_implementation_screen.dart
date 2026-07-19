@@ -575,7 +575,7 @@ class _ScopeTrackingImplementationScreenState
         'Scope Adherence',
         '$scopeAdherence%',
         '$inProgressOrVerified of $totalItems items',
-        const Color(0xFF2563EB),
+        const Color(0xFFD97706),
       ),
       _StatCardData(
         'Identified Creep',

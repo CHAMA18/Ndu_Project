@@ -115,9 +115,9 @@ class DifferentiatorScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF3B82F6).withValues(alpha: 0.08),
+              color: const Color(0xFFFBBF24).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.2)),
+              border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.2)),
             ),
             child: const Text(
               'Our AI-powered end-to-end platform helps project managers and executives improve profitability through more effective delivery. It reduces implementation costs by 15–30% and cuts rework by 30–50% via structured initiation and planning. Unlike execution-focused tools that primarily track execution across only a few later phases, our platform drives disciplined, integrated delivery across the full project lifecycle.',
@@ -130,7 +130,7 @@ class DifferentiatorScreen extends StatelessWidget {
             spacing: 12,
             runSpacing: 12,
             children: [
-              _credibilityBadge('NSF I-Corps IdeaLaunch Research', Icons.science_outlined, const Color(0xFF3B82F6)),
+              _credibilityBadge('NSF I-Corps IdeaLaunch Research', Icons.science_outlined, const Color(0xFFFBBF24)),
               _credibilityBadge('Tens of Companies Surveyed', Icons.groups_outlined, const Color(0xFF10B981)),
               _credibilityBadge('IdeaVillage Accelerator', Icons.rocket_launch_outlined, const Color(0xFF8B5CF6)),
             ],
@@ -296,7 +296,7 @@ class DifferentiatorScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(kp.icon,
-                        color: const Color(0xFF3B82F6), size: 18),
+                        color: const Color(0xFFFBBF24), size: 18),
                     const SizedBox(width: 10),
                     Text(
                       kp.label,
@@ -399,9 +399,9 @@ class DifferentiatorScreen extends StatelessWidget {
                     width: itemWidth,
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3B82F6).withValues(alpha: 0.12),
+                      color: const Color(0xFFFBBF24).withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.25)),
+                      border: Border.all(color: const Color(0xFFFBBF24).withValues(alpha: 0.25)),
                     ),
                     child: Center(
                       child: Text(

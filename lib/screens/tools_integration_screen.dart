@@ -885,7 +885,7 @@ showNavigationButtons: false,
  'Connected → Syncing → Active → Degraded → Expired. '
  'Each integration should be tracked from initial connection through operational maturity. '
  'Set automated health checks at regular intervals and configure alerts for status transitions.',
- const Color(0xFF2563EB),
+ const Color(0xFFD97706),
  ),
  const SizedBox(height: 12),
  _buildGuideCard(
@@ -1168,8 +1168,8 @@ showNavigationButtons: false,
  case 'In Review':
  case 'In Progress':
  case 'Pending':
- bgColor = const Color(0xFFEFF6FF);
- textColor = const Color(0xFF2563EB);
+ bgColor = const Color(0xFFFFF7E6);
+ textColor = const Color(0xFFD97706);
  break;
  case 'Not Started':
  bgColor = const Color(0xFFF9FAFB);
@@ -1487,8 +1487,8 @@ showNavigationButtons: false,
  textColor = const Color(0xFFD97706);
  break;
  case 'Medium':
- bgColor = const Color(0xFFEFF6FF);
- textColor = const Color(0xFF2563EB);
+ bgColor = const Color(0xFFFFF7E6);
+ textColor = const Color(0xFFD97706);
  break;
  default:
  bgColor = const Color(0xFFF3F4F6);

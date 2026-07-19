@@ -1545,7 +1545,7 @@ class _TeamRolesResponsibilitiesScreenState
                        Container(
                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                          decoration: BoxDecoration(
-                           color: const Color(0xFFEFF6FF),
+                           color: const Color(0xFFFFF7E6),
                            borderRadius: BorderRadius.circular(4),
                          ),
                          child: Text(role.discipline, style: const TextStyle(fontSize: 10, color: Color(0xFF1E40AF))),

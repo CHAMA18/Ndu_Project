@@ -648,7 +648,7 @@ onBack: () => PlanningPhaseNavigation.goToPrevious(
  Color _getPhaseColor(DeliverablePhase phase) {
  switch (phase) {
  case DeliverablePhase.initiation:
- return const Color(0xFF3B82F6);
+ return const Color(0xFFFBBF24);
  case DeliverablePhase.frontEndPlanning:
  return const Color(0xFF8B5CF6);
  case DeliverablePhase.planning:

@@ -1249,13 +1249,13 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
  child:
  CircularProgressIndicator(
  strokeWidth: 2,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
  )
  : const Icon(
  Icons.auto_fix_high,
  size: 20,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
  onPressed:
  _isGeneratingRequirementsPlan
@@ -1314,13 +1314,13 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
  child:
  CircularProgressIndicator(
  strokeWidth: 2,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
  )
  : const Icon(
  Icons.refresh,
  size: 20,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
   onPressed: _isGeneratingRequirements
   ? null
@@ -1540,7 +1540,7 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
                               onPressed: isRowLoading ? null : () => _regenerateRequirementRow(index),
                               icon: isRowLoading
                                   ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                  : const Icon(Icons.refresh, size: 18, color: Color(0xFF2563EB)),
+                                  : const Icon(Icons.refresh, size: 18, color: Color(0xFFD97706)),
                               padding: const EdgeInsets.all(6),
                               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                               splashRadius: 18,
@@ -1954,7 +1954,7 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
                             onPressed: isRowLoading ? null : () => _regenerateRequirementRow(index),
                             icon: isRowLoading
                                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                                : const Icon(Icons.refresh, size: 18, color: Color(0xFF2563EB)),
+                                : const Icon(Icons.refresh, size: 18, color: Color(0xFFD97706)),
                             padding: const EdgeInsets.all(6),
                             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                             splashRadius: 18,
@@ -2159,8 +2159,8 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
             label: const Text('Import CSV', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF2563EB),
-              side: const BorderSide(color: Color(0xFF93C5FD)),
+              foregroundColor: const Color(0xFFD97706),
+              side: const BorderSide(color: Color(0xFFFDE68A)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             ),
@@ -2175,8 +2175,8 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
             label: const Text('Template', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
             style: OutlinedButton.styleFrom(
               backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF2563EB),
-              side: const BorderSide(color: Color(0xFF93C5FD)),
+              foregroundColor: const Color(0xFFD97706),
+              side: const BorderSide(color: Color(0xFFFDE68A)),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             ),
@@ -2202,7 +2202,7 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
               actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               title: Row(
                 children: [
-                  const Icon(Icons.fact_check_rounded, color: Color(0xFF1D4ED8)),
+                  const Icon(Icons.fact_check_rounded, color: Color(0xFFD97706)),
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
@@ -2289,7 +2289,7 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
  setState(() => _requirementsConfirmed = false);
  }
  },
- activeColor: const Color(0xFF2563EB),
+ activeColor: const Color(0xFFD97706),
  ),
  const SizedBox(width: 8),
  GestureDetector(
@@ -2415,8 +2415,8 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
  label: const Text('Import CSV', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
  style: OutlinedButton.styleFrom(
  backgroundColor: Colors.white,
- foregroundColor: const Color(0xFF2563EB),
- side: const BorderSide(color: Color(0xFF93C5FD)),
+ foregroundColor: const Color(0xFFD97706),
+ side: const BorderSide(color: Color(0xFFFDE68A)),
  shape: RoundedRectangleBorder(
  borderRadius: BorderRadius.circular(12),
  ),
@@ -2433,8 +2433,8 @@ IMPORTANT: The Requirements Plan must cover ALL of the following areas:
   label: const Text('Template', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
   style: OutlinedButton.styleFrom(
   backgroundColor: Colors.white,
-  foregroundColor: const Color(0xFF2563EB),
-  side: const BorderSide(color: Color(0xFF93C5FD)),
+  foregroundColor: const Color(0xFFD97706),
+  side: const BorderSide(color: Color(0xFFFDE68A)),
   shape: RoundedRectangleBorder(
   borderRadius: BorderRadius.circular(12),
   ),
@@ -3011,13 +3011,13 @@ class _MemberPickerDialogState extends State<_MemberPickerDialog> {
  dense: true,
  leading: CircleAvatar(
  radius: 14,
- backgroundColor: const Color(0xFFDBEAFE),
+ backgroundColor: const Color(0xFFFFF7E6),
  child: Text(
  member.displayLabel[0].toUpperCase(),
  style: const TextStyle(
  fontSize: 12,
  fontWeight: FontWeight.w700,
- color: Color(0xFF1D4ED8),
+ color: Color(0xFFD97706),
  ),
  ),
  ),

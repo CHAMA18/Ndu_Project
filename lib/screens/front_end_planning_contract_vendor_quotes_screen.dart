@@ -809,13 +809,13 @@ static const List<String> _startStageOptions = [
  children: [
  CircleAvatar(
  radius: 11,
- backgroundColor: const Color(0xFFEFF6FF),
+ backgroundColor: const Color(0xFFFFF7E6),
  child: Text(
  '${index + 1}',
  style: const TextStyle(
  fontSize: 10,
  fontWeight: FontWeight.w700,
- color: Color(0xFF1D4ED8),
+ color: Color(0xFFD97706),
  ),
  ),
  ),
@@ -1540,12 +1540,12 @@ static const List<String> _startStageOptions = [
  }) {
  final selected = _selectedManagementTab == tab;
  final baseColor =
- selected ? const Color(0xFFEFF6FF) : const Color(0xFFFFFFFF);
+ selected ? const Color(0xFFFFF7E6) : const Color(0xFFFFFFFF);
  final borderColor = selected
- ? const Color(0xFF93C5FD)
+ ? const Color(0xFFFDE68A)
  : (enabled ? const Color(0xFFE5E7EB) : const Color(0xFFE5E7EB));
  final textColor = selected
- ? const Color(0xFF1D4ED8)
+ ? const Color(0xFFD97706)
  : (enabled ? const Color(0xFF4B5563) : const Color(0xFF9CA3AF));
 
  return InkWell(
@@ -1933,7 +1933,7 @@ static const List<String> _startStageOptions = [
  vertical: 4),
  decoration: BoxDecoration(
  color: const Color(
- 0xFFEFF6FF),
+ 0xFFFFF7E6),
  borderRadius:
  BorderRadius.circular(
  999),
@@ -2010,7 +2010,7 @@ static const List<String> _startStageOptions = [
  label: const Text(
  'Start Process for this Scope'),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFD97706),
  foregroundColor: Colors.white,
  ),
  ),
@@ -3094,7 +3094,7 @@ static const List<String> _startStageOptions = [
  .trim()
  .isEmpty
  ? const Color(0xFFF59E0B)
- : const Color(0xFF2563EB),
+ : const Color(0xFFD97706),
  ),
  ],
  ),
@@ -3643,7 +3643,7 @@ static const List<String> _startStageOptions = [
  );
  }
 
- Widget _statusBadge(String label, {Color tone = const Color(0xFF2563EB)}) {
+ Widget _statusBadge(String label, {Color tone = const Color(0xFFD97706)}) {
  return Container(
  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
  decoration: BoxDecoration(
@@ -3665,7 +3665,7 @@ static const List<String> _startStageOptions = [
  Color _trackingStatusTone(String status) {
  final normalized = status.toLowerCase();
  if (normalized.contains('draft')) return const Color(0xFF94A3B8);
- if (normalized.contains('sent')) return const Color(0xFF2563EB);
+ if (normalized.contains('sent')) return const Color(0xFFD97706);
  if (normalized.contains('response')) return const Color(0xFF14B8A6);
  if (normalized.contains('evaluation')) return const Color(0xFFF59E0B);
  if (normalized.contains('award') || normalized.contains('signed')) {
@@ -3678,7 +3678,7 @@ static const List<String> _startStageOptions = [
  final normalized = status.toLowerCase();
  if (normalized.contains('draft')) return const Color(0xFF94A3B8);
  if (normalized.contains('review')) return const Color(0xFFF59E0B);
- if (normalized.contains('approved')) return const Color(0xFF2563EB);
+ if (normalized.contains('approved')) return const Color(0xFFD97706);
  if (normalized.contains('publish')) return const Color(0xFF16A34A);
  return const Color(0xFF64748B);
  }
@@ -4073,7 +4073,7 @@ static const List<String> _startStageOptions = [
  builder: (context, setState) => AlertDialog(
  title: const Row(
  children: [
- Icon(Icons.fact_check_outlined, color: Color(0xFF2563EB)),
+ Icon(Icons.fact_check_outlined, color: Color(0xFFD97706)),
  SizedBox(width: 10),
  Text('Approved Contractor List'),
  ],
@@ -4107,7 +4107,7 @@ static const List<String> _startStageOptions = [
  const EdgeInsets.symmetric(horizontal: 0),
  leading: CircleAvatar(
  radius: 14,
- backgroundColor: const Color(0xFFEFF6FF),
+ backgroundColor: const Color(0xFFFFF7E6),
  child: Text(
  name.isEmpty
  ? '?'
@@ -4115,7 +4115,7 @@ static const List<String> _startStageOptions = [
  style: const TextStyle(
  fontSize: 12,
  fontWeight: FontWeight.w700,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
  ),
  ),
@@ -5123,7 +5123,7 @@ static const List<String> _startStageOptions = [
  ),
  const CircleAvatar(
  radius: 13,
- backgroundColor: Color(0xFF2563EB),
+ backgroundColor: Color(0xFFD97706),
  child: Text('Ch',
  style: TextStyle(
  color: Colors.white,
@@ -5272,7 +5272,7 @@ static const List<String> _startStageOptions = [
  strokeWidth: 2),
  )
  : const Icon(Icons.refresh_rounded,
- color: Color(0xFF2563EB)),
+ color: Color(0xFFD97706)),
  ),
  ],
  ),
@@ -5297,7 +5297,7 @@ static const List<String> _startStageOptions = [
  foregroundColor: const Color(0xFF1E3A8A),
  side: const BorderSide(
  color: Color(0xFFBFDBFE)),
- backgroundColor: const Color(0xFFEFF6FF),
+ backgroundColor: const Color(0xFFFFF7E6),
  ),
  ),
  ),
@@ -5344,7 +5344,7 @@ static const List<String> _startStageOptions = [
  child: const Row(
  children: [
  Icon(Icons.auto_awesome,
- size: 16, color: Color(0xFF2563EB)),
+ size: 16, color: Color(0xFFD97706)),
  SizedBox(width: 8),
  Expanded(
  child: Text(
@@ -5615,7 +5615,7 @@ static const List<String> _startStageOptions = [
  side: const BorderSide(
  color: Color(0xFFBFDBFE)),
  backgroundColor:
- const Color(0xFFEFF6FF),
+ const Color(0xFFFFF7E6),
  padding: const EdgeInsets.symmetric(
  horizontal: 14,
  vertical: 10,
@@ -6107,13 +6107,13 @@ class _BottomOverlay extends StatelessWidget {
  ),
  child: const Row(
  children: [
- Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
+ Icon(Icons.auto_awesome, color: Color(0xFFD97706)),
  SizedBox(width: 10),
  Text(
  'AI',
  style: TextStyle(
  fontWeight: FontWeight.w800,
- color: Color(0xFF2563EB),
+ color: Color(0xFFD97706),
  ),
  ),
  SizedBox(width: 12),
@@ -6178,11 +6178,11 @@ class _ScopeSectionModeSwitcher extends StatelessWidget {
  curve: Curves.easeOut,
  padding: const EdgeInsets.symmetric(vertical: 10),
  decoration: BoxDecoration(
- color: selected ? const Color(0xFFEFF6FF) : Colors.white,
+ color: selected ? const Color(0xFFFFF7E6) : Colors.white,
  borderRadius: BorderRadius.circular(10),
  border: Border.all(
  color: selected
- ? const Color(0xFF93C5FD)
+ ? const Color(0xFFFDE68A)
  : const Color(0xFFE5E7EB),
  ),
  ),
@@ -6193,7 +6193,7 @@ class _ScopeSectionModeSwitcher extends StatelessWidget {
  fontSize: 12.5,
  fontWeight: FontWeight.w700,
  color: selected
- ? const Color(0xFF1D4ED8)
+ ? const Color(0xFFD97706)
  : const Color(0xFF6B7280),
  ),
  ),
@@ -6488,7 +6488,7 @@ class _ContractScopeDetailCardState extends State<_ContractScopeDetailCard> {
  Container(
  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
  decoration: BoxDecoration(
- color: const Color(0xFFEFF6FF),
+ color: const Color(0xFFFFF7E6),
  borderRadius: BorderRadius.circular(999),
  border: Border.all(color: const Color(0xFFBFDBFE)),
  ),
@@ -6499,7 +6499,7 @@ class _ContractScopeDetailCardState extends State<_ContractScopeDetailCard> {
  style: const TextStyle(
  fontSize: 11,
  fontWeight: FontWeight.w700,
- color: Color(0xFF1D4ED8),
+ color: Color(0xFFD97706),
  ),
  ),
  ),
@@ -7024,8 +7024,8 @@ class _SectionHeader extends StatelessWidget {
  icon: const Icon(Icons.add, size: 16),
  label: Text(actionLabel),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFEFF6FF),
- foregroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFFFF7E6),
+ foregroundColor: const Color(0xFFD97706),
  elevation: 0,
  shape:
  RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -7273,7 +7273,7 @@ class _AiPreviewDialog extends StatelessWidget {
  return AlertDialog(
  title: const Row(
  children: [
- Icon(Icons.auto_awesome, color: Color(0xFF2563EB)),
+ Icon(Icons.auto_awesome, color: Color(0xFFD97706)),
  SizedBox(width: 12),
  Text('AI Suggested Contracting Scope'),
  ],
@@ -7342,7 +7342,7 @@ class _AiPreviewDialog extends StatelessWidget {
  ElevatedButton(
  onPressed: () => Navigator.of(context).pop(true),
  style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFF2563EB),
+ backgroundColor: const Color(0xFFD97706),
  foregroundColor: Colors.white,
  ),
  child: const Text('Confirm & Save'),

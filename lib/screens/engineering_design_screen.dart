@@ -2253,7 +2253,7 @@ showNavigationButtons: false, onExportPdf: _exportPdf),
  _openStructuralItemDialog(
  existing: item),
  icon: const Icon(Icons.edit_outlined,
- size: 16, color: Color(0xFF2563EB)),
+ size: 16, color: Color(0xFFD97706)),
  padding: EdgeInsets.zero,
  constraints:
  const BoxConstraints(minWidth: 28),
@@ -2432,7 +2432,7 @@ IconButton(
  _openComponentItemDialog(
  existing: item),
  icon: const Icon(Icons.edit_outlined,
- size: 16, color: Color(0xFF2563EB)),
+ size: 16, color: Color(0xFFD97706)),
  padding: EdgeInsets.zero,
  constraints:
  const BoxConstraints(minWidth: 28),
@@ -2623,7 +2623,7 @@ IconButton(
  _openCalculationItemDialog(
  existing: item),
  icon: const Icon(Icons.edit_outlined,
- size: 16, color: Color(0xFF2563EB)),
+ size: 16, color: Color(0xFFD97706)),
  padding: EdgeInsets.zero,
  constraints:
  const BoxConstraints(minWidth: 28),
@@ -2811,7 +2811,7 @@ IconButton(
  _openComplianceItemDialog(
  existing: item),
  icon: const Icon(Icons.edit_outlined,
- size: 16, color: Color(0xFF2563EB)),
+ size: 16, color: Color(0xFFD97706)),
  padding: EdgeInsets.zero,
  constraints:
  const BoxConstraints(minWidth: 28),
@@ -3006,7 +3006,7 @@ IconButton(
  onPressed: () =>
  _openEcnItemDialog(existing: item),
  icon: const Icon(Icons.edit_outlined,
- size: 16, color: Color(0xFF2563EB)),
+ size: 16, color: Color(0xFFD97706)),
  padding: EdgeInsets.zero,
  constraints:
  const BoxConstraints(minWidth: 28),
@@ -3143,7 +3143,7 @@ IconButton(
  existing: gate),
  icon: const Icon(Icons.edit_outlined,
  size: 14,
- color: Color(0xFF2563EB)),
+ color: Color(0xFFD97706)),
  padding: EdgeInsets.zero,
  constraints: const BoxConstraints(
  minWidth: 24, minHeight: 24),

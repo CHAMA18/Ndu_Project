@@ -435,7 +435,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
       return const SizedBox.shrink();
     final color = switch (methodology) {
       'agile' => const Color(0xFF7C3AED),
-      'waterfall' => const Color(0xFF2563EB),
+      'waterfall' => const Color(0xFFD97706),
       _ => const Color(0xFF059669),
     };
     final label = switch (methodology) {
@@ -1377,7 +1377,7 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
               // Badges row
               if (node.aiGenerated) ...[
                 const SizedBox(width: 6),
-                _buildBadge('AI', const Color(0xFF3B82F6), 8),
+                _buildBadge('AI', const Color(0xFFFBBF24), 8),
               ],
               if (node.isWorkPackage == true && !isRoot) ...[
                 const SizedBox(width: 4),
@@ -1396,21 +1396,21 @@ class _WBSBuilderScreenState extends State<WBSBuilderScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                      color: const Color(0xFFD97706).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(4),
                       border: Border.all(
                           color:
-                              const Color(0xFF2563EB).withValues(alpha: 0.25)),
+                              const Color(0xFFD97706).withValues(alpha: 0.25)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Icons.attach_money,
-                            size: 10, color: Color(0xFF2563EB)),
+                            size: 10, color: Color(0xFFD97706)),
                         const SizedBox(width: 2),
                         Text('$linkedCount',
                             style: const TextStyle(
-                                color: Color(0xFF2563EB),
+                                color: Color(0xFFD97706),
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700)),
                       ],
@@ -2237,21 +2237,21 @@ Guidelines:
       margin: const EdgeInsets.only(top: 4, bottom: 4),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
+        color: const Color(0xFFFFF7E6),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.25), width: 0.8),
+            color: const Color(0xFFD97706).withValues(alpha: 0.25), width: 0.8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.link, size: 12, color: Color(0xFF2563EB)),
+              const Icon(Icons.link, size: 12, color: Color(0xFFD97706)),
               const SizedBox(width: 6),
               const Text('LINKED COST LINES',
                   style: TextStyle(
-                      color: Color(0xFF2563EB),
+                      color: Color(0xFFD97706),
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 0.8)),

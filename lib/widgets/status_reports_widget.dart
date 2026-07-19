@@ -541,7 +541,7 @@ class _StatusReportRowWidgetState extends State<_StatusReportRowWidget> {
                               : _report.status == 'Draft'
                                   ? const Color(0xFFF59E0B)
                                       .withOpacity(0.1)
-                                  : const Color(0xFF2563EB)
+                                  : const Color(0xFFD97706)
                                       .withOpacity(0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -554,7 +554,7 @@ class _StatusReportRowWidgetState extends State<_StatusReportRowWidget> {
                                 ? const Color(0xFF10B981)
                                 : _report.status == 'Draft'
                                     ? const Color(0xFFF59E0B)
-                                    : const Color(0xFF2563EB),
+                                    : const Color(0xFFD97706),
                           ),
                         ),
                       ),

@@ -300,7 +300,7 @@ class _TeamMeetingsResourceGridState extends State<TeamMeetingsResourceGrid> {
                         horizontal: 12, vertical: 10),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
-                    foregroundColor: const Color(0xFF2563EB),
+                    foregroundColor: const Color(0xFFD97706),
                   ),
                 ),
               ],
@@ -1223,7 +1223,7 @@ class _ObjectiveCell extends StatelessWidget {
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Color(0xFF2563EB)),
+                        strokeWidth: 2, color: Color(0xFFD97706)),
                   )
                 : const Icon(Icons.refresh, size: 16, color: Color(0xFF64748B)),
             onPressed: isRegenerating ? null : onRegenerate,

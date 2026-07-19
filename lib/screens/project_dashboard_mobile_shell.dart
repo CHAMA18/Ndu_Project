@@ -44,8 +44,8 @@ class _Tokens {
   static const outlineVariant = Color(0xFFC0C6D6);
 
   // Brand / Accent
-  static const primary = Color(0xFF005BB3);
-  static const primaryContainer = Color(0xFF0073DF);
+  static const primary = Color(0xFFB45309);
+  static const primaryContainer = Color(0xFFD97706);
   static const tertiaryFixedDim = Color(0xFFFABD00);
   static const tertiary = Color(0xFF755700);
   static const error = Color(0xFFBA1A1A);
@@ -365,7 +365,7 @@ class _ProjectDashboardMobileShellState
     switch (snapshot.health) {
       case ProjectProgressHealth.completed:
         healthLabel = 'Completed';
-        healthColor = const Color(0xFF1D4ED8);
+        healthColor = const Color(0xFFD97706);
         break;
       case ProjectProgressHealth.onTrack:
         healthLabel = 'On Track';
@@ -820,7 +820,7 @@ class _ProjectDashboardMobileShellState
                                           ? 'Sign in to view'
                                           : singleCount.toString(),
                                       icon: Icons.folder,
-                                      iconBg: const Color(0xFFEFF6FF),
+                                      iconBg: const Color(0xFFFFF7E6),
                                       iconColor: _Tokens.primary,
                                       onTap: _navigateToProjects,
                                     ),
@@ -1313,7 +1313,7 @@ class _PremiumUserGreeting extends StatelessWidget {
                           horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: isBasicPlan
-                            ? const Color(0xFFEFF6FF)
+                            ? const Color(0xFFFFF7E6)
                             : const Color(0xFFFFF8E1),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
@@ -1332,7 +1332,7 @@ class _PremiumUserGreeting extends StatelessWidget {
                                 : Icons.workspace_premium_outlined,
                             size: 11,
                             color: isBasicPlan
-                                ? const Color(0xFF2563EB)
+                                ? const Color(0xFFD97706)
                                 : const Color(0xFFF59E0B),
                           ),
                           const SizedBox(width: 3),
@@ -1343,7 +1343,7 @@ class _PremiumUserGreeting extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.04,
                               color: isBasicPlan
-                                  ? const Color(0xFF2563EB)
+                                  ? const Color(0xFFD97706)
                                   : const Color(0xFFB45309),
                             ),
                           ),

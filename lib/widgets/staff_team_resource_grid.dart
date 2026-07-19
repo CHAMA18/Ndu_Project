@@ -1153,7 +1153,7 @@ class _PremiumStaffingRowState extends State<_PremiumStaffingRow> {
         return const Color(0xFF059669);
       case 'in progress':
       case 'active':
-        return const Color(0xFF2563EB);
+        return const Color(0xFFD97706);
       case 'planned':
       case 'not started':
         return const Color(0xFF6B7280);
@@ -1172,7 +1172,7 @@ class _PremiumStaffingRowState extends State<_PremiumStaffingRow> {
         return const Color(0xFFECFDF5);
       case 'in progress':
       case 'active':
-        return const Color(0xFFEFF6FF);
+        return const Color(0xFFFFF7E6);
       case 'planned':
       case 'not started':
         return const Color(0xFFF3F4F6);

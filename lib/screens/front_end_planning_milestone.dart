@@ -666,7 +666,7 @@ Generate milestones that cover the typical project lifecycle phases.''';
           content: Text(
             'Using default milestones - you can edit them as needed',
           ),
-          backgroundColor: Color(0xFF3B82F6),
+          backgroundColor: Color(0xFFFBBF24),
           duration: Duration(seconds: 3),
         ),
       );

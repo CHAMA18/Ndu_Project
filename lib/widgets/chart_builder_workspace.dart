@@ -12,7 +12,7 @@ class ChartBuilderWorkspace extends StatefulWidget {
 class _ChartBuilderWorkspaceState extends State<ChartBuilderWorkspace> {
   ChartType _type = ChartType.bar;
   final List<_ChartPoint> _points = [
-    _ChartPoint(label: 'Jan', value: 42, color: const Color(0xFF2563EB)),
+    _ChartPoint(label: 'Jan', value: 42, color: const Color(0xFFD97706)),
     _ChartPoint(label: 'Feb', value: 58, color: const Color(0xFF10B981)),
     _ChartPoint(label: 'Mar', value: 36, color: const Color(0xFFF59E0B)),
     _ChartPoint(label: 'Apr', value: 74, color: const Color(0xFFEF4444)),
@@ -220,7 +220,7 @@ class _DataRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatches = [
-      const Color(0xFF2563EB),
+      const Color(0xFFD97706),
       const Color(0xFF10B981),
       const Color(0xFFF59E0B),
       const Color(0xFFEF4444),
@@ -392,7 +392,7 @@ class _ChartPainter extends CustomPainter {
         ..lineTo(leftX, topY + chartHeight)
         ..close();
       final gradient = LinearGradient(
-        colors: [const Color(0xFF2563EB).withOpacity(0.35), Colors.white],
+        colors: [const Color(0xFFD97706).withOpacity(0.35), Colors.white],
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
       );
@@ -402,7 +402,7 @@ class _ChartPainter extends CustomPainter {
     canvas.drawPath(
       line,
       Paint()
-        ..color = const Color(0xFF2563EB)
+        ..color = const Color(0xFFD97706)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round,
