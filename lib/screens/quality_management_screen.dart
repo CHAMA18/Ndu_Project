@@ -187,14 +187,12 @@ List<String> _ownerOptions(BuildContext context) {
 String _buildQualityAiContext(ProjectDataModel data) {
   final methodology =
   ProjectDataHelper.resolvedProjectMethodology(data).name.toUpperCase();
-  final location = <String>[
-    (data.frontEndPlanning.summary),
-  ].where((value) => value.trim().isNotEmpty).join(', ');
+  final location = data.orgLocation.trim();
 
   // Collect risk context for quality risk identification
   final riskItems = data.frontEndPlanning.riskRegisterItems;
   final riskContext = riskItems.isNotEmpty
-      ? '\nTop Project Risks: ${riskItems.take(5).map((r) => "'"'${r.riskName} (${r.impactLevel}/${r.likelihood})'"'").join('; ')}'
+      ? '\nTop Project Risks: ${riskItems.take(5).map((r) => "${r.riskName} (${r.impactLevel}/${r.likelihood})").join('; ')}'
       : '';
   
   // Collect opportunity context for quality opportunities
@@ -230,7 +228,7 @@ String _buildQualityAiContext(ProjectDataModel data) {
     'Business Case: ${data.businessCase}',
     '',
     '=== PROJECT CLASSIFICATION ===',
-    'Industry / Sector: (not specified)',
+    'Industry / Sector: ${data.overallFramework ?? 'Not specified'}',
     'Delivery Framework: $methodology',
     'Project Location: ${location.isEmpty ? 'Not specified' : location}',
     'Team Size: $teamSize members, $roleCount defined roles',

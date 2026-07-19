@@ -51,6 +51,7 @@ class _ProjectWorkspaceDashboardScreenState
   bool _loading = true;
   String? _error;
   SsherPortfolioRollup? _ssherRollup;
+  Stream<List<ProjectRecord>>? _projectsStream;
   final TextEditingController _updateController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -100,6 +101,16 @@ class _ProjectWorkspaceDashboardScreenState
   @override
   void initState() {
     super.initState();
+    _projectsStream = FirebaseAuth.instance.currentUser == null
+        ? Stream.value(const <ProjectRecord>[])
+        : ProjectService.streamProjects(
+            ownerId: FirebaseAuth.instance.currentUser!.uid,
+            filterByOwner: true,
+            limit: 200,
+          ).handleError((error, stackTrace) {
+              debugPrint('Projects stream error: $error');
+              return <ProjectRecord>[];
+            });
     _loadMetrics();
   }
 
@@ -246,14 +257,14 @@ class _ProjectWorkspaceDashboardScreenState
       backgroundColor: _bg,
       body: SafeArea(
         child: StreamBuilder<List<ProjectRecord>>(
-          stream: FirebaseAuth.instance.currentUser == null
-              ? Stream.value(const <ProjectRecord>[])
-              : ProjectService.streamProjects(
-                  ownerId: FirebaseAuth.instance.currentUser!.uid,
-                  filterByOwner: true,
-                  limit: 200,
-                ),
+          stream: _projectsStream,
           builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return _buildBanner(
+                'Failed to load projects: ${snapshot.error}',
+                _crimson,
+              );
+            }
             final allProjects = snapshot.data ?? const <ProjectRecord>[];
             final projects = allProjects
                 .where((p) =>
