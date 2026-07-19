@@ -1,0 +1,10 @@
+# CODEOWNERS — PR approval required from chimmie@nduproject.com
+# All files require review from the project owner
+* @CHAMA18
+
+# Alternative: if chimmie@nduproject.com is linked to a GitHub account,
+# replace @CHAMA18 with that username above.
+# To set up: 
+# 1. Go to https://github.com/settings/emails
+# 2. Add chimmie@nduproject.com as a verified email
+# 3. Update this file to use the corresponding GitHub username
