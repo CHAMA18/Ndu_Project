@@ -289,7 +289,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
           );
           _attachGoalListeners(g);
           _goals.add(g);
-          _setupGoalNomenclature(g);
         }
         setState(() {});
       } else if (projectData.planningGoals.isNotEmpty &&
@@ -307,14 +306,12 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
                 framework: null);
             _attachGoalListeners(g);
             _goals.add(g);
-            _setupGoalNomenclature(g);
           }
         }
         if (_goals.isEmpty) {
           final g = _Goal(id: 1, name: 'Goal 1', framework: null);
           _attachGoalListeners(g);
           _goals.add(g);
-          _setupGoalNomenclature(g);
         }
         setState(() {});
       }
@@ -488,7 +485,8 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
           await _openAi.suggestProjectFrameworkGoals(context: goalContext);
       if (!mounted) return;
 
-      final generatedGoals = result.goals.take(5).toList();
+      final generatedGoals =
+          result.goals.take(ProjectDataModel.maxProjectGoals).toList();
       if (generatedGoals.isEmpty) return;
 
       setState(() {
@@ -506,7 +504,6 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
           );
           _attachGoalListeners(goal);
           _goals.add(goal);
-          _setupGoalNomenclature(goal);
         }
         if ((_selectedOverallFramework ?? '').isEmpty &&
             result.framework.isNotEmpty) {
@@ -579,33 +576,8 @@ class _ProjectFrameworkScreenState extends State<ProjectFrameworkScreen> {
               : null);
       _attachGoalListeners(g);
       _goals.add(g);
-      _setupGoalNomenclature(g);
     });
     _saveData();
-  }
-
-  void _setupGoalNomenclature(_Goal goal) {
-    goal.controller.addListener(() {
-      final text = goal.controller.text.trim();
-      if (text.isNotEmpty) {
-        final words = text.split(RegExp(r'\s+')).take(3);
-        final initials = words
-            .where((w) => w.isNotEmpty)
-            .map((w) => w[0].toUpperCase())
-            .join();
-        if (initials.isNotEmpty) {
-          final newTitle = 'S${goal.id} $initials';
-          if (goal.nameController.text != newTitle) {
-            goal.nameController.text = newTitle;
-          }
-        }
-      } else {
-        final defaultTitle = 'Goal ${goal.id}';
-        if (goal.nameController.text != defaultTitle) {
-          goal.nameController.text = defaultTitle;
-        }
-      }
-    });
   }
 
   void _deleteGoal(int goalId) {
@@ -1774,7 +1746,7 @@ class _MobileGoalsSection extends StatelessWidget {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Indicate upto 5 key high-level outcomes for this project',
+                    'Define up to three key project goals that will serve as the basis for developing the Work Breakdown Structure (WBS).',
                     style: TextStyle(
                         fontSize: 11,
                         color: _Tokens.onSurfaceVariant,
@@ -1891,12 +1863,41 @@ class _MobileGoalCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Goal name as dropdown-style
+              // Editable goal title
               Expanded(
-                child: Text(
-                  goal.nameController.text.isEmpty
-                      ? 'Goal ${index + 1}'
-                      : goal.nameController.text,
+                child: TextField(
+                  controller: goal.nameController,
+                  focusNode: goal.nameFocus,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(
+                    hintText: 'Goal ${index + 1} title',
+                    isDense: true,
+                    filled: true,
+                    fillColor: _Tokens.surface,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: _Tokens.outlineVariant,
+                      ),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: _Tokens.outlineVariant,
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(
+                        color: _Tokens.primary,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -1915,7 +1916,7 @@ class _MobileGoalCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8), // Description textarea
+          const SizedBox(height: 8),
           HoverableFieldControls(
             isAiGenerated: isDescriptionAiGenerated,
             isLoading: isRegeneratingDesc,

@@ -1209,7 +1209,20 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
  if (!context.mounted) return;
 
  if (newItems.isNotEmpty) {
+ final remainingSlots = ProjectDataModel.maxProjectGoals - currentList.length;
+ if (remainingSlots <= 0) {
+ if (context.mounted) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('Maximum of 3 project goals allowed.'),
+ backgroundColor: Colors.red,
+ ),
+ );
+ }
+ return;
+ }
  final newGoals = newItems
+ .take(remainingSlots)
  .map((i) => ProjectGoal(name: i.title, description: i.description))
  .toList();
  final updatedList = List<ProjectGoal>.from(currentList)
@@ -1241,6 +1254,18 @@ class _PlanningCardsSectionState extends State<_PlanningCardsSection> {
  BuildContext context, String title, List<ProjectGoal> currentList) async {
  final newItem = await _showItemDialog(context, title: 'Add $title');
  if (newItem != null) {
+ final remainingSlots = ProjectDataModel.maxProjectGoals - currentList.length;
+ if (remainingSlots <= 0) {
+ if (context.mounted) {
+ ScaffoldMessenger.of(context).showSnackBar(
+ const SnackBar(
+ content: Text('Maximum of 3 project goals allowed.'),
+ backgroundColor: Colors.red,
+ ),
+ );
+ }
+ return;
+ }
  final updatedList = List<ProjectGoal>.from(currentList)
  ..add(
  ProjectGoal(name: newItem.title, description: newItem.description));
