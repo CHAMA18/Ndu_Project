@@ -131,7 +131,7 @@ class _LandingScreenState extends State<LandingScreen>
  void _handleStartProject() {
  Navigator.push(
  context,
- MaterialPageRoute(builder: (_) => const PricingScreen()),
+ MaterialPageRoute(builder: (_) => const SignInScreen()),
  );
  }
 
@@ -836,7 +836,7 @@ class _LandingScreenState extends State<LandingScreen>
  alignment: WrapAlignment.center,
  children: [
  ElevatedButton(
- onPressed: () => _launchExternalLink('https://calendar.app.google/aGQDFPpmEK9eDh5W6'),
+ onPressed: _handleStartProject,
  style: ElevatedButton.styleFrom(
  backgroundColor: LightModeColors.accent,
  foregroundColor: const Color(0xFF151515),
