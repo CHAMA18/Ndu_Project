@@ -160,7 +160,7 @@ class _OrganizationRolesResponsibilitiesScreenState
       _MetricData(
           'Total Roles', roles.length.toString(), const Color(0xFFFBBF24)),
       _MetricData(
-          'Deciplines',
+          'Diciplines',
           roles.map<String>((r) => r.workstream).toSet().length.toString(),
           const Color(0xFF10B981)),
     ];
@@ -620,7 +620,7 @@ class _OrganizationRolesResponsibilitiesScreenState
               ),
             ],
             const SizedBox(height: 16),
-            PremiumEditDialog.fieldLabel('Decipline'),
+            PremiumEditDialog.fieldLabel('Dicipline'),
             PremiumEditDialog.textField(
                 controller: workstreamController, hint: 'e.g. Management'),
             const SizedBox(height: 16),
@@ -708,7 +708,7 @@ class _OrganizationRolesResponsibilitiesScreenState
               ),
             ],
             const SizedBox(height: 16),
-            PremiumEditDialog.fieldLabel('Decipline'),
+            PremiumEditDialog.fieldLabel('Dicipline'),
             PremiumEditDialog.textField(
                 controller: workstreamController, hint: 'e.g. Management'),
             const SizedBox(height: 16),

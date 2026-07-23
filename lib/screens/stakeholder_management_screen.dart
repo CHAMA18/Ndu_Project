@@ -33,7 +33,7 @@ class StakeholderManagementScreen extends StatefulWidget {
 
 class _StakeholderManagementScreenState
  extends State<StakeholderManagementScreen> {
- int _activeTabIndex = 0; // 0 = Stakeholders, 1 = Engagement Plans, 2 = Mapping, 3 = Announcements
+ int _activeTabIndex = 0; // 0 = Stakeholders, 1 = Engagement Plans, 2 = Project Team, 3 = Mapping, 4 = Announcements
 
  final _stakeholderSaveDebounce = _Debouncer();
  final _planSaveDebounce = _Debouncer();
@@ -128,31 +128,40 @@ class _StakeholderManagementScreenState
  _InfluenceInterestMatrix(
  stakeholders: projectData.stakeholderEntries),
  const SizedBox(height: 32),
- _EngagementSection(
- activeTabIndex: _activeTabIndex,
- onTabChanged: (idx) => setState(() => _activeTabIndex = idx),
- stakeholderTable: _StakeholdersTable(
- entries: filteredStakeholders,
- isLoading: false,
- onChanged: _updateStakeholder,
- onDelete: _deleteStakeholder,
- ),
- planTable: _EngagementPlansTable(
- entries: filteredPlans,
- isLoading: false,
- onChanged: _updateEngagementPlan,
- onDelete: _deleteEngagementPlan,
- ),
- mappingTable: _StakeholderMappingTab(
- stakeholders: projectData.stakeholderEntries,
- ),
- announcementsWidget: _AnnouncementsTab(
- stakeholders: projectData.stakeholderEntries,
- ),
- onAdd:
- _activeTabIndex == 0 ? _addStakeholder : _addEngagementPlan,
- onSearch: (v) => setState(() => _searchQuery = v),
- ),
+  _EngagementSection(
+  activeTabIndex: _activeTabIndex,
+  onTabChanged: (idx) => setState(() => _activeTabIndex = idx),
+  stakeholderTable: _StakeholdersTable(
+  entries: filteredStakeholders,
+  isLoading: false,
+  onChanged: _updateStakeholder,
+  onDelete: _deleteStakeholder,
+  ),
+  planTable: _EngagementPlansTable(
+  entries: filteredPlans,
+  isLoading: false,
+  onChanged: _updateEngagementPlan,
+  onDelete: _deleteEngagementPlan,
+  ),
+  teamTable: _ProjectTeamTable(
+  entries: projectData.engagementPlanEntries,
+  staffingRequirements: projectData.staffingRequirements,
+  isLoading: false,
+  onChanged: _updateEngagementPlan,
+  onDelete: _deleteEngagementPlan,
+  onImport: _importFromStaffingPlan,
+  ),
+  mappingTable: _StakeholderMappingTab(
+  stakeholders: projectData.stakeholderEntries,
+  ),
+  announcementsWidget: _AnnouncementsTab(
+  stakeholders: projectData.stakeholderEntries,
+  ),
+  onAdd:
+  _activeTabIndex == 0 ? _addStakeholder : _addEngagementPlan,
+  onImportTeam: _importFromStaffingPlan,
+  onSearch: (v) => setState(() => _searchQuery = v),
+  ),
  const SizedBox(height: 24),
  LaunchPhaseNavigation(
  backLabel:
@@ -330,10 +339,65 @@ class _StakeholderManagementScreenState
  engagementPlanEntries:
  d.engagementPlanEntries.where((e) => e.id != id).toList(),
  ),
- );
- }
+  );
+  }
 
- void _scrollToLatestInlineRow() {
+  void _importFromStaffingPlan() async {
+  final projectData = ProjectDataHelper.getDataListening(context);
+  final requirements = projectData.staffingRequirements;
+  if (requirements.isEmpty) {
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+  content: Text('No staffing plan entries found. Add positions in the Staffing Plan first.')));
+  return;
+  }
+
+  final selected = await showDialog<List<StaffingRequirement>>(
+  context: context,
+  builder: (ctx) => _ImportFromStaffingDialog(requirements: requirements),
+  );
+  if (selected == null || selected.isEmpty || !mounted) return;
+
+  final now = DateTime.now();
+  final newPlans = selected.map((r) {
+  final displayName = r.personName.trim().isNotEmpty ? r.personName.trim() : r.title;
+  return EngagementPlanEntry(
+  id: '${now.microsecondsSinceEpoch}_${r.id}',
+  stakeholder: displayName,
+  objective: 'Engage $displayName — manage closely as project team member',
+  method: 'Email + Team Meeting',
+  frequency: 'Weekly',
+  owner: 'Project Manager',
+  status: 'Planned',
+  nextTouchpoint: '',
+  notes: 'Imported from Staffing Plan (${r.title})',
+  email: r.email,
+  phone: r.phone,
+  location: r.location,
+  quarter: '',
+  dataLinks: '',
+  isProjectTeam: true,
+  createdAt: now,
+  updatedAt: now,
+  );
+  }).toList();
+
+  await ProjectDataHelper.updateAndSave(
+  context: context,
+  checkpoint: 'stakeholder_management',
+  dataUpdater: (d) => d.copyWith(
+  engagementPlanEntries: [...d.engagementPlanEntries, ...newPlans],
+  ),
+  );
+  if (mounted) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+  content: Text('Imported ${newPlans.length} team member(s) from Staffing Plan.'),
+  backgroundColor: const Color(0xFF10B981),
+  ));
+  }
+  }
+
+  void _scrollToLatestInlineRow() {
  WidgetsBinding.instance.addPostFrameCallback((_) async {
  await Future<void>.delayed(const Duration(milliseconds: 120));
  if (!mounted || !_pageScrollController.hasClients) return;
@@ -479,44 +543,73 @@ class _StakeholderManagementScreenState
  return;
  }
 
- // Generate engagement plans for each stakeholder
- final now = DateTime.now();
- final engagementPlans = newEntries
- .map((s) => EngagementPlanEntry(
- id: '${now.microsecondsSinceEpoch}_${s.id}',
- stakeholder: s.name,
- objective:
- 'Engage ${s.name} to align on project objectives and gather input',
- method: 'Regular meetings',
- frequency: 'Weekly',
- owner: 'Project Manager',
- status: 'Planned',
- nextTouchpoint: '',
- notes: 'Auto-generated from Initiation Phase stakeholder data',
- createdAt: now,
- updatedAt: now,
- ))
- .toList();
+  // Generate engagement plans for each stakeholder
+  final now = DateTime.now();
+  final engagementPlans = newEntries
+  .map((s) => EngagementPlanEntry(
+  id: '${now.microsecondsSinceEpoch}_${s.id}',
+  stakeholder: s.name,
+  objective:
+  'Engage ${s.name} to align on project objectives and gather input',
+  method: 'Regular meetings',
+  frequency: 'Weekly',
+  owner: 'Project Manager',
+  status: 'Planned',
+  nextTouchpoint: '',
+  notes: 'Auto-generated from Initiation Phase stakeholder data',
+  createdAt: now,
+  updatedAt: now,
+  ))
+  .toList();
 
- await ProjectDataHelper.updateAndSave(
- context: context,
- checkpoint: 'stakeholder_management',
- dataUpdater: (d) => d.copyWith(
- stakeholderEntries: newEntries,
- engagementPlanEntries: [
- ...d.engagementPlanEntries,
- ...engagementPlans,
- ],
- ),
- );
- if (!mounted) return;
- ScaffoldMessenger.of(context).showSnackBar(
- SnackBar(
- content: Text(
- 'Loaded ${newEntries.length} stakeholders and ${engagementPlans.length} engagement plans from Initiation Phase.',
- ),
- ),
- );
+  // Also generate engagement plans for project team members from staffing plan
+  final staffingRequirements = projectData.staffingRequirements;
+  final teamPlans = staffingRequirements
+  .where((r) => r.personName.trim().isNotEmpty || r.title.trim().isNotEmpty)
+  .map((r) {
+  final displayName = r.personName.trim().isNotEmpty ? r.personName.trim() : r.title;
+  return EngagementPlanEntry(
+  id: '${now.microsecondsSinceEpoch}_team_${r.id}',
+  stakeholder: displayName,
+  objective: 'Engage $displayName — manage closely as project team member',
+  method: 'Email + Team Meeting',
+  frequency: 'Weekly',
+  owner: 'Project Manager',
+  status: 'Planned',
+  nextTouchpoint: '',
+  notes: 'Auto-generated from Staffing Plan (${r.title})',
+  email: r.email,
+  phone: r.phone,
+  location: r.location,
+  quarter: '',
+  dataLinks: '',
+  isProjectTeam: true,
+  createdAt: now,
+  updatedAt: now,
+  );
+  })
+  .toList();
+
+  await ProjectDataHelper.updateAndSave(
+  context: context,
+  checkpoint: 'stakeholder_management',
+  dataUpdater: (d) => d.copyWith(
+  stakeholderEntries: newEntries,
+  engagementPlanEntries: [
+  ...d.engagementPlanEntries,
+  ...engagementPlans,
+  ...teamPlans,
+  ],
+  ),
+  );
+  if (!mounted) return;
+  ScaffoldMessenger.of(context).showSnackBar(
+  SnackBar(
+  content: Text(
+  'Loaded ${newEntries.length} stakeholders, ${engagementPlans.length} plans, and ${teamPlans.length} team members.',
+  ),
+  ),
+  );
  }
 
  Future<void> _exportPdf() async {
@@ -841,26 +934,40 @@ class _LevelDistributionCard extends StatelessWidget {
 }
 
 class _InfluenceInterestMatrix extends StatelessWidget {
- const _InfluenceInterestMatrix({required this.stakeholders});
+  const _InfluenceInterestMatrix({required this.stakeholders});
 
- final List<StakeholderEntry> stakeholders;
+  final List<StakeholderEntry> stakeholders;
 
- @override
- Widget build(BuildContext context) {
- final hHighILow = stakeholders
- .where((s) => s.influence == 'High' && s.interest == 'Low')
- .toList();
- final hHighIHigh = stakeholders
- .where((s) => s.influence == 'High' && s.interest == 'High')
- .toList();
- final hLowILow = stakeholders
- .where((s) => s.influence == 'Low' && s.interest == 'Low')
- .toList();
- final hLowIHigh = stakeholders
- .where((s) => s.influence == 'Low' && s.interest == 'High')
- .toList();
- // NOTE: Medium/keep-informed/monitor buckets were previously computed here
- // but unused in the UI.
+  /// Classifies a stakeholder into a quadrant using Mendelow's matrix.
+  /// Medium values are routed to the most appropriate quadrant.
+  static String _quadrantFor(StakeholderEntry s) {
+    final influence = s.influence.toLowerCase();
+    final interest = s.interest.toLowerCase();
+    final highInfluence =
+        influence == 'high' || influence.contains('significant');
+    final highInterest =
+        interest == 'high' || interest.contains('significant');
+    final lowInfluence =
+        influence == 'low' || influence.contains('minimal');
+    final lowInterest =
+        interest == 'low' || interest.contains('minimal');
+
+    if (highInfluence && highInterest) return 'Manage Closely';
+    if (highInfluence && !highInterest) return 'Keep Satisfied';
+    if (!highInfluence && highInterest) return 'Keep Informed';
+    return 'Monitor';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final manageClosely =
+        stakeholders.where((s) => _quadrantFor(s) == 'Manage Closely').toList();
+    final keepSatisfied =
+        stakeholders.where((s) => _quadrantFor(s) == 'Keep Satisfied').toList();
+    final keepInformed =
+        stakeholders.where((s) => _quadrantFor(s) == 'Keep Informed').toList();
+    final monitor =
+        stakeholders.where((s) => _quadrantFor(s) == 'Monitor').toList();
 
  return Column(
  crossAxisAlignment: CrossAxisAlignment.start,
@@ -898,51 +1005,51 @@ class _InfluenceInterestMatrix extends StatelessWidget {
  ],
  ),
  ),
- Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- // Y-axis label (Influence)
- _verticalAxisLabel('HIGH INFLUENCE'),
- Expanded(
- child: _matrixQuadrant(
- label: 'Keep Satisfied',
- color: const Color(0xFFFFF7E6), // Blue
- accentColor: const Color(0xFFFBBF24),
- stakeholders: hHighILow,
- ),
- ),
- Expanded(
- child: _matrixQuadrant(
- label: 'Manage Closely (Key Players)',
- color: const Color(0xFFFEF2F2), // Red
- accentColor: const Color(0xFFEF4444),
- stakeholders: hHighIHigh,
- ),
- ),
- ],
- ),
- Row(
- crossAxisAlignment: CrossAxisAlignment.start,
- children: [
- _verticalAxisLabel('LOW INFLUENCE'),
- Expanded(
- child: _matrixQuadrant(
- label: 'Monitor (Minimal Effort)',
- color: const Color(0xFFF9FAFB), // Grey
- accentColor: const Color(0xFF6B7280),
- stakeholders: hLowILow,
- ),
- ),
- Expanded(
- child: _matrixQuadrant(
- label: 'Keep Informed',
- color: const Color(0xFFECFDF5), // Green
- accentColor: const Color(0xFF10B981),
- stakeholders: hLowIHigh,
- ),
- ),
- ],
- ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Y-axis label (Influence)
+                      _verticalAxisLabel('HIGH INFLUENCE'),
+                      Expanded(
+                        child: _matrixQuadrant(
+                          label: 'Keep Satisfied',
+                          color: const Color(0xFFFFF7E6),
+                          accentColor: const Color(0xFFFBBF24),
+                          stakeholders: keepSatisfied,
+                        ),
+                      ),
+                      Expanded(
+                        child: _matrixQuadrant(
+                          label: 'Manage Closely (Key Players)',
+                          color: const Color(0xFFFEF2F2),
+                          accentColor: const Color(0xFFEF4444),
+                          stakeholders: manageClosely,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _verticalAxisLabel('LOW INFLUENCE'),
+                      Expanded(
+                        child: _matrixQuadrant(
+                          label: 'Monitor (Minimal Effort)',
+                          color: const Color(0xFFF9FAFB),
+                          accentColor: const Color(0xFF6B7280),
+                          stakeholders: monitor,
+                        ),
+                      ),
+                      Expanded(
+                        child: _matrixQuadrant(
+                          label: 'Keep Informed',
+                          color: const Color(0xFFECFDF5),
+                          accentColor: const Color(0xFF10B981),
+                          stakeholders: keepInformed,
+                        ),
+                      ),
+                    ],
+                  ),
  const SizedBox(height: 16),
  ],
  ),
@@ -1122,25 +1229,29 @@ class _SectionEmptyState extends StatelessWidget {
 }
 
 class _EngagementSection extends StatelessWidget {
- const _EngagementSection({
- required this.activeTabIndex,
- required this.onTabChanged,
- required this.stakeholderTable,
- required this.planTable,
- required this.mappingTable,
- required this.announcementsWidget,
- required this.onAdd,
- required this.onSearch,
- });
+  const _EngagementSection({
+    required this.activeTabIndex,
+    required this.onTabChanged,
+    required this.stakeholderTable,
+    required this.planTable,
+    required this.teamTable,
+    required this.mappingTable,
+    required this.announcementsWidget,
+    required this.onAdd,
+    required this.onImportTeam,
+    required this.onSearch,
+  });
 
- final int activeTabIndex;
- final ValueChanged<int> onTabChanged;
- final Widget stakeholderTable;
- final Widget planTable;
- final Widget mappingTable;
- final Widget announcementsWidget;
- final VoidCallback onAdd;
- final ValueChanged<String> onSearch;
+  final int activeTabIndex;
+  final ValueChanged<int> onTabChanged;
+  final Widget stakeholderTable;
+  final Widget planTable;
+  final Widget teamTable;
+  final Widget mappingTable;
+  final Widget announcementsWidget;
+  final VoidCallback onAdd;
+  final VoidCallback onImportTeam;
+  final ValueChanged<String> onSearch;
 
  @override
  Widget build(BuildContext context) {
@@ -1158,59 +1269,78 @@ class _EngagementSection extends StatelessWidget {
  color: Color(0xFFF4F5FB),
  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
  ),
- child: Row(
- children: [
- _tabButton(title: 'Stakeholders', index: 0),
- _tabButton(title: 'Engagement Plans', index: 1),
- _tabButton(title: 'Stakeholder Mapping', index: 2),
- _tabButton(title: 'Announcements', index: 3),
- ],
- ),
+  child: Row(
+  children: [
+  _tabButton(title: 'Stakeholders', index: 0),
+  _tabButton(title: 'Engagement Plans', index: 1),
+  _tabButton(title: 'Project Team', index: 2),
+  _tabButton(title: 'Stakeholder Mapping', index: 3),
+  _tabButton(title: 'Announcements', index: 4),
+  ],
+  ),
  ),
  Padding(
  padding: const EdgeInsets.all(24),
  child: Column(
  crossAxisAlignment: CrossAxisAlignment.start,
  children: [
- if (activeTabIndex < 2) ...[
- Row(
- children: [
- Expanded(
- child: _SearchField(
- enabled: true,
- value: '',
- onChanged: onSearch,
- ),
- ),
- const SizedBox(width: 12),
- ElevatedButton.icon(
- onPressed: onAdd,
- icon: const Icon(Icons.add),
- label: Text(
- activeTabIndex == 0 ? 'Add stakeholder' : 'Add plan'),
- style: ElevatedButton.styleFrom(
- backgroundColor: const Color(0xFFFFD84D),
- foregroundColor: const Color(0xFF1F2937),
- elevation: 0,
- padding: const EdgeInsets.symmetric(
- horizontal: 18, vertical: 14),
- shape: RoundedRectangleBorder(
- borderRadius: BorderRadius.circular(12)),
- ),
- ),
- ],
- ),
- const SizedBox(height: 24),
- ],
- IndexedStack(
- index: activeTabIndex,
- children: [
- stakeholderTable,
- planTable,
- mappingTable,
- announcementsWidget,
- ],
- ),
+  if (activeTabIndex < 3) ...[
+  Row(
+  children: [
+  Expanded(
+  child: _SearchField(
+  enabled: true,
+  value: '',
+  onChanged: onSearch,
+  ),
+  ),
+  const SizedBox(width: 12),
+  if (activeTabIndex == 2)
+  ElevatedButton.icon(
+  onPressed: onImportTeam,
+  icon: const Icon(Icons.download_outlined),
+  label: const Text('Import from Staffing Plan'),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFF10B981),
+  foregroundColor: Colors.white,
+  elevation: 0,
+  padding: const EdgeInsets.symmetric(
+  horizontal: 18, vertical: 14),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12)),
+  ),
+  ),
+  if (activeTabIndex == 2) const SizedBox(width: 8),
+  if (activeTabIndex != 2)
+  ElevatedButton.icon(
+  onPressed: onAdd,
+  icon: const Icon(Icons.add),
+  label: Text(
+  activeTabIndex == 0 ? 'Add stakeholder' : 'Add plan'),
+  style: ElevatedButton.styleFrom(
+  backgroundColor: const Color(0xFFFFD84D),
+  foregroundColor: const Color(0xFF1F2937),
+  elevation: 0,
+  padding: const EdgeInsets.symmetric(
+  horizontal: 18, vertical: 14),
+  shape: RoundedRectangleBorder(
+  borderRadius: BorderRadius.circular(12)),
+  ),
+  ),
+  ],
+  ),
+  const SizedBox(height: 24),
+  ],
+  IndexedStack(
+  index: activeTabIndex,
+  children: [
+  stakeholderTable,
+  planTable,
+  teamTable,
+  mappingTable,
+  announcementsWidget,
+  ],
+  ),
  ],
  ),
  ),
@@ -1426,117 +1556,384 @@ class _EngagementPlansTable extends StatelessWidget {
  final ValueChanged<EngagementPlanEntry> onChanged;
  final ValueChanged<String> onDelete;
 
- @override
- Widget build(BuildContext context) {
- final columns = [
- const _TableColumnDef('#', 72),
- const _TableColumnDef('Stakeholder', 200),
- const _TableColumnDef('Objective', 220),
- const _TableColumnDef('Method', 160),
- const _TableColumnDef('Frequency', 140),
- const _TableColumnDef('Owner', 160),
- const _TableColumnDef('Status', 140),
- const _TableColumnDef('Next Touchpoint', 160),
- const _TableColumnDef('Notes', 240),
- const _TableColumnDef('', 70),
- ];
+  @override
+  Widget build(BuildContext context) {
+    final columns = [
+    const _TableColumnDef('#', 72),
+    const _TableColumnDef('Stakeholder', 200),
+    const _TableColumnDef('Email', 200),
+    const _TableColumnDef('Objective', 220),
+    const _TableColumnDef('Method', 160),
+    const _TableColumnDef('Frequency', 140),
+    const _TableColumnDef('Location', 160),
+    const _TableColumnDef('Phone', 160),
+    const _TableColumnDef('Owner', 160),
+    const _TableColumnDef('Status', 140),
+    const _TableColumnDef('Next Touchpoint', 160),
+    const _TableColumnDef('Notes', 240),
+    const _TableColumnDef('', 70),
+    ];
 
- if (isLoading) {
- return const LinearProgressIndicator(minHeight: 2);
- }
+    if (isLoading) {
+    return const LinearProgressIndicator(minHeight: 2);
+    }
 
- if (entries.isEmpty) {
- return const _SectionEmptyState(
- title: 'No engagement plans yet',
- message: 'Add engagement plans to define stakeholder touchpoints.',
- icon: Icons.playlist_add_check_outlined,
- );
- }
+    final stakeholderEntries = entries.where((e) => !e.isProjectTeam).toList();
 
- return _EditableTable(
- columns: columns,
- rows: [
- for (int index = 0; index < entries.length; index++)
- _EditableRow(
- key: ValueKey(entries[index].id),
- columns: columns,
- cells: [
- _IndexCell(number: index + 1),
- _TextCell(
- value: entries[index].stakeholder,
- fieldKey: '${entries[index].id}_stakeholder',
- hintText: 'Stakeholder',
- onChanged: (value) =>
- onChanged(entries[index].copyWith(stakeholder: value)),
- ),
- _TextCell(
- value: entries[index].objective,
- fieldKey: '${entries[index].id}_objective',
- hintText: 'Objective',
- minLines: 1,
- maxLines: null,
- onChanged: (value) =>
- onChanged(entries[index].copyWith(objective: value)),
- ),
- _TextCell(
- value: entries[index].method,
- fieldKey: '${entries[index].id}_method',
- hintText: 'Method',
- onChanged: (value) =>
- onChanged(entries[index].copyWith(method: value)),
- ),
- _TextCell(
- value: entries[index].frequency,
- fieldKey: '${entries[index].id}_frequency',
- hintText: 'Frequency',
- onChanged: (value) =>
- onChanged(entries[index].copyWith(frequency: value)),
- ),
- _TextCell(
- value: entries[index].owner,
- fieldKey: '${entries[index].id}_owner',
- hintText: 'Owner',
- onChanged: (value) =>
- onChanged(entries[index].copyWith(owner: value)),
- ),
- _DropdownCell(
- value: entries[index].status,
- fieldKey: '${entries[index].id}_status',
- options: const [
- 'Planned',
- 'In progress',
- 'At risk',
- 'Completed'
- ],
- onChanged: (value) =>
- onChanged(entries[index].copyWith(status: value)),
- ),
- _TextCell(
- value: entries[index].nextTouchpoint,
- fieldKey: '${entries[index].id}_next_touchpoint',
- hintText: 'Next touchpoint',
- onChanged: (value) =>
- onChanged(entries[index].copyWith(nextTouchpoint: value)),
- ),
- _TextCell(
- value: entries[index].notes,
- fieldKey: '${entries[index].id}_notes',
- hintText: 'Notes',
- minLines: 1,
- maxLines: null,
- onChanged: (value) =>
- onChanged(entries[index].copyWith(notes: value)),
- ),
- _DeleteCell(
- itemName:
- 'engagement plan for "${entries[index].stakeholder.trim().isEmpty ? 'Untitled' : entries[index].stakeholder.trim()}"',
- onPressed: () => onDelete(entries[index].id),
- ),
- ],
- ),
- ],
- );
- }
+    if (stakeholderEntries.isEmpty) {
+    return const _SectionEmptyState(
+    title: 'No engagement plans yet',
+    message: 'Add engagement plans to define stakeholder touchpoints.',
+    icon: Icons.playlist_add_check_outlined,
+    );
+    }
+
+    return _EditableTable(
+    columns: columns,
+    rows: [
+    for (int index = 0; index < stakeholderEntries.length; index++)
+    _EditableRow(
+    key: ValueKey(stakeholderEntries[index].id),
+    columns: columns,
+    cells: [
+    _IndexCell(number: index + 1),
+    _TextCell(
+    value: stakeholderEntries[index].stakeholder,
+    fieldKey: '${stakeholderEntries[index].id}_stakeholder',
+    hintText: 'Stakeholder',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(stakeholder: value)),
+    ),
+    _EmailCell(
+    value: stakeholderEntries[index].email,
+    fieldKey: '${stakeholderEntries[index].id}_email',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(email: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].objective,
+    fieldKey: '${stakeholderEntries[index].id}_objective',
+    hintText: 'Objective',
+    minLines: 1,
+    maxLines: null,
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(objective: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].method,
+    fieldKey: '${stakeholderEntries[index].id}_method',
+    hintText: 'Method',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(method: value)),
+    ),
+    _DropdownCell(
+    value: stakeholderEntries[index].frequency,
+    fieldKey: '${stakeholderEntries[index].id}_frequency',
+    options: const ['Weekly', 'Bi-weekly', 'Monthly', 'Quarterly', 'Ad-hoc'],
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(frequency: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].location,
+    fieldKey: '${stakeholderEntries[index].id}_location',
+    hintText: 'Location',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(location: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].phone,
+    fieldKey: '${stakeholderEntries[index].id}_phone',
+    hintText: '+[country] [number]',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(phone: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].owner,
+    fieldKey: '${stakeholderEntries[index].id}_owner',
+    hintText: 'Owner',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(owner: value)),
+    ),
+    _DropdownCell(
+    value: stakeholderEntries[index].status,
+    fieldKey: '${stakeholderEntries[index].id}_status',
+    options: const [
+    'Planned',
+    'In progress',
+    'At risk',
+    'Completed'
+    ],
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(status: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].nextTouchpoint,
+    fieldKey: '${stakeholderEntries[index].id}_next_touchpoint',
+    hintText: 'Next touchpoint',
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(nextTouchpoint: value)),
+    ),
+    _TextCell(
+    value: stakeholderEntries[index].notes,
+    fieldKey: '${stakeholderEntries[index].id}_notes',
+    hintText: 'Notes',
+    minLines: 1,
+    maxLines: null,
+    onChanged: (value) =>
+    onChanged(stakeholderEntries[index].copyWith(notes: value)),
+    ),
+    _DeleteCell(
+    itemName:
+    'engagement plan for "${stakeholderEntries[index].stakeholder.trim().isEmpty ? 'Untitled' : stakeholderEntries[index].stakeholder.trim()}"',
+    onPressed: () => onDelete(stakeholderEntries[index].id),
+    ),
+    ],
+    ),
+    ],
+    );
+  }
+}
+
+// ── Project Team Tab ────────────────────────────────────────────────────
+class _ProjectTeamTable extends StatelessWidget {
+  const _ProjectTeamTable({
+    required this.entries,
+    required this.staffingRequirements,
+    required this.isLoading,
+    required this.onChanged,
+    required this.onDelete,
+    required this.onImport,
+  });
+
+  final List<EngagementPlanEntry> entries;
+  final List<StaffingRequirement> staffingRequirements;
+  final bool isLoading;
+  final ValueChanged<EngagementPlanEntry> onChanged;
+  final ValueChanged<String> onDelete;
+  final VoidCallback onImport;
+
+  @override
+  Widget build(BuildContext context) {
+    final columns = [
+      const _TableColumnDef('#', 72),
+      const _TableColumnDef('Name', 180),
+      const _TableColumnDef('Role / Position', 180),
+      const _TableColumnDef('Email', 200),
+      const _TableColumnDef('Phone', 160),
+      const _TableColumnDef('Location', 160),
+      const _TableColumnDef('Frequency', 140),
+      const _TableColumnDef('Status', 140),
+      const _TableColumnDef('Notes', 240),
+      const _TableColumnDef('', 70),
+    ];
+
+    if (isLoading) {
+      return const LinearProgressIndicator(minHeight: 2);
+    }
+
+    final teamEntries = entries.where((e) => e.isProjectTeam).toList();
+
+    if (teamEntries.isEmpty) {
+      return _SectionEmptyState(
+        title: 'No project team members yet',
+        message: staffingRequirements.isEmpty
+            ? 'Add positions in the Staffing Plan, then import them here.'
+            : 'Tap "Import from Staffing Plan" to add team members.',
+        icon: Icons.group_add_outlined,
+      );
+    }
+
+    return _EditableTable(
+      columns: columns,
+      rows: [
+        for (int index = 0; index < teamEntries.length; index++)
+          _EditableRow(
+            key: ValueKey(teamEntries[index].id),
+            columns: columns,
+            cells: [
+              _IndexCell(number: index + 1),
+              _TextCell(
+                value: teamEntries[index].stakeholder,
+                fieldKey: '${teamEntries[index].id}_stakeholder',
+                hintText: 'Name',
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(stakeholder: value)),
+              ),
+              _TextCell(
+                value: teamEntries[index].notes.replaceAll('Imported from Staffing Plan (', '').replaceAll(')', ''),
+                fieldKey: '${teamEntries[index].id}_role',
+                hintText: 'Role',
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(notes: 'Imported from Staffing Plan ($value)')),
+              ),
+              _EmailCell(
+                value: teamEntries[index].email,
+                fieldKey: '${teamEntries[index].id}_email',
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(email: value)),
+              ),
+              _TextCell(
+                value: teamEntries[index].phone,
+                fieldKey: '${teamEntries[index].id}_phone',
+                hintText: '+[country] [number]',
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(phone: value)),
+              ),
+              _TextCell(
+                value: teamEntries[index].location,
+                fieldKey: '${teamEntries[index].id}_location',
+                hintText: 'Location',
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(location: value)),
+              ),
+              _DropdownCell(
+                value: teamEntries[index].frequency,
+                fieldKey: '${teamEntries[index].id}_frequency',
+                options: const ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'Quarterly'],
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(frequency: value)),
+              ),
+              _DropdownCell(
+                value: teamEntries[index].status,
+                fieldKey: '${teamEntries[index].id}_status',
+                options: const ['Planned', 'In progress', 'At risk', 'Completed'],
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(status: value)),
+              ),
+              _TextCell(
+                value: teamEntries[index].notes,
+                fieldKey: '${teamEntries[index].id}_notes',
+                hintText: 'Notes',
+                minLines: 1,
+                maxLines: null,
+                onChanged: (value) =>
+                    onChanged(teamEntries[index].copyWith(notes: value)),
+              ),
+              _DeleteCell(
+                itemName: 'team member "${teamEntries[index].stakeholder.trim().isEmpty ? 'Untitled' : teamEntries[index].stakeholder.trim()}"',
+                onPressed: () => onDelete(teamEntries[index].id),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+// ── Import from Staffing Plan Dialog ────────────────────────────────────
+class _ImportFromStaffingDialog extends StatefulWidget {
+  const _ImportFromStaffingDialog({required this.requirements});
+
+  final List<StaffingRequirement> requirements;
+
+  @override
+  State<_ImportFromStaffingDialog> createState() => _ImportFromStaffingDialogState();
+}
+
+class _ImportFromStaffingDialogState extends State<_ImportFromStaffingDialog> {
+  final Set<String> _selectedIds = {};
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.group_add_outlined, color: Color(0xFF10B981), size: 24),
+          const SizedBox(width: 10),
+          Text('Import from Staffing Plan (${widget.requirements.length})'),
+        ],
+      ),
+      content: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 560,
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Select team members to add to the Project Team engagement plan.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton(
+                  onPressed: () => setState(() {
+                    if (_selectedIds.length == widget.requirements.length) {
+                      _selectedIds.clear();
+                    } else {
+                      _selectedIds.addAll(widget.requirements.map((r) => r.id));
+                    }
+                  }),
+                  child: Text(
+                    _selectedIds.length == widget.requirements.length
+                        ? 'Deselect All'
+                        : 'Select All',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: widget.requirements.length,
+                itemBuilder: (context, index) {
+                  final r = widget.requirements[index];
+                  final displayName = r.personName.trim().isNotEmpty
+                      ? r.personName.trim()
+                      : r.title;
+                  final isSelected = _selectedIds.contains(r.id);
+                  return CheckboxListTile(
+                    value: isSelected,
+                    onChanged: (value) => setState(() {
+                      if (value == true) {
+                        _selectedIds.add(r.id);
+                      } else {
+                        _selectedIds.remove(r.id);
+                      }
+                    }),
+                    title: Text(displayName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    subtitle: Text(
+                      '${r.title} • ${r.employmentType} • ${r.location.isNotEmpty ? r.location : "No location"}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    ),
+                    secondary: r.email.isNotEmpty
+                        ? const Icon(Icons.email_outlined, size: 18, color: Color(0xFF10B981))
+                        : const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFD97706)),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _selectedIds.isEmpty
+              ? null
+              : () {
+                  final selected = widget.requirements
+                      .where((r) => _selectedIds.contains(r.id))
+                      .toList();
+                  Navigator.pop(context, selected);
+                },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF10B981),
+            foregroundColor: Colors.white,
+          ),
+          child: Text('Import ${_selectedIds.length} Member${_selectedIds.length == 1 ? "" : "s"}'),
+        ),
+      ],
+    );
+  }
 }
 
 class _EditableTable extends StatelessWidget {
@@ -1761,6 +2158,91 @@ class _TextCellState extends State<_TextCell> {
  ),
  );
  }
+}
+
+/// Email cell that shows a red warning icon when empty.
+class _EmailCell extends StatefulWidget {
+  const _EmailCell({
+    required this.value,
+    required this.fieldKey,
+    required this.onChanged,
+  });
+
+  final String value;
+  final String fieldKey;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_EmailCell> createState() => _EmailCellState();
+}
+
+class _EmailCellState extends State<_EmailCell> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(_EmailCell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value && _controller.text != widget.value) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEmpty = widget.value.trim().isEmpty;
+    return _TableFieldShell(
+      child: Row(
+        children: [
+          Expanded(
+            child: VoiceTextFormField(
+              controller: _controller,
+              decoration: InputDecoration(
+                hintText: 'email@example.com',
+                isDense: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0xFFFFD700), width: 1.2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              ),
+              style: const TextStyle(fontSize: 13, color: Color(0xFF111827)),
+              onChanged: widget.onChanged,
+            ),
+          ),
+          if (isEmpty) ...[
+            const SizedBox(width: 4),
+            const Tooltip(
+              message: 'Email missing',
+              child: Icon(Icons.warning_amber_rounded, size: 16, color: Color(0xFFEF4444)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _DropdownCell extends StatelessWidget {

@@ -1210,37 +1210,66 @@ A milestone can map to multiple goals. Return empty array if none match.
           ? const Text(
               'No milestones available yet. Add them in Front End Planning → Milestone.',
               style: TextStyle(fontSize: 13, color: _kSecondaryText))
-          : SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: milestones.asMap().entries.map((entry) {
-                  final i = entry.key;
-                  final milestone = entry.value;
-                  final goalLabels = _goalLabelsForMilestone(milestone.id);
-                  return Row(
+          : SizedBox(
+              height: 160,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: SizedBox(
+                  width: (milestones.length * 200).toDouble().clamp(
+                      200.0, MediaQuery.of(context).size.width * 2),
+                  child: Stack(
+                    alignment: Alignment.topCenter,
                     children: [
-                      GestureDetector(
-                        onTap: () => _openMilestoneDialog(existing: milestone),
-                        child: _TimelineMilestoneChip(
-                          title: milestone.name.trim().isEmpty
-                              ? 'Untitled milestone'
-                              : milestone.name.trim(),
-                          date: _formatDateString(milestone.dueDate),
-                          discipline: milestone.discipline.trim(),
-                          goalCount: goalLabels.length,
+                      // Timeline bar
+                      Positioned(
+                        top: 18,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          height: 4,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                _kAccentColor.withValues(alpha: 0.3),
+                                _kAccentColor,
+                                _kAccentColor.withValues(alpha: 0.3),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                      if (i < milestones.length - 1)
-                        Container(
-                          width: 48,
-                          height: 2,
-                          margin: const EdgeInsets.only(bottom: 44),
-                          color: _kBorderColor,
-                        ),
+                      // Milestone nodes
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: milestones.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final milestone = entry.value;
+                          final goalLabels =
+                              _goalLabelsForMilestone(milestone.id);
+                          return SizedBox(
+                            width: 200,
+                            child: GestureDetector(
+                              onTap: () =>
+                                  _openMilestoneDialog(existing: milestone),
+                              child: _TimelineBarNode(
+                                date: _formatDateString(milestone.dueDate),
+                                title: milestone.name.trim().isEmpty
+                                    ? 'Untitled milestone'
+                                    : milestone.name.trim(),
+                                discipline: milestone.discipline.trim(),
+                                goalCount: goalLabels.length,
+                                isFirst: i == 0,
+                                isLast: i == milestones.length - 1,
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
                     ],
-                  );
-                }).toList(),
+                  ),
+                ),
               ),
             ),
     );
@@ -1524,78 +1553,146 @@ class _CollapsibleSectionState extends State<_CollapsibleSection>
   }
 }
 
-class _TimelineMilestoneChip extends StatelessWidget {
-  const _TimelineMilestoneChip({
-    required this.title,
+class _TimelineBarNode extends StatelessWidget {
+  const _TimelineBarNode({
     required this.date,
+    required this.title,
     required this.discipline,
     required this.goalCount,
+    required this.isFirst,
+    required this.isLast,
   });
 
-  final String title;
   final String date;
+  final String title;
   final String discipline;
   final int goalCount;
+  final bool isFirst;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 180,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // Date label above the node
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: _kAccentColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _kAccentColor.withValues(alpha: 0.3)),
+          ),
+          child: Text(
+            date,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFB8860B),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Node circle on the timeline
+        Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: _kAccentColor,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: _kAccentColor.withValues(alpha: 0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Center(
             child: Container(
-              width: 14,
-              height: 14,
+              width: 8,
+              height: 8,
               decoration: const BoxDecoration(
-                color: _kAccentColor,
+                color: Colors.white,
                 shape: BoxShape.circle,
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _kLightYellow,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFFFE082)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _kPrimaryText)),
+        ),
+        const SizedBox(height: 8),
+        // Card below the node
+        Container(
+          width: 170,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _kBorderColor),
+            boxShadow: [
+              BoxShadow(
+                color: _kCardShadow,
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _kPrimaryText,
+                  height: 1.3,
+                ),
+              ),
+              if (discipline.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                Text(date,
-                    style:
-                        const TextStyle(fontSize: 12, color: _kSecondaryText)),
-                if (discipline.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(discipline,
-                      style: const TextStyle(
-                          fontSize: 11, color: _kSecondaryText)),
-                ],
-                const SizedBox(height: 6),
-                Text(
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    discipline,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: _kSecondaryText,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.flag_outlined,
+                    size: 12,
+                    color: goalCount > 0 ? _kAccentColor : _kSecondaryText,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
                     goalCount == 0
                         ? 'Unmapped'
                         : '$goalCount goal${goalCount == 1 ? '' : 's'}',
-                    style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _kAccentColor)),
-              ],
-            ),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: goalCount > 0 ? _kAccentColor : _kSecondaryText,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

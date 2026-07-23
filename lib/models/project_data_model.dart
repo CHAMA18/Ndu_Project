@@ -146,6 +146,12 @@ class ProjectDataModel {
 
   // Team Management Data
   List<TeamMember> teamMembers;
+  List<MobilizationChecklistItem> mobilizationChecklist;
+  List<OnboardingDocument> onboardingDocuments;
+  List<RoleOnboardingRequirement> roleOnboardingRequirements;
+  List<TeamRecognition> teamRecognitions;
+  List<RoleHandoverTemplate> roleHandoverTemplates;
+  List<TeamActivity> teamActivities;
 
   // Launch Checklist Data
   List<LaunchChecklistItem> launchChecklistItems;
@@ -348,6 +354,12 @@ class ProjectDataModel {
     FrontEndPlanningData? frontEndPlanning,
     SSHERData? ssherData,
     List<TeamMember>? teamMembers,
+    List<MobilizationChecklistItem>? mobilizationChecklist,
+    List<OnboardingDocument>? onboardingDocuments,
+    List<RoleOnboardingRequirement>? roleOnboardingRequirements,
+    List<TeamRecognition>? teamRecognitions,
+    List<RoleHandoverTemplate>? roleHandoverTemplates,
+    List<TeamActivity>? teamActivities,
     List<LaunchChecklistItem>? launchChecklistItems,
     this.costAnalysisData,
     List<CostEstimateItem>? costEstimateItems,
@@ -447,8 +459,14 @@ class ProjectDataModel {
        technologyInventory = technologyInventory ?? [],
        frontEndPlanning = frontEndPlanning ?? FrontEndPlanningData(),
        ssherData = ssherData ?? SSHERData(),
-       teamMembers = teamMembers ?? [],
-       launchChecklistItems = launchChecklistItems ?? [],
+        teamMembers = teamMembers ?? [],
+        mobilizationChecklist = mobilizationChecklist ?? [],
+        onboardingDocuments = onboardingDocuments ?? [],
+        roleOnboardingRequirements = roleOnboardingRequirements ?? [],
+        teamRecognitions = teamRecognitions ?? [],
+        roleHandoverTemplates = roleHandoverTemplates ?? [],
+        teamActivities = teamActivities ?? [],
+        launchChecklistItems = launchChecklistItems ?? [],
        costEstimateItems = costEstimateItems ?? [],
        workPackages = workPackages ?? [],
        controlAccounts = controlAccounts ?? [],
@@ -555,6 +573,12 @@ class ProjectDataModel {
     List<Map<String, dynamic>>? technologyInventory,
     SSHERData? ssherData,
     List<TeamMember>? teamMembers,
+    List<MobilizationChecklistItem>? mobilizationChecklist,
+    List<OnboardingDocument>? onboardingDocuments,
+    List<RoleOnboardingRequirement>? roleOnboardingRequirements,
+    List<TeamRecognition>? teamRecognitions,
+    List<RoleHandoverTemplate>? roleHandoverTemplates,
+    List<TeamActivity>? teamActivities,
     List<LaunchChecklistItem>? launchChecklistItems,
     CostAnalysisData? costAnalysisData,
     List<CostEstimateItem>? costEstimateItems,
@@ -729,6 +753,15 @@ class ProjectDataModel {
       frontEndPlanning: frontEndPlanning ?? this.frontEndPlanning,
       ssherData: ssherData ?? this.ssherData,
       teamMembers: teamMembers ?? this.teamMembers,
+      mobilizationChecklist:
+          mobilizationChecklist ?? this.mobilizationChecklist,
+      onboardingDocuments: onboardingDocuments ?? this.onboardingDocuments,
+      roleOnboardingRequirements:
+          roleOnboardingRequirements ?? this.roleOnboardingRequirements,
+      teamRecognitions: teamRecognitions ?? this.teamRecognitions,
+      roleHandoverTemplates:
+          roleHandoverTemplates ?? this.roleHandoverTemplates,
+      teamActivities: teamActivities ?? this.teamActivities,
       launchChecklistItems: launchChecklistItems ?? this.launchChecklistItems,
       costAnalysisData: costAnalysisData ?? this.costAnalysisData,
       costEstimateItems: costEstimateItems ?? this.costEstimateItems,
@@ -914,6 +947,16 @@ class ProjectDataModel {
           .map((m) => m.email)
           .where((e) => e.isNotEmpty)
           .toList(),
+      'mobilizationChecklist':
+          mobilizationChecklist.map((m) => m.toJson()).toList(),
+      'onboardingDocuments':
+          onboardingDocuments.map((m) => m.toJson()).toList(),
+      'roleOnboardingRequirements':
+          roleOnboardingRequirements.map((m) => m.toJson()).toList(),
+      'teamRecognitions': teamRecognitions.map((m) => m.toJson()).toList(),
+      'roleHandoverTemplates':
+          roleHandoverTemplates.map((m) => m.toJson()).toList(),
+      'teamActivities': teamActivities.map((m) => m.toJson()).toList(),
       'launchChecklistItems': launchChecklistItems
           .map((item) => item.toJson())
           .toList(),
@@ -1256,6 +1299,19 @@ class ProjectDataModel {
       ssherData:
           safeParseSingle('ssherData', SSHERData.fromJson) ?? SSHERData(),
       teamMembers: safeParseList('teamMembers', TeamMember.fromJson),
+      mobilizationChecklist: safeParseList(
+          'mobilizationChecklist', MobilizationChecklistItem.fromJson),
+      onboardingDocuments:
+          safeParseList('onboardingDocuments', OnboardingDocument.fromJson),
+      roleOnboardingRequirements: safeParseList(
+          'roleOnboardingRequirements',
+          RoleOnboardingRequirement.fromJson),
+      teamRecognitions:
+          safeParseList('teamRecognitions', TeamRecognition.fromJson),
+      roleHandoverTemplates: safeParseList(
+          'roleHandoverTemplates', RoleHandoverTemplate.fromJson),
+      teamActivities:
+          safeParseList('teamActivities', TeamActivity.fromJson),
       launchChecklistItems: safeParseList(
         'launchChecklistItems',
         LaunchChecklistItem.fromJson,
@@ -4278,6 +4334,424 @@ class TeamMember {
       DateTime.now().microsecondsSinceEpoch.toString();
 }
 
+/// Mobilization checklist item for onboarding team members.
+class MobilizationChecklistItem {
+  String id;
+  String title;
+  String description;
+  String category; // 'Documentation', 'Access', 'Training', 'Equipment', 'Other'
+  bool isCompleted;
+  String? assignedTo;
+  String? dueDate;
+  String? notes;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  MobilizationChecklistItem({
+    String? id,
+    this.title = '',
+    this.description = '',
+    this.category = 'Documentation',
+    this.isCompleted = false,
+    this.assignedTo,
+    this.dueDate,
+    this.notes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : id = id ?? _generateId(),
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'description': description,
+        'category': category,
+        'isCompleted': isCompleted,
+        'assignedTo': assignedTo,
+        'dueDate': dueDate,
+        'notes': notes,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory MobilizationChecklistItem.fromJson(Map<String, dynamic> json) {
+    return MobilizationChecklistItem(
+      id: json['id']?.toString(),
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      category: json['category'] ?? 'Documentation',
+      isCompleted: json['isCompleted'] ?? false,
+      assignedTo: json['assignedTo'],
+      dueDate: json['dueDate'],
+      notes: json['notes'],
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
+    );
+  }
+
+  MobilizationChecklistItem copyWith({
+    String? title,
+    String? description,
+    String? category,
+    bool? isCompleted,
+    String? assignedTo,
+    String? dueDate,
+    String? notes,
+  }) {
+    return MobilizationChecklistItem(
+      id: id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      category: category ?? this.category,
+      isCompleted: isCompleted ?? this.isCompleted,
+      assignedTo: assignedTo ?? this.assignedTo,
+      dueDate: dueDate ?? this.dueDate,
+      notes: notes ?? this.notes,
+      createdAt: createdAt,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
+}
+
+/// Project-level onboarding document generated from project data.
+class OnboardingDocument {
+  String id;
+  String title;
+  String content; // Generated or manual content
+  String type; // 'project_summary', 'scope', 'objectives', 'custom'
+  bool isAutoGenerated;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  OnboardingDocument({
+    String? id,
+    this.title = '',
+    this.content = '',
+    this.type = 'project_summary',
+    this.isAutoGenerated = false,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : id = id ?? _generateId(),
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'content': content,
+        'type': type,
+        'isAutoGenerated': isAutoGenerated,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory OnboardingDocument.fromJson(Map<String, dynamic> json) {
+    return OnboardingDocument(
+      id: json['id']?.toString(),
+      title: json['title'] ?? '',
+      content: json['content'] ?? '',
+      type: json['type'] ?? 'project_summary',
+      isAutoGenerated: json['isAutoGenerated'] ?? false,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
+    );
+  }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
+}
+
+/// Role-specific onboarding requirement.
+class RoleOnboardingRequirement {
+  String id;
+  String roleTitle;
+  String requirement; // e.g., "PMP Certification", "Security Clearance"
+  String description;
+  String category; // 'Certification', 'Training', 'Document', 'Access', 'Other'
+  bool isRequired;
+  bool isCompleted;
+  String? notes;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  RoleOnboardingRequirement({
+    String? id,
+    this.roleTitle = '',
+    this.requirement = '',
+    this.description = '',
+    this.category = 'Certification',
+    this.isRequired = true,
+    this.isCompleted = false,
+    this.notes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : id = id ?? _generateId(),
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'roleTitle': roleTitle,
+        'requirement': requirement,
+        'description': description,
+        'category': category,
+        'isRequired': isRequired,
+        'isCompleted': isCompleted,
+        'notes': notes,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory RoleOnboardingRequirement.fromJson(Map<String, dynamic> json) {
+    return RoleOnboardingRequirement(
+      id: json['id']?.toString(),
+      roleTitle: json['roleTitle'] ?? '',
+      requirement: json['requirement'] ?? '',
+      description: json['description'] ?? '',
+      category: json['category'] ?? 'Certification',
+      isRequired: json['isRequired'] ?? true,
+      isCompleted: json['isCompleted'] ?? false,
+      notes: json['notes'],
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
+    );
+  }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
+}
+
+/// Team member recognition entry.
+class TeamRecognition {
+  String id;
+  String recipientName;
+  String recipientRole;
+  String category; // 'Milestone Achievement', 'Innovation', 'Collaboration', etc.
+  String description;
+  String nominatedBy;
+  String date;
+  String status; // 'Nominated', 'Approved', 'Rejected'
+  String? comments;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  TeamRecognition({
+    String? id,
+    this.recipientName = '',
+    this.recipientRole = '',
+    this.category = 'Milestone Achievement',
+    this.description = '',
+    this.nominatedBy = '',
+    this.date = '',
+    this.status = 'Nominated',
+    this.comments,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : id = id ?? _generateId(),
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'recipientName': recipientName,
+        'recipientRole': recipientRole,
+        'category': category,
+        'description': description,
+        'nominatedBy': nominatedBy,
+        'date': date,
+        'status': status,
+        'comments': comments,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory TeamRecognition.fromJson(Map<String, dynamic> json) {
+    return TeamRecognition(
+      id: json['id']?.toString(),
+      recipientName: json['recipientName'] ?? '',
+      recipientRole: json['recipientRole'] ?? '',
+      category: json['category'] ?? 'Milestone Achievement',
+      description: json['description'] ?? '',
+      nominatedBy: json['nominatedBy'] ?? '',
+      date: json['date'] ?? '',
+      status: json['status'] ?? 'Nominated',
+      comments: json['comments'],
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
+    );
+  }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
+}
+
+/// Role handover template for when a team member leaves.
+class RoleHandoverTemplate {
+  String id;
+  String teamMemberName;
+  String teamMemberRole;
+  String receivingMemberName;
+  String receivingMemberRole;
+  String handoverDate;
+  String status; // 'Draft', 'In Progress', 'Completed'
+  // Checklist categories
+  bool workDeliverablesComplete;
+  bool documentationComplete;
+  bool risksOpenItemsComplete;
+  bool systemsAccessComplete;
+  String handoverNotes;
+  // Sign-offs
+  String teamMemberSignOff;
+  String receivingMemberSignOff;
+  String projectManagerSignOff;
+  String signOffDate;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  RoleHandoverTemplate({
+    String? id,
+    this.teamMemberName = '',
+    this.teamMemberRole = '',
+    this.receivingMemberName = '',
+    this.receivingMemberRole = '',
+    this.handoverDate = '',
+    this.status = 'Draft',
+    this.workDeliverablesComplete = false,
+    this.documentationComplete = false,
+    this.risksOpenItemsComplete = false,
+    this.systemsAccessComplete = false,
+    this.handoverNotes = '',
+    this.teamMemberSignOff = '',
+    this.receivingMemberSignOff = '',
+    this.projectManagerSignOff = '',
+    this.signOffDate = '',
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : id = id ?? _generateId(),
+        createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'teamMemberName': teamMemberName,
+        'teamMemberRole': teamMemberRole,
+        'receivingMemberName': receivingMemberName,
+        'receivingMemberRole': receivingMemberRole,
+        'handoverDate': handoverDate,
+        'status': status,
+        'workDeliverablesComplete': workDeliverablesComplete,
+        'documentationComplete': documentationComplete,
+        'risksOpenItemsComplete': risksOpenItemsComplete,
+        'systemsAccessComplete': systemsAccessComplete,
+        'handoverNotes': handoverNotes,
+        'teamMemberSignOff': teamMemberSignOff,
+        'receivingMemberSignOff': receivingMemberSignOff,
+        'projectManagerSignOff': projectManagerSignOff,
+        'signOffDate': signOffDate,
+        'createdAt': createdAt.toIso8601String(),
+        'updatedAt': updatedAt.toIso8601String(),
+      };
+
+  factory RoleHandoverTemplate.fromJson(Map<String, dynamic> json) {
+    return RoleHandoverTemplate(
+      id: json['id']?.toString(),
+      teamMemberName: json['teamMemberName'] ?? '',
+      teamMemberRole: json['teamMemberRole'] ?? '',
+      receivingMemberName: json['receivingMemberName'] ?? '',
+      receivingMemberRole: json['receivingMemberRole'] ?? '',
+      handoverDate: json['handoverDate'] ?? '',
+      status: json['status'] ?? 'Draft',
+      workDeliverablesComplete: json['workDeliverablesComplete'] ?? false,
+      documentationComplete: json['documentationComplete'] ?? false,
+      risksOpenItemsComplete: json['risksOpenItemsComplete'] ?? false,
+      systemsAccessComplete: json['systemsAccessComplete'] ?? false,
+      handoverNotes: json['handoverNotes'] ?? '',
+      teamMemberSignOff: json['teamMemberSignOff'] ?? '',
+      receivingMemberSignOff: json['receivingMemberSignOff'] ?? '',
+      projectManagerSignOff: json['projectManagerSignOff'] ?? '',
+      signOffDate: json['signOffDate'] ?? '',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.parse(json['updatedAt'])
+          : null,
+    );
+  }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
+}
+
+/// Team activity feed entry.
+class TeamActivity {
+  String id;
+  String title;
+  String description;
+  String postedBy;
+  String date;
+  String category; // 'Update', 'Announcement', 'Event', 'Action Required'
+  DateTime createdAt;
+
+  TeamActivity({
+    String? id,
+    this.title = '',
+    this.description = '',
+    this.postedBy = '',
+    this.date = '',
+    this.category = 'Update',
+    DateTime? createdAt,
+  })  : id = id ?? _generateId(),
+        createdAt = createdAt ?? DateTime.now();
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'description': description,
+        'postedBy': postedBy,
+        'date': date,
+        'category': category,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory TeamActivity.fromJson(Map<String, dynamic> json) {
+    return TeamActivity(
+      id: json['id']?.toString(),
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      postedBy: json['postedBy'] ?? '',
+      date: json['date'] ?? '',
+      category: json['category'] ?? 'Update',
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'])
+          : null,
+    );
+  }
+
+  static String _generateId() =>
+      DateTime.now().microsecondsSinceEpoch.toString();
+}
+
 class PreferredSolutionAnalysis {
   String workingNotes;
   List<SolutionAnalysisItem> solutionAnalyses;
@@ -6737,6 +7211,8 @@ class StaffingRequirement {
   String location;
   String employeeType; // e.g., Employee, Contractor
   String notes;
+  String email;
+  String phone;
 
   StaffingRequirement({
     String? id,
@@ -6752,6 +7228,8 @@ class StaffingRequirement {
     this.location = '',
     this.employeeType = 'Employee',
     this.notes = '',
+    this.email = '',
+    this.phone = '',
   }) : id = id ?? DateTime.now().microsecondsSinceEpoch.toString();
 
   double get estimatedTotal => headcount * monthlyCost * plannedMonths;
@@ -6770,6 +7248,8 @@ class StaffingRequirement {
     'location': location,
     'employeeType': employeeType,
     'notes': notes,
+    'email': email,
+    'phone': phone,
   };
 
   factory StaffingRequirement.fromJson(Map<String, dynamic> json) {
@@ -6791,6 +7271,8 @@ class StaffingRequirement {
       location: json['location']?.toString() ?? '',
       employeeType: json['employeeType']?.toString() ?? 'Employee',
       notes: json['notes']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
     );
   }
 
@@ -6807,6 +7289,8 @@ class StaffingRequirement {
     String? location,
     String? employeeType,
     String? notes,
+    String? email,
+    String? phone,
   }) {
     return StaffingRequirement(
       id: id,
@@ -6822,6 +7306,8 @@ class StaffingRequirement {
       location: location ?? this.location,
       employeeType: employeeType ?? this.employeeType,
       notes: notes ?? this.notes,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
     );
   }
 }
@@ -7042,6 +7528,12 @@ class EngagementPlanEntry {
   final String status;
   final String nextTouchpoint;
   final String notes;
+  final String email;
+  final String phone;
+  final String location;
+  final String quarter;
+  final String dataLinks;
+  final bool isProjectTeam;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -7055,6 +7547,12 @@ class EngagementPlanEntry {
     required this.status,
     required this.nextTouchpoint,
     required this.notes,
+    this.email = '',
+    this.phone = '',
+    this.location = '',
+    this.quarter = '',
+    this.dataLinks = '',
+    this.isProjectTeam = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -7071,6 +7569,12 @@ class EngagementPlanEntry {
       status: 'Planned',
       nextTouchpoint: '',
       notes: '',
+      email: '',
+      phone: '',
+      location: '',
+      quarter: '',
+      dataLinks: '',
+      isProjectTeam: false,
       createdAt: now,
       updatedAt: now,
     );
@@ -7085,6 +7589,12 @@ class EngagementPlanEntry {
     String? status,
     String? nextTouchpoint,
     String? notes,
+    String? email,
+    String? phone,
+    String? location,
+    String? quarter,
+    String? dataLinks,
+    bool? isProjectTeam,
     DateTime? updatedAt,
   }) {
     return EngagementPlanEntry(
@@ -7097,6 +7607,12 @@ class EngagementPlanEntry {
       status: status ?? this.status,
       nextTouchpoint: nextTouchpoint ?? this.nextTouchpoint,
       notes: notes ?? this.notes,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      location: location ?? this.location,
+      quarter: quarter ?? this.quarter,
+      dataLinks: dataLinks ?? this.dataLinks,
+      isProjectTeam: isProjectTeam ?? this.isProjectTeam,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -7112,6 +7628,12 @@ class EngagementPlanEntry {
     'status': status,
     'nextTouchpoint': nextTouchpoint,
     'notes': notes,
+    'email': email,
+    'phone': phone,
+    'location': location,
+    'quarter': quarter,
+    'dataLinks': dataLinks,
+    'isProjectTeam': isProjectTeam,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };
@@ -7127,6 +7649,12 @@ class EngagementPlanEntry {
       status: json['status']?.toString() ?? 'Planned',
       nextTouchpoint: json['nextTouchpoint']?.toString() ?? '',
       notes: json['notes']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      phone: json['phone']?.toString() ?? '',
+      location: json['location']?.toString() ?? '',
+      quarter: json['quarter']?.toString() ?? '',
+      dataLinks: json['dataLinks']?.toString() ?? '',
+      isProjectTeam: json['isProjectTeam'] == true,
       createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
       updatedAt: DateTime.tryParse(json['updatedAt'] ?? '') ?? DateTime.now(),
     );

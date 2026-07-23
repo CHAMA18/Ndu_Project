@@ -21,7 +21,17 @@ class LaunchPhaseNavigation extends StatelessWidget {
   static const _kAccentColor = Color(0xFFFFC812);
 
   void _handleNextTap(BuildContext context) {
-    if (!nextEnabled) return;
+    if (!nextEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Please check the acknowledgment box above before proceeding.'),
+          backgroundColor: Color(0xFFD97706),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
     showProceedWithoutReviewDialog(
       context,
       title: 'Proceed to ${nextLabel.replaceFirst('Next: ', '')}?',
@@ -59,8 +69,10 @@ class LaunchPhaseNavigation extends StatelessWidget {
         style: const TextStyle(fontWeight: FontWeight.w600),
       ),
       style: ElevatedButton.styleFrom(
-        backgroundColor: _kAccentColor,
-        foregroundColor: Colors.white,
+        backgroundColor:
+            nextEnabled ? _kAccentColor : const Color(0xFFE5E7EB),
+        foregroundColor:
+            nextEnabled ? Colors.white : const Color(0xFF9CA3AF),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         elevation: 0,

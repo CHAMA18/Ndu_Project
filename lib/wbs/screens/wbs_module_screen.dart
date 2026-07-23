@@ -57,6 +57,7 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
     length: 5,
     vsync: this,
   );
+  bool _wbsReviewedConfirmed = false;
 
   @override
   void initState() {
@@ -185,15 +186,63 @@ class _WBSModuleScreenState extends State<WBSModuleScreen>
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                child: LaunchPhaseNavigation(
-                  backLabel: PlanningPhaseNavigation.backLabel(
-                      'work_breakdown_structure'),
-                  nextLabel: PlanningPhaseNavigation.nextLabel(
-                      'work_breakdown_structure'),
-                  onBack: () => PlanningPhaseNavigation.goToPrevious(
-                      context, 'work_breakdown_structure'),
-                  onNext: () => PlanningPhaseNavigation.goToNext(
-                      context, 'work_breakdown_structure'),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Confirmation gate
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border:
+                              Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Checkbox(
+                              value: _wbsReviewedConfirmed,
+                              onChanged: (checked) => setState(
+                                  () => _wbsReviewedConfirmed =
+                                      checked ?? false),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 3),
+                                child: Text(
+                                  'I confirm I have reviewed all information needs before the WBS section can be activated.',
+                                  style: const TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: Color(0xFF334155),
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    LaunchPhaseNavigation(
+                      backLabel: PlanningPhaseNavigation.backLabel(
+                          'work_breakdown_structure'),
+                      nextLabel: PlanningPhaseNavigation.nextLabel(
+                          'work_breakdown_structure'),
+                      onBack: () => PlanningPhaseNavigation.goToPrevious(
+                          context, 'work_breakdown_structure'),
+                      onNext: () => PlanningPhaseNavigation.goToNext(
+                          context, 'work_breakdown_structure'),
+                      nextEnabled: _wbsReviewedConfirmed,
+                    ),
+                  ],
                 ),
               ),
             ],

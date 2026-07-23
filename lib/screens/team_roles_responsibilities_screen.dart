@@ -17,6 +17,7 @@ import 'package:ndu_project/utils/pdf_export_helper.dart';
 import 'package:ndu_project/utils/download_helper.dart' as dl;
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/launch_data_table.dart';
+import 'package:file_picker/file_picker.dart';
 class TeamRolesResponsibilitiesScreen extends StatefulWidget {
  const TeamRolesResponsibilitiesScreen({super.key});
 
@@ -1014,8 +1015,10 @@ class _TeamRolesResponsibilitiesScreenState
  }
 
  // ── Roles Table View ──────────────────────────────────────────────
- Widget _buildRolesTableView(List<QueryDocumentSnapshot> docs, double maxWidth) {
- final roles = docs.map((doc) {
+  Widget _buildRolesTableView(List<QueryDocumentSnapshot> docs, double maxWidth) {
+    final provider = ProjectDataInherited.maybeOf(context);
+    final projectId = provider?.projectData.projectId ?? '';
+  final roles = docs.map((doc) {
  final data = _RoleCardData.fromMap(
  (doc.data() as Map).cast<String, dynamic>());
  return (doc: doc, data: data);
@@ -1048,19 +1051,14 @@ class _TeamRolesResponsibilitiesScreenState
  return DataRow(cells: [
  DataCell(Text(data.title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
  DataCell(Text(data.subtitle, style: const TextStyle(fontSize: 13))),
- DataCell(Container(
- padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
- decoration: BoxDecoration(
- color: data.quantity > 1 ? const Color(0xFFFFC812) : const Color(0xFFF3F4F6),
- borderRadius: BorderRadius.circular(6),
- ),
- child: Text('${data.quantity}',
- style: TextStyle(
- fontSize: 13,
- fontWeight: FontWeight.w800,
- color: data.quantity > 1 ? Colors.black : const Color(0xFF6B7280),
- )),
- )),
+  DataCell(_InlineQtyEditor(
+  initialQty: data.quantity,
+  onChanged: (newQty) {
+  if (newQty > 0 && newQty != data.quantity) {
+  _rolesCollection(projectId).doc(doc.id).update({'quantity': newQty});
+  }
+  },
+  )),
  DataCell(Text(desc, style: const TextStyle(fontSize: 13, color: Color(0xFF4B5563)), maxLines: 2, overflow: TextOverflow.ellipsis)),
  DataCell(Text(data.fullName, style: const TextStyle(fontSize: 13))),
  DataCell(Row(
@@ -1107,16 +1105,133 @@ class _TeamRolesResponsibilitiesScreenState
  }
  }
 
- // ── CSV Import ────────────────────────────────────────────────────
- Future<void> _importRolesCsv() async {
- ScaffoldMessenger.of(context).showSnackBar(
- const SnackBar(
- content: Text('CSV import: Use the download template, fill in quantities, then upload via the file picker.'),
- duration: Duration(seconds: 4),
- ),
- );
- // TODO: Wire up actual file picker + CSV parsing
- }
+  // ── CSV Import ────────────────────────────────────────────────────
+  Future<void> _importRolesCsv() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv'],
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not read file.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+        return;
+      }
+
+      final csv = utf8.decode(bytes);
+      final lines = csv.split(RegExp(r'[\r\n]+')).where((l) => l.trim().isNotEmpty).toList();
+      if (lines.isEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CSV file is empty.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+        return;
+      }
+
+      // Parse header row to find column indices
+      final headers = _parseCsvRow(lines.first);
+      final titleIdx = headers.indexWhere((h) => h.toLowerCase().contains('role') || h.toLowerCase().contains('position'));
+      final disciplineIdx = headers.indexWhere((h) => h.toLowerCase().contains('discipline'));
+      final qtyIdx = headers.indexWhere((h) => h.toLowerCase().contains('quant') || h.toLowerCase().contains('qty') || h.toLowerCase().contains('headcount'));
+      final descIdx = headers.indexWhere((h) => h.toLowerCase().contains('description') || h.toLowerCase().contains('responsibilities'));
+
+      if (titleIdx == -1) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('CSV must have a "Role / Position" column.'),
+            backgroundColor: Color(0xFFEF4444),
+          ),
+        );
+        return;
+      }
+
+      final provider = ProjectDataInherited.maybeOf(context);
+      final projectId = provider?.projectData.projectId;
+      if (projectId == null || projectId.isEmpty) return;
+
+      int added = 0;
+      for (var i = 1; i < lines.length; i++) {
+        final row = _parseCsvRow(lines[i]);
+        if (row.length <= titleIdx) continue;
+        final title = row[titleIdx].trim();
+        if (title.isEmpty) continue;
+
+        final discipline = disciplineIdx >= 0 && disciplineIdx < row.length
+            ? row[disciplineIdx].trim()
+            : 'General';
+        final description = descIdx >= 0 && descIdx < row.length
+            ? row[descIdx].trim()
+            : '';
+        final qty = qtyIdx >= 0 && qtyIdx < row.length
+            ? int.tryParse(row[qtyIdx].trim()) ?? 0
+            : 0;
+
+        if (qty <= 0) continue;
+
+        final data = _RoleCardData(
+          title: title,
+          subtitle: discipline,
+          responsibilities: description.isNotEmpty ? [description] : [],
+          workItems: [],
+          quantity: qty,
+        );
+        await _rolesCollection(projectId).add(data.toMap());
+        added++;
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: added > 0
+              ? Text('$added role${added == 1 ? "" : "s"} imported from CSV.')
+              : const Text('No valid roles found in CSV. Ensure quantities > 0.'),
+          backgroundColor: added > 0 ? const Color(0xFF10B981) : const Color(0xFFD97706),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error importing CSV: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  /// Parses a CSV row handling quoted fields.
+  List<String> _parseCsvRow(String line) {
+    final result = <String>[];
+    bool inQuotes = false;
+    final current = StringBuffer();
+    for (var i = 0; i < line.length; i++) {
+      final char = line[i];
+      if (char == '"') {
+        inQuotes = !inQuotes;
+      } else if (char == ',' && !inQuotes) {
+        result.add(current.toString().trim());
+        current.clear();
+      } else {
+        current.write(char);
+      }
+    }
+    result.add(current.toString().trim());
+    return result;
+  }
 
  Future<void> _exportPdf() async {
  final projectData = ProjectDataHelper.getData(context);
@@ -1157,12 +1272,12 @@ class _TeamRolesResponsibilitiesScreenState
    _StandardRole(title: 'Operations Manager', discipline: 'Operations', description: 'Post-handover operations and maintenance.'),
  ];
 
- /// Shows the Standard Roles picker with search bar, checkboxes, and
- /// quantity input per selected role. User can select multiple roles
- /// and specify how many of each they need before adding them all.
- Future<void> _showStandardRolesPicker() async {
-   final searchController = TextEditingController();
-   final selectedRoles = <String, int>{};
+  /// Shows the Standard Roles picker with search bar and checkboxes.
+  /// After selecting roles, a separate "Review & Set Quantities" step
+  /// lets users specify the number of people per role before adding them.
+  Future<void> _showStandardRolesPicker() async {
+    final searchController = TextEditingController();
+    final selectedTitles = <String>{};
 
    await showDialog<void>(
      context: context,
@@ -1184,13 +1299,13 @@ class _TeamRolesResponsibilitiesScreenState
                const SizedBox(width: 10),
                const Text('Add Standard Roles'),
                const Spacer(),
-               if (selectedRoles.isNotEmpty)
-                 TextButton(
-                   onPressed: () {
-                     setDialogState(() => selectedRoles.clear());
-                   },
-                   child: const Text('Clear', style: TextStyle(fontSize: 12)),
-                 ),
+                if (selectedTitles.isNotEmpty)
+                  TextButton(
+                    onPressed: () {
+                      setDialogState(() => selectedTitles.clear());
+                    },
+                    child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                  ),
              ],
            ),
            content: ConstrainedBox(
@@ -1223,20 +1338,20 @@ class _TeamRolesResponsibilitiesScreenState
                  const SizedBox(height: 12),
                  Row(
                    children: [
-                     Checkbox(
-                       value: selectedRoles.length == filtered.length && filtered.isNotEmpty,
-                       onChanged: (val) {
-                         setDialogState(() {
-                           if (val == true) {
-                             for (final r in filtered) {
-                               selectedRoles[r.title] = selectedRoles[r.title] ?? 1;
-                             }
-                           } else {
-                             selectedRoles.clear();
-                           }
-                         });
-                       },
-                     ),
+                      Checkbox(
+                        value: selectedTitles.length == filtered.length && filtered.isNotEmpty,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            if (val == true) {
+                              for (final r in filtered) {
+                                selectedTitles.add(r.title);
+                              }
+                            } else {
+                              selectedTitles.clear();
+                            }
+                          });
+                        },
+                      ),
                      const Text('Select All', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                    ],
                  ),
@@ -1247,59 +1362,24 @@ class _TeamRolesResponsibilitiesScreenState
                      itemCount: filtered.length,
                      itemBuilder: (context, index) {
                        final role = filtered[index];
-                       final isSelected = selectedRoles.containsKey(role.title);
-                       return ListTile(
-                         leading: Checkbox(
-                           value: isSelected,
-                           onChanged: (val) {
-                             setDialogState(() {
-                               if (val == true) {
-                                 selectedRoles[role.title] = 1;
-                               } else {
-                                 selectedRoles.remove(role.title);
-                               }
-                             });
-                           },
-                         ),
-                         title: Text(role.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                         subtitle: Text('${role.discipline} — ${role.description}',
-                             style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                             maxLines: 1, overflow: TextOverflow.ellipsis),
-                         trailing: isSelected
-                             ? SizedBox(
-                                 width: 60,
-                                 child: Row(
-                                   mainAxisSize: MainAxisSize.min,
-                                   children: [
-                                     IconButton(
-                                       icon: const Icon(Icons.remove_circle_outline, size: 18),
-                                       padding: EdgeInsets.zero,
-                                       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                       onPressed: () {
-                                         setDialogState(() {
-                                           final current = selectedRoles[role.title] ?? 1;
-                                           if (current > 1) {
-                                             selectedRoles[role.title] = current - 1;
-                                           }
-                                         });
-                                       },
-                                     ),
-                                     Text('${selectedRoles[role.title]}',
-                                         style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
-                                     IconButton(
-                                       icon: const Icon(Icons.add_circle_outline, size: 18),
-                                       padding: EdgeInsets.zero,
-                                       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                       onPressed: () {
-                                         setDialogState(() {
-                                           selectedRoles[role.title] = (selectedRoles[role.title] ?? 1) + 1;
-                                         });
-                                       },
-                                     ),
-                                   ],
-                                 ),
-                               )
-                             : null,
+                        final isSelected = selectedTitles.contains(role.title);
+                        return ListTile(
+                          leading: Checkbox(
+                            value: isSelected,
+                            onChanged: (val) {
+                              setDialogState(() {
+                                if (val == true) {
+                                  selectedTitles.add(role.title);
+                                } else {
+                                  selectedTitles.remove(role.title);
+                                }
+                              });
+                            },
+                          ),
+                          title: Text(role.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          subtitle: Text('${role.discipline} — ${role.description}',
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                              maxLines: 1, overflow: TextOverflow.ellipsis),
                          dense: true,
                        );
                      },
@@ -1313,48 +1393,164 @@ class _TeamRolesResponsibilitiesScreenState
                onPressed: () => Navigator.pop(dialogContext),
                child: const Text('Cancel'),
              ),
-             ElevatedButton(
-               onPressed: selectedRoles.isEmpty
-                   ? null
-                   : () {
-                       final provider = ProjectDataInherited.maybeOf(context);
-                       final projectId = provider?.projectData.projectId;
-                       if (projectId != null && projectId.isNotEmpty) {
-                         selectedRoles.forEach((title, qty) {
-                           final role = _standardRoles.firstWhere((r) => r.title == title);
-                           final data = _RoleCardData(
-                             title: role.title,
-                             subtitle: role.discipline,
-                             responsibilities: [role.description],
-                             workItems: [],
-                             quantity: qty,
-                           );
-                           _rolesCollection(projectId).add(data.toMap());
-                         });
-                       }
-                       Navigator.pop(dialogContext);
-                       ScaffoldMessenger.of(context).showSnackBar(
-                         SnackBar(
-                           content: Text('${selectedRoles.length} role${selectedRoles.length == 1 ? "" : "s"} added'),
-                           backgroundColor: const Color(0xFF10B981),
-                         ),
-                       );
-                     },
-               style: ElevatedButton.styleFrom(
-                 backgroundColor: const Color(0xFFF59E0B),
-                 foregroundColor: Colors.white,
-               ),
-               child: Text('Add ${selectedRoles.length} Role${selectedRoles.length == 1 ? "" : "s"}'),
-             ),
-           ],
-         );
-       },
-     ),
-   );
-   searchController.dispose();
- }
+              ElevatedButton(
+                onPressed: selectedTitles.isEmpty
+                    ? null
+                    : () {
+                        Navigator.pop(dialogContext);
+                        _showReviewQuantities(selectedTitles.toList());
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                ),
+                 child: Text('Review Quantities (${selectedTitles.length})'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    searchController.dispose();
+  }
 
- /// Shows the Create Role dialog for creating custom roles.
+  /// Second step: review selected roles and set quantities before adding.
+  void _showReviewQuantities(List<String> titles) {
+    final quantities = <String, TextEditingController>{};
+    for (final title in titles) {
+      quantities[title] = TextEditingController(text: '1');
+    }
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final total = quantities.entries.fold<int>(
+            0,
+            (sum, e) => sum + (int.tryParse(e.value.text) ?? 0),
+          );
+
+          return AlertDialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(
+              children: [
+                const Icon(Icons.format_list_numbered, color: Color(0xFFF59E0B), size: 24),
+                const SizedBox(width: 10),
+                Text('Set Quantities (${titles.length} roles)'),
+              ],
+            ),
+            content: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 560,
+                maxHeight: MediaQuery.of(dialogContext).size.height * 0.6,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Set the number of people needed for each role.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView(
+                      children: titles.map((title) {
+                        final role = _standardRoles.firstWhere((r) => r.title == title);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(role.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                    Text(role.discipline, style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              SizedBox(
+                                width: 80,
+                                child: TextFormField(
+                                  controller: quantities[title],
+                                  keyboardType: TextInputType.number,
+                                  textAlign: TextAlign.center,
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  onChanged: (_) => setDialogState(() {}),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const Divider(),
+                  Row(
+                    children: [
+                      const Text('Total personnel: ', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text('$total', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Color(0xFFF59E0B))),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Back'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  final provider = ProjectDataInherited.maybeOf(context);
+                  final projectId = provider?.projectData.projectId;
+                  if (projectId != null && projectId.isNotEmpty) {
+                    for (final title in titles) {
+                      final role = _standardRoles.firstWhere((r) => r.title == title);
+                      final qty = int.tryParse(quantities[title]?.text ?? '') ?? 1;
+                      if (qty <= 0) continue;
+                      final data = _RoleCardData(
+                        title: role.title,
+                        subtitle: role.discipline,
+                        responsibilities: [role.description],
+                        workItems: [],
+                        quantity: qty,
+                      );
+                      _rolesCollection(projectId).add(data.toMap());
+                    }
+                  }
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$total personnel across ${titles.length} role${titles.length == 1 ? "" : "s"} added'),
+                      backgroundColor: const Color(0xFF10B981),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF59E0B),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Add Roles'),
+              ),
+            ],
+          );
+        },
+      ),
+    ).then((_) {
+      for (final c in quantities.values) {
+        c.dispose();
+      }
+    });
+  }
+
+  /// Shows the Create Role dialog for creating custom roles.
  Future<void> _showCreateRoleDialog() async {
    final nameController = TextEditingController();
    final descriptionController = TextEditingController();
@@ -3483,4 +3679,97 @@ class _StandardRole {
     required this.discipline,
     required this.description,
   });
+}
+
+/// Inline quantity editor for the table view.
+class _InlineQtyEditor extends StatefulWidget {
+  final int initialQty;
+  final ValueChanged<int> onChanged;
+
+  const _InlineQtyEditor({
+    required this.initialQty,
+    required this.onChanged,
+  });
+
+  @override
+  State<_InlineQtyEditor> createState() => _InlineQtyEditorState();
+}
+
+class _InlineQtyEditorState extends State<_InlineQtyEditor> {
+  late TextEditingController _controller;
+  late FocusNode _focusNode;
+  bool _isFocused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialQty.toString());
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      setState(() => _isFocused = _focusNode.hasFocus);
+    });
+  }
+
+  @override
+  void didUpdateWidget(_InlineQtyEditor oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialQty != widget.initialQty && !_isFocused) {
+      _controller.text = widget.initialQty.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final parsed = int.tryParse(_controller.text);
+    if (parsed != null && parsed > 0) {
+      widget.onChanged(parsed);
+    } else {
+      _controller.text = widget.initialQty.toString();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 64,
+      height: 32,
+      decoration: BoxDecoration(
+        color: _isFocused ? Colors.white : (widget.initialQty > 1 ? const Color(0xFFFFC812) : const Color(0xFFF3F4F6)),
+        borderRadius: BorderRadius.circular(6),
+        border: _isFocused ? Border.all(color: const Color(0xFFF59E0B), width: 1.5) : null,
+      ),
+      child: TextFormField(
+        controller: _controller,
+        focusNode: _focusNode,
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+          color: _isFocused ? Colors.black : (widget.initialQty > 1 ? Colors.black : const Color(0xFF6B7280)),
+        ),
+        decoration: const InputDecoration(
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          border: InputBorder.none,
+        ),
+        onFieldSubmitted: (_) {
+          _focusNode.unfocus();
+          _commit();
+        },
+        onChanged: (value) {
+          final parsed = int.tryParse(value);
+          if (parsed != null && parsed > 0 && parsed != widget.initialQty) {
+            widget.onChanged(parsed);
+          }
+        },
+      ),
+    );
+  }
 }

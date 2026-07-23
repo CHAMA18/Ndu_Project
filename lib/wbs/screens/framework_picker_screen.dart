@@ -1,10 +1,9 @@
-/// Framework Picker Screen — 3-step setup for a new WBS.
+/// Framework Picker Screen — 1-step setup for a new WBS.
 ///
-/// Step 1: Project name (Level 0 node)
-/// Step 2: Project methodology (Waterfall, Agile, Hybrid)
-/// Step 3: Framework selection (Agile + 5 Waterfall variations with ratings)
+/// Step 1: Framework selection (Agile + 5 Waterfall variations with ratings)
 ///
-/// The methodology determines the default framework and the depth structure.
+/// Methodology is auto-applied from the project's overall framework selection
+/// in Project Details. The user only picks the WBS decomposition framework.
 ///
 /// Rendered inside a [ResponsiveScaffold] so the standard app sidebar stays
 /// visible during setup. Light-mode (white) theme.
@@ -16,6 +15,7 @@ import 'package:provider/provider.dart';
 import 'package:ndu_project/theme.dart';
 import 'package:ndu_project/utils/project_data_helper.dart';
 import 'package:ndu_project/widgets/responsive_scaffold.dart';
+import 'package:ndu_project/widgets/review_confirmation_checkbox.dart';
 import 'package:ndu_project/wbs/models/wbs_models.dart';
 import 'package:ndu_project/wbs/providers/wbs_provider.dart';
 
@@ -30,6 +30,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   int _step = 0;
   ProjectMethodology? _methodology;
   WBSFramework? _framework;
+  bool _wbsConfirmed = false;
 
   @override
   void initState() {
@@ -126,6 +127,14 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
               Expanded(child: _buildStepContent()),
               // Footer nav
               const SizedBox(height: 24),
+              // Confirmation gate
+              ReviewConfirmationCheckbox(
+                value: _wbsConfirmed,
+                onChanged: (value) => setState(() => _wbsConfirmed = value),
+                padding: const EdgeInsets.only(bottom: 16),
+                label:
+                    'I confirm I have reviewed all information needs before the WBS section can be activated.',
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -138,7 +147,29 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
                   else
                     const SizedBox(width: 80),
                   FilledButton(
-                    onPressed: _canProceed() ? _handleNext : null,
+                    onPressed: _canProceed()
+                        ? _handleNext
+                        : () {
+                            if (_framework == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please select a WBS framework before proceeding.'),
+                                  backgroundColor: Color(0xFFD97706),
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            } else if (!_wbsConfirmed) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Please check the acknowledgment box above before proceeding.'),
+                                  backgroundColor: Color(0xFFD97706),
+                                  duration: Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          },
                     style: FilledButton.styleFrom(
                       backgroundColor: LightModeColors.accent,
                       foregroundColor: LightModeColors.lightOnPrimary,
@@ -162,11 +193,12 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
   }
 
   bool _canProceed() {
-    return _framework != null;
+    return _framework != null && _wbsConfirmed;
   }
 
   void _handleNext() {
     if (_framework == null) return;
+    final resolvedMethodology = _methodology ?? ProjectMethodology.waterfall;
     final projectData = ProjectDataHelper.getData(context);
     final resolvedProjectName = projectData.projectName.trim().isNotEmpty
         ? projectData.projectName.trim()
@@ -174,7 +206,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
     context.read<WBSProvider>().setup(
           projectName: resolvedProjectName,
           framework: _framework!,
-          methodology: _methodology!,
+          methodology: resolvedMethodology,
         );
     // Populate Level 1 nodes from project goals
     final goals = projectData.projectGoals;
@@ -215,147 +247,7 @@ class _FrameworkPickerScreenState extends State<FrameworkPickerScreen> {
     return _buildFrameworkStep();
   }
 
-  // ── STEP 1: Methodology ────────────────────────────────────────────
-
-  Widget _buildMethodologyStep() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text('Choose delivery methodology',
-            style: TextStyle(
-                color: Color(0xFF1A1D1F),
-                fontSize: 28,
-                fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        const Text(
-            'The methodology determines how your WBS is structured and decomposed.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
-        const SizedBox(height: 32),
-        Expanded(
-          child: ListView(
-            children: ProjectMethodology.values.map((m) {
-              final selected = _methodology == m;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => setState(() => _methodology = m),
-                    borderRadius: BorderRadius.circular(16),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? m.color.withValues(alpha: 0.08)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: selected ? m.color : const Color(0xFFE4E7EC),
-                          width: selected ? 2 : 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black
-                                .withValues(alpha: selected ? 0.08 : 0.03),
-                            blurRadius: selected ? 16 : 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          // Icon with colored circle
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? m.color.withValues(alpha: 0.15)
-                                  : const Color(0xFFF3F4F6),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(m.icon,
-                                color: selected
-                                    ? m.color
-                                    : const Color(0xFF6B7280),
-                                size: 26),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(m.label,
-                                        style: TextStyle(
-                                            color: selected
-                                                ? m.color
-                                                : const Color(0xFF1A1D1F),
-                                            fontSize: 17,
-                                            fontWeight: FontWeight.w700)),
-                                    if (selected) ...[
-                                      const SizedBox(width: 8),
-                                      Icon(Icons.check_circle,
-                                          color: m.color, size: 18),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  m.description,
-                                  style: const TextStyle(
-                                      color: Color(0xFF6B7280),
-                                      fontSize: 13,
-                                      height: 1.4),
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-        // Methodology info banner
-        if (_methodology != null)
-          Container(
-            margin: const EdgeInsets.only(top: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _methodology!.color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-              border:
-                  Border.all(color: _methodology!.color.withValues(alpha: 0.2)),
-            ),
-            child: Row(
-              children: [
-                Icon(_methodology!.icon, size: 16, color: _methodology!.color),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${_methodology!.label} project: max depth 8 (drill down to hours-of-work level)',
-                    style: TextStyle(
-                        color: _methodology!.color.withValues(alpha: 0.9),
-                        fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  // ── STEP 2: Framework ──────────────────────────────────────────────
+  // ── Framework Selection Step ────────────────────────────────────────
 
   Widget _buildFrameworkStep() {
     return Column(
