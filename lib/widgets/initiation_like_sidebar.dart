@@ -2485,7 +2485,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isDisabled: lockInterfaceManagement,
         ),
         _buildSubExpandableHeader(
-          'Agile Delivery Model',
+          'Agile Delivery',
           expanded: _agileWireframeExpanded,
           onTap: () => setState(() {
             _agileWireframeExpanded = !_agileWireframeExpanded;
@@ -2494,7 +2494,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isActive: _activeIn(_agileWireframeLabels),
         ),
         if (_agileWireframeExpanded) ...[
-          _buildSubSubMenuItem('Agile Delivery Model',
+          _buildSubSubMenuItem('Agile Delivery',
               onTap: _openAgileDeliveryModel,
               isActive: widget.activeItemLabel ==
                   'Agile Delivery Model - Delivery Model'),
@@ -3536,7 +3536,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
     if ('agile delivery model'.contains(query) ||
         'agile delivery plan'.contains(query) ||
         'agile delivery'.contains(query)) {
-      results.add(_buildMenuItem(Icons.route_outlined, 'Agile Delivery Model',
+      results.add(_buildMenuItem(Icons.route_outlined, 'Agile Delivery',
           onTap: _openAgileDeliveryModel,
           isActive: widget.activeItemLabel ==
               'Agile Delivery Model - Delivery Model'));

@@ -324,6 +324,11 @@ class PlanningPhaseNavigation {
       builder: (_) => const InterfaceManagementScreen(),
     ),
     PlanningPage(
+      id: 'agile_delivery_model',
+      title: 'Agile Delivery',
+      builder: (_) => const AgileDeliveryModelScreen(),
+    ),
+    PlanningPage(
       id: 'schedule',
       title: 'Schedule',
       builder: (_) => const ScheduleModuleScreen(),
