@@ -278,7 +278,7 @@ class _StakeholderIdentificationSectionState
   final confirmed = await showDeleteConfirmationDialog(
     context,
     title: 'Delete Stakeholder Row',
-    itemLabel: removed.name,
+    itemLabel: removed['stakeholderGroup'],
   );
   if (!confirmed) return;
   setState(() => _rows.removeAt(index));
