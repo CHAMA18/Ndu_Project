@@ -219,6 +219,7 @@ class ProjectDataModel {
   String orgWorkingHours = '40 hours/week'; // e.g., '40 hours/week'
   String orgLocation = ''; // 'Office' | 'Remote' | 'Hybrid' | 'Multi-site'
   String orgCommunicationMode = ''; // e.g., 'Email, Meetings, Slack'
+  String orgPlanDescription = ''; // Free-text description of the org plan structure
 
   // Control Accounts
   List<ControlAccount> controlAccounts;
@@ -424,6 +425,7 @@ class ProjectDataModel {
     this.orgWorkingHours = '40 hours/week',
     this.orgLocation = '',
     this.orgCommunicationMode = '',
+    this.orgPlanDescription = '',
   }) : confirmedPages = confirmedPages ?? <String>{},
        planningContracts = planningContracts ?? [],
        rateCards = rateCards ?? [],
@@ -623,6 +625,7 @@ class ProjectDataModel {
     String? orgWorkingHours,
     String? orgLocation,
     String? orgCommunicationMode,
+    String? orgPlanDescription,
     List<ControlAccount>? controlAccounts,
     List<ObsElement>? obsElements,
     List<CbsElement>? cbsElements,
@@ -807,6 +810,7 @@ class ProjectDataModel {
       orgWorkingHours: orgWorkingHours ?? this.orgWorkingHours,
       orgLocation: orgLocation ?? this.orgLocation,
       orgCommunicationMode: orgCommunicationMode ?? this.orgCommunicationMode,
+      orgPlanDescription: orgPlanDescription ?? this.orgPlanDescription,
       controlAccounts: controlAccounts ?? this.controlAccounts,
       obsElements: obsElements ?? this.obsElements,
       cbsElements: cbsElements ?? this.cbsElements,
@@ -1012,6 +1016,7 @@ class ProjectDataModel {
       'orgWorkingHours': orgWorkingHours,
       'orgLocation': orgLocation,
       'orgCommunicationMode': orgCommunicationMode,
+      'orgPlanDescription': orgPlanDescription,
       'designManagementData': designManagementData?.toJson(),
       'executionPhaseData': executionPhaseData?.toJson(),
       'workPackages': workPackages.map((wp) => wp.toJson()).toList(),
@@ -1458,6 +1463,7 @@ class ProjectDataModel {
       orgWorkingHours: json['orgWorkingHours']?.toString() ?? '40 hours/week',
       orgLocation: json['orgLocation']?.toString() ?? '',
       orgCommunicationMode: json['orgCommunicationMode']?.toString() ?? '',
+      orgPlanDescription: json['orgPlanDescription']?.toString() ?? '',
       workPackages: safeParseList('workPackages', WorkPackage.fromJson),
       controlAccounts: safeParseList(
         'controlAccounts',
@@ -4303,6 +4309,7 @@ class TeamMember {
   String role;
   String email;
   String responsibilities;
+  String reportsTo;
 
   TeamMember({
     String? id,
@@ -4310,6 +4317,7 @@ class TeamMember {
     this.role = '',
     this.email = '',
     this.responsibilities = '',
+    this.reportsTo = '',
   }) : id = id ?? _generateId();
 
   Map<String, dynamic> toJson() => {
@@ -4318,6 +4326,7 @@ class TeamMember {
     'role': role,
     'email': email,
     'responsibilities': responsibilities,
+    'reportsTo': reportsTo,
   };
 
   factory TeamMember.fromJson(Map<String, dynamic> json) {
@@ -4327,6 +4336,7 @@ class TeamMember {
       role: json['role'] ?? '',
       email: json['email'] ?? '',
       responsibilities: json['responsibilities'] ?? '',
+      reportsTo: json['reportsTo']?.toString() ?? '',
     );
   }
 

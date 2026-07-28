@@ -198,6 +198,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   };
 
   static const Set<String> _organizationPlanLabels = {
+    'Organization Plan - Base Plan',
     'Organization Plan - Roles & Responsibilities',
     'Organization Plan - RACI Matrix',
     'Organization Plan - Staffing Plan',
@@ -727,6 +728,7 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
       'deliverable_roadmap',
       'deliverables_roadmap',
       'project_baseline',
+      'organization_base_plan',
       'organization_roles_responsibilities',
       'organization_raci_matrix',
       'organization_staffing_plan',
@@ -1327,6 +1329,11 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
   void _openTeamTraining() {
     _navigateWithCheckpoint(
         'team_training', const TeamTrainingAndBuildingScreen());
+  }
+
+  void _openOrganizationBasePlan() {
+    _navigateWithCheckpoint(
+        'organization_base_plan', const OrganizationBasePlanScreen());
   }
 
   void _openOrganizationRolesResponsibilities() {
@@ -2385,6 +2392,10 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           isActive: _activeIn(_organizationPlanLabels),
         ),
         if (_organizationPlanExpanded) ...[
+          _buildSubSubMenuItem('Base Organisation Plan',
+              onTap: _openOrganizationBasePlan,
+              isActive: widget.activeItemLabel ==
+                  'Organization Plan - Base Plan'),
           _buildSubSubMenuItem('Roles & Responsibilities',
               onTap: _openOrganizationRolesResponsibilities,
               isActive: widget.activeItemLabel ==
@@ -3673,6 +3684,15 @@ class _InitiationLikeSidebarState extends State<InitiationLikeSidebar> {
           onTap: _openTeamTraining,
           isActive:
               widget.activeItemLabel == 'Team Training and Team Building'));
+    }
+    if ('base organisation plan'.contains(query) ||
+        'organisation plan'.contains(query) ||
+        'org plan'.contains(query)) {
+      results.add(_buildMenuItem(Icons.account_tree_outlined,
+          'Base Organisation Plan',
+          onTap: _openOrganizationBasePlan,
+          isActive:
+              widget.activeItemLabel == 'Organization Plan - Base Plan'));
     }
     if ('roles and responsibilities'.contains(query) ||
         'roles & responsibilities'.contains(query) ||

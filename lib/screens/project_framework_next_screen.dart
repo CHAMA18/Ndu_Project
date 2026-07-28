@@ -1786,20 +1786,21 @@ class _GoalCardWidgetState extends State<_GoalCardWidget> {
             child: Row(
               children: [
                 Expanded(
-                  child: VoiceTextField(
-                    controller: widget.titleController,
-                    focusNode: widget.titleFocusNode,
-                    decoration: InputDecoration(
-                      hintText: 'Goal ${widget.goalIndex + 1} Title',
-                      border: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
+                    child: VoiceTextField(
+                      controller: widget.titleController,
+                      focusNode: widget.titleFocusNode,
+                      maxLines: null,
+                      decoration: InputDecoration(
+                        hintText: 'Goal ${widget.goalIndex + 1} Title',
+                        border: InputBorder.none,
+                        isDense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          color: _kPrimaryText),
                     ),
-                    style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: _kPrimaryText),
-                  ),
                 ),
                 const SizedBox(width: 8),
                 // Priority badge pill

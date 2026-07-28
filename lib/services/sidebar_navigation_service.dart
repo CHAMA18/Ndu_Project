@@ -131,6 +131,9 @@ class SidebarNavigationService {
     SidebarItem(checkpoint: 'requirements', label: 'Requirements'),
     // Organization Plan sub-items
     SidebarItem(
+        checkpoint: 'organization_base_plan',
+        label: 'Base Organisation Plan'),
+    SidebarItem(
         checkpoint: 'organization_roles_responsibilities',
         label: 'Roles & Responsibilities'),
     SidebarItem(checkpoint: 'organization_raci_matrix', label: 'RACI Matrix'),

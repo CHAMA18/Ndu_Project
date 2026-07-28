@@ -89,6 +89,11 @@ class PlanningPhaseNavigation {
       builder: (_) => const PlanningRequirementsScreen(),
     ),
     PlanningPage(
+      id: 'organization_base_plan',
+      title: 'Base Organisation Plan',
+      builder: (_) => const OrganizationBasePlanScreen(),
+    ),
+    PlanningPage(
       id: 'organization_roles_responsibilities',
       title: 'Roles and Responsibilities',
       builder: (_) => const OrganizationRolesResponsibilitiesScreen(),
